@@ -1,0 +1,362 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body{
+    font-family: Inter;
+}
+
+.react-datepicker__day--selected {
+    background-color: #414651 !important;
+    color: white !important;
+  }
+  
+  .react-datepicker__day:hover {
+    background-color: rgba(149, 136, 179, 0.206);
+  }
+  
+  .react-datepicker__day--selected:focus {
+    border-color: #414651;
+  }
+
+  /* .react-datepicker-popper {
+    right: 0 !important;
+    left: auto !important;
+    margin-top: 60px !important;
+    transform: translateX(0) !important; 
+  }
+   */
+  .react-datepicker__triangle {
+    z-index: 9999 !important;
+  }
+
+
+  input[type="checkbox"] {
+    accent-color: #414651; /* sets the check and box color */
+  }
+
+  input[type="date"]{
+    accent-color: #414651;
+    color-scheme: #777;
+  }
+  
+  
+  /* Shrink flag icons inside react-phone-number-input */
+  .react-phone-input .react-phone-number-input__icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Selected time in purple */
+.react-datepicker__time-list-item--selected {
+  background-color: #414651 !important; /* purple */
+  color: white !important;
+  font-weight: 500;
+}
+
+/* Hover */
+.react-datepicker__time-list-item:hover {
+  background-color: #252B37 !important; /* light purple */
+  color: white !important;
+}
+
+/* datepicker.css */
+
+/* Selected day */
+.react-datepicker__day--selected,
+.react-datepicker__day--in-selecting-range,
+.react-datepicker__day--in-range,
+.react-datepicker__day--keyboard-selected {
+  background-color: #7f56d9 !important; /* Tailwind purple-500 */
+  color: white !important;
+  border-radius: 0.375rem !important; /* rounded-md */
+}
+
+/* Hover state */
+.react-datepicker__day:hover {
+  background-color: #c084fc !important; /* Tailwind purple-400 */
+  color: white !important;
+}
+
+/* Today’s date outline */
+.react-datepicker__day--today {
+  border: 1px solid #7f56d9 !important;
+}
+
+.react-datepicker__close-icon::after{
+  background-color: #c084fc !important;
+}
+
+section#react-aria2897468387-«r1» {
+  background-color: white;
+}
+
+.origin-\(--trigger-anchor-point\).will-change-transform {
+  background-color: white;
+}
+
+.ring,
+.ring-1,
+.ring-2,
+.ring-4,
+.ring-8,
+.focus\:ring,
+.focus\:ring-0,
+.focus\:ring-1,
+.focus\:ring-2,
+.focus\:ring-4,
+.focus\:ring-8 {
+  --tw-ring-offset-shadow: none !important;
+  --tw-ring-shadow: none !important;
+  border: 1px solid lightgray;
+}
+
+/* button[aria-label="Calendar"]{
+  text-align: left;
+  width: 700px;
+  font: normal;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+} */
+
+div[aria-label="Date picker referral"] > button[aria-label="Calendar"]{
+  text-align: left;
+  width: 825px;
+  font: normal;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+div[aria-label="Select time Hire"]{
+  text-align: left;
+  width: 825px;
+  font: normal;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+div[aria-label="Date picker client"] > button[aria-label="Calendar"]{
+  text-align: left;
+  width: 858px;
+  font: normal;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+div[aria-label="Date picker accident top"] > button[aria-label="Calendar"]{
+  text-align: left;
+  width: 400px;
+  font: normal;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+div[aria-label="Date picker accident service"] > button[aria-label="Calendar"]{
+  text-align: left;
+  width: 400px;
+  font: normal;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+div[aria-label="Report received date"] > button[aria-label="Calendar"]{
+  text-align: left;
+  width: 255px;
+  height: 44px;
+  font: normal;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+div[aria-label="Date picker small"] > button[aria-label="Calendar"]{
+  text-align: left;
+  width: 200px;
+  font: normal;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+div[aria-label="Date picker quest"] > button[aria-label="Calendar"]{
+  text-align: left;
+  width: 405%;
+  font: normal;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+[data-disabled="true"] {
+  cursor: not-allowed !important;
+  opacity: 0.5;
+}
+
+.react-datepicker-wrapper{
+  width: 389px;
+}
+
+.css-b62m3t-container {
+  width: 100%;
+}
+
+/* .react-tel-input .form-control {
+  position: relative;
+  font-size: 14px;
+  letter-spacing: .01rem;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-left: 48px;
+  margin-left: 0;
+  background: #FFFFFF;
+  border: 1px solid #CACACA;
+  border-radius: 5px;
+  line-height: 25px;
+  height: 44px !important;
+  width: 855px !important;
+  outline: none;
+} */
+
+input.w-auto.p-2.border.border-gray-300.rounded-lg.focus\:outline-none.focus\:ring-2.focus\:ring-custom-200 {
+  width: 100%;
+}
+
+.custom-progress-bar {
+  width: 100%; /* Make sure it's full width */
+  height: 10px; /* Set the height of the bar */
+  background-color: #e0e0e0; /* Light gray background for the bar */
+  border-radius: 5px; /* Rounded corners */
+}
+
+.custom-progress-bar-filled {
+  height: 100%;
+  background-color: #4caf50; /* Green progress color */
+  border-radius: 5px;
+  transition: width 1s ease-in-out; /* Smooth transition */
+}
+
+.custom-overlay {
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 9999999;
+}
+
+.custom-modal {
+  width: 150%;
+  height: 95%;
+  padding: 0;
+  margin: 0;
+  border-radius: 12px;
+  max-width: 150%;
+  max-height: 100%;
+}
+
+
+.flex.size-4.shrink-0.cursor-pointer.appearance-none.items-center.justify-center.rounded.ring-1.ring-inset.bg-brand-solid.ring-bg-brand-solid {
+  background-color: #F9F5FF;
+  border-color: #414651 !important;
+  color: #414651;
+}
+
+.datePickerHire{
+  width: 40px !important;
+}
+
+.right-side-modal {
+  position: fixed !important;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 400px; /* adjust width as needed */
+  max-width: 90vw;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: white;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-in-out;
+}
+
+/* When modal is open */
+.react-responsive-modal-overlay--open .right-side-modal {
+  transform: translateX(0);
+}
+
+
+
+:root {
+  --toastify-color-light: #fff;
+  --toastify-color-dark: #121212;
+  --toastify-color-info: #3498db;
+  --toastify-color-success: #414651;
+  --toastify-color-warning: #f1c40f;
+  --toastify-color-error: #d92d20;
+  --toastify-color-transparent: rgba(255, 255, 255, 0.7);
+  
+  --toastify-icon-color-info: var(--toastify-color-info);
+  --toastify-icon-color-success: var(--toastify-color-success);
+  --toastify-icon-color-warning: var(--toastify-color-warning);
+  --toastify-icon-color-error: var(--toastify-color-error);
+  
+  --toastify-container-width: fit-content;
+  --toastify-toast-width: 320px;
+  --toastify-toast-offset: 16px;
+  --toastify-toast-top: max(var(--toastify-toast-offset), env(safe-area-inset-top));
+  --toastify-toast-right: max(var(--toastify-toast-offset), env(safe-area-inset-right));
+  --toastify-toast-left: max(var(--toastify-toast-offset), env(safe-area-inset-left));
+  --toastify-toast-bottom: max(var(--toastify-toast-offset), env(safe-area-inset-bottom));
+  --toastify-toast-background: #fff;
+  --toastify-toast-padding: 14px;
+  --toastify-toast-min-height: 64px;
+  --toastify-toast-max-height: 800px;
+  --toastify-toast-bd-radius: 6px;
+  --toastify-toast-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  --toastify-font-family: sans-serif;
+  --toastify-z-index: 9999;
+  --toastify-text-color-light: #757575;
+  --toastify-text-color-dark: #fff;
+
+  /* Used only for colored theme */
+  --toastify-text-color-info: #fff;
+  --toastify-text-color-success: #fff;
+  --toastify-text-color-warning: #fff;
+  --toastify-text-color-error: #fff;
+
+  --toastify-spinner-color: #616161;
+  --toastify-spinner-color-empty-area: #e0e0e0;
+  --toastify-color-progress-light: linear-gradient(to right, #4cd964, #5ac8fa, #007aff, #34aadc, #5856d6, #ff2d55);
+  --toastify-color-progress-dark: #bb86fc;
+  --toastify-color-progress-info: var(--toastify-color-info);
+  --toastify-color-progress-success: var(--toastify-color-success);
+  --toastify-color-progress-warning: var(--toastify-color-warning);
+  --toastify-color-progress-error: var(--toastify-color-error);
+  /* used to control the opacity of the progress trail */
+  --toastify-color-progress-bgo: 0.2;
+}
+
+/* Add in your global CSS (e.g., styles.css or Tailwind layer) */
+.right-side-modal {
+  position: fixed !important;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 420px; /* or any max width you prefer */
+  margin: 0 !important;
+  background-color: white;
+  overflow-y: auto;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  animation: slideInRight 0.3s ease-out;
+  border-radius: 0 !important;
+}
+
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.4); /* Optional: dim background */
+}
+
+/* Optional slide-in effect */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}

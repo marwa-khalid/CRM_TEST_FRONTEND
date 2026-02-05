@@ -15,38 +15,78 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage("");
-    // ... (Your existing validation logic remains identical)
-    const storedUserRaw = localStorage.getItem("activeUser");
-    if (!storedUserRaw) {
-      setErrorMessage("Invalid Credentials");
-      return;
-    }
-    const storedUser = JSON.parse(storedUserRaw);
-    if (storedUser.email === email && storedUser.password === password) {
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      localStorage.setItem(
-        "pendingOTP",
-        JSON.stringify({
-          code: otpCode,
-          expiresAt: Date.now() + 5 * 60 * 1000,
-          email: email,
-        }),
-      );
-      const response = await fetch(
-        "https://emailbackend-ten.vercel.app/send-otp",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ recipientEmail: email, otp: otpCode }),
-        },
-      );
-      if (response.ok) navigate("/otp");
-    } else {
-      setErrorMessage(`Invalid Credentials.`);
-    }
-  };
+   e.preventDefault();
+   setErrorMessage("");
+
+   // 1. Check Lockout Status
+   const lockoutData = localStorage.getItem(`lockout_${email}`);
+   if (lockoutData) {
+     const { lockedUntil } = JSON.parse(lockoutData);
+     if (Date.now() < lockedUntil) {
+       navigate("/account-locked"); // Redirect if still locked
+       return;
+     } else {
+       // Lockout period expired, clear it
+       localStorage.removeItem(`lockout_${email}`);
+     }
+   }
+
+   // 2. Get user data
+   const storedUserRaw = localStorage.getItem("activeUser");
+   if (!storedUserRaw) {
+     setErrorMessage("Invalid Credentials");
+     return;
+   }
+   const storedUser = JSON.parse(storedUserRaw);
+
+   // 3. Validate Credentials
+   if (storedUser.email === email && storedUser.password === password) {
+     // SUCCESS: Clear any previous failed attempts
+     localStorage.removeItem(`attempts_${email}`);
+
+     // ... (Your existing OTP generation and fetch logic)
+     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+     localStorage.setItem(
+       "pendingOTP",
+       JSON.stringify({
+         code: otpCode,
+         expiresAt: Date.now() + 5 * 60 * 1000,
+         email: email,
+       }),
+     );
+     const response = await fetch(
+       "https://emailbackend-ten.vercel.app/send-otp",
+       {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ recipientEmail: email, otp: otpCode }),
+       },
+     );
+     if (response.ok) navigate("/otp");
+   } else {
+     // FAILURE: Increment attempts
+     const currentAttempts =
+       Number(localStorage.getItem(`attempts_${email}`)) || 0;
+     const newAttempts = currentAttempts + 1;
+
+     if (newAttempts >= 5) {
+       // LOCKOUT: Set for 5 minutes
+       const lockDuration = 5 * 60 * 1000;
+       const lockedUntil = Date.now() + lockDuration;
+
+       localStorage.setItem(
+         `lockout_${email}`,
+         JSON.stringify({ lockedUntil }),
+       );
+       localStorage.removeItem(`attempts_${email}`); // Reset attempts for next cycle
+
+       navigate("/account-locked");
+     } else {
+       localStorage.setItem(`attempts_${email}`, newAttempts.toString());
+       setErrorMessage(`Invalid Credentials.`);
+     }
+   }
+ };
 
   const [scale, setScale] = useState(1);
   const containerRef = useRef(null);
@@ -208,6 +248,7 @@ const Login = () => {
 
             <button
               type="submit"
+              onClick={handleSubmit}
               className="flex items-center justify-center w-[508px] px-10 py-4 bg-[#0352FD] rounded-[4px] hover:bg-[#0246d9] active:scale-[0.98] transition-all"
             >
               <span className="text-white text-[16px] font-medium">Login</span>

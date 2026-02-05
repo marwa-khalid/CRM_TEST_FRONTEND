@@ -4,13 +4,13 @@ import Signup from './modules/Signup/signup';
 import LoginPage from './modules/Login/login';
 import Dashboard from './modules/Dashboard/dashboard';
 import MainLayout from './Layout/layout';
-import Claims from './modules/Claims/ClaimsList';
-import ProfileSetting from './modules/Setting/ProfileSetting/ProfileSetting';
-import SystemConfigurations from './modules/Setting/SystemConfig/SystemConfig';
-import NewClaims from './modules/Claims/NewClaims';
+// import Claims from './modules/Claims/ClaimsList';
+// import ProfileSetting from './modules/Setting/ProfileSetting/ProfileSetting';
+// import SystemConfigurations from './modules/Setting/SystemConfig/SystemConfig';
+// import NewClaims from './modules/Claims/NewClaims';
 import { ToastContainer } from 'react-toastify';
-import Questionnaire from './modules/Questionnaire/Questionnaire';
-import CarDamageOverlay from './components/NewClaims/AIDamageDetection';
+// import Questionnaire from './modules/Questionnaire/Questionnaire';
+// import CarDamageOverlay from './components/NewClaims/AIDamageDetection';
 import OTPPage from './modules/Login/OTPPage';
 import ForgotPassword from './modules/Login/ForgotPassword';
 import AccountLocked from './modules/Login/AccountLocked';
@@ -32,6 +32,7 @@ const App: React.FC = () => {
       <Router>
         <Routes>
           {/* Public Route */}
+          <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/otp" element={<OTPPage />} />
           <Route path="/signup" element={<Signup />} />
@@ -50,20 +51,20 @@ const App: React.FC = () => {
           {/* Protected Routes with Layout */}
           <Route element={<MainLayout />}>
             {/* Dashboard Routes */}
-            <Route path="/" element={<Claims />} />
+            {/* <Route path="/" element={<Claims />} /> */}
             <Route path="/dashboard" element={<Dashboard />} />
 
             {/* Claims Routes */}
-            <Route path="/claims" element={<Claims />} />
+            {/* <Route path="/claims" element={<Claims />} />
 
             <Route path="/new-claim" element={<NewClaims />} />
-            <Route path="/claim/:id" element={<NewClaims />} />
-            <Route path="/questionnaire" element={<Questionnaire />} />
+            <Route path="/claim/:id" element={<NewClaims />} /> */}
+            {/* <Route path="/questionnaire" element={<Questionnaire />} /> */}
             {/* <Route path="/ai-damage" element={<CarDamageOverlay />} /> */}
             {/* Settings */}
 
-            <Route path="/settings/profile" element={<ProfileSetting />} />
-            <Route path="/settings/system" element={<SystemConfigurations />} />
+            {/* <Route path="/settings/profile" element={<ProfileSetting />} />
+            <Route path="/settings/system" element={<SystemConfigurations />} /> */}
           </Route>
         </Routes>
       </Router>

@@ -22,16 +22,19 @@ const ForgotPassword = () => {
     
     try {
       // 1. Call the send email endpoint
-      const response = await fetch("https://emailbackend-ten.vercel.app/send-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "https://emailbackend-ten.vercel.app/send-email",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            recipientEmail: email,
+            inviteLink: `https://crmtestfe.netlify.app/auth/reset-password?email=${email}&code=839201`,
+          }),
         },
-        body: JSON.stringify({
-          recipientEmail: email,
-          inviteLink: `http://localhost:5174/auth/reset-password?email=${email}&code=839201`,
-        }),
-      });
+      );
 
       if (response.ok) {
         // 2. Store OTP and Expiry in localStorage for the frontend to verify

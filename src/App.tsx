@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 // import Signup from './modules/Signup/signup';
 import LoginPage from './modules/Login/login';
-import Dashboard from './modules/Dashboard/Dashboard';
+import Dashboard from './modules/Dashboard/dashboard';
 import MainLayout from './Layout/layout';
 // import Claims from './modules/Claims/ClaimsList';
 // import ProfileSetting from './modules/Setting/ProfileSetting/ProfileSetting';

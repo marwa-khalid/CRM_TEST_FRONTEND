@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 // import Signup from './modules/Signup/signup';
 import LoginPage from './modules/Login/login';
-import Dashboard from './modules/Dashboard/dashboard';
+import Dashboard from './modules/Dashboard/Dashboard';
 import MainLayout from './Layout/layout';
 // import Claims from './modules/Claims/ClaimsList';
 // import ProfileSetting from './modules/Setting/ProfileSetting/ProfileSetting';
@@ -47,6 +47,7 @@ const App: React.FC = () => {
           <Route path="/email-templates2" element={<EmailTemplates2 />} />
           <Route path="/email-templates3" element={<EmailTemplates3 />} />
           <Route path="/send-mail" element={<SendMail />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           {/* Redirect to login if no route matches */}
           {/* Protected Routes with Layout */}
           <Route element={<MainLayout />}>

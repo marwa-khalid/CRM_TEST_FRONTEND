@@ -627,7 +627,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   };
   return (
     <div
-      className="bg-white w-full relative"
+      className="bg-white w-full min-h-screen relative overflow-hidden"
       data-model-id="5:137"
     >
       <div className="absolute top-[46px] left-[832px] w-px h-[3px] bg-neutral-100 rounded-lg" />

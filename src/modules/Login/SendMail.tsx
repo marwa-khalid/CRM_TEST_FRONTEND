@@ -20,7 +20,7 @@ const InviteUser = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             recipientEmail: email,
-            inviteLink: `http://localhost:5173/auth/reset-password?email=${email}&code=839201`,
+            inviteLink: `http://localhost:5174/auth/reset-password?email=${email}&code=839201`,
           }),
         },
       );
@@ -35,7 +35,7 @@ const InviteUser = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto my-auto mt-10 p-8 bg-white rounded-xl shadow-sm border border-gray-100 font-sans">
+    <div className="max-w-md mx-auto mt-20 p-8 bg-white rounded-xl shadow-sm border border-gray-100 font-sans">
       <div className="flex flex-col items-center mb-6">
         <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-3">
           <Mail className="text-[#0352FD] w-6 h-6" />
@@ -43,16 +43,13 @@ const InviteUser = () => {
         <h2 className="text-xl font-bold text-gray-800">
           Invite User to Proclaim
         </h2>
-        <p className="text-sm text-gray-500 text-center mt-1">
-          They will receive an activation link valid for 24 hours.
-        </p>
       </div>
 
       <div className="space-y-4">
         <div className="relative">
           <input
             type="email"
-            placeholder="colleague@company.com"
+            placeholder="you@autoclaim.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full pl-4 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0352FD] focus:border-transparent transition-all text-gray-700"

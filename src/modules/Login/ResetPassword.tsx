@@ -59,7 +59,7 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="bg-white w-full min-w-[1600px] min-h-[896px] relative font-sans">
+    <div className="bg-white w-full min-h-screen relative overflow-hidden font-sans">
       {/* Background & Decorative Elements (Same as your code) */}
       <img
         className="absolute top-0 left-0 w-[528px] h-[896px] object-cover"

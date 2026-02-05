@@ -22,7 +22,7 @@ const ResetPassword2 = () => {
 
   return (
     <div
-      className="bg-white w-full min-w-[1600px] min-h-[896px] relative"
+      className="bg-white w-full min-h-screen relative overflow-hidden"
       data-model-id="5:137"
     >
       <div className="absolute top-[46px] left-[832px] w-px h-[3px] bg-neutral-100 rounded-lg" />
@@ -130,7 +130,7 @@ const ResetPassword2 = () => {
               <button
                 className="text-[#0352FD] hover:underline focus:outline-none transition-all"
                 onClick={() => {
-                navigate("/login")
+                  navigate("/login");
                 }}
               >
                 log in

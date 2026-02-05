@@ -29,7 +29,7 @@ const ForgotPassword = () => {
         },
         body: JSON.stringify({
           recipientEmail: email,
-          inviteLink: `http://localhost:5173/auth/reset-password?email=${email}&code=839201`,
+          inviteLink: `http://localhost:5174/auth/reset-password?email=${email}&code=839201`,
         }),
       });
 
@@ -54,7 +54,7 @@ const ForgotPassword = () => {
   };
   return (
     <div
-      className="bg-white w-full min-w-[1600px] min-h-[896px] relative"
+      className="bg-white w-full min-h-screen relative overflow-hidden"
       data-model-id="5:137"
     >
       <div className="absolute top-[46px] left-[832px] w-px h-[3px] bg-neutral-100 rounded-lg" />
@@ -150,7 +150,8 @@ const ForgotPassword = () => {
           className="flex flex-col items-start gap-6 relative self-stretch w-full flex-[0_0_auto]"
         >
           <div className="flex flex-col items-start gap-5 relative self-stretch w-full flex-[0_0_auto]">
-            {errorMessage && <p>{errorMessage}</p>} <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
+            {errorMessage && <p>{errorMessage}</p>}{" "}
+            <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
               <label
                 htmlFor="email"
                 className="relative self-stretch text-[#444444] text-[14px] font-medium break-words"

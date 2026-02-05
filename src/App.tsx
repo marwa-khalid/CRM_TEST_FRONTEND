@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Signup from './modules/Signup/signup';
+// import Signup from './modules/Signup/signup';
 import LoginPage from './modules/Login/login';
 import Dashboard from './modules/Dashboard/dashboard';
 import MainLayout from './Layout/layout';
@@ -35,7 +35,7 @@ const App: React.FC = () => {
           <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/otp" element={<OTPPage />} />
-          <Route path="/signup" element={<Signup />} />
+          {/* <Route path="/signup" element={<Signup />} /> */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/forgot-password2" element={<ForgotPassword2 />} />
           <Route path="/auth/reset-password" element={<ResetPassword />} />

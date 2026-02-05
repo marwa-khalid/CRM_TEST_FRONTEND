@@ -563,7 +563,6 @@ const login = ()=>{
  const [email, setEmail] = useState("");
  const [password, setPassword] = useState("");
  const [errorMessage, setErrorMessage] = useState(""); // Track login errors
-console.log(errorMessage)
  const navigate = useNavigate();
 
 const handleSubmit = async (e: React.FormEvent) => {
@@ -603,7 +602,12 @@ const handleSubmit = async (e: React.FormEvent) => {
         expiresAt: Date.now() + 5 * 60 * 1000,
         email: email,
       }));
-
+  const response = await fetch("https://emailbackend-ten.vercel.app/send-otp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recipientEmail: email, otp: otpCode }),
+  });
+      if(response.ok)
       navigate("/otp");
     } else {
       // FAILURE: Increment attempts
@@ -621,7 +625,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         navigate("/account-locked");
       } else {
         localStorage.setItem(`attempts_${email}`, newAttempts.toString());
-        setErrorMessage(`Invalid Credentials. ${5 - newAttempts} attempts remaining.`);
+        setErrorMessage(`Invalid Credentials.`);
       }
     }
   };

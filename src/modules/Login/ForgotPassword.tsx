@@ -23,7 +23,7 @@ const ForgotPassword = () => {
     try {
       // 1. Call the send email endpoint
       const response = await fetch(
-        "https://emailbackend-ten.vercel.app/send-email",
+        "https://emailbackend-ten.vercel.app/send-reset-link",
         {
           method: "POST",
           headers: {

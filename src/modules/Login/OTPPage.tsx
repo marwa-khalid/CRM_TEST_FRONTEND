@@ -15,7 +15,6 @@ const OTPPage = () => {
   const [isResending, setIsResending] = useState(false);
   const [countdown, setCountdown] = useState(0); // Timer state
   const handleSubmit = (e: React.FormEvent) => {
-    console.log("text");
     e.preventDefault();
     setErrorMessage("");
 

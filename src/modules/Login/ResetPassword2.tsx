@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Subtractt from '../../assets/images/Subtractt.svg';
 import group from "../../assets/images/Group 2608219.svg";
 import background from "../../assets/images/background.png";
@@ -16,18 +16,48 @@ const ResetPassword2 = () => {
     console.log("Login submitted", { email, password });
   };
 
-  const handleForgotPassword = () => {
-    console.log("Forgot password clicked");
-  };
-
+ const [scale, setScale] = useState(1);
+    const containerRef = useRef(null);
+  
+    useEffect(() => {
+      const handleResize = () => {
+        const baseWidth = 1600;
+        const baseHeight = 903;
+  
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+  
+        const widthScale = windowWidth / baseWidth;
+        const heightScale = windowHeight / baseHeight;
+  
+        // REMOVED Math.min(..., 1) so it expands to fill large screens
+        // Using Math.max ensures the whole screen is covered (no white space)
+        const newScale = Math.max(widthScale, heightScale);
+  
+        setScale(newScale);
+      };
+  
+      window.addEventListener("resize", handleResize);
+      handleResize();
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+  
   return (
-    <div
-      className="bg-white w-full min-h-screen relative overflow-hidden"
-      data-model-id="5:137"
-    >
+    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white">
+      <div
+        ref={containerRef}
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: "center center",
+          width: "1600px", // Changed from minWidth to width for strictness
+          height: "903px",
+          flexShrink: 0,
+        }}
+        className="bg-white relative overflow-hidden shadow-2xl"
+      >
       <div className="absolute top-[46px] left-[832px] w-px h-[3px] bg-neutral-100 rounded-lg" />
       <img
-        className="absolute top-[calc(50.00%_-_448px)] left-0 w-[528px] h-[896px] object-cover"
+        className="absolute top-0 left-0 w-[528px] h-full object-cover"
         alt="Background"
         src={background}
       />
@@ -140,6 +170,7 @@ const ResetPassword2 = () => {
           </div>
         </form>
       </div>
+    </div>
     </div>
   );
 };

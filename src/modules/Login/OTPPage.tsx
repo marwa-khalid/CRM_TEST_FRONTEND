@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Subtractt from '../../assets/images/Subtractt.svg';
 import group from "../../assets/images/Group 2608219.svg";
 import background from "../../assets/images/background.png";
@@ -45,6 +45,31 @@ const OTPPage = () => {
       );
     }
   };
+    const [scale, setScale] = useState(1);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+      const handleResize = () => {
+        const baseWidth = 1600;
+        const baseHeight = 903;
+
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        const widthScale = windowWidth / baseWidth;
+        const heightScale = windowHeight / baseHeight;
+
+        // REMOVED Math.min(..., 1) so it expands to fill large screens
+        // Using Math.max ensures the whole screen is covered (no white space)
+        const newScale = Math.max(widthScale, heightScale);
+
+        setScale(newScale);
+      };
+
+      window.addEventListener("resize", handleResize);
+      handleResize();
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
   // Handle the countdown timer
   useEffect(() => {
     if (countdown > 0) {
@@ -111,169 +136,178 @@ const OTPPage = () => {
     }
   };
   return (
-    <div
-      className="bg-white w-full min-h-screen relative overflow-hidden"
-      data-model-id="5:137"
-    >
-      <div className="absolute top-[46px] left-[832px] w-px h-[3px] bg-neutral-100 rounded-lg" />
-
-      <img
-        className="absolute top-[calc(50.00%_-_448px)] left-0 w-[528px] h-[896px] object-cover"
-        alt="Background"
-        src={background}
-      />
-
-      <img
-        className="absolute top-[332px] left-[195px] w-[333px] h-[563px]"
-        alt="Decorative graphic"
-        src={Subtractt}
-      />
-
-      <div className="flex flex-col w-[459px] items-start gap-6 absolute top-[113px] left-[35px]">
-        <img
-          className="relative w-[32.31px] h-[31px]"
-          alt="AutoClaim logo"
-          src={group}
-        />
-
-        <h1 className="relative w-fit text-white text-[40px] font-semibold leading-[40px] break-words font-sans">
-          All Your Claims,
-          <br />
-          One Smart Platform
-        </h1>
-
-        <p className="relative w-[431px] text-white text-[24px] font-semibold leading-[24px] break-words">
-          Centralized CRM to track, process, and resolve claims smarter
-        </p>
-      </div>
-
+    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white">
       <div
-        className="inline-flex items-center gap-2 absolute top-[352px] left-10"
-        role="group"
-        aria-label="Carousel indicators"
+        ref={containerRef}
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: "center center",
+          width: "1600px", // Changed from minWidth to width for strictness
+          height: "903px",
+          flexShrink: 0,
+        }}
+        className="bg-white relative overflow-hidden shadow-2xl"
       >
-        <div
-          className="relative w-3 h-3 bg-[#2c60f1] rounded-md aspect-[1]"
-          aria-label="Slide 1 of 3"
-          aria-current="true"
-        />
-        <div
-          className="relative w-3 h-3 bg-white rounded-md aspect-[1] opacity-[0.62]"
-          aria-label="Slide 2 of 3"
-        />
-        <div
-          className="relative w-3 h-3 bg-white rounded-md aspect-[1] opacity-[0.62]"
-          aria-label="Slide 3 of 3"
-        />
-      </div>
+        <div className="absolute top-[46px] left-[832px] w-px h-[3px] bg-neutral-100 rounded-lg" />
 
-      <img
-        className="absolute w-[404px] h-[435px] top-[461px] left-[1196px]"
-        alt="Decorative illustration"
-        src={group2}
-      />
-
-      <div className="absolute top-[113px] left-[810px] w-[101px] h-[31px]">
         <img
-          className="absolute top-0 left-0 w-[18px] h-[31px]"
-          alt=""
-          src={subtract1}
+          className="absolute top-0 left-0 w-[528px] h-full object-cover"
+          alt="Background"
+          src={background}
         />
 
-        <div className="absolute top-2 left-[31px] [font-family:'Stack_Sans_Headline',Helvetica] font-semibold text-black text-xs tracking-[0] leading-[normal]">
-          AUTOCLAIM
+        <img
+          className="absolute top-[332px] left-[195px] w-[333px] h-[563px]"
+          alt="Decorative graphic"
+          src={Subtractt}
+        />
+
+        <div className="flex flex-col w-[459px] items-start gap-6 absolute top-[113px] left-[35px]">
+          <img
+            className="relative w-[32.31px] h-[31px]"
+            alt="AutoClaim logo"
+            src={group}
+          />
+
+          <h1 className="relative w-fit text-white text-[40px] font-semibold leading-[40px] break-words font-sans">
+            All Your Claims,
+            <br />
+            One Smart Platform
+          </h1>
+
+          <p className="relative w-[431px] text-white text-[24px] font-semibold leading-[24px] break-words">
+            Centralized CRM to track, process, and resolve claims smarter
+          </p>
+        </div>
+
+        <div
+          className="inline-flex items-center gap-2 absolute top-[352px] left-10"
+          role="group"
+          aria-label="Carousel indicators"
+        >
+          <div
+            className="relative w-3 h-3 bg-[#2c60f1] rounded-md aspect-[1]"
+            aria-label="Slide 1 of 3"
+            aria-current="true"
+          />
+          <div
+            className="relative w-3 h-3 bg-white rounded-md aspect-[1] opacity-[0.62]"
+            aria-label="Slide 2 of 3"
+          />
+          <div
+            className="relative w-3 h-3 bg-white rounded-md aspect-[1] opacity-[0.62]"
+            aria-label="Slide 3 of 3"
+          />
         </div>
 
         <img
-          className="absolute top-[7px] left-[15px] w-3 h-[17px]"
-          alt=""
-          src={union}
+          className="absolute w-[404px] h-[435px] top-[461px] left-[1196px]"
+          alt="Decorative illustration"
+          src={group2}
         />
-      </div>
 
-      <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[197px] left-[810px]">
-        <h2 className="relative self-stretch text-black text-[24px] font-semibold leading-[24px] break-words">
-          Verify OTP
-        </h2>
+        <div className="absolute top-[113px] left-[810px] w-[101px] h-[31px]">
+          <img
+            className="absolute top-0 left-0 w-[18px] h-[31px]"
+            alt=""
+            src={subtract1}
+          />
 
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col items-start gap-6 relative self-stretch w-full flex-[0_0_auto]"
-        >
-          <div className="flex flex-col items-start gap-5 relative self-stretch w-full flex-[0_0_auto]">
-            {errorMessage && (
-              <div className="flex flex-col gap-4 w-full items-center">
-                <div className="w-[508px] px-5 py-3 bg-red-50 rounded inline-flex justify-start items-start gap-3 border border-red-100">
-                  <div className="w-5 h-5 relative flex-shrink-0">
-                    <img src={Vector} alt="" />
-                  </div>
-                  <div className="text-neutral-700 text-sm font-normal font-['Stack_Sans_Headline']">
-                    {errorMessage}
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
-              <label
-                htmlFor="email"
-                className="relative self-stretch text-[#444444] text-[14px] font-medium break-words"
-              >
-                OTP
-              </label>
-
-              <div className="flex items-center self-stretch px-5 py-4 bg-white rounded-[4px] outline outline-1 outline-[#CCCCCC] -outline-offset-1 gap-[10px]">
-                <input
-                  type="text"
-                  id="otp"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} // Only allow numbers
-                  // placeholder="000000"
-                  className="w-full bg-transparent text-[16px] tracking-[0.5em] font-semibold outline-none"
-                />
-              </div>
-            </div>
+          <div className="absolute top-2 left-[31px] [font-family:'Stack_Sans_Headline',Helvetica] font-semibold text-black text-xs tracking-[0] leading-[normal]">
+            AUTOCLAIM
           </div>
 
-          {/* <button
+          <img
+            className="absolute top-[7px] left-[15px] w-3 h-[17px]"
+            alt=""
+            src={union}
+          />
+        </div>
+
+        <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[197px] left-[810px]">
+          <h2 className="relative self-stretch text-black text-[24px] font-semibold leading-[24px] break-words">
+            Verify OTP
+          </h2>
+
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col items-start gap-6 relative self-stretch w-full flex-[0_0_auto]"
+          >
+            <div className="flex flex-col items-start gap-5 relative self-stretch w-full flex-[0_0_auto]">
+              {errorMessage && (
+                <div className="flex flex-col gap-4 w-full items-center">
+                  <div className="w-[508px] px-5 py-3 bg-red-50 rounded inline-flex justify-start items-start gap-3 border border-red-100">
+                    <div className="w-5 h-5 relative flex-shrink-0">
+                      <img src={Vector} alt="" />
+                    </div>
+                    <div className="text-neutral-700 text-sm font-normal font-['Stack_Sans_Headline']">
+                      {errorMessage}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
+                <label
+                  htmlFor="email"
+                  className="relative self-stretch text-[#444444] text-[14px] font-medium break-words"
+                >
+                  OTP
+                </label>
+
+                <div className="flex items-center self-stretch px-5 py-4 bg-white rounded-[4px] outline outline-1 outline-[#CCCCCC] -outline-offset-1 gap-[10px]">
+                  <input
+                    type="text"
+                    id="otp"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} // Only allow numbers
+                    // placeholder="000000"
+                    className="w-full bg-transparent text-[16px] tracking-[0.5em] font-semibold outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* <button
             type="button"
             onClick={handleForgotPassword}
             className="relative self-stretch font-CTA-link text-[#0352FD] text-[14px] text-[#0352fd] tracking-[var(--CTA-link-letter-spacing)] leading-[var(--CTA-link-line-height)] [font-style:var(--CTA-link-font-style)] text-left cursor-pointer hover:underline"
           >
             Forgot Password
           </button> */}
-          <div className="flex items-start justify-start w-full">
-            <p className="text-[14px] font-normal">
-              <span className="text-[#444444]">Didn’t Receive OTP? </span>
-              <button
-                type="button"
-                disabled={countdown > 0 || isResending}
-                onClick={handleResendOTP}
-                className={`font-medium transition-all ${
-                  countdown > 0 || isResending
-                    ? "text-gray-400 cursor-not-allowed"
-                    : "text-[#0352FD] hover:underline cursor-pointer"
-                }`}
-              >
-                {isResending
-                  ? "Sending..."
-                  : countdown > 0
-                    ? `Resend in ${countdown}s`
-                    : "Resend"}
-              </button>
-            </p>
-          </div>
-        </form>
-        <button
-          type="submit"
-          onClick={handleSubmit}
-          className="flex items-center justify-center w-[508px] px-10 py-4 bg-[#0352FD] rounded-[4px] gap-[10px] hover:bg-[#0246d9] active:scale-[0.98] transition-all group"
-        >
-          <span className="text-white text-[16px] font-medium leading-[16px] break-words">
-            {" "}
-            Verify and Continue
-          </span>
-        </button>
+            <div className="flex items-start justify-start w-full">
+              <p className="text-[14px] font-normal">
+                <span className="text-[#444444]">Didn’t Receive OTP? </span>
+                <button
+                  type="button"
+                  disabled={countdown > 0 || isResending}
+                  onClick={handleResendOTP}
+                  className={`font-medium transition-all ${
+                    countdown > 0 || isResending
+                      ? "text-gray-400 cursor-not-allowed"
+                      : "text-[#0352FD] hover:underline cursor-pointer"
+                  }`}
+                >
+                  {isResending
+                    ? "Sending..."
+                    : countdown > 0
+                      ? `Resend in ${countdown}s`
+                      : "Resend"}
+                </button>
+              </p>
+            </div>
+          </form>
+          <button
+            type="submit"
+            onClick={handleSubmit}
+            className="flex items-center justify-center w-[508px] px-10 py-4 bg-[#0352FD] rounded-[4px] gap-[10px] hover:bg-[#0246d9] active:scale-[0.98] transition-all group"
+          >
+            <span className="text-white text-[16px] font-medium leading-[16px] break-words">
+              {" "}
+              Verify and Continue
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import background from "../../assets/images/background.png";
 import group2 from "../../assets/images/group-2608221.svg";
 import subtract1 from "../../assets/images/subtract-1.svg";
 import Vector from "../../assets/images/Vector.svg";
+import Vector2 from "../../assets/images/Vector2.svg";
 import union from "../../assets/images/union.svg";
 import { useNavigate } from "react-router-dom";
 
@@ -30,7 +31,9 @@ const OTPPage = () => {
 
     // 2. Check for Expiry
     if (Date.now() > expiresAt) {
-      setErrorMessage("This OTP has expired. Please click Resend.");
+      setErrorMessage(
+        "The verification code has expired/is incorrect. Please request a new code",
+      );
       return;
     }
 
@@ -41,7 +44,7 @@ const OTPPage = () => {
       navigate("/single-signon"); // Or wherever your landing page is
     } else {
       setErrorMessage(
-        "Invalid OTP code. Please check your email and try again.",
+        "The verification code has expired/is incorrect. Please request a new code",
       );
     }
   };
@@ -80,7 +83,7 @@ const OTPPage = () => {
 
   const handleResendOTP = async () => {
     if (countdown > 0) return; // Prevent clicking if timer is active
-
+    setOtp("")
     setIsResending(true);
     setErrorMessage("");
 
@@ -96,7 +99,9 @@ const OTPPage = () => {
         : null;
 
     if (!email) {
-      setErrorMessage("Session lost. Please go back and login again.");
+      setErrorMessage(
+        "The verification code has expired/is incorrect. Please request a new code",
+      );
       setIsResending(false);
       return;
     }
@@ -127,10 +132,14 @@ const OTPPage = () => {
         setCountdown(60); // Start 60s cooldown
         console.log("New OTP sent!");
       } else {
-        setErrorMessage("Failed to resend OTP. Please try again later.");
+        setErrorMessage(
+          "The verification code has expired/is incorrect. Please request a new code",
+        );
       }
     } catch (error) {
-      setErrorMessage("Connection error. Check if backend is running.");
+      setErrorMessage(
+        "The verification code has expired/is incorrect. Please request a new code",
+      );
     } finally {
       setIsResending(false);
     }
@@ -234,16 +243,19 @@ const OTPPage = () => {
             className="flex flex-col items-start gap-6 relative self-stretch w-full flex-[0_0_auto]"
           >
             <div className="flex flex-col items-start gap-5 relative self-stretch w-full flex-[0_0_auto]">
+              <div className="w-full px-5 py-3 bg-blue-50 rounded flex justify-start items-center gap-3 border border-blue-100">
+                <img src={Vector2} className="w-5 h-5" alt="" />
+                <div className="text-neutral-700 text-sm">
+                  Please check your inbox for OTP
+                </div>
+              </div>
               {errorMessage && (
-                <div className="flex flex-col gap-4 w-full items-center">
-                  <div className="w-[508px] px-5 py-3 bg-red-50 rounded inline-flex justify-start items-start gap-3 border border-red-100">
-                    <div className="w-5 h-5 relative flex-shrink-0">
-                      <img src={Vector} alt="" />
-                    </div>
-                    <div className="text-neutral-700 text-sm font-normal font-['Stack_Sans_Headline']">
+                  <div className="w-full px-5 py-3 bg-red-50 rounded flex justify-start items-center gap-3 border border-red-100">
+                    <img src={Vector} className="w-5 h-5" alt="" />
+
+                    <div className="text-neutral-700 text-sm">
                       {errorMessage}
                     </div>
-                  </div>
                 </div>
               )}
               <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">

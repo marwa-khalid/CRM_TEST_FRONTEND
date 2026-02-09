@@ -96,6 +96,8 @@ const ResetPassword = () => {
         }}
         className="bg-white relative overflow-hidden shadow-2xl"
       >
+        <div className="absolute top-[46px] left-[832px] w-px h-[3px] bg-neutral-100 rounded-lg" />
+
         <img
           className="absolute top-0 left-0 w-[528px] h-full object-cover"
           alt="Background"
@@ -103,7 +105,7 @@ const ResetPassword = () => {
         />
         <img
           className="absolute top-[332px] left-[195px] w-[333px] h-[563px]"
-          alt="Graphic"
+          alt="Decorative graphic"
           src={Subtractt}
         />
         {/* Header Info */}
@@ -113,12 +115,30 @@ const ResetPassword = () => {
             alt="Logo"
             src={group}
           />
-          <h1 className="text-white text-[40px] font-semibold">
+          <h1 className="relative w-fit text-white text-[40px] font-semibold leading-[40px] break-words font-sans">
             All Your Claims,
             <br />
             One Smart Platform
           </h1>
+          <p className="relative w-[431px] text-white text-[24px] font-semibold leading-[24px] break-words">
+            Centralized CRM to track, process, and resolve claims smarter
+          </p>
         </div>
+        <div
+          className="inline-flex items-center gap-2 absolute top-[352px] left-10"
+          role="group"
+        >
+          <div className="relative w-3 h-3 bg-[#2c60f1] rounded-md" />
+          <div className="relative w-3 h-3 bg-white rounded-md opacity-[0.62]" />
+          <div className="relative w-3 h-3 bg-white rounded-md opacity-[0.62]" />
+        </div>
+
+        <img
+          className="absolute w-[404px] h-[435px] top-[461px] left-[1196px]"
+          alt="Decorative illustration"
+          src={group2}
+        />
+
         <button
           className="absolute top-[113px] left-[678px] w-[101px] h-[31px] inline-flex items-center justify-start gap-[12px] group focus:outline-none"
           onClick={() => {

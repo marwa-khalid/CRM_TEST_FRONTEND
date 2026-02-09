@@ -142,7 +142,7 @@ const Login = () => {
           alt="Decorative graphic"
           src={Subtractt}
         />
-
+        {/* Header Info */}
         <div className="flex flex-col w-[459px] items-start gap-6 absolute top-[113px] left-[35px]">
           <img
             className="relative w-[32.31px] h-[31px]"

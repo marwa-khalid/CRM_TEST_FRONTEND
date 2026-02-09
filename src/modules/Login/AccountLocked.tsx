@@ -12,6 +12,16 @@ const AccountLocked = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const [countdown, setCountdown] = useState(0);
+  useEffect(() => {
+   setCountdown(60)
+  },[])
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Login submitted", { email, password });
@@ -180,6 +190,7 @@ const AccountLocked = () => {
           >
             Forgot Password
           </button> */}
+            <div className="flex flex-end items-end">{countdown}s</div>
             <div className="flex items-start justify-start gap-[24px]">
               {/* Reset Password Button */}
               <button

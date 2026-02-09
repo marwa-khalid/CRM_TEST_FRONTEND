@@ -23,6 +23,7 @@ import EmailTemplates1 from './modules/Login/EmailTemplates1';
 import EmailTemplates2 from './modules/Login/EmailTemplates2';
 import EmailTemplates3 from './modules/Login/EmailTemplates3';
 import SendMail from './modules/Login/SendMail';
+import AddClaimPage from "./modules/Claims/AddClaimPage";
 
 const App: React.FC = () => {
 
@@ -48,13 +49,14 @@ const App: React.FC = () => {
           <Route path="/email-templates3" element={<EmailTemplates3 />} />
           <Route path="/send-mail" element={<SendMail />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/add-claim" element={<AddClaimPage />} />
           {/* Redirect to login if no route matches */}
           {/* Protected Routes with Layout */}
           <Route element={<MainLayout />}>
             {/* Dashboard Routes */}
             {/* <Route path="/" element={<Claims />} /> */}
             <Route path="/dashboard" element={<Dashboard />} />
-
+            <Route path="/add-claim" element={<AddClaimPage />} />
             {/* Claims Routes */}
             {/* <Route path="/claims" element={<Claims />} />
 

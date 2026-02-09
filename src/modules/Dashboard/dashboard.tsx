@@ -642,6 +642,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import Logo from "../../assets/images/Group 2608219.svg";
+import { useNavigate } from 'react-router-dom';
 const Dashboard: React.FC = () => {
   const sidebarItems = [
     { name: "Dashboard", icon: LayoutDashboard, active: false },
@@ -662,7 +663,7 @@ const Dashboard: React.FC = () => {
     status: "PENDING",
     priority: "HIGH",
   });
-
+const navigate = useNavigate()
   return (
     <div className="flex min-h-screen bg-white font-sans">
       {/* SIDEBAR */}
@@ -739,7 +740,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* ACTION BUTTON */}
-            <button className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold text-sm hover:bg-blue-700 transition-all shadow-md active:scale-95">
+            <button className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold text-sm hover:bg-blue-700 transition-all shadow-md active:scale-95" onClick={()=>navigate("/add-claim")}>
               <Plus size={18} />
               Add New Claim
             </button>

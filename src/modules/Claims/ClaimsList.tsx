@@ -8,7 +8,7 @@ import {
 } from "../../services/Claims/Claims.tsx";
 import "react-datepicker/dist/react-datepicker.css";
 import { useDispatch } from "react-redux";
-import { setIsClosed } from "../../redux/Claim/claimSlice.tsx";
+// import { setIsClosed } from "../../redux/Claim/claimSlice.tsx";
 import type { SortDescriptor } from "react-aria-components";
 import { DateRangePicker } from "../../components/application/date-picker/date-range-picker.tsx";
 import {

@@ -125,7 +125,7 @@ function Claims() {
   useEffect(() => {
     fetchClaims();
     dispatch({ type: "RESET_STORE" });
-    dispatch(setIsClosed(false));
+    // dispatch(setIsClosed(false));
   }, []);
 
   useEffect(() => {

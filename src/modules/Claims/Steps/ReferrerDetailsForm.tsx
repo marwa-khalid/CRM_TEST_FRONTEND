@@ -25,7 +25,19 @@ const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>) => {
     </components.DropdownIndicator>
   );
 };
-
+const usePersistedStep = <T,>(
+  key: string,
+  defaultValue: T,
+): [T, (val: T | ((prev: T) => T)) => void] => {
+  const [state, setState] = useState<T>(() => {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : defaultValue;
+  });
+  useEffect(() => {
+    localStorage.setItem(key, JSON.stringify(state));
+  }, [key, state]);
+  return [state, setState];
+};
 // Common custom styles for react-select
 const customStyles: StylesConfig<any, false> = {
   control: (base, state) => ({
@@ -83,23 +95,43 @@ export const ReferrerDetailsForm = () => {
     tel: "",
     email: "",
   });
+  // 1. Centralized Persisted State for Step 2
+  const [step2Data, setStep2Data] = usePersistedStep("step2", {
+    companyName: "",
+    address: "",
+    postcode: "",
+    contactName: "",
+    tel: "",
+    email: "",
+    onHireAmount: "",
+    offHireAmount: "",
+    congestionCharges: "",
+    otherCharges: "",
+    onHireDate: null as string | Date | null,
+    offHireDate: null as string | Date | null,
+    solicitor: "",
+    thirdPartyCapture: "Allowed",
+  });
 
+  // 2. Helper to update fields
+  const updateField = (field: string, value: any) => {
+    setStep2Data((prev) => ({ ...prev, [field]: value }));
+  };
   // Filter list based on search term
   const filteredReferrers = REFERRERS_MASTER_LIST.filter((r) =>
     r.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const handleSelectReferrer = (
-    referrer: (typeof REFERRERS_MASTER_LIST)[0],
-  ) => {
-    setFormData({
+  const handleSelectReferrer = (referrer: any) => {
+    setStep2Data((prev) => ({
+      ...prev,
       companyName: referrer.name,
       address: referrer.address,
       postcode: referrer.postcode,
       contactName: referrer.contactName,
       tel: referrer.tel,
       email: referrer.email,
-    });
+    }));
     setSearchTerm(referrer.name);
     setShowDropdown(false);
   };
@@ -617,4 +649,4 @@ export const ReferrerDetailsForm = () => {
       </div>
     </div>
   );
-};;
+};;;

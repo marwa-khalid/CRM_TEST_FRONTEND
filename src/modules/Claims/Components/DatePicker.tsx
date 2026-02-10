@@ -26,12 +26,19 @@ export const CustomDatePicker = ({
   selectedDate: Date;
   onDateSelect: (d: Date) => void;
 }) => {
-  const [view, setView] = useState<"days" | "months">("days");
-  const [navDate, setNavDate] = useState(new Date(selectedDate)); // Date used for navigation navigation
+const safeSelectedDate = selectedDate
+  ? typeof selectedDate === "string"
+    ? new Date(selectedDate)
+    : selectedDate
+  : new Date();
 
-  const year = navDate.getFullYear();
-  const month = navDate.getMonth();
+const [view, setView] = useState<"days" | "months">("days");
 
+// 2. USE THE SAFE DATE: For your navigation state
+const [navDate, setNavDate] = useState(new Date(safeSelectedDate));
+
+const year = navDate.getFullYear();
+const month = navDate.getMonth();
   // Calendar Math
   const getDaysInMonth = (y: number, m: number) =>
     new Date(y, m + 1, 0).getDate();
@@ -98,16 +105,18 @@ export const CustomDatePicker = ({
               {/* Current Month Days */}
               {[...Array(getDaysInMonth(year, month))].map((_, i) => {
                 const day = i + 1;
+
+                // 3. USE SAFE DATE FOR COMPARISON:
                 const isSelected =
-                  selectedDate.getDate() === day &&
-                  selectedDate.getMonth() === month &&
-                  selectedDate.getFullYear() === year;
+                  safeSelectedDate.getDate() === day &&
+                  safeSelectedDate.getMonth() === month &&
+                  safeSelectedDate.getFullYear() === year;
                 return (
                   <button
                     key={day}
                     onClick={() => handleDaySelect(day)}
                     className={`w-8 h-8 rounded text-xs font-semibold flex items-center justify-center transition-all
-                      ${isSelected ? "bg-blue-500 text-white shadow-md" : "text-gray-700 hover:bg-blue-50"}`}
+          ${isSelected ? "bg-blue-500 text-white shadow-md" : "text-gray-700 hover:bg-blue-50"}`}
                   >
                     {day}
                   </button>

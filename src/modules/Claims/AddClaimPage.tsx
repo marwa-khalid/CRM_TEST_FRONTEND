@@ -8,7 +8,11 @@ import { ClientDetailsForm } from "./Steps/ClientDetailsForm";
 const AddClaimPage = () => {
   // 1. Manage current step index
   const [currentStep, setCurrentStep] = useState(0);
-
+const handleNext = () => {
+  if (currentStep < steps.length - 1) {
+    setCurrentStep((prev) => prev + 1);
+  }
+};
   const steps = [
     { label: "General Details" },
     { label: "Referrer Details" },
@@ -47,7 +51,7 @@ const AddClaimPage = () => {
 
   return (
     <div className="flex flex-col h-screen w-full bg-white overflow-hidden">
-      <Header />
+      <Header onNext={handleNext} />
 
       <div className="flex flex-1 overflow-hidden pt-6">
         <div className="pl-10 h-full">

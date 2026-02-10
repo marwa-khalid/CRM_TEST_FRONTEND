@@ -54,8 +54,42 @@ const customStyles: StylesConfig<any, false> = {
 };
 
 export const GeneralDetailsForm = () => {
-  const [findUsSource, setFindUsSource] = useState<any>(null);
-  const [goingAbroad, setGoingAbroad] = useState(false);
+  const usePersistedStep = <T,>(
+    key: string,
+    defaultValue: T,
+  ): [T, (val: T | ((prev: T) => T)) => void] => {
+    const [state, setState] = useState<T>(() => {
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : defaultValue;
+    });
+
+    useEffect(() => {
+      localStorage.setItem(key, JSON.stringify(state));
+    }, [key, state]);
+
+    return [state, setState];
+  };
+  const [step1Data, setStep1Data] = usePersistedStep("step1", {
+    claimType: null,
+    handler: null,
+    targetDebt: null,
+    staffMemberName:null,
+    findUsSource: null,
+    caseStatus: null,
+    creditHire: false,
+    nonFaultAccident:false,
+    nonFault: null,
+    passengers: null,
+    clientInjured: null,
+    prospects: null,
+    goingAbroad: false,
+    selectedDate: null,
+    presentPosition: null,
+  });
+  // 2. Helper to update nested fields without losing others
+  const updateField = (field: string, value: any) => {
+    setStep1Data((prev) => ({ ...prev, [field]: value }));
+  };
   // Options from Document
   const claimTypeOptions = [
     { value: "RTA-NA", label: "RTA - NA" },
@@ -89,7 +123,6 @@ export const GeneralDetailsForm = () => {
     { value: "TBC", label: "TBC" },
   ];
   const [showPicker, setShowPicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close picker when clicking outside the component
@@ -106,14 +139,21 @@ export const GeneralDetailsForm = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const formatDate = (date: Date | null) => {
-    if (!date) return "Select Date";
-    return date.toLocaleDateString("sv-SE", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
+const formatDate = (date: Date | string | null) => {
+  if (!date) return "Date";
+
+  // If it's a string (from localStorage), turn it back into a Date object
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+
+  // Check if the date is valid to prevent "Invalid Date" errors
+  if (isNaN(dateObj.getTime())) return "Select Date";
+
+  return dateObj.toLocaleDateString("sv-SE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [isClosed, setIsClosed] = useState(false);
   const [closeReason, setCloseReason] = useState("");
@@ -121,13 +161,14 @@ export const GeneralDetailsForm = () => {
   const [fileClosed, setFileClosed] = useState<string | null>(null);
   const [username] = useState(""); // Example auto-gen username
   const [presentPosition, setPresentPosition] = useState<any>(null);
-const handleSubmitClose = () => {
-  if (closeReason.trim()) {
-    setIsClosed(true);
-    setShowCloseModal(false);
-    setCloseReason;("")
-  }
-};
+  const handleSubmitClose = () => {
+    if (closeReason.trim()) {
+      setIsClosed(true);
+      setShowCloseModal(false);
+      setCloseReason;
+      ("");
+    }
+  };
   const positionOptions = [
     { value: "Awaiting Details", label: "Awaiting Accident Details" },
     { value: "Client Fault", label: "Client is at Fault" },
@@ -198,7 +239,9 @@ const handleSubmitClose = () => {
             <Select
               options={claimTypeOptions}
               placeholder="Select Claim Type"
+              value={step1Data.claimType} // Controlled from step1Data
               styles={customStyles}
+              onChange={(val) => updateField("claimType", val)}
               components={{
                 DropdownIndicator: BlueDropdownIndicator,
                 IndicatorSeparator: () => null,
@@ -213,6 +256,8 @@ const handleSubmitClose = () => {
               options={handlerOptions}
               placeholder="Select Handler"
               styles={customStyles}
+              value={step1Data.handler} // Controlled from step1Data
+              onChange={(val) => updateField("handler", val)}
               components={{
                 DropdownIndicator: BlueDropdownIndicator,
                 IndicatorSeparator: () => null,
@@ -232,6 +277,8 @@ const handleSubmitClose = () => {
               ]}
               placeholder="Select Target Debt"
               styles={customStyles}
+              value={step1Data.targetDebt} // Controlled from step1Data
+              onChange={(val) => updateField("targetDebt", val)}
               components={{
                 DropdownIndicator: BlueDropdownIndicator,
                 IndicatorSeparator: () => null,
@@ -246,8 +293,9 @@ const handleSubmitClose = () => {
             </label>
             <Select
               options={findUsOptions}
+              value={step1Data.findUsSource} // Controlled from step1Data
               placeholder="Select Source"
-              onChange={(opt) => setFindUsSource(opt)}
+              onChange={(val) => updateField("findUsSource", val)}
               styles={customStyles}
               components={{
                 DropdownIndicator: BlueDropdownIndicator,
@@ -257,14 +305,17 @@ const handleSubmitClose = () => {
           </div>
 
           {/* CONDITIONAL: Staff Member Name (Appears when Staff Marketing selected) */}
-          {findUsSource?.label === "Staff Marketing" && (
-            <div className="col-span-2 flex flex-col gap-2 p-4 bg-blue-50 rounded border border-blue-100 animate-in fade-in duration-300">
-              <label className="text-blue-600 text-sm font-medium">
+          {step1Data.findUsSource?.label === "Staff Marketing" && (
+            <div className="col-span-2 flex flex-col gap-2 animate-in fade-in duration-300">
+              <label className="text-gray-700 text-sm font-medium">
                 Staff Member Name
               </label>
               <Select
                 placeholder="Select Staff Member..."
                 styles={customStyles}
+                options={handlerOptions}
+                value={step1Data.staffMemberName} // Controlled from step1Data
+                onChange={(val) => updateField("staffMemberName", val)}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
@@ -285,6 +336,8 @@ const handleSubmitClose = () => {
                 { value: "Rejected", label: "Claim Rejected" },
                 { value: "Cancelled", label: "Claim Cancelled" },
               ]}
+              value={step1Data.caseStatus} // Controlled from step1Data
+              onChange={(val) => updateField("caseStatus", val)}
               placeholder="Select Status"
               styles={customStyles}
               components={{
@@ -305,6 +358,8 @@ const handleSubmitClose = () => {
                   type="radio"
                   name="creditHire"
                   className="w-5 h-5 accent-blue-500"
+                  checked={step1Data.creditHire}
+                  onChange={(val) => updateField("creditHire", true)}
                 />
                 <span className="text-sm">Yes</span>
               </label>
@@ -313,7 +368,8 @@ const handleSubmitClose = () => {
                   type="radio"
                   name="creditHire"
                   className="w-5 h-5 accent-blue-500"
-                  defaultChecked
+                  checked={!step1Data.creditHire}
+                  onChange={(val) => updateField("creditHire", false)}
                 />
                 <span className="text-sm">No</span>
               </label>
@@ -328,6 +384,8 @@ const handleSubmitClose = () => {
             <Select
               options={commonStatusOptions}
               styles={customStyles}
+              value={step1Data.nonFault} // Controlled from step1Data
+              onChange={(val) => updateField("nonFault", val)}
               components={{
                 DropdownIndicator: BlueDropdownIndicator,
                 IndicatorSeparator: () => null,
@@ -343,6 +401,8 @@ const handleSubmitClose = () => {
             <Select
               options={commonStatusOptions}
               styles={customStyles}
+              value={step1Data.passengers} // Controlled from step1Data
+              onChange={(val) => updateField("passengers", val)}
               components={{
                 DropdownIndicator: BlueDropdownIndicator,
                 IndicatorSeparator: () => null,
@@ -358,6 +418,8 @@ const handleSubmitClose = () => {
             <Select
               options={commonStatusOptions}
               styles={customStyles}
+              value={step1Data.clientInjured} // Controlled from step1Data
+              onChange={(val) => updateField("clientInjured", val)}
               components={{
                 DropdownIndicator: BlueDropdownIndicator,
                 IndicatorSeparator: () => null,
@@ -376,6 +438,8 @@ const handleSubmitClose = () => {
                 { value: "Non-Fault", label: "Non-Fault" },
                 { value: "Uninsured", label: "TP Uninsured" },
               ]}
+              value={step1Data.prospects} // Controlled from step1Data
+              onChange={(val) => updateField("prospects", val)}
               placeholder="Select Prospect"
               styles={customStyles}
               components={{
@@ -440,7 +504,7 @@ const handleSubmitClose = () => {
           <h2 className="text-black text-xl font-semibold">
             Present File Position
           </h2>
-          {goingAbroad && (
+          {step1Data.goingAbroad && (
             <button
               className="flex gap-1 items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-md font-medium text-sm hover:bg-blue-100 transition"
               onClick={handleNotifyManager}
@@ -459,7 +523,8 @@ const handleSubmitClose = () => {
             options={positionOptions}
             placeholder="Select File Position"
             styles={customStyles}
-            onChange={(val) => setPresentPosition(val)}
+            value={step1Data.presentPosition} // Controlled from step1Data
+            onChange={(val) => updateField("presentPosition", val)}
             components={{
               DropdownIndicator: BlueDropdownIndicator,
               IndicatorSeparator: () => null,
@@ -478,34 +543,32 @@ const handleSubmitClose = () => {
             </span>
             {/* Centering the radio buttons inside a 52px height container to match input height */}
             <div className="flex gap-10 h-[52px] items-center">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <div
-                  onClick={() => setGoingAbroad(true)}
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${goingAbroad ? "border-blue-500" : "border-gray-300"}`}
-                >
-                  {goingAbroad && (
-                    <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
-                  )}
-                </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="goingAbroad"
+                  className="w-5 h-5 accent-blue-500"
+                  checked={step1Data.goingAbroad}
+                  onChange={() => updateField("goingAbroad", true)}
+                />
                 <span className="text-sm">Yes</span>
               </label>
 
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <div
-                  onClick={() => setGoingAbroad(false)}
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${!goingAbroad ? "border-blue-500" : "border-gray-300"}`}
-                >
-                  {!goingAbroad && (
-                    <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
-                  )}
-                </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="goingAbroad"
+                  className="w-5 h-5 accent-blue-500"
+                  checked={!step1Data.goingAbroad}
+                  onChange={() => updateField("goingAbroad", false)}
+                />
                 <span className="text-sm">No</span>
               </label>
             </div>
           </div>
 
           {/* Right Column: Date Picker */}
-          {goingAbroad && (
+          {step1Data.goingAbroad && (
             <div className="relative">
               <div
                 ref={containerRef}
@@ -522,20 +585,21 @@ const handleSubmitClose = () => {
               ${showPicker ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
                   >
                     <span
-                      className={`${selectedDate ? "text-gray-900" : "text-gray-400"} font-light`}
+                      className={`${step1Data.selectedDate ? "text-gray-900" : "text-gray-400"} font-light`}
                     >
-                      {formatDate(selectedDate)}
+                      {step1Data.selectedDate &&
+                        formatDate(step1Data.selectedDate)}
                     </span>
                     <img src={Vector6} alt="" />
                   </div>
 
                   {/* Date Picker Popover - Positioning Fixed */}
                   {showPicker && (
-                    <div className="absolute top-[60px] left-0 z-[100]">
+                    <div className="absolute bottom-[390px] left-0 z-[100]">
                       <CustomDatePicker
-                        selectedDate={selectedDate || new Date()}
+                        selectedDate={step1Data.selectedDate || new Date()}
                         onDateSelect={(date) => {
-                          setSelectedDate(date);
+                          updateField("selectedDate", date);
                           setShowPicker(false);
                         }}
                       />
@@ -550,4 +614,4 @@ const handleSubmitClose = () => {
       {/* </div> */}
     </div>
   );
-};
+};;

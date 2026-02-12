@@ -4,6 +4,9 @@ import Header from "./Components/ClaimHeader";
 import { GeneralDetailsForm } from "./Steps/GeneralDetailsForm";
 import { ReferrerDetailsForm } from "./Steps/ReferrerDetailsForm";
 import { ClientDetailsForm } from "./Steps/ClientDetailsForm";
+import { AccidentDetailsForm } from "./Steps/AccidentDetailsForm";
+import { VehicleDetailsForm } from "./Steps/VehicleDetailsForm";
+// import { PassengerDetailsForm } from "./Steps/PassengerDetailsModal";
 
 const AddClaimPage = () => {
   // 1. Manage current step index
@@ -18,6 +21,7 @@ const handleNext = () => {
     { label: "Referrer Details" },
     { label: "Client Details" },
     { label: "Accident Details" },
+    // { label: "Passenger Details" },
     { label: "Vehicle Details" },
     { label: "Vehicle Owner" },
     { label: "Engineer Details" },
@@ -40,6 +44,12 @@ const handleNext = () => {
         return <ReferrerDetailsForm />;
       case 2:
         return <ClientDetailsForm />;
+      case 3:
+        return <AccidentDetailsForm />;
+      // case 4:
+      //   return <PassengerDetailsForm/>
+      case 4:
+        return <VehicleDetailsForm/>
       default:
         return (
           <div className="p-10 text-gray-400">

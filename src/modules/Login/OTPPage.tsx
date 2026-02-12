@@ -234,28 +234,29 @@ const OTPPage = () => {
         </div>
 
         <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[197px] left-[810px]">
-          <h2 className="relative self-stretch text-black text-[24px] font-semibold leading-[24px] break-words">
-            Verify OTP
-          </h2>
-
+          <div>
+            <h2 className="relative self-stretch text-black text-[24px] font-semibold mb-2 leading-[24px] break-words">
+              Verify OTP
+            </h2>
+            <span className="text-neutral-700 text-md font-weight-400 font-regular margin-top-[10px]">
+              We have sent a one-time password (OTP) to your email <br/>address.
+              Enter it below to verify your account.
+            </span>
+          </div>
           <form
             onSubmit={handleSubmit}
             className="flex flex-col items-start gap-6 relative self-stretch w-full flex-[0_0_auto]"
           >
             <div className="flex flex-col items-start gap-5 relative self-stretch w-full flex-[0_0_auto]">
-              <div className="w-full px-5 py-3 bg-blue-50 rounded flex justify-start items-center gap-3 border border-blue-100">
-                <img src={Vector2} className="w-5 h-5" alt="" />
-                <div className="text-neutral-700 text-sm">
-                  Please check your inbox for OTP
-                </div>
-              </div>
-              {errorMessage && (
-                  <div className="w-full px-5 py-3 bg-red-50 rounded flex justify-start items-center gap-3 border border-red-100">
-                    <img src={Vector} className="w-5 h-5" alt="" />
+              {/* <div className="w-full px-5 py-3 bg-blue-50 rounded flex justify-start items-center gap-3 border border-blue-100">
+                <img src={Vector2} className="w-5 h-5" alt="" /> */}
 
-                    <div className="text-neutral-700 text-sm">
-                      {errorMessage}
-                    </div>
+              {/* </div> */}
+              {errorMessage && (
+                <div className="w-full px-5 py-3 bg-red-50 rounded flex justify-start items-center gap-3 border border-red-100">
+                  <img src={Vector} className="w-5 h-5" alt="" />
+
+                  <div className="text-neutral-700 text-sm">{errorMessage}</div>
                 </div>
               )}
               <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">

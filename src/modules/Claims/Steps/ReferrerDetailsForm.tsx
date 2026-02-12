@@ -2,6 +2,8 @@ import { components, type DropdownIndicatorProps, type StylesConfig } from "reac
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { useEffect, useRef, useState } from "react";
 import { CustomDatePicker } from "../Components/DatePicker";
+import { getCompanySuggestions } from "../../../services/Referrer/Referrer";
+import { debounce } from "lodash";
 
 // Custom Blue Arrow Component for react-select
 const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>) => {
@@ -197,9 +199,40 @@ export const ReferrerDetailsForm = () => {
     congestionCharges: "",
     otherCharges: "",
   });
-
+const [suggestions,setSuggestions]= useState<any>()
   // Handler for numeric/currency inputs
+    const fetchSuggestions = debounce(async (query: string) => {
+      if (!query) {
+        setSuggestions([]);
+        return;
+      }
+      // setLoadingSuggestions(true);
+      try {
+        const response = await getCompanySuggestions(query);
+        const rawSuggestions = response.data || response;
 
+        const uniqueByCompany = rawSuggestions.filter(
+          (item: any, index: number, self: any[]) =>
+            index ===
+            self.findIndex(
+              (s) =>
+                s.company_name?.toLowerCase() ===
+                item.company_name?.toLowerCase(),
+            ),
+        );
+
+        setSuggestions(uniqueByCompany);
+      } catch (error) {
+        console.error("Failed to fetch company suggestions:", error);
+        setSuggestions([]);
+      } finally {
+        // setLoadingSuggestions(false);
+      }
+    }, 300);
+    useEffect(() => {
+      fetchSuggestions("h");
+    }, []);
+  console.log(suggestions)
   return (
     <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide">
       {/* Container matching left-[534px] and top-[157px] from source */}

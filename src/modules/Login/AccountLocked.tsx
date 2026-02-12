@@ -12,16 +12,23 @@ const AccountLocked = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  const [countdown, setCountdown] = useState(0);
-  useEffect(() => {
-   setCountdown(60)
-  },[])
+  // 1. Start with 300 seconds
+  const [countdown, setCountdown] = useState(120);
+
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
   }, [countdown]);
+
+  // 2. Create a helper to turn 299 seconds into "4:59"
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Login submitted", { email, password });
@@ -173,13 +180,24 @@ const AccountLocked = () => {
                   <img src={vector} alt="" />
                 </div>
 
-                <p className="w-[440px] text-[#444444] text-[14px] font-normal leading-normal break-words pt-1">
-                  Please wait a few minutes and try again or reset your password
-                  if you’ve forgotten it.
-                  <br />
-                  If the issue continues, please contact your system
-                  administrator.
-                </p>
+                <div className="text-left leading-tight">
+                  <p className="text-slate-700">
+                    <span className="text-sm font-normal">
+                      Please wait for{" "}
+                    </span>
+                    <span className="text-base font-semibold">{formatTime(countdown)}</span>
+                    <span className="text-sm font-normal">
+                      {" "}
+                      mins and try Login again or reset your password if you’ve
+                      forgotten it.
+                    </span>
+                    <br />
+                    <span className="text-sm font-normal">
+                      If the issue continues, please contact your system
+                      administrator.
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -190,7 +208,6 @@ const AccountLocked = () => {
           >
             Forgot Password
           </button> */}
-            <div className="flex flex-end items-end">{countdown}s</div>
             <div className="flex items-start justify-start gap-[24px]">
               {/* Reset Password Button */}
               <button
@@ -203,14 +220,26 @@ const AccountLocked = () => {
               </button>
 
               {/* Back to Login Button */}
-              <button
-                onClick={() => navigate("/login")}
-                className="flex items-center justify-center w-[240px] px-[40px] py-[16px] bg-white rounded-[4px] border border-[#0352FD] group hover:bg-[#0352FD] transition-all duration-200"
-              >
-                <span className="text-[#0352FD] text-[16px] font-medium leading-[16px] group-hover:text-white transition-colors">
-                  Back to Login
-                </span>
-              </button>
+              {countdown > 0 ? (
+                <button
+                  type="button"
+                  disabled={true}
+                  className="w-60 px-10 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-gray-300 inline-flex justify-center items-center gap-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors duration-200"
+                >
+                  <span className="text-gray-500 text-base font-medium leading-4">
+                    Back to Login
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate("/login")}
+                  className="flex items-center justify-center w-[240px] px-[40px] py-[16px] bg-white rounded-[4px] border border-[#0352FD] group hover:bg-[#0352FD] transition-all duration-200"
+                >
+                  <span className="text-[#0352FD] text-[16px] font-medium leading-[16px] group-hover:text-white transition-colors">
+                    Back to Login
+                  </span>
+                </button>
+              )}
             </div>
           </form>
         </div>

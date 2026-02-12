@@ -4,7 +4,11 @@ import Vector9 from "../../../assets/AutoClaim_icon/Vector-9.svg";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { useEffect, useRef, useState } from "react";
 import { CustomDatePicker } from "../Components/DatePicker";
-
+  import * as Yup from "yup";
+import { ClaimsApi, convertToApiPayload } from "../../../services/Claims/Claims";
+import { useFormik } from "formik";
+import { debounce } from "lodash";
+import { getCompanySuggestions } from "../../../services/Referrer/Referrer";
 // Custom Blue Arrow Component for react-select
 const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>) => {
   return (
@@ -54,6 +58,36 @@ const customStyles: StylesConfig<any, false> = {
 };
 
 export const GeneralDetailsForm = () => {
+
+
+
+const claimSchema = Yup.object().shape({
+  // claim_type_id: Yup.number().min(1, "Required").required("Required"),
+  // handler_id: Yup.number().min(1, "Required").required("Required"),
+  // target_debt_id: Yup.number().required("Required"),
+  // source_id: Yup.number().required("Required"),
+  // case_status_id: Yup.number().required("Required"),
+  // non_fault_accident: Yup.string().oneOf(["YES", "NO", "TBC"]).required(),
+  // Add other fields as needed...
+});
+  const [lookups, setLookups] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // 1. Fetch Lookup Data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const data = await ClaimsApi.getLookupData();
+        setLookups(data);
+      } catch (err) {
+        console.error("Failed to load options", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
   const usePersistedStep = <T,>(
     key: string,
     defaultValue: T,

@@ -63,13 +63,13 @@ export const ClaimsApi = {
   getLookupData: async () => {
     try {
       const endpoints = [
-        "/lookups/claim-types",
-        "/lookups/handlers",
-        "/lookups/target-debts",
-        "/lookups/case-statuses",
-        "/lookups/sources",
-        "/lookups/prospects",
-        "/lookups/file-positions"
+        "/setups/claim-types",
+        "/setups/handlers",
+        "/setups/target-debts",
+        "/setups/case-statuses",
+        "/setups/sources",
+        "/setups/prospects",
+        "/setups/file-positions"
       ];
 
       const [
@@ -165,9 +165,9 @@ export const convertToApiPayload = (formData: any): ClaimFormPayload => {
 };
 
 
-export const getClaims = async (tenant_id: any) => {
+export const getClaims = async () => {
   try {
-    const response = await axiosInstance.get(`/claims/claims-list?tenant_id=${tenant_id}`);
+    const response = await axiosInstance.get(`/claims/list`);
     return response.data;
   } catch (error) {
     console.error("Error fetching claims:", error);

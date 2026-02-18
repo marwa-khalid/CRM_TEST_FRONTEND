@@ -625,7 +625,7 @@
 // }
 
 // export default Dashboard;
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -643,6 +643,7 @@ import {
 } from 'lucide-react';
 import Logo from "../../assets/images/Group 2608219.svg";
 import { useNavigate } from 'react-router-dom';
+import { getClaims } from '../../services/Claims/Claims';
 const Dashboard: React.FC = () => {
   const sidebarItems = [
     { name: "Dashboard", icon: LayoutDashboard, active: false },
@@ -652,6 +653,7 @@ const Dashboard: React.FC = () => {
     { name: "Tasks", icon: CheckSquare, active: false },
     { name: "Reports", icon: BarChart3, active: false },
   ];
+
 
   const claimsData = Array(6).fill({
     client: "Olivia Rhye",
@@ -663,6 +665,16 @@ const Dashboard: React.FC = () => {
     status: "PENDING",
     priority: "HIGH",
   });
+  const [claims, setClaims] = useState<any>()
+  
+  useEffect(() => {
+    const fetchClaims = async () => {
+      const res = await getClaims();
+      setClaims(res);
+    };
+    fetchClaims();
+  }, []);
+  
 const navigate = useNavigate()
   return (
     <div className="flex min-h-screen bg-white font-sans">

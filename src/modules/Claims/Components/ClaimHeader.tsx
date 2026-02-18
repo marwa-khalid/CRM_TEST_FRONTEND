@@ -53,4 +53,4 @@ const Header = ({ onNext }) => {
   );
 };
 
-export default Header;
+export {Header};

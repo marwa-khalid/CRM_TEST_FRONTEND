@@ -108,5 +108,5 @@ export const deleteDriverCommission = (commission_id: number) => {
 };
 
 export const getCompanySuggestions = (query: string) => {
-  return axiosInstance.get(`/referrers/search/${query}`);
+  return axiosInstance.get(`/Referrers/referrer/search/${query}`);
 };

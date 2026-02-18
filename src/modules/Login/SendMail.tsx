@@ -6,33 +6,86 @@ const InviteUser = () => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null); // 'success' | 'error' | null
 
-  const handleInvite = async () => {
-    if (!email) return;
-    setLoading(true);
-    setStatus(null);
+  // const handleInvite = async () => {
+  //   if (!email) return;
+  //   setLoading(true);
+  //   setStatus(null);
 
-    try {
-      // Your Nodemailer backend call
-      const response = await fetch(
-        "https://emailbackend-ten.vercel.app/send-email",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recipientEmail: email,
-            inviteLink: `https://crmtestfe.netlify.app/auth/reset-password?email=${email}`,
-          }),
-        },
-      );
+  //   try {
+  //     // Your Nodemailer backend call
+  //     const response = await fetch(
+  //       "https://emailbackend-ten.vercel.app/send-email",
+  //       {
+  //         method: "POST",
+  //         headers: { "Content-Type": "application/json" },
+  //         body: JSON.stringify({
+  //           recipientEmail: email,
+  //           inviteLink: `https://crmtestfe.netlify.app/auth/reset-password?email=${email}`,
+  //         }),
+  //       },
+  //     );
 
-      if (response.ok) setStatus("success");
-      else setStatus("error");
-    } catch (err) {
-      setStatus("error");
-    } finally {
-      setLoading(false);
+  //     if (response.ok) setStatus("success");
+  //     else setStatus("error");
+  //   } catch (err) {
+  //     setStatus("error");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+const handleInvite = async () => {
+  if (!email) return;
+
+  setLoading(true);
+  setStatus(null);
+
+  try {
+    // 1️⃣ Call FastAPI register endpoint
+    const registerResponse = await fetch(
+      "http://localhost:8000/auth/register", // change to your backend URL
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_name: email,
+        }),
+      },
+    );
+
+    if (!registerResponse.ok) {
+      const errData = await registerResponse.json();
+      throw new Error(errData.detail || "Registration failed");
     }
-  };
+
+    const registerData = await registerResponse.json();
+    console.log("User registered:", registerData);
+
+    // 2️⃣ Send invite email
+    const emailResponse = await fetch(
+      "https://emailbackend-ten.vercel.app/send-email",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientEmail: email,
+          inviteLink: `http://localhost:5174/auth/reset-password?email=${email}`,
+        }),
+      },
+    );
+
+    if (!emailResponse.ok) {
+      throw new Error("Failed to send email");
+    }
+
+    setStatus("success");
+    setEmail(""); // optional clear input
+  } catch (err) {
+    console.error(err);
+    setStatus("error");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="max-w-md mx-auto mt-20 p-8 bg-white rounded-xl shadow-sm border border-gray-100 font-sans">

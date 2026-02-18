@@ -62,6 +62,7 @@ const Login = () => {
          body: JSON.stringify({ recipientEmail: email, otp: otpCode }),
        },
      );
+
      if (response.ok) navigate("/otp");
    } else {
      // FAILURE: Increment attempts

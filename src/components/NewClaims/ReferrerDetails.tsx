@@ -83,7 +83,7 @@ interface FormValues {
 
 interface ReferrerDetailsProps {
   claimData?: any;
-  Mode?: boolisEditean;
+  Mode?: boolean;
   onSuccess?: () => void;
   handleNext?: (step: number, direction: string) => void;
 }

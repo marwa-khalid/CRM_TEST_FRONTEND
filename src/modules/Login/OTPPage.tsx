@@ -15,7 +15,7 @@ const OTPPage = () => {
   const navigate = useNavigate();
   const [isResending, setIsResending] = useState(false);
   const [countdown, setCountdown] = useState(0); // Timer state
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
 
@@ -41,6 +41,35 @@ const OTPPage = () => {
     if (otp === code) {
       console.log("OTP Verified!");
       localStorage.removeItem("pendingOTP"); // Clean up sensitive data
+       const storedUserRaw = localStorage.getItem("activeUser");
+       if (!storedUserRaw) {
+         setErrorMessage("Invalid Credentials");
+         return;
+       }
+      const storedUser = JSON.parse(storedUserRaw);
+           const response2 = await fetch("http://localhost:8000/auth/login", {
+             method: "POST",
+             headers: {
+               "Content-Type": "application/json",
+             },
+             body: JSON.stringify({
+               user_name: storedUser.email,
+               password: storedUser.password,
+             }),
+           });
+
+           if (!response2.ok) {
+             setErrorMessage("Invalid credentials");
+             return;
+           }
+
+           const data = await response2.json();
+
+           // Save token
+           localStorage.setItem("access_token", data.access_token);
+           localStorage.setItem("user", JSON.stringify(data));
+
+          //  navigate("/dashboard");
       navigate("/single-signon"); // Or wherever your landing page is
     } else {
       setErrorMessage(

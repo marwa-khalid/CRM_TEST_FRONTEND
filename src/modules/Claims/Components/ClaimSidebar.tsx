@@ -3,6 +3,8 @@ import Vector8 from "../../../assets/AutoClaim_icon/Vector-8.svg";
 import Vector1 from "../../../assets/AutoClaim_icon/Vector-1.svg";
 import Vector2 from "../../../assets/AutoClaim_icon/Vector-2.svg";
 import Vector10 from "../../../assets/AutoClaim_icon/Vector-10.svg";
+import type1 from "../../../assets/AutoClaim_icon/type1.svg";
+import type2 from "../../../assets/AutoClaim_icon/type2.svg";
 
 interface SidebarProps {
   steps: { label: string }[];
@@ -50,13 +52,9 @@ const Sidebar = ({ steps, activeStep, onStepClick }: SidebarProps) => {
                     onClick={() => onStepClick(idx)}
                     className="Claimsteps self-stretch inline-flex justify-start items-center gap-3 cursor-pointer group"
                   >
-                    <div
-                      className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
-                        isActive
-                          ? "bg-blue-600 shadow-[0_0_0_2px_rgba(37,99,235,0.2)]"
-                          : "border-2 border-blue-200 group-hover:border-blue-400"
-                      }`}
-                    />
+                    {isActive ? <img src={type1}></img>:<img src={type2}></img>
+                         }
+                    
                     <div
                       className={`Label text-sm font-['Stack_Sans_Headline'] transition-colors ${
                         isActive

@@ -150,8 +150,8 @@ const GeneralDetails = forwardRef(
             ? new Date(claimData.file_closed_at).toISOString().split("T")[0]
             : null,
           client_going_abroad: claimData?.client_going_abroad
-            ? "true"
-            : "false",
+            ? true
+            : false,
           client_going_abroad_date: claimData.abroad_date || "",
           date: claimData.date || new Date().toISOString().split("T")[0],
         };

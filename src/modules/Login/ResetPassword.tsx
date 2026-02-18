@@ -31,33 +31,86 @@ const ResetPassword = () => {
   const allValid =
     Object.values(validations).every(Boolean) && password === confirmPassword;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // const handleSubmit = (e: React.FormEvent) => {
+  //   e.preventDefault();
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
+  //   if (password !== confirmPassword) {
+  //     setError("Passwords do not match");
+  //     return;
+  //   }
+
+  //   if (!allValid) {
+  //     setError("Please meet all password requirements");
+  //     return;
+  //   }
+
+  //   // 3. Store in LocalStorage
+  //   const newUser = {
+  //     email: emailFromUrl,
+  //     password: password, // In a real app, never store plain text passwords!
+  //     joinedAt: new Date().toISOString(),
+  //   };
+
+  //   localStorage.setItem("activeUser", JSON.stringify(newUser));
+  //   console.log("User saved to storage");
+
+  //   // 4. Navigate to success page
+  //   navigate("/auth/reset-password2");
+  // };
+    
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError("");
+
+  if (password !== confirmPassword) {
+    setError("Passwords do not match");
+    return;
+  }
+
+  if (!allValid) {
+    setError("Please meet all password requirements");
+    return;
+  }
+
+  try {
+    const response = await fetch("http://localhost:8000/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_name: emailFromUrl,
+        password: password,
+      }),
+    });
+      const newUser = {
+        email: emailFromUrl,
+        password: password, // In a real app, never store plain text passwords!
+        joinedAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem("activeUser", JSON.stringify(newUser));
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.detail || "Failed to reset password");
       return;
     }
 
-    if (!allValid) {
-      setError("Please meet all password requirements");
-      return;
+    // Optionally store the bearer token returned by backend
+    if (data.access_token) {
+      localStorage.setItem("authToken", data.access_token);
     }
 
-    // 3. Store in LocalStorage
-    const newUser = {
-      email: emailFromUrl,
-      password: password, // In a real app, never store plain text passwords!
-      joinedAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem("activeUser", JSON.stringify(newUser));
-    console.log("User saved to storage");
-
-    // 4. Navigate to success page
+    // Navigate to login or success page
     navigate("/auth/reset-password2");
-  };
-    const [scale, setScale] = useState(1);
+  } catch (err) {
+    setError("Server error. Please try again later.");
+    console.error(err);
+  }
+};
+
+
+  const [scale, setScale] = useState(1);
     const containerRef = useRef(null);
   
     useEffect(() => {

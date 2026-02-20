@@ -14,7 +14,7 @@ const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>) => {
       >
         <path
           d="M1 1L6 6L11 1"
-          stroke="#3B82F6"
+          stroke="#0352FD"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -30,9 +30,9 @@ const customStyles: StylesConfig<any, false> = {
     ...base,
     height: '52px',
     borderRadius: '4px',
-    borderColor: state.isFocused ? '#3B82F6' : '#E5E7EB',
+    borderColor: state.isFocused ? '#0352FD' : '#E5E7EB',
     boxShadow: 'none',
-    '&:hover': { borderColor: '#3B82F6' },
+    '&:hover': { borderColor: '#0352FD' },
     paddingLeft: '8px',
     backgroundColor: 'white',
   }),
@@ -44,7 +44,7 @@ const customStyles: StylesConfig<any, false> = {
   }),
   option: (base, state) => ({
     ...base,
-    backgroundColor: state.isSelected ? '#3B82F6' : state.isFocused ? '#EFF6FF' : 'white',
+    backgroundColor: state.isSelected ? '#0352FD' : state.isFocused ? '#EFF6FF' : 'white',
     color: state.isSelected ? 'white' : '#374151',
   }),
 };

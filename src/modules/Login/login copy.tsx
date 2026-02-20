@@ -314,7 +314,7 @@
 //               width: "10px",
 //               height: "10px",
 //               borderRadius: "50%",
-//               background: "#3b82f6",
+//               background: "#0352FD",
 //             }}
 //           />
 //           <div

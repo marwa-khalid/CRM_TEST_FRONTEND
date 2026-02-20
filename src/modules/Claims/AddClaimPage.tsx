@@ -131,7 +131,7 @@ const AddClaimPage = () => {
       case 0:
         return <GeneralDetailsForm formRef={formRef} />;
       case 1:
-        return <ReferrerDetailsForm />;
+        return <ReferrerDetailsForm formRef={formRef} />;
       case 2:
         return <ClientDetailsForm  />;
       case 3:

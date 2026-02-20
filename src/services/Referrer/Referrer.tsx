@@ -1,28 +1,19 @@
 import axiosInstance from "../axiosConfig";
 
 export const getReferrer = (claim_id: number | string) => {
-  return axiosInstance.get(`/referrers/${claim_id}`);
+  return axiosInstance.get(`/Referrers/referrer/${claim_id}`);
 };
 
 export const updateReferrer = (data: any, id: number | string) => {
-  return axiosInstance.put(`/referrers/${id}`, data);
+  return axiosInstance.put(`/Referrers/referrer/${id}`, data);
 };
 
 export const deleteReferrer = (company_name: string) => {
   return axiosInstance.delete(`/referrers/${company_name}`);
 };
 
-export const createReferrer = (data: { 
-  company_name: string; 
-  address: string; 
-  postcode: string; 
-  contact_name: string;
-  contact_number: string;
-  contact_email: string;
-  solicitor: string; 
-  third_party_capture: string; 
-}) => {
-  return axiosInstance.post(`/referrers/`, data);
+export const createReferrer = (data:any) => {
+  return axiosInstance.post(`/Referrers/referrer`, data);
 };
 
 export const searchReferrers = (query: string) => {
@@ -108,5 +99,5 @@ export const deleteDriverCommission = (commission_id: number) => {
 };
 
 export const getCompanySuggestions = (query: string) => {
-  return axiosInstance.get(`/Referrers/referrer/search/${query}`);
+  return axiosInstance.get(`/Referrers/companies/search/${query}`);
 };

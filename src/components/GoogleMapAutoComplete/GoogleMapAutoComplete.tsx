@@ -115,20 +115,19 @@ const GoogleMapAutocomplete: React.FC<GoogleMapAutocompleteProps> = ({
           onChange={(e) => setInputValue(e.target.value)}
           placeholder="Search location"
           disabled={disabled}
-          style={{
-            width: "100%",
-            padding: "10px",
-            marginBottom: "10px",
-            height: '44px',
-            border: "1px solid #ccc",
-            borderRadius: "6px",
-          }}
-          className="w-full p-2 mb-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-custom-200"
-
+          // style={{
+          //   width: "100%",
+          //   padding: "10px",
+          //   marginBottom: "10px",
+          //   height: "44px",
+          //   border: "1px solid #ccc",
+          //   borderRadius: "6px",
+          // }}
+          className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light"
         />
       </Autocomplete>
 
-      {showMap && inputValue !== '' && (
+      {showMap && inputValue !== "" && (
         <GoogleMap
           mapContainerStyle={containerStyle}
           center={position || defaultCenter}

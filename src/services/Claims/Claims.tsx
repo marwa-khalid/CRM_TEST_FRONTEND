@@ -205,3 +205,9 @@ export const downloadCSV = async (id: string) => {
     throw error;
   }
 }
+
+export const notifyManager = (id: any) => {
+  return axiosInstance.get(
+    `/claims/${id}/notify-manager`,
+  );
+}

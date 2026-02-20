@@ -5,6 +5,9 @@ import Vector2 from "../../../assets/AutoClaim_icon/Vector-2.svg";
 import Vector10 from "../../../assets/AutoClaim_icon/Vector-10.svg";
 import type1 from "../../../assets/AutoClaim_icon/type1.svg";
 import type2 from "../../../assets/AutoClaim_icon/type2.svg";
+import pending from "../../../assets/AutoClaim_icon/Pending.svg";
+import greenCircle from "../../../assets/AutoClaim_icon/GreenCircle.svg";
+import checkIcon from "../../../assets/AutoClaim_icon/CheckIcon.svg";
 
 interface SidebarProps {
   steps: { label: string }[];
@@ -24,7 +27,7 @@ const Sidebar = ({ steps, activeStep, onStepClick }: SidebarProps) => {
         <div className="SidebarItemContainer self-stretch inline-flex justify-between items-center">
           <div className="SidebarItem flex justify-start items-center gap-3">
             <img src={Vector8} alt="" />
-            <div className="SidebarItemText text-black text-base font-semibold font-['Stack_Sans_Headline']">
+            <div className="SidebarItemText text-black text-base font-weight-600 font-['Stack_Sans_Headline']">
               Claim Details
             </div>
           </div>
@@ -41,25 +44,39 @@ const Sidebar = ({ steps, activeStep, onStepClick }: SidebarProps) => {
         {/* 4. Conditional Rendering Logic */}
         {isClaimsExpanded && (
           <>
-            <div className="Line1 self-stretch h-px bg-blue-100 animate-in fade-in duration-300"></div>
+            <div className="Line1 self-stretch h-px bg-blue-200 animate-in fade-in duration-300"></div>
 
             <div className="flex flex-col gap-4 self-stretch animate-in slide-in-from-top-2 duration-300">
               {steps.map((step, idx) => {
                 const isActive = idx === activeStep;
+                const isCompleted = idx < activeStep;
                 return (
                   <div
                     key={idx}
                     onClick={() => onStepClick(idx)}
                     className="Claimsteps self-stretch inline-flex justify-start items-center gap-3 cursor-pointer group"
                   >
-                    {isActive ? <img src={type1}></img>:<img src={type2}></img>
-                         }
-                    
+                    {isActive ? (
+                      <img src={type1} alt="active" />
+                    ) : isCompleted ? (
+                      // <div className="relative">
+                      //   <img src={greenCircle} alt="green circle" />
+                      //   <img
+                      //     src={checkIcon}
+                      //     alt="check"
+                      //     className="absolute inset-0 m-auto"
+                      //   />
+                      // </div>
+                      <img src={pending} alt="upcoming" />
+                    ) : (
+                      <img src={type2} alt="upcoming" />
+                    )}
+
                     <div
-                      className={`Label text-sm font-['Stack_Sans_Headline'] transition-colors ${
+                      className={`Label text-sm transition-colors ${
                         isActive
-                          ? "text-blue-600 font-semibold"
-                          : "text-gray-500 font-normal group-hover:text-gray-700"
+                          ? "text-blue-500"
+                          : "text-gray-500 group-hover:text-gray-700"
                       }`}
                     >
                       {step.label}

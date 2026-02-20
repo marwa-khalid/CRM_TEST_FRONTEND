@@ -24,7 +24,7 @@ import EmailTemplates2 from './modules/Login/EmailTemplates2';
 import EmailTemplates3 from './modules/Login/EmailTemplates3';
 import SendMail from './modules/Login/SendMail';
 import AddClaimPage from "./modules/Claims/AddClaimPage";
-
+import {AccidentSketch} from './modules/Login/Canvas';
 const App: React.FC = () => {
 
   return (
@@ -50,6 +50,8 @@ const App: React.FC = () => {
           <Route path="/send-mail" element={<SendMail />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/add-claim" element={<AddClaimPage />} />
+          <Route path="/canvas" element={<AccidentSketch />} />
+
           {/* Redirect to login if no route matches */}
           {/* Protected Routes with Layout */}
           <Route element={<MainLayout />}>

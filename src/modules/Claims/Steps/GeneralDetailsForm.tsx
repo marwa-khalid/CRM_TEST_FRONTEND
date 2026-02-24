@@ -20,6 +20,7 @@ import { CalendarDate } from "@internationalized/date";
 // Assets & Icons
 import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
 import Vector9 from "../../../assets/AutoClaim_icon/Vector-9.svg";
+import Vector10 from "../../../assets/AutoClaim_icon/Vector-10.svg";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 
 // Services & Redux
@@ -36,46 +37,37 @@ import {
 import { setClaimId, setClaimReferrence, setIsClosed } from "../../../redux/Claim/claimSlice";
 import { CustomDatePicker } from "../Components/DatePicker";
 
-// --- HELPERS & STYLES ---
-const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>) => (
-  <components.DropdownIndicator {...props}>
-    <svg
-      width="12"
-      height="7"
-      viewBox="0 0 12 7"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M1 1L6 6L11 1"
-        stroke="#0352FD"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  </components.DropdownIndicator>
-);
+// Custom Blue Arrow Component for react-select
+export const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>) => {
+  return (
+    <components.DropdownIndicator {...props}>
+      <img src={Vector10} className="w-9 h-2" alt="arrow" />
+    </components.DropdownIndicator>
+  );
+};
 
-const customStyles: StylesConfig<any, false> = {
+// Common custom styles for react-select
+export const customStyles: StylesConfig<any, false> = {
   control: (base, state) => ({
     ...base,
     height: "52px",
     borderRadius: "4px",
-    borderWidth: "1px",
-    borderColor: state.isFocused ? "#B4C8FF" : "#CCCCCC",
+    borderWidth: state.isFocused ? "2px" : "1px",
+    borderColor: state.isFocused ? "#d9ebff" : "#CCCCCC",
     boxShadow: "none",
     paddingLeft: "8px",
     backgroundColor: "white",
-    fontWeight: 300,
-    fontSize: "16px",
-    fontStyle:"light"
+    fontSize: "14px",
+    fontWeight: 400,
+    fontStyle: "light",
+    fontFamily: "system-ui",
   }),
 
   input: (provided) => ({
     ...provided,
     fontWeight: 300,
     fontSize: "16px",
+    fontStyle: "light",
   }),
 
   placeholder: (provided) => ({
@@ -84,26 +76,29 @@ const customStyles: StylesConfig<any, false> = {
     fontWeight: 300,
     fontSize: "16px",
     opacity: 1,
+    fontStyle: "light",
   }),
 
   singleValue: (provided) => ({
     ...provided,
     fontWeight: 400,
     fontSize: "16px",
-    color: "#414651",
+    color: "#444444",
+    fontStyle: "light",
   }),
 
   option: (provided, state) => ({
     ...provided,
     fontSize: "14px",
-    fontWeight: 300,
-    color: state.isFocused ? "#286CFF" : "#444444",
+    fontWeight: 400,
+    color: state.isSelected ? "#fff" : state.isFocused ? "#286CFF" : "#444444",
     backgroundColor: state.isSelected
-      ? "#F9FAFB"
+      ? "#286CFF"
       : state.isFocused
         ? "#d9ebff"
         : "white",
     cursor: "pointer",
+    fontStyle: "light",
   }),
 };
 // --- COMPONENT ---
@@ -555,9 +550,11 @@ console.log(formik.values)
               </label>
               <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center text-gray-500">
                 <span>
-                  {handlerOptions.find(
-                    (option) => option.value === formik.values.handler_id,
-                  )?.label}
+                  {
+                    handlerOptions.find(
+                      (option) => option.value === formik.values.handler_id,
+                    )?.label
+                  }
                 </span>
               </div>
             </div>
@@ -686,9 +683,16 @@ console.log(formik.values)
       {showCloseModal && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="ModalInput p-6 bg-white rounded-lg shadow-xl inline-flex flex-col gap-5">
-            <h2 className="text-xl font-weight-600">Close File</h2>
+            <div className="d-flex flex-col gap-2">
+              {" "}
+              <h2 className="text-xl font-weight-600">Close File</h2>
+              <small className="text-neutral-700 font-weight-400">
+                Please provide a reason below for closing this case
+              </small>
+            </div>
+
             <textarea
-              className="w-96 h-40 p-4 border border-gray-200 rounded-lg"
+              className="w-96 h-40 p-4 border border-gray-200 rounded-lg outline-none focus:border-blue-200 focus:ring-2 focus:ring-blue-200"
               placeholder="Reason..."
               value={closureReason}
               onChange={(e) => setClosureReason(e.target.value)}
@@ -696,13 +700,13 @@ console.log(formik.values)
             <div className="flex justify-end gap-4">
               <button
                 onClick={() => setShowCloseModal(false)}
-                className="px-6 py-3 border border-blue-500 text-blue-500 rounded-lg"
+                className="px-6 py-3 border border-blue-500 text-blue-500 rounded"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCloseFile}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg"
+                className="px-6 py-3 bg-blue-500 text-white rounded"
               >
                 Submit
               </button>

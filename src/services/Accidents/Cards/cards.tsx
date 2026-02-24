@@ -31,18 +31,18 @@ export const getPassengerByPassengerId = async (id: number): Promise<Passenger> 
   return response.data;
 };
 
-export const createPassenger = async (data: Passenger): Promise<Passenger> => {
+export const createPassenger = async (data: any): Promise<any> => {
   const response = await axiosInstance.post('/accident-details/passenger/', data);
   return response.data;
 };
 
 export const updatePassenger = async (id: number, data: Partial<Passenger>): Promise<Passenger> => {
-  const response = await axiosInstance.put(`/accident-details/update-passenger/${id}`, data);
+  const response = await axiosInstance.put(`/accident-details/update_passenger/${id}`, data);
   return response.data;
 };
 
 export const deletePassenger = async (id: number): Promise<void> => {
-  await axiosInstance.patch(`/accident-details/deactive-passenger/${id}`);
+  await axiosInstance.patch(`/accident-details/deactive_passenger/${id}`);
 };
 
 // Police Detail Interfaces and API calls
@@ -60,8 +60,8 @@ export interface PoliceDetail {
 
 export const getPoliceDetails = async (accidentId?: number): Promise<PoliceDetail[]> => {
   const url = accidentId 
-    ? `/accident-details/police-detail/${accidentId}`
-    : `/accident-details/police-detail/${accidentId}`;
+    ? `/accident-details/police_detail/${accidentId}`
+    : `/accident-details/police_detail/${accidentId}`;
   
   const response = await axiosInstance.get(url);
   return response.data;
@@ -72,18 +72,18 @@ export const getPoliceDetailById = async (id: number): Promise<PoliceDetail> => 
   return response.data;
 };
 
-export const createPoliceDetail = async (data: PoliceDetail): Promise<PoliceDetail> => {
-  const response = await axiosInstance.post('/accident-details/police-detail/', data);
+export const createPoliceDetail = async (data: any): Promise<any> => {
+  const response = await axiosInstance.post('/accident-details/police_detail/', data);
   return response.data;
 };
 
 export const updatePoliceDetail = async (id: number, data: Partial<PoliceDetail>): Promise<PoliceDetail> => {
-  const response = await axiosInstance.put(`/accident-details/update-police/${id}`, data);
+  const response = await axiosInstance.put(`/accident-details/update_police/${id}`, data);
   return response.data;
 };
 
 export const deletePoliceDetail = async (id: number): Promise<void> => {
-  await axiosInstance.patch(`/accident-details/deactive-police/${id}`);
+  await axiosInstance.patch(`/accident-details/deactive_police/${id}`);
 };
 
 // Witness Interfaces and API calls
@@ -99,8 +99,8 @@ export interface Witness {
 
 export const getWitnesses = async (accidentId?: number): Promise<Witness[]> => {
   const url = accidentId 
-    ? `/accident-details/witness-detail/${accidentId}`
-    : '/accident-details/witness-detail/';
+    ? `/accident-details/witness_detail/${accidentId}`
+    : '/accident-details/witness_detail/';
   
   const response = await axiosInstance.get(url);
   return response.data;
@@ -111,26 +111,27 @@ export const getWitnessById = async (id: number): Promise<Witness> => {
   return response.data;
 };
 
-export const createWitness = async (data: Witness): Promise<Witness> => {
+export const createWitness = async (data: any): Promise<any> => {
   const response = await axiosInstance.post('/accident-details/witness/', data);
   return response.data;
 };
 
 export const updateWitness = async (id: number, data: Partial<Witness>): Promise<Witness> => {
-  const response = await axiosInstance.put(`/accident-details/update-witness/${id}`, data);
+  const response = await axiosInstance.put(`/accident-details/update_witness/${id}`, data);
   return response.data;
 };
 
 export const deleteWitness = async (id: number): Promise<void> => {
-  await axiosInstance.patch(`/accident-details/deactive-witness/${id}`);
+  await axiosInstance.patch(`/accident-details/deactive_witness/${id}`);
 };
 
 export const sendEmail = async (email: any, claimID: any, firstName: any, referrence_no: any, option: any) => {
+  console.log(option)
   const data = {
     witness_email: email,
     witness_name: firstName,
     reference: referrence_no,
-    option: option.value
+    option: option.id
   }
   const response = await axiosInstance.post(`/witnesses/send-witness-email/${claimID}`, data);
   return response.data;

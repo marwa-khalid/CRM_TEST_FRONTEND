@@ -5,53 +5,15 @@ import Vulnerable from "../../../assets/AutoClaim_icon/Vulnerable.svg";
 import { useEffect, useRef, useState } from "react";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Select from "react-select";
-// Custom Blue Arrow Component for react-select
-const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>) => {
-  return (
-    <components.DropdownIndicator {...props}>
-      <svg
-        width="12"
-        height="7"
-        viewBox="0 0 12 7"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M1 1L6 6L11 1"
-          stroke="#0352FD"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </components.DropdownIndicator>
-  );
-};
-
-// Common custom styles for react-select
-const customStyles: StylesConfig<any, false> = {
-  control: (base, state) => ({
-    ...base,
-    height: '52px',
-    borderRadius: '4px',
-    borderColor: state.isFocused ? '#0352FD' : '#E5E7EB',
-    boxShadow: 'none',
-    '&:hover': { borderColor: '#0352FD' },
-    paddingLeft: '8px',
-    backgroundColor: 'white',
-  }),
-  placeholder: (base) => ({
-    ...base,
-    color: '#9CA3AF',
-    fontWeight: '300',
-    fontSize: '16px',
-  }),
-  option: (base, state) => ({
-    ...base,
-    backgroundColor: state.isSelected ? '#0352FD' : state.isFocused ? '#EFF6FF' : 'white',
-    color: state.isSelected ? 'white' : '#374151',
-  }),
-};
+import { createClient, getClientByClaimID, updateClient, vulnerablePersonPolicy } from "../../../services/Client/Client";
+import { toast } from "react-toastify";
+import { useFormik } from "formik";
+import * as Yup from "yup"
+import type { CalendarDate } from "@internationalized/date";
+import { notifyManager } from "../../../services/Claims/Claims";
+import VulnerableFile from '../../../assets/documents/VulnerablePersonsPolicy.docx';
+import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 
 const handlerOptions = [
   { value: "Private Hire Driver", label: "Private Hire Driver" },
@@ -59,96 +21,243 @@ const handlerOptions = [
   { value: "Others", label: "Others" },
 ];
 
-export const ClientDetailsForm = () => {
-  const [personalInfo, setPersonalInfo] = useState({
-    firstName: "",
-    lastName: "",
-    dob: null as Date | null,
-    age: "",
-    niNumber: "",
-    occupation: "",
-    customOccupation: "",
-    driverCode: "",
-    driverBase: "",
-    isDayNightDriver: "Yes",
-  });
+export const ClientDetailsForm = ({ formRef }: any) => {
 
+    const formatCalendarDate = (date?: CalendarDate): string | undefined => {
+      if (!date) return undefined;
+      const jsDate = new Date(date.year, date.month - 1, date.day);
+      const yyyy = jsDate.getFullYear();
+      const mm = String(jsDate.getMonth() + 1).padStart(2, "0");
+      const dd = String(jsDate.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    };
   const [showDobPicker, setShowDobPicker] = useState(false);
-const [contactInfo, setContactInfo] = useState({
-  address: "",
-  postCode: "",
-  email: "",
-  homePhone: "+44",
-  mobileNumber: "+44",
-  preferredLanguage: "",
-  speaksClearEnglish: "Yes",
-  alternativeContact: "No",
-});
 
-const languageOptions = [
-  { value: "English", label: "English" },
-  { value: "Urdu", label: "Urdu" },
-  { value: "Punjabi", label: "Punjabi" },
-  { value: "Bengali", label: "Bengali" },
-  { value: "Other", label: "Other" },
-];
-  const [bankInfo, setBankInfo] = useState({
-    sortCode: "",
-    accountNumber: "",
-    payNotificationDate: null as Date | null,
+  const cleanPayload = (obj: any) => {
+    if (obj === "") return null;
+
+    if (Array.isArray(obj)) {
+      return obj.map(cleanPayload);
+    }
+
+    if (obj !== null && typeof obj === "object") {
+      return Object.fromEntries(
+        Object.entries(obj).map(([key, value]) => [key, cleanPayload(value)]),
+      );
+    }
+
+    return obj;
+  };
+
+  const clientId = localStorage.getItem("clientId");
+  const claimId = localStorage.getItem("claimId");
+
+  const formik = useFormik({
+    initialValues: {
+      clientTitle: "Mr.",
+      clientFirstName: "",
+      clientSurname: "",
+      onHirePaymentAmount: "0.00",
+      onHirePaidOn: "",
+      address: "",
+      postcode: "",
+      customOccupation: "",
+      homeTelephone: "",
+      mobileTelephone: "",
+      email: "",
+      id: "",
+      clientSpeakEnglish: "Yes",
+      clientPreferredLanguage: null,
+      alternativeContact: "No",
+      contactName: "",
+      contactTelephone: "",
+      sortCode: "",
+      accountNumber: "",
+      payDriverNotificationDate: "",
+      payDriverNotes: "",
+      dateOfBirth: "",
+      age: "",
+      niNumber: "",
+      occupation: "",
+      vatRegistered: "Yes",
+      driverCode: "",
+      dayNightDriver: "Yes",
+      driverBase: "",
+      vulnerablePerson: "No",
+      vulnerablePersonWhy: "",
+    },
+    validationSchema: Yup.object().shape({}),
+    onSubmit: async (values: any) => {
+      try {
+        const payload = {
+          gender: values.clientTitle,
+          first_name: values.clientFirstName,
+          surname: values.clientSurname,
+          age: values.age || 0,
+          occupation:
+            values.occupation !== "Other"
+              ? values.occupation
+              : values.customOccupation,
+          date_of_birth: values.dateOfBirth || null,
+          ni_number: values.niNumber,
+          driver_code: values.driverCode,
+          day_driver: values.dayNightDriver === "Yes",
+          driver_base: values.driverBase,
+          // id: initialValues?.id,
+          sort_code: values.sortCode,
+          account_number: values.accountNumber,
+          bank_details_note: values.payDriverNotes,
+          ci_vat_registered: values.vatRegistered === "Yes",
+          is_vulnerable: values.vulnerablePerson === "Yes",
+          vulnerable_note: values.vulnerablePersonWhy,
+          language_id: values.clientPreferredLanguage,
+          speaks_clear_english: values.clientSpeakEnglish === "Yes",
+          contact_via_alternative_person: values.alternativeContact === "Yes",
+          alter_person: values.contactName,
+          alter_number: values.contactTelephone,
+          claim_id: parseInt(claimId) || 0,
+          address: {
+            address: values.address,
+            postcode: values.postcode,
+            home_tel: values.homeTelephone,
+            mobile_tel: values.mobileTelephone,
+            email: values.email,
+            latitude: values.latitude,
+            longitude: values.longitude,
+          },
+        };
+        const payloadToSend = cleanPayload(payload);
+        console.log(parseInt(claimId));
+        // return
+        if (claimId && clientId) {
+          const response = await updateClient(
+            parseInt(claimId),
+            payloadToSend,
+          );
+          localStorage.setItem("clientId", response.id);
+        } else {
+          const response = await createClient(payloadToSend);
+          localStorage.setItem("clientId", response.id);
+        }
+        toast.success("Client details saved successfully");
+      } catch (error) {
+        toast.error("Error saving client details");
+        throw error;
+      }
+    },
   });
-const [vatInfo, setVatInfo] = useState({
-  isVatRegistered: "No",
-});
-const [vulnerabilityInfo, setVulnerabilityInfo] = useState({
-  isVulnerable: "No",
-  reason: "",
-});
-const handleNotifyManager = () => {
-  console.log("Manager Notified");
-  // Add your email/notification logic here
-};
+  useEffect(() => {
+    const fetchData = async () => {
+      const clientData = await getClientByClaimID(parseInt(claimId));
+      console.log(clientData);
+          const mappedValues = {
+            clientTitle: clientData.gender || "",
+            clientFirstName: clientData.first_name || "",
+            clientSurname: clientData.surname || "",
+            onHirePaymentAmount: "0.00",
+            onHirePaidOn: "",
+            id: clientData?.id,
+            address: clientData.address?.address || "",
+            postcode: clientData.address?.postcode || "",
+            homeTelephone: clientData.address?.home_tel || "",
+            mobileTelephone: clientData.address?.mobile_tel || "",
+            email: clientData.address?.email || "",
+            clientSpeakEnglish: clientData.speaks_clear_english ? "Yes" : "No",
+            clientPreferredLanguage: clientData.language_id || null,
+            alternativeContact: clientData.contact_via_alternative_person
+              ? "Yes"
+              : "No",
+            contactName: clientData.alter_person || "",
+            contactTelephone: clientData.alter_number || "",
+            sortCode: clientData.sort_code || "",
+            accountNumber: clientData.account_number || "",
+            payDriverNotificationDate: "", // Adjust based on your data
+            payDriverNotes: clientData.bank_details_note || "",
+            niNumber: clientData.ni_number || "",
+            occupation: clientData.occupation || "",
+            customOccupation:
+              clientData?.occupation !== "Private Hire Driver" ||
+              clientData?.occupation !== "Taxi Driver"
+                ? clientData?.occupation
+                : "",
+            vatRegistered: clientData.ci_vat_registered ? "Yes" : "No",
+            driverCode: clientData.driver_code || "",
+            dayNightDriver: clientData.day_driver ? "Yes" : "No",
+            driverBase: clientData.driver_base || "",
+            vulnerablePerson: clientData.is_vulnerable ? "Yes" : "No",
+            vulnerablePersonWhy: clientData.vulnerable_note || "",
+          };
+      formik.setValues(mappedValues);
+    };
+    console.log(clientId)
+    if (claimId && clientId) {
+      fetchData();
+    }
+  }, []);
+    useEffect(() => {
+      if (formRef) {
+        formRef.current = formik;
+      }
+    }, [formRef, formik]);
+  const handleVulnarablePersonPolicy = () => {
+    const link = document.createElement("a");
+    link.href = VulnerableFile;
+    // Set the extension to .docx to match your import
+    link.download = "Vulnerable_Person_Policy.docx";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+
+  const languageOptions = [
+    { value: 1, label: "English" },
+    { value: 2, label: "Urdu" },
+    { value: 3, label: "Punjabi" },
+    { value:4, label: "Bengali" },
+    { value: 5, label: "Other" },
+  ];
+   const handleNotifyManager = async () => {
+      try {
+        await notifyManager(parseInt(claimId));
+        toast.success("Manager Notified");
+      } catch (e) {
+        toast.error("Failed to notify manager");
+      }
+    };
   const [showPayDatePicker, setShowPayDatePicker] = useState(false);
   // Auto-calculate age when DOB changes
-  // Auto-calculate age when DOB changes
   useEffect(() => {
-    if (personalInfo.dob) {
-      const today = new Date();
-      const birthDate = new Date(personalInfo.dob);
+    if (!formik.values.dateOfBirth) return undefined;
+    const birthDate = new Date(
+      formik.values.dateOfBirth.getFullYear(),
+      formik.values.dateOfBirth.getMonth() - 1,
+      formik.values.dateOfBirth.getDay(),
+    );
+    const today = new Date();
 
-      let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
 
-      // Adjust age if birthday hasn't occurred yet this year
-      if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < birthDate.getDate())
-      ) {
-        calculatedAge--;
-      }
-
-      // Use functional update to avoid dependency loops
-      setPersonalInfo((prev) => {
-        const finalAge = Math.max(0, calculatedAge).toString();
-        // Only update if the age has actually changed to prevent infinite loops
-        if (prev.age === finalAge) return prev;
-        return {
-          ...prev,
-          age: finalAge,
-        };
-      });
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
+      age--;
     }
-  }, [personalInfo.dob]); // ONLY depend on dob, not the whole personalInfo object
+
+    formik.setFieldValue("age", age.toString());
+  }, [formik.values.dateOfBirth]); // ONLY depend on dob, not the whole personalInfo object
   return (
-    <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide">
+    <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
       {/* Container matching left-[534px] and top-[157px] from source */}
-      <h1 className="text-black text-2xl font-semibold font-['Stack_Sans_Headline']">
+      <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
         Client Details
       </h1>
       {/* Section 1: Personal Information Section */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
         {/* Header Aligned Exactly Like Previous Sections */}
-        <h2 className="text-black text-xl font-semibold leading-5 font-['Stack_Sans_Headline']">
+        <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
           Personal Information
         </h2>
         <div className="h-px bg-gray-100 w-full" />
@@ -157,35 +266,31 @@ const handleNotifyManager = () => {
           {/* Row 1: First Name & Last Name */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium h-[20px] flex items-center">
+              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                 First Name
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="Enter First Name"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  value={formik.values.clientFirstName}
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                   onChange={(e) =>
-                    setPersonalInfo({
-                      ...personalInfo,
-                      firstName: e.target.value,
-                    })
+                    formik.setFieldValue("clientFirstName", e.target.value)
                   }
                 />
               </div>
             </div>
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium h-[20px] flex items-center">
+              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                 Last Name
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="Enter Last Name"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                  value={formik.values.clientSurname}
                   onChange={(e) =>
-                    setPersonalInfo({
-                      ...personalInfo,
-                      lastName: e.target.value,
-                    })
+                    formik.setFieldValue("clientSurname", e.target.value)
                   }
                 />
               </div>
@@ -195,7 +300,7 @@ const handleNotifyManager = () => {
           {/* Row 2: DOB & Age (Auto-calculated) */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-6 flex flex-col gap-2 relative">
-              <label className="text-gray-700 text-sm font-medium h-[20px] flex items-center">
+              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                 Date of Birth
               </label>
               <div
@@ -204,13 +309,13 @@ const handleNotifyManager = () => {
               >
                 <span
                   className={
-                    personalInfo.dob
-                      ? "text-gray-900 font-light"
-                      : "text-gray-300 font-light"
+                    formik.values.dateOfBirth
+                      ? "text-gray-900 font-['system-ui']"
+                      : "text-gray-300 font-['system-ui']"
                   }
                 >
-                  {personalInfo.dob
-                    ? personalInfo.dob.toLocaleDateString("sv-SE") // YYYY-MM-DD format
+                  {formik.values.dateOfBirth
+                    ? formik.values.dateOfBirth.toLocaleDateString("sv-SE") // YYYY-MM-DD format
                     : "Date"}
                 </span>
                 <img src={Vector6} className="w-4 h-4" alt="calendar" />
@@ -218,15 +323,15 @@ const handleNotifyManager = () => {
 
               {/* Date Picker Dropdown */}
               {showDobPicker && (
-                <div className="absolute top-[80px] left-0 z-[100] shadow-xl rounded-lg bg-white">
+                <div className="absolute top-[28px] left-0 z-[100] shadow-xl rounded-lg bg-white">
                   <CustomDatePicker
-                    selectedDate={personalInfo.dob || new Date()}
+                    selectedDate={formik.values.dateOfBirth || new Date()}
                     // Ensure the user cannot pick a future date
                     // maxDate={new Date()}
                     onDateSelect={(date) => {
                       // Double check: only update if date is not in the future
                       if (date <= new Date()) {
-                        setPersonalInfo({ ...personalInfo, dob: date });
+                        formik.setFieldValue("dateOfBirth", date);
                         setShowDobPicker(false);
                       }
                     }}
@@ -237,16 +342,16 @@ const handleNotifyManager = () => {
 
             {/* Age Field (Linked to the same row) */}
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium h-[20px] flex items-center">
+              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                 Age
               </label>
               <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center">
                 <input
                   readOnly
-                  value={personalInfo.age}
+                  value={formik.values.age}
                   placeholder="Age"
-                  className={`w-full bg-transparent outline-none font-light ${
-                    personalInfo.age ? "text-gray-900" : "text-gray-400"
+                  className={`w-full bg-transparent outline-none font-['system-ui'] ${
+                    formik.values.age ? "text-gray-900" : "text-gray-400"
                   }`}
                 />
               </div>
@@ -256,13 +361,13 @@ const handleNotifyManager = () => {
           {/* Row 3: NI Number (Full Width in Grid context) */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-12 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium h-[20px] flex items-center">
+              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                 NI Number
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="e.g. QQ 12 34 56 C"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light uppercase"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] uppercase"
                 />
               </div>
             </div>
@@ -271,15 +376,18 @@ const handleNotifyManager = () => {
           {/* Row 4: Occupation & Custom Occupation */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium h-[20px] flex items-center">
+              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                 Occupation
               </label>
               <Select
                 options={handlerOptions}
-                placeholder="Select Handler"
+                placeholder="Select Occupation"
                 styles={customStyles}
+                value={handlerOptions.find(
+                  (option) => option.value === formik.values.occupation,
+                )}
                 onChange={(option: any) =>
-                  setPersonalInfo({ ...personalInfo, occupation: option.value })
+                  formik.setFieldValue("occupation", option.value)
                 }
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
@@ -290,16 +398,16 @@ const handleNotifyManager = () => {
 
             {/* Conditional Rendering for 'Others' - Aligned with the Select box */}
             <div
-              className={`col-span-6 flex flex-col gap-2 transition-opacity duration-300 ${personalInfo.occupation === "Others" ? "opacity-100" : "opacity-30 pointer-events-none"}`}
+              className={`col-span-6 flex flex-col gap-2 transition-opacity duration-300 ${formik.values.occupation === "Others" ? "opacity-100" : "opacity-30 pointer-events-none"}`}
             >
-              <label className="text-gray-700 text-sm font-medium h-[20px] flex items-center">
+              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                 Custom Occupation
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
-                  disabled={personalInfo.occupation !== "Others"}
+                  disabled={formik.values.occupation !== "Others"}
                   placeholder="Please specify"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
@@ -307,18 +415,18 @@ const handleNotifyManager = () => {
           {/* Row 5: Driver Code & Day/Night Radio */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium h-[20px] flex items-center">
+              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                 Driver Code
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="Enter Code"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
             <div className="col-span-6 flex flex-col gap-2">
-              <span className="text-gray-700 text-sm font-medium h-[20px] flex items-center">
+              <span className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                 Day/Night Driver?
               </span>
               <div className="h-[52px] flex items-center gap-8">
@@ -332,12 +440,9 @@ const handleNotifyManager = () => {
                         type="radio"
                         name="dayNightDriver"
                         className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                        checked={personalInfo.isDayNightDriver === option}
+                        checked={formik.values.dayNightDriver === option}
                         onChange={() =>
-                          setPersonalInfo({
-                            ...personalInfo,
-                            isDayNightDriver: option,
-                          })
+                          formik.setFieldValue("dayNightDriver", option)
                         }
                       />
                       <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
@@ -352,13 +457,13 @@ const handleNotifyManager = () => {
           {/* Row 6: Driver Base */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium h-[20px] flex items-center">
+              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                 Driver Base
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="Enter Driver Base"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
@@ -367,7 +472,7 @@ const handleNotifyManager = () => {
       </div>
       {/* Section 2:  Contact Information */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
-        <h2 className="text-black text-xl font-semibold leading-5 font-['Stack_Sans_Headline']">
+        <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
           Contact Information
         </h2>
         <div className="h-px bg-gray-100 w-full" />
@@ -376,47 +481,60 @@ const handleNotifyManager = () => {
           {/* Row 1: Full Width Address */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-12 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Address
               </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+              {/* <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="Enter Address"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                   onChange={(e) =>
-                    setContactInfo({ ...contactInfo, address: e.target.value })
+                    formik.setFieldValue("address", e.target.value)
                   }
                 />
-              </div>
+              </div> */}
+              <LeafletAutocompleteMap
+                showMap={false}
+                apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
+                address={formik.values.address}
+                onPlaceSelected={(place) => {
+                  console.log(place);
+                  if (place.name) {
+                    formik.setFieldValue("address", place.address);
+                    formik.setFieldValue("postcode", place?.postalCode);
+                  }
+                }}
+                disabled={false}
+              />
             </div>
           </div>
 
           {/* Row 2: Post Code & Email Address */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-4 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Post Code
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="Enter Code"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                   onChange={(e) =>
-                    setContactInfo({ ...contactInfo, postCode: e.target.value })
+                    formik.setFieldValue("postcode", e.target.value)
                   }
                 />
               </div>
             </div>
             <div className="col-span-8 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Email Address
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="Enter Email"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                   onChange={(e) =>
-                    setContactInfo({ ...contactInfo, email: e.target.value })
+                    formik.setFieldValue("email", e.target.value)
                   }
                 />
               </div>
@@ -426,36 +544,30 @@ const handleNotifyManager = () => {
           {/* Row 3: Home Telephone & Mobile Number */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Home Telephone
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
-                  value={contactInfo.homePhone}
+                  value={formik.values.homePhone}
                   onChange={(e) =>
-                    setContactInfo({
-                      ...contactInfo,
-                      homePhone: e.target.value,
-                    })
+                    formik.setFieldValue("homeTelephone", e.target.value)
                   }
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Mobile Number
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
-                  value={contactInfo.mobileNumber}
+                  value={formik.values.mobileNumber}
                   onChange={(e) =>
-                    setContactInfo({
-                      ...contactInfo,
-                      mobileNumber: e.target.value,
-                    })
+                    formik.setFieldValue("contactTelephone", e.target.value)
                   }
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
@@ -464,7 +576,7 @@ const handleNotifyManager = () => {
           {/* Row 4: Language & English Proficiency */}
           <div className="grid grid-cols-12 gap-5 w-full items-end">
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Client's Preferred Language
               </label>
               <Select
@@ -475,16 +587,17 @@ const handleNotifyManager = () => {
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
                 }}
+                value={languageOptions.find(
+                  (option) =>
+                    option.value === formik.values.clientPreferredLanguage,
+                )}
                 onChange={(opt: any) =>
-                  setContactInfo({
-                    ...contactInfo,
-                    preferredLanguage: opt.value,
-                  })
+                  formik.setFieldValue("clientPreferredLanguage", opt.value)
                 }
               />
             </div>
             <div className="col-span-6 flex flex-col gap-3 pb-2">
-              <span className="text-black text-sm font-medium">
+              <span className="text-black text-sm font-weight-400">
                 Does the client speak clear english?
               </span>
               <div className="flex gap-8">
@@ -497,12 +610,9 @@ const handleNotifyManager = () => {
                       <input
                         type="radio"
                         className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                        checked={contactInfo.speaksClearEnglish === option}
+                        checked={formik.values.clientSpeakEnglish === option}
                         onChange={() =>
-                          setContactInfo({
-                            ...contactInfo,
-                            speaksClearEnglish: option,
-                          })
+                          formik.setFieldValue("speaksClearEnglish", option)
                         }
                       />
                       <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
@@ -516,7 +626,7 @@ const handleNotifyManager = () => {
 
           {/* Row 5: Alternative Contact Person Request */}
           <div className="col-span-12 flex flex-col gap-3">
-            <span className="text-black text-sm font-medium">
+            <span className="text-black text-sm font-weight-400">
               Client has requested that we place all contact through an
               alternative person
             </span>
@@ -530,12 +640,9 @@ const handleNotifyManager = () => {
                     <input
                       type="radio"
                       className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                      checked={contactInfo.alternativeContact === option}
+                      checked={formik.values.alternativeContact === option}
                       onChange={() =>
-                        setContactInfo({
-                          ...contactInfo,
-                          alternativeContact: option,
-                        })
+                        formik.setFieldValue("alternativeContact", option)
                       }
                     />
                     <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
@@ -550,7 +657,7 @@ const handleNotifyManager = () => {
       {/* Section 3:  Bank Details */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
         <div className="self-stretch inline-flex justify-start items-start gap-4">
-          <h2 className="text-black text-xl font-semibold leading-5 font-['Stack_Sans_Headline']">
+          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
             Bank Details
           </h2>
         </div>
@@ -560,30 +667,44 @@ const handleNotifyManager = () => {
           {/* Row 1: Sort Code & Account Number */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Sort Code
               </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
                 <input
+                  type="text"
                   placeholder="00-00-00"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
-                  onChange={(e) =>
-                    setBankInfo({ ...bankInfo, sortCode: e.target.value })
-                  }
+                  maxLength={8} // 6 digits + 2 hyphens
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] tracking-widest"
+                  value={formik.values.sortCode || ""}
+                  onChange={(e) => {
+                    let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+
+                    // Apply the 00-00-00 pattern
+                    let formatted = value;
+                    if (value.length > 2 && value.length <= 4) {
+                      formatted = `${value.slice(0, 2)}-${value.slice(2)}`;
+                    } else if (value.length > 4) {
+                      formatted = `${value.slice(0, 2)}-${value.slice(2, 4)}-${value.slice(4, 6)}`;
+                    }
+
+                    formik.setFieldValue("sortCode", formatted);
+                  }}
                 />
               </div>
             </div>
             <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Account Number
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="8 Digits Number"
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                   maxLength={8}
+                  value={formik.values.accountNumber}
                   onChange={(e) =>
-                    setBankInfo({ ...bankInfo, accountNumber: e.target.value })
+                    formik.setFieldValue("accountNumber", e.target.value)
                   }
                 />
               </div>
@@ -593,7 +714,7 @@ const handleNotifyManager = () => {
           {/* Row 2: Pay Notification Date */}
           <div className="grid grid-cols-12 gap-5 w-full">
             <div className="col-span-6 flex flex-col gap-2 relative">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Pay Notification Date
               </label>
               <div
@@ -602,13 +723,15 @@ const handleNotifyManager = () => {
               >
                 <span
                   className={
-                    bankInfo.payNotificationDate
-                      ? "text-gray-900 font-light"
-                      : "text-gray-300 font-light"
+                    formik.values.payDriverNotificationDate
+                      ? "text-gray-900 font-['system-ui']"
+                      : "text-gray-300 font-['system-ui']"
                   }
                 >
-                  {bankInfo.payNotificationDate
-                    ? bankInfo.payNotificationDate.toLocaleDateString("sv-SE")
+                  {formik.values.payDriverNotificationDate
+                    ? formik.values.payDriverNotificationDate.toLocaleDateString(
+                        "sv-SE",
+                      )
                     : "Date"}
                 </span>
                 <img src={Vector6} className="w-4 h-4" alt="calendar" />
@@ -617,9 +740,11 @@ const handleNotifyManager = () => {
               {showPayDatePicker && (
                 <div className="absolute top-[80px] left-0 z-[100] shadow-xl rounded-lg bg-white">
                   <CustomDatePicker
-                    selectedDate={bankInfo.payNotificationDate || new Date()}
+                    selectedDate={
+                      formik.values.payDriverNotificationDate || new Date()
+                    }
                     onDateSelect={(date) => {
-                      setBankInfo({ ...bankInfo, payNotificationDate: date });
+                      formik.setFieldValue("payDriverNotificationDate", date);
                       setShowPayDatePicker(false);
                     }}
                   />
@@ -633,25 +758,27 @@ const handleNotifyManager = () => {
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
         {/* Header with Notify Manager Button */}
         <div className="self-stretch flex justify-between items-center">
-          <h2 className="text-black text-xl font-semibold leading-5 font-['Stack_Sans_Headline']">
+          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
             VAT & Registration
           </h2>
-          <button
-            onClick={handleNotifyManager}
-            className="h-8 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group"
-          >
-            <img src={Vector5} alt="" />
-            <span className="text-blue-600 text-sm font-normal">
-              Notify Manager
-            </span>
-          </button>
+          {formik.values.vulnerablePerson === "Yes" && (
+            <button
+              onClick={handleNotifyManager}
+              className="h-8 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group"
+            >
+              <img src={Vector5} alt="" />
+              <span className="text-blue-600 text-sm font-normal">
+                Notify Manager
+              </span>
+            </button>
+          )}
         </div>
 
         <div className="h-px bg-gray-100 w-full" />
 
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-5">
-            <span className="text-black text-sm font-medium">
+            <span className="text-black text-sm font-weight-400">
               CI VAT Registered?
             </span>
             <div className="flex gap-8">
@@ -665,8 +792,10 @@ const handleNotifyManager = () => {
                       type="radio"
                       name="vatRegistered"
                       className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                      checked={vatInfo.isVatRegistered === option}
-                      onChange={() => setVatInfo({ isVatRegistered: option })}
+                      checked={formik.values.vatRegistered === option}
+                      onChange={() =>
+                        formik.setFieldValue("vatRegistered", option)
+                      }
                     />
                     <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
                   </div>
@@ -680,21 +809,22 @@ const handleNotifyManager = () => {
       {/* Section 5: Vulnerable Persons Policy */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
         {/* Header with Policy Link Button */}
-        <div className="self-stretch flex justify-between items-center">
-          <h2 className="text-black text-xl font-semibold leading-5 font-['Stack_Sans_Headline']">
+        <div className="self-stretch flex justify-between items-center  cursor-pointer ">
+          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
             Vulnerable Persons Policy
           </h2>
-          <a
-            href="/policy/vulnerable-people" // Hyperlink to the policy
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-8 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors no-underline"
-          >
-            <img src={Vulnerable} alt="" />
-            <span className="text-blue-600 text-sm font-normal">
-              Vulnerable Policy
-            </span>
-          </a>
+          {formik.values.vulnerablePerson === "Yes" && (
+            <button
+              className="h-8 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group"
+              onClick={handleVulnarablePersonPolicy}
+              // download="Vulnerable_Person_Policy.docx"
+            >
+              <img src={Vulnerable} alt="" />
+              <span className="text-blue-600 text-sm font-normal">
+                Vulnerable Policy
+              </span>
+            </button>
+          )}
         </div>
 
         <div className="h-px bg-gray-100 w-full" />
@@ -702,7 +832,7 @@ const handleNotifyManager = () => {
         <div className="flex flex-col gap-6">
           {/* Question and Radio Buttons */}
           <div className="flex flex-col gap-5">
-            <span className="text-black text-sm font-medium">
+            <span className="text-black text-sm font-weight-400">
               Would you class the driver as a vulnerable person?
             </span>
             <div className="flex gap-8">
@@ -716,12 +846,9 @@ const handleNotifyManager = () => {
                       type="radio"
                       name="vulnerableStatus"
                       className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                      checked={vulnerabilityInfo.isVulnerable === option}
+                      checked={formik.values.vulnerablePerson === option}
                       onChange={() =>
-                        setVulnerabilityInfo({
-                          ...vulnerabilityInfo,
-                          isVulnerable: option,
-                        })
+                        formik.setFieldValue("vulnerablePerson", option)
                       }
                     />
                     <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
@@ -733,50 +860,25 @@ const handleNotifyManager = () => {
           </div>
 
           {/* Conditional "Why?" Field and Notify Manager Button */}
-          {vulnerabilityInfo.isVulnerable === "Yes" && (
+          {formik.values.vulnerablePerson === "Yes" && (
             <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-medium">
+                <label className="text-gray-700 text-sm font-weight-400">
                   Why?
                 </label>
                 <div className="px-5 py-4 bg-white rounded border border-gray-200 focus-within:border-blue-500">
                   <textarea
                     placeholder="Please provide details regarding the driver's vulnerability..."
-                    className="w-full bg-transparent outline-none text-gray-900 font-light min-h-[80px] resize-none"
-                    value={vulnerabilityInfo.reason}
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] min-h-[80px] resize-none"
+                    value={formik.values.vulnerablePersonWhy}
                     onChange={(e) =>
-                      setVulnerabilityInfo({
-                        ...vulnerabilityInfo,
-                        reason: e.target.value,
-                      })
+                      formik.setFieldValue(
+                        "vulnerablePersonWhy",
+                        e.target.value,
+                      )
                     }
                   />
                 </div>
-              </div>
-
-              {/* Notify Manager specifically for Vulnerability */}
-              <div className="flex justify-start">
-                <button
-                  onClick={() =>
-                    alert("Alerting supervisor via email...")
-                  }
-                  className="h-10 px-4 bg-blue-500 hover:bg-blue-600 rounded text-white text-sm font-medium flex items-center gap-2 transition-all shadow-sm"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M22 17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9.5C2 7 4 5 6.5 5H17.5C20 5 22 7 22 9.5V17Z" />
-                    <polyline points="2,9.5 12,15 22,9.5" />
-                  </svg>
-                  Notify Manager regarding Vulnerability
-                </button>
               </div>
             </div>
           )}
@@ -784,4 +886,4 @@ const handleNotifyManager = () => {
       </div>
     </div>
   );
-};;
+};

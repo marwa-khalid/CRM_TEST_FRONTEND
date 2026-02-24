@@ -207,7 +207,5 @@ export const downloadCSV = async (id: string) => {
 }
 
 export const notifyManager = (id: any) => {
-  return axiosInstance.post(`/claims/${id}/notify-manager`, {
-    note:"hello some test note", // must match NotifyManagerRequest
-  });
+  return axiosInstance.post(`/claims/${id}/notify-manager`);
 }

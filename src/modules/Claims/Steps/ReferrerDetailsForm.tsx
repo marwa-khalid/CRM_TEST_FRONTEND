@@ -1,4 +1,4 @@
-import { components, type DropdownIndicatorProps, type StylesConfig } from "react-select";
+
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { useEffect, useState, useRef } from "react";
 import { CustomDatePicker } from "../Components/DatePicker";
@@ -9,60 +9,9 @@ import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
 
-// Blue arrow for react-select
-const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>) => (
-  <components.DropdownIndicator {...props}>
-    <svg width="12" height="7" viewBox="0 0 12 7" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M1 1L6 6L11 1" stroke="#0352FD" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  </components.DropdownIndicator>
-);
-
-// React-select styles
-const customStyles: StylesConfig<any, false> = {
-  control: (base, state) => ({
-    ...base,
-    height: '52px',
-    borderRadius: '4px',
-    borderColor: state.isFocused ? '#0352FD' : '#E5E7EB',
-    boxShadow: 'none',
-    '&:hover': { borderColor: '#0352FD' },
-    paddingLeft: '8px',
-    backgroundColor: 'white',
-  }),
-  placeholder: (base) => ({ ...base, color: '#9CA3AF', fontWeight: '300', fontSize: '16px' }),
-  option: (base, state) => ({
-    ...base,
-    backgroundColor: state.isSelected ? '#0352FD' : state.isFocused ? '#EFF6FF' : 'white',
-    color: state.isSelected ? 'white' : '#374151',
-  }),
-};
-
 export const ReferrerDetailsForm = ({ formRef }: any) => {
   const [companies, setCompanies] = useState<any[]>([]);
-  // const { isLoaded } = useLoadScript({
-  //   googleMapsApiKey: process.env.REACT_APP_GOOGLE_API_KEY!,
-  //   libraries,
-  // });
 
-interface Referrer {
-  company_name: string;
-  address: string | null;
-  post_code: string | null;
-}
-
-interface Option {
-  label: string;
-  value: string;
-}
-  // Load CSV
-  // useEffect(() => {
-  //   Papa.parse("/referrers.csv", {
-  //     download: true,
-  //     header: true,
-  //     complete: (results) => setCompanies(results.data),
-  //   });
-  // }, []);
     const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
    useEffect(() => {
@@ -100,24 +49,21 @@ console.log(response)
           !offHireRef.current.contains(event.target as Node)
         )
           setShowOffHirePicker(false);
+        if (
+          onHireRef2.current &&
+          !onHireRef2.current.contains(event.target as Node)
+        )
+          setShowOnHirePicker2(false);
+        if (
+          offHireRef2.current &&
+          !offHireRef2.current.contains(event.target as Node)
+        )
+          setShowOffHirePicker2(false);
       };
-      document.addEventListener("mousedown", handleClickOutside);
+      // document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-useEffect(() => {
-  const handleClickOutside = (event: MouseEvent) => {
-    if (onHireRef2.current && !onHireRef2.current.contains(event.target as Node))
-      setShowOnHirePicker2(false);
-    if (
-      offHireRef2.current &&
-      !offHireRef2.current.contains(event.target as Node)
-    )
-      setShowOffHirePicker2(false);
-  };
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
 
 const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   let value = e.target.value.replace(/\D/g, ""); // remove non-digits
@@ -640,6 +586,7 @@ const handleCompanySelect = (selected: any) => {
                   />
                 </div>
               )}
+
             </div>
           </div>
 
@@ -696,7 +643,7 @@ const handleCompanySelect = (selected: any) => {
                         "referrer_commission.off_hire_paid_on",
                         date,
                       );
-                      setShowOffHirePicker(false);
+                      setShowOffHirePicker2(false);
                     }}
                   />
                 </div>

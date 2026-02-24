@@ -50,9 +50,9 @@ export const createClient = async (clientData: any) => {
 };
 
 // Update existing client
-export const updateClient = async (clientId: string | number, clientData: any) => {
+export const updateClient = async (claimId: string | number, clientData: any) => {
   try {
-    const response = await axiosInstance.put(`/clients/${clientId}`, clientData);
+    const response = await axiosInstance.put(`/clients/${claimId}`, clientData);
     return response.data;
   } catch (error: any) {
     throw error.response?.data || error;

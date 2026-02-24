@@ -1,156 +1,20 @@
-import { components, type DropdownIndicatorProps, type StylesConfig } from "react-select";
-import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
-import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
-import Vulnerable from "../../../assets/AutoClaim_icon/Vulnerable.svg";
-import { useEffect, useRef, useState } from "react";
-import { CustomDatePicker } from "../Components/DatePicker";
+import Vehicle from "../../../assets/AutoClaim_icon/Vehicle.svg";
+import DVLA from "../../../assets/AutoClaim_icon/DVLA.svg"
+import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
+import No from "../../../assets/AutoClaim_icon/No.svg";
+import MID from "../../../assets/AutoClaim_icon/MID.svg";
+import { useState } from "react";
 import Select from "react-select";
-import { Activity, Calendar, ChevronDown, Clock, FileText, MapPin, Minus, Plus, Search, Trash2, Upload, X } from "lucide-react";
-// Custom Blue Arrow Component for react-select
-const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>) => {
-  return (
-    <components.DropdownIndicator {...props}>
-      <svg
-        width="12"
-        height="7"
-        viewBox="0 0 12 7"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M1 1L6 6L11 1"
-          stroke="#0352FD"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </components.DropdownIndicator>
-  );
-};
-
-// Common custom styles for react-select
-const customStyles: StylesConfig<any, false> = {
-  control: (base, state) => ({
-    ...base,
-    height: '52px',
-    borderRadius: '4px',
-    borderColor: state.isFocused ? '#0352FD' : '#E5E7EB',
-    boxShadow: 'none',
-    '&:hover': { borderColor: '#0352FD' },
-    paddingLeft: '8px',
-    backgroundColor: 'white',
-  }),
-  placeholder: (base) => ({
-    ...base,
-    color: '#9CA3AF',
-    fontWeight: '300',
-    fontSize: '16px',
-  }),
-  option: (base, state) => ({
-    ...base,
-    backgroundColor: state.isSelected ? '#0352FD' : state.isFocused ? '#EFF6FF' : 'white',
-    color: state.isSelected ? 'white' : '#374151',
-  }),
-};
-
-const handlerOptions = [
-  { value: "Private Hire Driver", label: "Private Hire Driver" },
-  { value: "Taxi Driver", label: "Taxi Driver" },
-  { value: "Others", label: "Others" },
-];
+import { Calendar, Edit2, Minus, Plus,Trash2, Upload, X } from "lucide-react";
+import { VehicleCheckModal } from "./VehicleCheckModal";
+import { DVLAModal } from "./DVLAModal";
+import { MIDModal } from "./MIDModal";
+import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
+import trash from "../../../assets/AutoClaim_icon/trash.svg";
 
 export const VehicleDetailsForm = () => {
-  const [personalInfo, setPersonalInfo] = useState({
-    firstName: "",
-    lastName: "",
-    dob: null as Date | null,
-    age: "",
-    niNumber: "",
-    occupation: "",
-    customOccupation: "",
-    driverCode: "",
-    driverBase: "",
-    isDayNightDriver: "Yes",
-  });
-  const [attendeeInfo, setAttendeeInfo] = useState({
-    anyPassengers: "Yes",
-    passengerCount: 1,
-    anyWitnesses: "Yes",
-    policeAttended: "Yes",
-    dashcamFootage: "Yes",
-  });
-  const [showDobPicker, setShowDobPicker] = useState(false);
-  const [contactInfo, setContactInfo] = useState({
-    address: "",
-    postCode: "",
-    email: "",
-    homePhone: "+44",
-    mobileNumber: "+44",
-    preferredLanguage: "",
-    speaksClearEnglish: "Yes",
-    alternativeContact: "No",
-  });
 
-  const languageOptions = [
-    { value: "English", label: "English" },
-    { value: "Urdu", label: "Urdu" },
-    { value: "Punjabi", label: "Punjabi" },
-    { value: "Bengali", label: "Bengali" },
-    { value: "Other", label: "Other" },
-  ];
-  const [bankInfo, setBankInfo] = useState({
-    sortCode: "",
-    accountNumber: "",
-    payNotificationDate: null as Date | null,
-  });
-  const [vatInfo, setVatInfo] = useState({
-    isVatRegistered: "No",
-  });
-  const weatherOptions = [
-    { value: "sunny", label: "Sunny" },
-    { value: "rainy", label: "Rainy" },
-    { value: "cloudy", label: "Cloudy" },
-  ];
-  const [vulnerabilityInfo, setVulnerabilityInfo] = useState({
-    isVulnerable: "No",
-    reason: "",
-  });
-  const handleNotifyManager = () => {
-    console.log("Manager Notified");
-    // Add your email/notification logic here
-  };
-  const [showPayDatePicker, setShowPayDatePicker] = useState(false);
-  // Auto-calculate age when DOB changes
-  // Auto-calculate age when DOB changes
-  useEffect(() => {
-    if (personalInfo.dob) {
-      const today = new Date();
-      const birthDate = new Date(personalInfo.dob);
-
-      let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-
-      // Adjust age if birthday hasn't occurred yet this year
-      if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < birthDate.getDate())
-      ) {
-        calculatedAge--;
-      }
-
-      // Use functional update to avoid dependency loops
-      setPersonalInfo((prev) => {
-        const finalAge = Math.max(0, calculatedAge).toString();
-        // Only update if the age has actually changed to prevent infinite loops
-        if (prev.age === finalAge) return prev;
-        return {
-          ...prev,
-          age: finalAge,
-        };
-      });
-    }
-  }, [personalInfo.dob]); // ONLY depend on dob, not the whole personalInfo object
   const fuelOptions = [
     { value: "Petrol", label: "Petrol" },
     { value: "Diesel", label: "Diesel" },
@@ -225,6 +89,10 @@ export const VehicleDetailsForm = () => {
   });
 
   // Validation Logic based on Acceptance Criteria
+  const [checkModal, openModal1] = useState<boolean>(false)
+  const [dvlaModal, openModal2] = useState<boolean>(false);
+  const [midModal, openModal3] = useState<boolean>(false);
+  
   const isVehicleValid =
     currentVehicle.make && currentVehicle.model && currentVehicle.registration;
 const [isModalOpen, setIsModalOpen] = useState(false);
@@ -259,19 +127,20 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
       });
     }
   };
+  
   return (
     <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide">
       {/* Container matching left-[534px] and top-[157px] from source */}
-      <h1 className="text-black text-2xl font-semibold font-['Stack_Sans_Headline']">
+      <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
         Vehicle Details
       </h1>
       {/* Section 1: Personal Information Section */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
         <div className="flex justify-between items-center w-full">
-          <h2 className="text-black text-xl font-semibold leading-5 font-['Stack_Sans_Headline']">
+          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
             Client's Vehicle Details
           </h2>
-          <button className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-md text-sm font-medium hover:bg-blue-100 transition-colors">
+          <button className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-md text-sm font-weight-400 hover:bg-blue-100 transition-colors">
             <Upload className="w-4 h-4" />
             Upload V5C File
           </button>
@@ -281,7 +150,9 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Make */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">Make</label>
+            <label className="text-neutral-900 text-sm font-weight-400">
+              Make
+            </label>
             <input
               type="text"
               placeholder="Enter Make"
@@ -290,7 +161,9 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           </div>
           {/* Model */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">Model</label>
+            <label className="text-neutral-900 text-sm font-weight-400">
+              Model
+            </label>
             <input
               type="text"
               placeholder="Enter Model"
@@ -299,7 +172,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           </div>
           {/* Body Type */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">
+            <label className="text-neutral-900 text-sm font-weight-400">
               Body Type
             </label>
             <input
@@ -310,7 +183,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           </div>
           {/* Vehicle Registration */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">
+            <label className="text-neutral-900 text-sm font-weight-400">
               Vehicle Registration
             </label>
             <input
@@ -321,7 +194,9 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           </div>
           {/* Color */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">Color</label>
+            <label className="text-neutral-900 text-sm font-weight-400">
+              Color
+            </label>
             <input
               type="text"
               placeholder="Enter Color"
@@ -330,7 +205,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           </div>
           {/* Fuel Type */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">
+            <label className="text-neutral-900 text-sm font-weight-400">
               Fuel Type
             </label>
             <Select
@@ -345,7 +220,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           </div>
           {/* Engine Size */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">
+            <label className="text-neutral-900 text-sm font-weight-400">
               Engine Size
             </label>
             <input
@@ -356,7 +231,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           </div>
           {/* Transmission */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">
+            <label className="text-neutral-900 text-sm font-weight-400">
               Transmission
             </label>
             <Select
@@ -371,7 +246,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           </div>
           {/* Number of Seats */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">
+            <label className="text-neutral-900 text-sm font-weight-400">
               Number of Seats (Inc. Driver)
             </label>
             <div className="flex items-center justify-between px-4 py-3 bg-white rounded border border-gray-200 h-[52px]">
@@ -399,7 +274,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           </div>
           {/* Category */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">
+            <label className="text-neutral-900 text-sm font-weight-400">
               Vehicle Category
             </label>
             <Select
@@ -415,10 +290,10 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
         </div>
 
         {/* Conditional Borough Section */}
-        {claimType === "RTA – Nationwide Assist" && (
+        {/* {claimType !== "RTA – Nationwide Assist" && (
           <div className="mt-4 p-4 bg-blue-50/50 rounded-lg border border-blue-100 flex flex-col gap-2 animate-in fade-in duration-300">
-            <label className="text-gray-700 text-sm font-medium">
-              Borough <span className="text-red-500">*</span>
+            <label className="text-neutral-900 text-sm font-weight-400">
+              Borough
             </label>
             <input
               type="text"
@@ -427,13 +302,13 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
               required
             />
           </div>
-        )}
+        )} */}
       </div>
       {/* Section 2:  Contact Information */}
-      {claimType === "RTA – Nationwide Assist" && (
+      {claimType !== "RTA – Nationwide Assist" && (
         <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6 animate-in fade-in duration-500">
           <div className="flex justify-between items-center w-full">
-            <h2 className="text-black text-xl font-semibold leading-5 font-['Stack_Sans_Headline']">
+            <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
               Borough Details
             </h2>
           </div>
@@ -442,8 +317,8 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Borough Name - Mandatory */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
-                Borough <span className="text-red-500">*</span>
+              <label className="text-neutral-900 text-sm font-weight-400">
+                Borough
               </label>
               <input
                 type="text"
@@ -455,7 +330,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
 
             {/* Taxi Type Dropdown */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-neutral-900 text-sm font-weight-400">
                 Taxi Type
               </label>
               <Select
@@ -471,7 +346,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
 
             {/* Client Badge Number */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-neutral-900 text-sm font-weight-400">
                 Client Badge Number
               </label>
               <input
@@ -483,7 +358,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
 
             {/* Badge Expiry Date */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-neutral-900 text-sm font-weight-400">
                 Badge Expiry Date
               </label>
               <div className="relative">
@@ -498,7 +373,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
 
             {/* Vehicle Badge Number */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-neutral-900 text-sm font-weight-400">
                 Vehicle Badge Number
               </label>
               <input
@@ -512,9 +387,9 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
           <div className="h-px bg-gray-100 w-full my-2" />
 
           {/* Other Borough Toggle Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-end">
+          <div className="flex justify-between">
             <div className="flex flex-col gap-5">
-              <label className="text-black text-sm font-medium">
+              <label className="text-black text-sm font-weight-400">
                 Any Other Borough?
               </label>
               <div className="flex items-center gap-5">
@@ -536,11 +411,11 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
                           })
                         }
                       />
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 ${boroughInfo.hasOtherBorough === option ? "border-blue-500 bg-blue-100" : "border-gray-300 bg-white"}`}
-                      />
-                      {boroughInfo.hasOtherBorough === option && (
-                        <div className="absolute w-2 h-2 rounded-full bg-blue-600" />
+
+                      {boroughInfo.hasOtherBorough === option ? (
+                        <img src={Yes} alt="" />
+                      ) : (
+                        <img src={No} alt="" />
                       )}
                     </div>
                     <span className="text-black text-sm">{option}</span>
@@ -551,9 +426,9 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
 
             {/* Conditional Other Borough Input */}
             <div
-              className={`flex flex-col gap-2 transition-opacity duration-300 ${boroughInfo.hasOtherBorough === "Yes" ? "opacity-100" : "opacity-40 pointer-events-none"}`}
+              className={`flex flex-col w-[326px] gap-2 transition-opacity duration-300 ${boroughInfo.hasOtherBorough === "Yes" ? "opacity-100" : "opacity-40 pointer-events-none"}`}
             >
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-black text-sm font-weight-400">
                 Borough
               </label>
               <input
@@ -570,7 +445,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
       {/* SECTION: Third Party Vehicles */}
       <div className="self-stretch p-5 bg-gray-50 rounded-lg border border-gray-100 flex flex-col gap-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-black text-xl font-semibold">
+          <h2 className="text-black text-xl font-weight-600">
             Third Party Vehicles
           </h2>
           <button
@@ -586,47 +461,101 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
             Add Third Party Vehicle details by clicking on “Add Vehicle”
           </p>
         ) : (
-          <div className="flex flex-col gap-3">
-            {thirdPartyVehicles.map((v) => (
+          <div className="flex flex-col gap-3  font-['Stack_Sans_Headline']">
+            {thirdPartyVehicles.map((vehicle) => (
               <div
-                key={v.id}
-                className="p-4 bg-white border border-gray-200 rounded flex justify-between items-center"
+                key={vehicle.id}
+                data-layer="Frame 1171277554"
+                className="self-stretch px-4 py-3 bg-white border border-gray-100 rounded-lg inline-flex justify-between items-start hover:shadow-sm transition-shadow"
               >
-                <div>
-                  <p className="font-semibold">
-                    {v.make} {v.model}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {v.registration} • {v.color}
-                  </p>
+                {/* Left Side: Vehicle Info */}
+                <div className="inline-flex flex-col justify-start items-start gap-1">
+                  <div className="flex flex-col justify-start items-start gap-1">
+                    {/* Make and Model */}
+                    <div className="text-neutral-900 text-sm font-weight-600 font-['Stack_Sans_Headline']">
+                      {vehicle.make} {vehicle.model}
+                    </div>
+
+                    {/* Attributes Row */}
+                    <div className="inline-flex justify-start items-start gap-3">
+                      {/* Registration */}
+                      <div className="flex justify-center items-center gap-2.5 text-xs text-gray-700">
+                        <span className="font-weight-600">Reg No:</span>
+                        <span className="font-['system-ui']">
+                          M{vehicle.registration}
+                        </span>
+                      </div>
+
+                      {/* Color */}
+                      <div className="flex justify-center items-center gap-2.5 text-xs text-neutral-900 pl-3">
+                        <span className="font-weight-600">Color:</span>
+                        <span className="font-['system-ui']">
+                          {vehicle.color}
+                        </span>
+                      </div>
+
+                      {/* Images Status */}
+                      <div className="flex justify-center items-center gap-2.5 text-xs text-neutral-900 pl-3">
+                        <span className="font-weight-600">Images:</span>
+                        <span className="font-['system-ui']">
+                          {vehicle.imagesAvailable === "Yes"
+                            ? "Available"
+                            : "Not Available"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  onClick={() =>
-                    setThirdPartyVehicles(
-                      thirdPartyVehicles.filter((item) => item.id !== v.id),
-                    )
-                  }
-                  className="text-red-500 p-2 hover:bg-red-50 rounded"
+
+                {/* Right Side: Actions */}
+                <div
+                  data-layer="Frame 1171277557"
+                  className="flex justify-start items-center gap-4"
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                  <button
+                    onClick={() => {
+                      setCurrentVehicle(vehicle);
+                      setIsModalOpen(true);
+                    }}
+                    className="text-neutral-900 hover:text-blue-500 transition-colors"
+                  >
+                    <img src={pencil} alt="" />
+                  </button>
+                  <button
+                    onClick={() => removeTPVehicle(vehicle.id)}
+                    className="text-red-500 hover:text-red-700 transition-colors"
+                  >
+                    <img src={trash} alt="" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
-
+      {checkModal && (
+        <VehicleCheckModal
+          isOpen={checkModal}
+          onClose={() => openModal1(false)}
+        />
+      )}
+      {dvlaModal && (
+        <DVLAModal isOpen={dvlaModal} onClose={() => openModal2(false)} />
+      )}
+      {midModal && (
+        <MIDModal isOpen={midModal} onClose={() => openModal3(false)} />
+      )}
       {/* MODAL: Third Party Vehicle Entry */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl w-[800px] flex flex-col gap-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-black text-xl font-semibold">
+              <h2 className="text-black text-xl font-weight-600">
                 Third Party Vehicle Details
               </h2>
-              <button onClick={() => setIsModalOpen(false)}>
+              {/* <button onClick={() => setIsModalOpen(false)}>
                 <X className="w-6 h-6 text-gray-400" />
-              </button>
+              </button> */}
             </div>
 
             <div className="h-px bg-gray-100 w-full" />
@@ -634,8 +563,8 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
             {/* Input Grid */}
             <div className="grid grid-cols-2 gap-5">
               <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-medium">
-                  Make <span className="text-red-500">*</span>
+                <label className="text-neutral-900 text-sm font-weight-400">
+                  Make
                 </label>
                 <input
                   type="text"
@@ -651,8 +580,8 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-medium">
-                  Model <span className="text-red-500">*</span>
+                <label className="text-neutral-900 text-sm font-weight-400">
+                  Model
                 </label>
                 <input
                   type="text"
@@ -668,8 +597,8 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-medium">
-                  Registration <span className="text-red-500">*</span>
+                <label className="text-neutral-900 text-sm font-weight-400">
+                  Registration
                 </label>
                 <input
                   type="text"
@@ -685,7 +614,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-medium">
+                <label className="text-neutral-900 text-sm font-weight-400">
                   Color
                 </label>
                 <input
@@ -705,7 +634,7 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
 
             {/* Images Radio Group */}
             <div className="flex flex-col gap-4">
-              <label className="text-black text-sm font-medium">
+              <label className="text-black text-sm font-weight-400">
                 Images Available
               </label>
               <div className="flex gap-5">
@@ -726,13 +655,12 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
                         })
                       }
                     />
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${currentVehicle.imagesAvailable === option ? "border-blue-500" : "border-gray-300"}`}
-                    >
-                      {currentVehicle.imagesAvailable === option && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                      )}
-                    </div>
+
+                    {currentVehicle.imagesAvailable === option ? (
+                      <img src={Yes} alt="" />
+                    ) : (
+                      <img src={No} alt="" />
+                    )}
                     <span className="text-sm">{option}</span>
                   </label>
                 ))}
@@ -745,19 +673,19 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
             <div className="flex justify-end gap-4">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-6 py-4 border border-blue-600 text-blue-600 rounded font-medium hover:bg-blue-50"
+                className="px-6 py-4 border border-blue-600 text-blue-600 rounded font-weight-400 hover:bg-blue-50"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleSave(false)}
-                className="px-6 py-4 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="px-6 py-4 bg-blue-600 text-white rounded font-weight-400 hover:bg-blue-700 disabled:opacity-50"
               >
                 Save
               </button>
               <button
                 onClick={() => handleSave(true)}
-                className="px-6 py-4 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="px-6 py-4 bg-blue-600 text-white rounded font-weight-400 hover:bg-blue-700 disabled:opacity-50"
               >
                 Save and Add Next Vehicle
               </button>
@@ -768,138 +696,49 @@ const [thirdPartyVehicles, setThirdPartyVehicles] = useState([]);
 
       {/* SECTION: Vehicle Checkpoint */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-semibold leading-5 font-['Stack_Sans_Headline']">
+        <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
           Vehicle Checkpoint
         </h2>
         <div className="h-px bg-gray-100 w-full" />
 
         <div className="grid grid-cols-3 gap-5">
           {/* Vehicle Check Card */}
-          <a
-            href="https://www.carcheck.co.uk/"
-            target="_self"
+          <button
+            onClick={() => openModal1(true)}
             className="p-4 rounded-lg border border-blue-300 flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors group"
           >
-            <Search className="w-5 h-5 text-blue-500" />
-            <span className="text-blue-500 text-sm font-normal">
+            <img src={Vehicle} alt="" />
+
+            <span className="text-blue-500 text-sm font-weight-300">
               Vehicle Check
             </span>
-          </a>
+          </button>
 
           {/* DVLA Card */}
           <a
-            href="https://www.gov.uk/view-driving-licence"
-            target="_self"
+            // onClick={() => openModal2(true)}
+              href="https://www.gov.uk/view-driving-licence/"
+            target="_blank"
             className="p-4 rounded-lg border border-blue-300 flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors group"
           >
-            <FileText className="w-5 h-5 text-blue-500" />
-            <span className="text-blue-500 text-sm font-normal">DVLA</span>
+            <img src={DVLA} alt="" />
+
+            <span className="text-blue-500 text-sm font-weight-300">DVLA</span>
           </a>
 
           {/* Process MID Card */}
           <a
             href="https://www.askmid.com/"
-            target="_self"
+            target="_blank"
+            // onClick={() => openModal3(true)}
             className="p-4 rounded-lg border border-blue-300 flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors group"
           >
-            <Activity className="w-5 h-5 text-blue-500" />
-            <span className="text-blue-500 text-sm font-normal">
+            <img src={MID} alt="" />
+            <span className="text-blue-500 text-sm font-weight-300">
               Process MID
             </span>
           </a>
         </div>
-      </div>
-
-      {/* SECTION: Third Party Vehicle Section (Dynamic) */}
-      <div className="self-stretch flex flex-col gap-6">
-        {thirdPartyVehicles.map((vehicle, index) => (
-          <div
-            key={vehicle.id}
-            className="p-5 rounded-lg border border-gray-100 flex flex-col gap-4 bg-white relative"
-          >
-            <div className="flex justify-between items-center">
-              <h2 className="text-black text-xl font-semibold leading-5">
-                Third Party Vehicle {index + 1}
-              </h2>
-              {index > 0 && (
-                <button
-                  onClick={() => removeTPVehicle(vehicle.id)}
-                  className="text-red-500 flex items-center gap-1 text-sm hover:underline"
-                >
-                  <Trash2 className="w-4 h-4" /> Remove
-                </button>
-              )}
-            </div>
-            <div className="h-px bg-gray-100 w-full" />
-
-            <div className="grid grid-cols-2 gap-5">
-              <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-medium">
-                  Make
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter Make"
-                  className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-medium">
-                  Model
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter Model"
-                  className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-medium">
-                  Vehicle Registration
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter Registration"
-                  className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-medium">
-                  Colour
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter Colour"
-                  className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-medium">
-                  Images of Third Party Vehicle Available?
-                </label>
-                <Select
-                  options={[
-                    { value: "Yes", label: "Yes" },
-                    { value: "No", label: "No" },
-                  ]}
-                  styles={customStyles}
-                  components={{
-                    DropdownIndicator: BlueDropdownIndicator,
-                    IndicatorSeparator: () => null,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {/* <button
-          onClick={addTPVehicle}
-          className="self-start flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded border border-blue-200 font-medium hover:bg-blue-100 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add More Third Party Vehicle
-        </button> */}
       </div>
     </div>
   );

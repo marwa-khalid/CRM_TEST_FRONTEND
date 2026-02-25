@@ -8,6 +8,7 @@ interface V5CModalProps {
   onClose: () => void;
   onUploadSuccess: (jobId: string) => void;
   claimId: string | number;
+  formik:any
 }
 
 export const V5CUploadModal: React.FC<V5CModalProps> = ({
@@ -15,6 +16,7 @@ export const V5CUploadModal: React.FC<V5CModalProps> = ({
   onClose,
   onUploadSuccess,
   claimId,
+  formik,
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [file, setFile] = useState<File | null>(null);
@@ -55,10 +57,38 @@ export const V5CUploadModal: React.FC<V5CModalProps> = ({
       toast.success("File uploaded successfully");
 
       // Delay slightly so user sees the "Green" success state before closing/polling
-      setTimeout(() => {
-        onUploadSuccess("mock-job-id"); // Replace with actual jobId
-        onClose();
-      }, 1500);
+     setTimeout(() => {
+       onUploadSuccess("mock-job-id");
+       onClose();
+
+       const vehicleData = response.client_vehicle_detail;
+
+       if (vehicleData) {
+         // Map Formik field names to the API response keys
+         const fieldMapping = {
+           "vehicle.make": vehicleData.make,
+           "vehicle.model": vehicleData.model,
+           "vehicle.bodyType": vehicleData.body_type,
+           "vehicle.registration": vehicleData.registration,
+           "vehicle.color": vehicleData.color,
+           "vehicle.engineSize": vehicleData.engine_size,
+           "vehicle.fuelType": vehicleData.fuel_type_id,
+           "vehicle.transmission": vehicleData.transmission_id, // Added this back in based on your snippet
+           "vehicle.seats": vehicleData.number_of_seat,
+           "vehicle.category": vehicleData.vehicle_category,
+         };
+
+         // Only update Formik if the value from the response is NOT null/undefined
+         Object.entries(fieldMapping).forEach(([formikKey, apiValue]) => {
+           if (
+             apiValue !== null &&
+             apiValue !== undefined &&
+             apiValue !== "") {
+             formik.setFieldValue(formikKey, apiValue);
+           }
+         });
+       }
+     }, 1500);
     } catch (error) {
       setStep(1);
       toast.error("Upload failed");

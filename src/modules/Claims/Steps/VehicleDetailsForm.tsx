@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import Select from "react-select";
 import { Calendar, Edit2, Minus, Plus,Trash2, Upload, X } from "lucide-react";
 import { VehicleCheckModal } from "./VehicleCheckModal";
-import { DVLAModal } from "./DVLAModal";
 import { MIDModal } from "./MIDModal";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
@@ -254,6 +253,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
       <V5CUploadModal
         isOpen={showUploadModal}
         claimId={claimId}
+        formik={formik}
         onClose={() => setShowUploadModal(false)}
         onUploadSuccess={(jobId) => pollJobStatus(jobId)}
       />
@@ -605,15 +605,13 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                           type="radio"
                           name="otherBorough"
                           className="sr-only"
-                          checked={
-                            formik.values.borough.otherBorough === option
-                          }
+                          checked={formik.values.borough.otherBorough}
                           onChange={(option) =>
                             formik.setFieldValue("borough.otherBorough", option)
                           }
                         />
 
-                        {formik.values.borough.otherBorough === option ? (
+                        {formik.values.borough.otherBorough ? (
                           <img src={Yes} alt="" />
                         ) : (
                           <img src={No} alt="" />
@@ -627,7 +625,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
 
               {/* Conditional Other Borough Input */}
               <div
-                className={`flex flex-col w-[326px] gap-2 transition-opacity duration-300 ${formik.values.borough.otherBorough === "Yes" ? "opacity-100" : "opacity-40 pointer-events-none"}`}
+                className={`flex flex-col w-[326px] gap-2 transition-opacity duration-300 ${formik.values.borough.otherBorough ? "opacity-100" : "opacity-40 pointer-events-none"}`}
               >
                 <label className="text-black text-sm font-weight-400">
                   Borough
@@ -635,7 +633,14 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 <input
                   type="text"
                   placeholder="Enter Name"
-                  disabled={formik.values.borough.otherBorough === "No"}
+                  disabled={!formik.values.borough.otherBorough}
+                  value={formik.values.borough.otherBoroughName}
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "borough.otherBoroughName",
+                      e.target.value,
+                    )
+                  }
                   className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
@@ -740,9 +745,9 @@ const [isModalOpen, setIsModalOpen] = useState(false);
             onClose={() => openModal1(false)}
           />
         )}
-        {dvlaModal && (
+        {/* {dvlaModal && (
           <DVLAModal isOpen={dvlaModal} onClose={() => openModal2(false)} />
-        )}
+        )} */}
         {midModal && (
           <MIDModal isOpen={midModal} onClose={() => openModal3(false)} />
         )}

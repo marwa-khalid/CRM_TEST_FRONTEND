@@ -9,12 +9,14 @@ import { createClient, getClientByClaimID, updateClient, vulnerablePersonPolicy 
 import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from "yup"
-import type { CalendarDate } from "@internationalized/date";
 import { notifyManager } from "../../../services/Claims/Claims";
 import VulnerableFile from '../../../assets/documents/VulnerablePersonsPolicy.docx';
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
-
+import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
+import No from "../../../assets/AutoClaim_icon/No.svg";
+import CreditCard from "../../../assets/AutoClaim_icon/MID.svg";
+import { PayDriverModal } from "./PayDriverModal";
 const handlerOptions = [
   { value: "Private Hire Driver", label: "Private Hire Driver" },
   { value: "Taxi Driver", label: "Taxi Driver" },
@@ -242,243 +244,261 @@ export const ClientDetailsForm = ({ formRef }: any) => {
 
     formik.setFieldValue("age", age.toString());
   }, [formik.values.dateOfBirth]); // ONLY depend on dob, not the whole personalInfo object
+  useEffect(() => {
+    if (formik.values.vulnerablePerson === "No") {
+    formik.setFieldValue("vulnerablePersonWhy","");
+    }
+  }, [formik.values.vulnerablePerson]);
+    const [payDriverModal, openModal] = useState<boolean>(false);
+  
   return (
-    <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
-      {/* Container matching left-[534px] and top-[157px] from source */}
-      <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
-        Client Details
-      </h1>
-      {/* Section 1: Personal Information Section */}
-      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-        {/* Header Aligned Exactly Like Previous Sections */}
-        <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
-          Personal Information
-        </h2>
-        <div className="h-px bg-gray-100 w-full" />
+    <>
+      {payDriverModal && (
+        <PayDriverModal
+          isOpen={payDriverModal}
+          onClose={() => openModal(false)}
+        />
+      )}
+      <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+        {/* Container matching left-[534px] and top-[157px] from source */}
+        <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
+          Client Details
+        </h1>
+        {/* Section 1: Personal Information Section */}
+        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
+          {/* Header Aligned Exactly Like Previous Sections */}
+          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+            Personal Information
+          </h2>
+          <div className="h-px bg-gray-100 w-full" />
 
-        <div className="flex flex-col gap-6">
-          {/* Row 1: First Name & Last Name */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                First Name
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  placeholder="Enter First Name"
-                  value={formik.values.clientFirstName}
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                  onChange={(e) =>
-                    formik.setFieldValue("clientFirstName", e.target.value)
-                  }
-                />
-              </div>
-            </div>
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                Last Name
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  placeholder="Enter Last Name"
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                  value={formik.values.clientSurname}
-                  onChange={(e) =>
-                    formik.setFieldValue("clientSurname", e.target.value)
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: DOB & Age (Auto-calculated) */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-6 flex flex-col gap-2 relative">
-              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                Date of Birth
-              </label>
-              <div
-                onClick={() => setShowDobPicker(!showDobPicker)}
-                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between cursor-pointer focus-within:border-blue-500"
-              >
-                <span
-                  className={
-                    formik.values.dateOfBirth
-                      ? "text-gray-900 font-['system-ui']"
-                      : "text-gray-300 font-['system-ui']"
-                  }
-                >
-                  {formik.values.dateOfBirth
-                    ? formik.values.dateOfBirth.toLocaleDateString("sv-SE") // YYYY-MM-DD format
-                    : "Date"}
-                </span>
-                <img src={Vector6} className="w-4 h-4" alt="calendar" />
-              </div>
-
-              {/* Date Picker Dropdown */}
-              {showDobPicker && (
-                <div className="absolute top-[28px] left-0 z-[100] shadow-xl rounded-lg bg-white">
-                  <CustomDatePicker
-                    selectedDate={formik.values.dateOfBirth || new Date()}
-                    // Ensure the user cannot pick a future date
-                    // maxDate={new Date()}
-                    onDateSelect={(date) => {
-                      // Double check: only update if date is not in the future
-                      if (date <= new Date()) {
-                        formik.setFieldValue("dateOfBirth", date);
-                        setShowDobPicker(false);
-                      }
-                    }}
+          <div className="flex flex-col gap-6">
+            {/* Row 1: First Name & Last Name */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  First Name
+                </label>
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    placeholder="Enter First Name"
+                    value={formik.values.clientFirstName}
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                    onChange={(e) =>
+                      formik.setFieldValue("clientFirstName", e.target.value)
+                    }
                   />
                 </div>
-              )}
-            </div>
-
-            {/* Age Field (Linked to the same row) */}
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                Age
-              </label>
-              <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center">
-                <input
-                  readOnly
-                  value={formik.values.age}
-                  placeholder="Age"
-                  className={`w-full bg-transparent outline-none font-['system-ui'] ${
-                    formik.values.age ? "text-gray-900" : "text-gray-400"
-                  }`}
-                />
+              </div>
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Last Name
+                </label>
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    placeholder="Enter Last Name"
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                    value={formik.values.clientSurname}
+                    onChange={(e) =>
+                      formik.setFieldValue("clientSurname", e.target.value)
+                    }
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Row 3: NI Number (Full Width in Grid context) */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-12 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                NI Number
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  placeholder="e.g. QQ 12 34 56 C"
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] uppercase"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Row 4: Occupation & Custom Occupation */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                Occupation
-              </label>
-              <Select
-                options={handlerOptions}
-                placeholder="Select Occupation"
-                styles={customStyles}
-                value={handlerOptions.find(
-                  (option) => option.value === formik.values.occupation,
-                )}
-                onChange={(option: any) =>
-                  formik.setFieldValue("occupation", option.value)
-                }
-                components={{
-                  DropdownIndicator: BlueDropdownIndicator,
-                  IndicatorSeparator: () => null,
-                }}
-              />
-            </div>
-
-            {/* Conditional Rendering for 'Others' - Aligned with the Select box */}
-            <div
-              className={`col-span-6 flex flex-col gap-2 transition-opacity duration-300 ${formik.values.occupation === "Others" ? "opacity-100" : "opacity-30 pointer-events-none"}`}
-            >
-              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                Custom Occupation
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  disabled={formik.values.occupation !== "Others"}
-                  placeholder="Please specify"
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                />
-              </div>
-            </div>
-          </div>
-          {/* Row 5: Driver Code & Day/Night Radio */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                Driver Code
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  placeholder="Enter Code"
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                />
-              </div>
-            </div>
-            <div className="col-span-6 flex flex-col gap-2">
-              <span className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                Day/Night Driver?
-              </span>
-              <div className="h-[52px] flex items-center gap-8">
-                {["Yes", "No"].map((option) => (
-                  <label
-                    key={option}
-                    className="flex items-center gap-2 cursor-pointer"
+            {/* Row 2: DOB & Age (Auto-calculated) */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-6 flex flex-col gap-2 relative">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Date of Birth
+                </label>
+                <div
+                  onClick={() => setShowDobPicker(!showDobPicker)}
+                  className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between cursor-pointer focus-within:border-blue-500"
+                >
+                  <span
+                    className={
+                      formik.values.dateOfBirth
+                        ? "text-gray-900 font-['system-ui']"
+                        : "text-gray-300 font-['system-ui']"
+                    }
                   >
-                    <div className="relative flex items-center justify-center">
-                      <input
-                        type="radio"
-                        name="dayNightDriver"
-                        className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                        checked={formik.values.dayNightDriver === option}
-                        onChange={() =>
-                          formik.setFieldValue("dayNightDriver", option)
+                    {formik.values.dateOfBirth
+                      ? formik.values.dateOfBirth.toLocaleDateString("sv-SE") // YYYY-MM-DD format
+                      : "Date"}
+                  </span>
+                  <img src={Vector6} className="w-4 h-4" alt="calendar" />
+                </div>
+
+                {/* Date Picker Dropdown */}
+                {showDobPicker && (
+                  <div className="absolute top-[28px] left-0 z-[100] shadow-xl rounded-lg bg-white">
+                    <CustomDatePicker
+                      selectedDate={formik.values.dateOfBirth || new Date()}
+                      // Ensure the user cannot pick a future date
+                      // maxDate={new Date()}
+                      onDateSelect={(date) => {
+                        // Double check: only update if date is not in the future
+                        if (date <= new Date()) {
+                          formik.setFieldValue("dateOfBirth", date);
+                          setShowDobPicker(false);
                         }
-                      />
-                      <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
-                    </div>
-                    <span className="text-sm text-gray-700">{option}</span>
-                  </label>
-                ))}
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Age Field (Linked to the same row) */}
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Age
+                </label>
+                <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center">
+                  <input
+                    readOnly
+                    value={formik.values.age}
+                    placeholder="Age"
+                    className={`w-full bg-transparent outline-none font-['system-ui'] ${
+                      formik.values.age ? "text-gray-900" : "text-gray-400"
+                    }`}
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Row 6: Driver Base */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                Driver Base
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  placeholder="Enter Driver Base"
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+            {/* Row 3: NI Number (Full Width in Grid context) */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-12 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  NI Number
+                </label>
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    placeholder="e.g. QQ 12 34 56 C"
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] uppercase"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Row 4: Occupation & Custom Occupation */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Occupation
+                </label>
+                <Select
+                  options={handlerOptions}
+                  placeholder="Select Occupation"
+                  styles={customStyles}
+                  value={handlerOptions.find(
+                    (option) => option.value === formik.values.occupation,
+                  )}
+                  onChange={(option: any) =>
+                    formik.setFieldValue("occupation", option.value)
+                  }
+                  components={{
+                    DropdownIndicator: BlueDropdownIndicator,
+                    IndicatorSeparator: () => null,
+                  }}
                 />
+              </div>
+
+              {/* Conditional Rendering for 'Others' - Aligned with the Select box */}
+              <div
+                className={`col-span-6 flex flex-col gap-2 transition-opacity duration-300 ${formik.values.occupation === "Others" ? "opacity-100" : "opacity-30 pointer-events-none"}`}
+              >
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Custom Occupation
+                </label>
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    disabled={formik.values.occupation !== "Others"}
+                    placeholder="Please specify"
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                  />
+                </div>
+              </div>
+            </div>
+            {/* Row 5: Driver Code & Day/Night Radio */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Driver Code
+                </label>
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    placeholder="Enter Code"
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                  />
+                </div>
+              </div>
+              <div className="col-span-6 flex flex-col gap-2">
+                <span className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Day/Night Driver?
+                </span>
+                <div className="h-[52px] flex items-center gap-8">
+                  {["Yes", "No"].map((option) => (
+                    <label
+                      key={option}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="radio"
+                          name="dayNightDriver"
+                          className="peer appearance-none transition-all"
+                          checked={formik.values.dayNightDriver === option}
+                          onChange={() =>
+                            formik.setFieldValue("dayNightDriver", option)
+                          }
+                        />
+                        {formik.values.dayNightDriver === option ? (
+                          <img src={Yes} />
+                        ) : (
+                          <img src={No} />
+                        )}
+                      </div>
+                      <span className="text-sm text-gray-700">{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Row 6: Driver Base */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Driver Base
+                </label>
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    placeholder="Enter Driver Base"
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      {/* Section 2:  Contact Information */}
-      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
-        <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
-          Contact Information
-        </h2>
-        <div className="h-px bg-gray-100 w-full" />
+        {/* Section 2:  Contact Information */}
+        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
+          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+            Contact Information
+          </h2>
+          <div className="h-px bg-gray-100 w-full" />
 
-        <div className="flex flex-col gap-6">
-          {/* Row 1: Full Width Address */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-12 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Address
-              </label>
-              {/* <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+          <div className="flex flex-col gap-6">
+            {/* Row 1: Full Width Address */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-12 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400">
+                  Address
+                </label>
+                {/* <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="Enter Address"
                   className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
@@ -487,112 +507,146 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   }
                 />
               </div> */}
-              <LeafletAutocompleteMap
-                showMap={false}
-                apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-                address={formik.values.address}
-                onPlaceSelected={(place) => {
-                  console.log(place);
-                  if (place.name) {
-                    formik.setFieldValue("address", place.address);
-                    formik.setFieldValue("postcode", place?.postalCode);
-                  }
-                }}
-                disabled={false}
-              />
+                <LeafletAutocompleteMap
+                  showMap={false}
+                  apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
+                  address={formik.values.address}
+                  onPlaceSelected={(place) => {
+                    console.log(place);
+                    if (place.name) {
+                      formik.setFieldValue("address", place.address);
+                      formik.setFieldValue("postcode", place?.postalCode);
+                    }
+                  }}
+                  disabled={false}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Row 2: Post Code & Email Address */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-4 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Post Code
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  placeholder="Enter Code"
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                  onChange={(e) =>
-                    formik.setFieldValue("postcode", e.target.value)
-                  }
-                />
+            {/* Row 2: Post Code & Email Address */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-4 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400">
+                  Post Code
+                </label>
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    placeholder="Enter Code"
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                    onChange={(e) =>
+                      formik.setFieldValue("postcode", e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+              <div className="col-span-8 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400">
+                  Email Address
+                </label>
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    placeholder="Enter Email"
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                    onChange={(e) =>
+                      formik.setFieldValue("email", e.target.value)
+                    }
+                  />
+                </div>
               </div>
             </div>
-            <div className="col-span-8 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Email Address
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  placeholder="Enter Email"
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                  onChange={(e) =>
-                    formik.setFieldValue("email", e.target.value)
-                  }
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* Row 3: Home Telephone & Mobile Number */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Home Telephone
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  value={formik.values.homePhone}
-                  onChange={(e) =>
-                    formik.setFieldValue("homeTelephone", e.target.value)
-                  }
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                />
+            {/* Row 3: Home Telephone & Mobile Number */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400">
+                  Home Telephone
+                </label>
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    value={formik.values.homePhone}
+                    onChange={(e) =>
+                      formik.setFieldValue("homeTelephone", e.target.value)
+                    }
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                  />
+                </div>
+              </div>
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400">
+                  Mobile Number
+                </label>
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    value={formik.values.mobileNumber}
+                    onChange={(e) =>
+                      formik.setFieldValue("contactTelephone", e.target.value)
+                    }
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                  />
+                </div>
               </div>
             </div>
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Mobile Number
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  value={formik.values.mobileNumber}
-                  onChange={(e) =>
-                    formik.setFieldValue("contactTelephone", e.target.value)
-                  }
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                />
-              </div>
-            </div>
-          </div>
 
-          {/* Row 4: Language & English Proficiency */}
-          <div className="grid grid-cols-12 gap-5 w-full items-end">
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Client's Preferred Language
-              </label>
-              <Select
-                options={languageOptions}
-                placeholder="Select Language"
-                styles={customStyles}
-                components={{
-                  DropdownIndicator: BlueDropdownIndicator,
-                  IndicatorSeparator: () => null,
-                }}
-                value={languageOptions.find(
-                  (option) =>
-                    option.value === formik.values.clientPreferredLanguage,
-                )}
-                onChange={(opt: any) =>
-                  formik.setFieldValue("clientPreferredLanguage", opt.value)
-                }
-              />
+            {/* Row 4: Language & English Proficiency */}
+            <div className="grid grid-cols-12 gap-5 w-full items-end">
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400">
+                  Client's Preferred Language
+                </label>
+                <Select
+                  options={languageOptions}
+                  placeholder="Select Language"
+                  styles={customStyles}
+                  components={{
+                    DropdownIndicator: BlueDropdownIndicator,
+                    IndicatorSeparator: () => null,
+                  }}
+                  value={languageOptions.find(
+                    (option) =>
+                      option.value === formik.values.clientPreferredLanguage,
+                  )}
+                  onChange={(opt: any) =>
+                    formik.setFieldValue("clientPreferredLanguage", opt.value)
+                  }
+                />
+              </div>
+              <div className="col-span-6 flex flex-col gap-3 pb-2">
+                <span className="text-black text-sm font-weight-400">
+                  Does the client speak clear english?
+                </span>
+                <div className="flex gap-8">
+                  {["Yes", "No"].map((option) => (
+                    <label
+                      key={option}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="radio"
+                          className="peer appearance-none transition-all"
+                          checked={formik.values.clientSpeakEnglish === option}
+                          onChange={() =>
+                            formik.setFieldValue("speaksClearEnglish", option)
+                          }
+                        />
+                        {formik.values.speaksClearEnglish === option ? (
+                          <img src={Yes} />
+                        ) : (
+                          <img src={No} />
+                        )}{" "}
+                      </div>
+                      <span className="text-sm text-gray-700">{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="col-span-6 flex flex-col gap-3 pb-2">
+
+            {/* Row 5: Alternative Contact Person Request */}
+            <div className="col-span-12 flex flex-col gap-3">
               <span className="text-black text-sm font-weight-400">
-                Does the client speak clear english?
+                Client has requested that we place all contact through an
+                alternative person
               </span>
               <div className="flex gap-8">
                 {["Yes", "No"].map((option) => (
@@ -603,13 +657,17 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                     <div className="relative flex items-center justify-center">
                       <input
                         type="radio"
-                        className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                        checked={formik.values.clientSpeakEnglish === option}
+                        className="peer appearance-none transition-all"
+                        checked={formik.values.alternativeContact === option}
                         onChange={() =>
-                          formik.setFieldValue("speaksClearEnglish", option)
+                          formik.setFieldValue("alternativeContact", option)
                         }
                       />
-                      <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
+                      {formik.values.alternativeContact === option ? (
+                        <img src={Yes} />
+                      ) : (
+                        <img src={No} />
+                      )}{" "}
                     </div>
                     <span className="text-sm text-gray-700">{option}</span>
                   </label>
@@ -617,267 +675,260 @@ export const ClientDetailsForm = ({ formRef }: any) => {
               </div>
             </div>
           </div>
+        </div>
+        {/* Section 3:  Bank Details */}
+        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
+          <div className="self-stretch flex justify-between items-center">
+            <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+              Bank Details
+            </h2>
 
-          {/* Row 5: Alternative Contact Person Request */}
-          <div className="col-span-12 flex flex-col gap-3">
-            <span className="text-black text-sm font-weight-400">
-              Client has requested that we place all contact through an
-              alternative person
-            </span>
-            <div className="flex gap-8">
-              {["Yes", "No"].map((option) => (
-                <label
-                  key={option}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="radio"
-                      className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                      checked={formik.values.alternativeContact === option}
-                      onChange={() =>
-                        formik.setFieldValue("alternativeContact", option)
-                      }
-                    />
-                    <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
-                  </div>
-                  <span className="text-sm text-gray-700">{option}</span>
+            <a
+              href="https://onlinebusiness.lloydsbank.co.uk/business/logon/login.jsp?LBGAc=T1BUT1VUTVVMVElNRVNTQUdF.MQ==.QU1DVlNfMjMwRDY0M0U1QTI1NTA5ODBBNDk1REI2JTQwQWRvYmVPcmc=.MQ==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.QU1DVl84Rjk5MTYwRTU3MUZDMDQyN0YwMDAxMDElNDBBZG9iZU9yZw==.LTExMjQxMDY2ODB8TUNNSUR8MjM0NTY3OTExMTI0NzU3NTg5MzE5OTM0ODE5MjQ1NDg2MzU2ODF8TUNBSUR8Tk9ORXx2VmVyc2lvbnw1LjIuMA==.TEJHYzM=.eXN1c3RyeDAyMDBYNExGbGxveWRzYmFua2NvbQ==.T1BUT1VUTVVMVEk=.MDowfGMxOjF8YzM6MHxjNTowfGM0OjB8YzI6MA==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.dHM=.bWJxY3FzbWs=&LBGAc=T1BUT1VUTVVMVElNRVNTQUdF.MQ==.QU1DVlNfMjMwRDY0M0U1QTI1NTA5ODBBNDk1REI2JTQwQWRvYmVPcmc=.MQ==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.QU1DVl84Rjk5MTYwRTU3MUZDMDQyN0YwMDAxMDElNDBBZG9iZU9yZw==.LTExMjQxMDY2ODB8TUNNSUR8MjM0NTY3OTExMTI0NzU3NTg5MzE5OTM0ODE5MjQ1NDg2MzU2ODF8TUNBSUR8Tk9ORXx2VmVyc2lvbnw1LjIuMA==.TEJHYzM=.eXN1c3RyeDAyMDBYNExGbGxveWRzYmFua2NvbQ==.T1BUT1VUTVVMVEk=.MDowfGMxOjF8YzM6MHxjNTowfGM0OjB8YzI6MA==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.dHM=.bWJxY3J4OGk=&LBGAc=T1BUT1VUTVVMVElNRVNTQUdF.MQ==.QU1DVlNfMjMwRDY0M0U1QTI1NTA5ODBBNDk1REI2JTQwQWRvYmVPcmc=.MQ==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.QU1DVl84Rjk5MTYwRTU3MUZDMDQyN0YwMDAxMDElNDBBZG9iZU9yZw==.LTExMjQxMDY2ODB8TUNNSUR8MjM0NTY3OTExMTI0NzU3NTg5MzE5OTM0ODE5MjQ1NDg2MzU2ODF8TUNBSUR8Tk9ORXx2VmVyc2lvbnw1LjIuMA==.TEJHYzM=.eXN1c3RyeDAyMDBYNExGbGxveWRzYmFua2NvbQ==.T1BUT1VUTVVMVEk=.MDowfGMxOjF8YzM6MHxjNTowfGM0OjB8YzI6MA==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.dHM=.bWJxY3M4MmQ=&LBGAc=T1BUT1VUTVVMVElNRVNTQUdF.MQ==.QU1DVlNfMjMwRDY0M0U1QTI1NTA5ODBBNDk1REI2JTQwQWRvYmVPcmc=.MQ==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.QU1DVl84Rjk5MTYwRTU3MUZDMDQyN0YwMDAxMDElNDBBZG9iZU9yZw==.LTExMjQxMDY2ODB8TUNNSUR8MjM0NTY3OTExMTI0NzU3NTg5MzE5OTM0ODE5MjQ1NDg2MzU2ODF8TUNBSUR8Tk9ORXx2VmVyc2lvbnw1LjIuMA==.TEJHYzM=.eXN1c3RyeDAyMDBYNExGbGxveWRzYmFua2NvbQ==.T1BUT1VUTVVMVEk=.MDowfGMxOjF8YzM6MHxjNTowfGM0OjB8YzI6MA==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.dHM=.bWJxZGR2em0=&LBGAc=T1BUT1VUTVVMVElNRVNTQUdF.MQ==.QU1DVlNfMjMwRDY0M0U1QTI1NTA5ODBBNDk1REI2JTQwQWRvYmVPcmc=.MQ==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.QU1DVl84Rjk5MTYwRTU3MUZDMDQyN0YwMDAxMDElNDBBZG9iZU9yZw==.LTExMjQxMDY2ODB8TUNNSUR8MjM0NTY3OTExMTI0NzU3NTg5MzE5OTM0ODE5MjQ1NDg2MzU2ODF8TUNBSUR8Tk9ORXx2VmVyc2lvbnw1LjIuMA==.TEJHYzM=.eXN1c3RyeDAyMDBYNExGbGxveWRzYmFua2NvbQ==.T1BUT1VUTVVMVEk=.MDowfGMxOjF8YzM6MHxjNTowfGM0OjB8YzI6MA==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMDY5fE1DTUlEfDgyMzE1NTA0NTUzMjUyMTA2OTQxNzUwNTE3MzQyMjk2MjgyMjYzfE1DQUFNTEgtMTczNDUxNjk1Nnw2fE1DQUFNQi0xNzM0NTE2OTU2fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTczMzkxOTM1NnN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.dHM=.bWJxZGR4aXE=&LBGAc=QU1DVlNfMjMwRDY0M0U1QTI1NTA5ODBBNDk1REI2JTQwQWRvYmVPcmc=.MQ==.T1BUT1VUTVVMVElNRVNTQUdF.MQ==.QU1DVl8yMzBENjQzRTVBMjU1MDk4MEE0OTVEQjYlNDBBZG9iZU9yZw==.LTIxMjExNzkwMzN8TUNJRFRTfDIwMzkyfE1DTUlEfDgwNTgzMjc0NTY0MzY1OTk3MDQyMTg3NjQ1MzQzNzQ5NTE5MDIwfE1DQUFNTEgtMTc2MjQ0MTUyNHw2fE1DQUFNQi0xNzYyNDQxNTI0fDZHMXluWWNMUHVpUXhZWnJzel9wa3FmTEc5eU1YQnBiMnpYNWR2SmRZUUp6UFhJbWRqMHl8TUNPUFRPVVQtMTc2MTg0MzkyNXN8Tk9ORXxNQ0FJRHxOT05FfHZWZXJzaW9ufDUuMy4w.TEJHYzM=.eXQ0eTl4MTAyMDBYNExGbGxveWRzYmFua2NvbQ==.T1BUT1VUTVVMVEk=.MDowfGMxOjF8YzM6MHxjNTowfGM0OjB8YzI6MA==.dHM=.bWhkazUyOTc=#ts:1472813081682/"
+              // onClick={() => openModal(true)}
+              target="_blank"
+              className="h-8 px-3 py-2 bg-blue-100 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group"
+            >
+              <img src={CreditCard} alt="" />
+              <span className="text-blue-600 text-sm font-normal">
+                Pay Driver Here
+              </span>
+            </a>
+          </div>
+          <div className="h-px bg-gray-100 w-full" />
+
+          <div className="flex flex-col gap-6">
+            {/* Row 1: Sort Code & Account Number */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400">
+                  Sort Code
                 </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* Section 3:  Bank Details */}
-      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
-        <div className="self-stretch inline-flex justify-start items-start gap-4">
-          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
-            Bank Details
-          </h2>
-        </div>
-        <div className="h-px bg-gray-100 w-full" />
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
+                  <input
+                    type="text"
+                    placeholder="00-00-00"
+                    maxLength={8} // 6 digits + 2 hyphens
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] tracking-widest"
+                    value={formik.values.sortCode || ""}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
 
-        <div className="flex flex-col gap-6">
-          {/* Row 1: Sort Code & Account Number */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Sort Code
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
-                <input
-                  type="text"
-                  placeholder="00-00-00"
-                  maxLength={8} // 6 digits + 2 hyphens
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] tracking-widest"
-                  value={formik.values.sortCode || ""}
-                  onChange={(e) => {
-                    let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+                      // Apply the 00-00-00 pattern
+                      let formatted = value;
+                      if (value.length > 2 && value.length <= 4) {
+                        formatted = `${value.slice(0, 2)}-${value.slice(2)}`;
+                      } else if (value.length > 4) {
+                        formatted = `${value.slice(0, 2)}-${value.slice(2, 4)}-${value.slice(4, 6)}`;
+                      }
 
-                    // Apply the 00-00-00 pattern
-                    let formatted = value;
-                    if (value.length > 2 && value.length <= 4) {
-                      formatted = `${value.slice(0, 2)}-${value.slice(2)}`;
-                    } else if (value.length > 4) {
-                      formatted = `${value.slice(0, 2)}-${value.slice(2, 4)}-${value.slice(4, 6)}`;
-                    }
-
-                    formik.setFieldValue("sortCode", formatted);
-                  }}
-                />
-              </div>
-            </div>
-            <div className="col-span-6 flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Account Number
-              </label>
-              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                <input
-                  placeholder="8 Digits Number"
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                  maxLength={8}
-                  value={formik.values.accountNumber}
-                  onChange={(e) =>
-                    formik.setFieldValue("accountNumber", e.target.value)
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: Pay Notification Date */}
-          <div className="grid grid-cols-12 gap-5 w-full">
-            <div className="col-span-6 flex flex-col gap-2 relative">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Pay Notification Date
-              </label>
-              <div
-                onClick={() => setShowPayDatePicker(!showPayDatePicker)}
-                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between cursor-pointer focus-within:border-blue-500"
-              >
-                <span
-                  className={
-                    formik.values.payDriverNotificationDate
-                      ? "text-gray-900 font-['system-ui']"
-                      : "text-gray-300 font-['system-ui']"
-                  }
-                >
-                  {formik.values.payDriverNotificationDate
-                    ? formik.values.payDriverNotificationDate.toLocaleDateString(
-                        "sv-SE",
-                      )
-                    : "Date"}
-                </span>
-                <img src={Vector6} className="w-4 h-4" alt="calendar" />
-              </div>
-
-              {showPayDatePicker && (
-                <div className="absolute top-[80px] left-0 z-[100] shadow-xl rounded-lg bg-white">
-                  <CustomDatePicker
-                    selectedDate={
-                      formik.values.payDriverNotificationDate || new Date()
-                    }
-                    onDateSelect={(date) => {
-                      formik.setFieldValue("payDriverNotificationDate", date);
-                      setShowPayDatePicker(false);
+                      formik.setFieldValue("sortCode", formatted);
                     }}
                   />
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* --- Section 4: VAT & Registration --- */}
-      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
-        {/* Header with Notify Manager Button */}
-        <div className="self-stretch flex justify-between items-center">
-          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
-            VAT & Registration
-          </h2>
-          {formik.values.vulnerablePerson === "Yes" && (
-            <button
-              onClick={handleNotifyManager}
-              className="h-8 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group"
-            >
-              <img src={Vector5} alt="" />
-              <span className="text-blue-600 text-sm font-normal">
-                Notify Manager
-              </span>
-            </button>
-          )}
-        </div>
-
-        <div className="h-px bg-gray-100 w-full" />
-
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-5">
-            <span className="text-black text-sm font-weight-400">
-              CI VAT Registered?
-            </span>
-            <div className="flex gap-8">
-              {["Yes", "No"].map((option) => (
-                <label
-                  key={option}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="radio"
-                      name="vatRegistered"
-                      className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                      checked={formik.values.vatRegistered === option}
-                      onChange={() =>
-                        formik.setFieldValue("vatRegistered", option)
-                      }
-                    />
-                    <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
-                  </div>
-                  <span className="text-sm text-gray-700">{option}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* Section 5: Vulnerable Persons Policy */}
-      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
-        {/* Header with Policy Link Button */}
-        <div className="self-stretch flex justify-between items-center  cursor-pointer ">
-          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
-            Vulnerable Persons Policy
-          </h2>
-          {formik.values.vulnerablePerson === "Yes" && (
-            <button
-              className="h-8 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group"
-              onClick={handleVulnarablePersonPolicy}
-              // download="Vulnerable_Person_Policy.docx"
-            >
-              <img src={Vulnerable} alt="" />
-              <span className="text-blue-600 text-sm font-normal">
-                Vulnerable Policy
-              </span>
-            </button>
-          )}
-        </div>
-
-        <div className="h-px bg-gray-100 w-full" />
-
-        <div className="flex flex-col gap-6">
-          {/* Question and Radio Buttons */}
-          <div className="flex flex-col gap-5">
-            <span className="text-black text-sm font-weight-400">
-              Would you class the driver as a vulnerable person?
-            </span>
-            <div className="flex gap-8">
-              {["Yes", "No"].map((option) => (
-                <label
-                  key={option}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="radio"
-                      name="vulnerableStatus"
-                      className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                      checked={formik.values.vulnerablePerson === option}
-                      onChange={() =>
-                        formik.setFieldValue("vulnerablePerson", option)
-                      }
-                    />
-                    <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
-                  </div>
-                  <span className="text-sm text-gray-700">{option}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Conditional "Why?" Field and Notify Manager Button */}
-          {formik.values.vulnerablePerson === "Yes" && (
-            <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="flex flex-col gap-2">
+              </div>
+              <div className="col-span-6 flex flex-col gap-2">
                 <label className="text-gray-700 text-sm font-weight-400">
-                  Why?
+                  Account Number
                 </label>
-                <div className="px-5 py-4 bg-white rounded border border-gray-200 focus-within:border-blue-500">
-                  <textarea
-                    placeholder="Please provide details regarding the driver's vulnerability..."
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] min-h-[80px] resize-none"
-                    value={formik.values.vulnerablePersonWhy}
+                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                  <input
+                    placeholder="8 Digits Number"
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                    maxLength={8}
+                    value={formik.values.accountNumber}
                     onChange={(e) =>
-                      formik.setFieldValue(
-                        "vulnerablePersonWhy",
-                        e.target.value,
-                      )
+                      formik.setFieldValue("accountNumber", e.target.value)
                     }
                   />
                 </div>
               </div>
             </div>
-          )}
+
+            {/* Row 2: Pay Notification Date */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-6 flex flex-col gap-2 relative">
+                <label className="text-gray-700 text-sm font-weight-400">
+                  Pay Notification Date
+                </label>
+                <div
+                  onClick={() => setShowPayDatePicker(!showPayDatePicker)}
+                  className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between cursor-pointer focus-within:border-blue-500"
+                >
+                  <span
+                    className={
+                      formik.values.payDriverNotificationDate
+                        ? "text-gray-900 font-['system-ui']"
+                        : "text-gray-300 font-['system-ui']"
+                    }
+                  >
+                    {formik.values.payDriverNotificationDate
+                      ? formik.values.payDriverNotificationDate.toLocaleDateString(
+                          "sv-SE",
+                        )
+                      : "Date"}
+                  </span>
+                  <img src={Vector6} className="w-4 h-4" alt="calendar" />
+                </div>
+
+                {showPayDatePicker && (
+                  <div className="absolute top-[80px] left-0 z-[100] shadow-xl rounded-lg bg-white">
+                    <CustomDatePicker
+                      selectedDate={
+                        formik.values.payDriverNotificationDate || new Date()
+                      }
+                      onDateSelect={(date) => {
+                        formik.setFieldValue("payDriverNotificationDate", date);
+                        setShowPayDatePicker(false);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* --- Section 4: VAT & Registration --- */}
+        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
+          {/* Header with Notify Manager Button */}
+          <div className="self-stretch flex justify-between items-center">
+            <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+              VAT & Registration
+            </h2>
+          </div>
+
+          <div className="h-px bg-gray-100 w-full" />
+
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-5">
+              <span className="text-black text-sm font-weight-400">
+                CI VAT Registered?
+              </span>
+              <div className="flex gap-8">
+                {["Yes", "No"].map((option) => (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="radio"
+                        name="vatRegistered"
+                        className="peer appearance-none transition-all"
+                        checked={formik.values.vatRegistered === option}
+                        onChange={() =>
+                          formik.setFieldValue("vatRegistered", option)
+                        }
+                      />
+                      {formik.values.vatRegistered === option ? (
+                        <img src={Yes} />
+                      ) : (
+                        <img src={No} />
+                      )}{" "}
+                    </div>
+                    <span className="text-sm text-gray-700">{option}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Section 5: Vulnerable Persons Policy */}
+        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
+          {/* Header with Policy Link Button */}
+          <div className="self-stretch flex justify-between items-center  cursor-pointer ">
+            <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+              Vulnerable Persons Policy
+            </h2>
+            <div className="flex gap-4">
+              {formik.values.vulnerablePerson === "Yes" && (
+                <button
+                  onClick={handleNotifyManager}
+                  className="h-8 px-3 py-2 bg-blue-100 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group"
+                >
+                  <img src={Vector5} alt="" />
+                  <span className="text-blue-600 text-sm font-normal">
+                    Notify Manager
+                  </span>
+                </button>
+              )}
+              {formik.values.vulnerablePerson === "Yes" && (
+                <button
+                  className="h-8 px-3 py-2 bg-blue-100 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group"
+                  onClick={handleVulnarablePersonPolicy}
+                  // download="Vulnerable_Person_Policy.docx"
+                >
+                  <img src={Vulnerable} alt="" />
+                  <span className="text-blue-600 text-sm font-normal">
+                    Vulnerable Policy
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="h-px bg-gray-100 w-full" />
+
+          <div className="flex flex-col gap-6">
+            {/* Question and Radio Buttons */}
+            <div className="flex flex-col gap-5">
+              <span className="text-black text-sm font-weight-400">
+                Would you class the driver as a vulnerable person?
+              </span>
+              <div className="flex gap-8">
+                {["Yes", "No"].map((option) => (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="radio"
+                        name="vulnerableStatus"
+                        className="peer appearance-none transition-all"
+                        checked={formik.values.vulnerablePerson === option}
+                        onChange={() =>
+                          formik.setFieldValue("vulnerablePerson", option)
+                        }
+                      />
+                      {formik.values.vulnerablePerson === option ? (
+                        <img src={Yes} />
+                      ) : (
+                        <img src={No} />
+                      )}
+                    </div>
+                    <span className="text-sm text-gray-700">{option}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Conditional "Why?" Field and Notify Manager Button */}
+            {formik.values.vulnerablePerson === "Yes" && (
+              <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex flex-col gap-2">
+                  <label className="text-gray-700 text-sm font-weight-400">
+                    Provide Reason
+                  </label>
+                  <div className="px-5 py-4 bg-white rounded border border-gray-200 focus-within:border-blue-500">
+                    <textarea
+                      placeholder="Please provide details regarding the driver's vulnerability..."
+                      className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] min-h-[80px] resize-none"
+                      value={formik.values.vulnerablePersonWhy}
+                      onChange={(e) =>
+                        formik.setFieldValue(
+                          "vulnerablePersonWhy",
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

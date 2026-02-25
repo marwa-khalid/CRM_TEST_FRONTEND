@@ -8,7 +8,8 @@ import * as Yup from "yup";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
-
+import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
+import No from "../../../assets/AutoClaim_icon/No.svg";
 export const ReferrerDetailsForm = ({ formRef }: any) => {
   const [companies, setCompanies] = useState<any[]>([]);
 
@@ -523,7 +524,7 @@ const handleCompanySelect = (selected: any) => {
       {/* --- Section 3: Referrer Commission Review --- */}
       <div className="DriverCommissionPayments self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
         <h2 className="text-black text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-5">
-          Referrer Commission Review
+          Referrer Commission Payment
         </h2>
         <div className="h-px bg-gray-100 w-full" />
 
@@ -586,7 +587,6 @@ const handleCompanySelect = (selected: any) => {
                   />
                 </div>
               )}
-
             </div>
           </div>
 
@@ -688,41 +688,30 @@ const handleCompanySelect = (selected: any) => {
             </span>
 
             <div className="h-[52px] flex items-center gap-8">
-              {/* Allowed Option */}
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <div className="relative flex items-center justify-center">
-                  <input
-                    type="radio"
-                    name="third_party_capture"
-                    value="allowed"
-                    checked={formik.values.third_party_capture === "allowed"}
-                    onChange={() =>
-                      formik.setFieldValue("third_party_capture", "allowed")
-                    }
-                    className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                  />
-                  <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
-                </div>
-                <span className="text-sm text-gray-700">Allowed</span>
-              </label>
-
-              {/* Not Allowed Option */}
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <div className="relative flex items-center justify-center">
-                  <input
-                    type="radio"
-                    name="third_party_capture"
-                    value="notAllowed"
-                    checked={formik.values.third_party_capture === "notAllowed"}
-                    onChange={() =>
-                      formik.setFieldValue("third_party_capture", "notAllowed")
-                    }
-                    className="peer appearance-none w-5 h-5 rounded-full border border-gray-300 checked:border-blue-500 checked:bg-blue-50 transition-all"
-                  />
-                  <div className="absolute w-2 h-2 bg-blue-500 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
-                </div>
-                <span className="text-sm text-gray-700">Not Allowed</span>
-              </label>
+              {["Allowed", "Not Allowed"].map((option) => (
+                <label
+                  key={option}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <div className="relative flex items-center justify-center">
+                    <input
+                      type="radio"
+                      name="third_party_capture"
+                      className="peer appearance-none transition-all"
+                      checked={formik.values.third_party_capture === option}
+                      onChange={() =>
+                        formik.setFieldValue("third_party_capture", option)
+                      }
+                    />
+                    {formik.values.third_party_capture === option ? (
+                      <img src={Yes} />
+                    ) : (
+                      <img src={No} />
+                    )}
+                  </div>
+                  <span className="text-sm text-gray-700">{option}</span>
+                </label>
+              ))}
             </div>
           </div>
         </div>

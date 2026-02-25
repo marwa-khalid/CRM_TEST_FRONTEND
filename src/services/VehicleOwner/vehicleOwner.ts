@@ -54,7 +54,7 @@ export const uploadVCDocs = async (files: File[], id: any) => {
 
 
 export const getVehicleOwner = async (id: any) => {
-  const response = await axiosInstance.get(`vehicle-owners/${id}`);
+  const response = await axiosInstance.get(`vehicle_owners/${id}`);
   return response.data;
 };
 

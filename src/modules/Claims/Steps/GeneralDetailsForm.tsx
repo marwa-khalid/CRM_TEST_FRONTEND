@@ -106,10 +106,11 @@ const GeneralDetailsForm = ({ formRef }: any) => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const formikRef = useRef<any>(null);
-  const [lookups, setLookups] = useState<any>(null);
+  const [fileClosedOn, setFileClosedOn] = useState<any>(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closureReason, setClosureReason] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const claimTypeOptions = [
     { value: 1, label: "RTA - NA" },
@@ -166,7 +167,7 @@ const GeneralDetailsForm = ({ formRef }: any) => {
       claim_id: claimId || 0,
       claim_type_id: null,
       handler_id: null,
-      is_locked:false,
+      is_locked: false,
       target_debt_id: null,
       source_id: null,
       source_staff_user_id: null,
@@ -186,7 +187,7 @@ const GeneralDetailsForm = ({ formRef }: any) => {
       try {
         const payload: ClaimFormPayload = {
           ...values,
-          file_opened_on: new Date().toISOString().split("T")[0],
+          file_opened_on: new Date().toLocaleDateString("sv-SE"),
         };
         console.log(payload);
         if (values.id) {
@@ -197,11 +198,9 @@ const GeneralDetailsForm = ({ formRef }: any) => {
           localStorage.setItem("claimId", response.id);
           localStorage.setItem(
             "claimType",
-            claimTypeOptions.find(
-              (opt) => opt.value === response.claim_type_id,
-            ).label,
+            claimTypeOptions.find((opt) => opt.value === response.claim_type_id)
+              .label,
           );
-
         } else {
           const response = await ClaimsApi.submitClaim(payload);
           localStorage.setItem("claimId", response.id);
@@ -210,7 +209,6 @@ const GeneralDetailsForm = ({ formRef }: any) => {
             claimTypeOptions.find((opt) => opt.value === response.claim_type_id)
               .label,
           );
-
         }
         toast.success("General Details saved successfully");
       } catch (error) {
@@ -239,6 +237,9 @@ console.log(formik.values)
     try {
       await closeFile({ reason: closureReason, claim_id: parseInt(claimId) });
       setIsClosed(true);
+      setFileClosedOn(
+        new Date().toLocaleDateString("sv-SE"),
+      );
       setShowCloseModal(false);
       toast.success("File closed successfully");
     } catch (e) {
@@ -554,7 +555,7 @@ console.log(formik.values)
                 File Opened On
               </label>
               <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center justify-between text-gray-500">
-                <span>{new Date().toISOString().split("T")[0]}</span>
+                <span>{new Date().toLocaleDateString("sv-SE")}</span>
               </div>
             </div>
             <div className="flex flex-col gap-2">
@@ -571,6 +572,17 @@ console.log(formik.values)
                 </span>
               </div>
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-5">
+            <div className="flex flex-col gap-2">
+              <label className="text-gray-700 text-sm font-weight-500 ">
+                File Closed On
+              </label>
+              <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center justify-between text-gray-500">
+                <span>{fileClosedOn}</span>
+              </div>
+            </div>
+           
           </div>
         </div>
 

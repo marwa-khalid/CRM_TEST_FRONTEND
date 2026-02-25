@@ -195,9 +195,22 @@ const GeneralDetailsForm = ({ formRef }: any) => {
             payload,
           );
           localStorage.setItem("claimId", response.id);
+          localStorage.setItem(
+            "claimType",
+            claimTypeOptions.find(
+              (opt) => opt.value === response.claim_type_id,
+            ).label,
+          );
+
         } else {
           const response = await ClaimsApi.submitClaim(payload);
           localStorage.setItem("claimId", response.id);
+          localStorage.setItem(
+            "claimType",
+            claimTypeOptions.find((opt) => opt.value === response.claim_type_id)
+              .label,
+          );
+
         }
         toast.success("General Details saved successfully");
       } catch (error) {

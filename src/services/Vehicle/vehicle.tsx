@@ -14,7 +14,7 @@ export const uploadVCDoc = async (files: File[], id: any) => {
       formData.append('files', file);
     });
 
-    const response = await axiosInstance.post(`/client-vehicles/import-client-vehicle/?claim_id=${id}`, formData, {
+    const response = await axiosInstance.post(`/client-vehicles/import_client_vehicle/`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

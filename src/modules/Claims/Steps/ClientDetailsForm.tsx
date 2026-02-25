@@ -20,35 +20,29 @@ const handlerOptions = [
   { value: "Taxi Driver", label: "Taxi Driver" },
   { value: "Others", label: "Others" },
 ];
+export const cleanPayload = (obj: any) => {
+  if (obj === "") return null;
+
+  if (Array.isArray(obj)) {
+    return obj.map(cleanPayload);
+  }
+
+  if (obj !== null && typeof obj === "object") {
+    return Object.fromEntries(
+      Object.entries(obj).map(([key, value]) => [key, cleanPayload(value)]),
+    );
+  }
+
+  return obj;
+};
+
 
 export const ClientDetailsForm = ({ formRef }: any) => {
 
-    const formatCalendarDate = (date?: CalendarDate): string | undefined => {
-      if (!date) return undefined;
-      const jsDate = new Date(date.year, date.month - 1, date.day);
-      const yyyy = jsDate.getFullYear();
-      const mm = String(jsDate.getMonth() + 1).padStart(2, "0");
-      const dd = String(jsDate.getDate()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd}`;
-    };
+
   const [showDobPicker, setShowDobPicker] = useState(false);
 
-  const cleanPayload = (obj: any) => {
-    if (obj === "") return null;
-
-    if (Array.isArray(obj)) {
-      return obj.map(cleanPayload);
-    }
-
-    if (obj !== null && typeof obj === "object") {
-      return Object.fromEntries(
-        Object.entries(obj).map(([key, value]) => [key, cleanPayload(value)]),
-      );
-    }
-
-    return obj;
-  };
-
+  
   const clientId = localStorage.getItem("clientId");
   const claimId = localStorage.getItem("claimId");
 

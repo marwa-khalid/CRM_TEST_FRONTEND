@@ -14,7 +14,7 @@ import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from 'yup'
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
-import { deletePassenger, deletePoliceDetail, deleteWitness, getPassengerById, getPoliceDetails, getWitnesses } from "../../../services/Accidents/Cards/Cards";
+import { deletePassenger, deletePoliceDetail, deleteWitness, getPassengerById, getPoliceDetails, getWitnesses } from "../../../services/Accidents/Cards/cards";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import { PoliceDetailsModal } from "./PoliceDetailsModal";
 

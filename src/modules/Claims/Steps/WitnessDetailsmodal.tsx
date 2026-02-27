@@ -7,7 +7,7 @@ import {
   createWitness,
   sendEmail,
   updateWitness,
-} from "../../../services/Accidents/Cards/Cards";
+} from "../../../services/Accidents/Cards/cards";
 import { toast } from "react-toastify";
 import Vulnerable from '../../../assets/AutoClaim_icon/Vulnerable.svg'
 import Vector3 from '../../../assets/AutoClaim_icon/Vector-3.svg'

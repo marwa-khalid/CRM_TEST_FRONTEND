@@ -1,8 +1,4 @@
-import Vehicle from "../../../assets/AutoClaim_icon/Vehicle.svg";
-import DVLA from "../../../assets/AutoClaim_icon/DVLA.svg"
-import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
-import No from "../../../assets/AutoClaim_icon/No.svg";
-import MID from "../../../assets/AutoClaim_icon/MID.svg";
+
 import { useEffect, useState } from "react";
 import Select from "react-select";
 import { Calendar, Minus, Plus, Upload, X } from "lucide-react";
@@ -14,10 +10,10 @@ import { toast } from "react-toastify";
 import { V5CUploadModalOwner } from "../Components/V5CUploadModalOwner";
 import * as Yup from 'yup'
 import { useFormik } from "formik";
-import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/Vehicle";
+import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";
 import { cleanPayload } from "./ClientDetailsForm";
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
-import { getVehicleOwner } from "../../../services/VehicleOwner/VehicleOwner";
+import { getVehicleOwner } from "../../../services/VehicleOwner/vehicleOwner";
 
 export const VehicleOwnerForm = ({ formRef }: any) => {
 

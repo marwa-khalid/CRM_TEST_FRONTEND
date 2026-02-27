@@ -9,7 +9,7 @@ import Select from "react-select";
 import { Minus, Plus } from "lucide-react";
 import { PassengerDetailsModal } from "./PassengerDetailsModal";
 import { WitnessDetailsModal } from "./WitnessDetailsmodal";
-import { createAccidentDetail, getAccidentDetailById, updateAccidentDetail } from "../../../services/Accidents/Accident";
+import { createAccidentDetail, getAccidentDetailById, updateAccidentDetail } from "../../../services/Accidents/accident";
 import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from 'yup'

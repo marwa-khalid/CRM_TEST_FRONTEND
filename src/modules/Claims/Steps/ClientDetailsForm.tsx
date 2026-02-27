@@ -4,7 +4,7 @@ import Vulnerable from "../../../assets/AutoClaim_icon/Vulnerable.svg";
 import { useEffect, useState } from "react";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Select from "react-select";
-import { createClient, getClientByClaimID, updateClient, vulnerablePersonPolicy } from "../../../services/Client/Client";
+import { createClient, getClientByClaimID, updateClient, vulnerablePersonPolicy } from "../../../services/Client/client";
 import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from "yup"

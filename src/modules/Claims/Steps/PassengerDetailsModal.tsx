@@ -2,7 +2,7 @@ import { useState } from "react";
 import Select from "react-select";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
-import { createPassenger, updatePassenger } from "../../../services/Accidents/Cards/Cards";
+import { createPassenger, updatePassenger } from "../../../services/Accidents/Cards/cards";
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 

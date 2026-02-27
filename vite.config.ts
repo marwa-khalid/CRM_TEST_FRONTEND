@@ -10,7 +10,7 @@ export default defineConfig({
     open: true,
     cors: true,
     strictPort: true,
-    allowedHosts: ["https://f437e4092f89.ngrok-free.app/"],
+    allowedHosts: ["moody-streets-build.loca.lt"],
   },
   assetsInclude: ["**/*.docx"], // <--- Add this line
 });

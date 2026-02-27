@@ -1,8 +1,6 @@
 import {
   useState,
   useEffect,
-  forwardRef,
-  useImperativeHandle,
   useRef,
 } from "react";
 import Select, {
@@ -10,12 +8,10 @@ import Select, {
   type DropdownIndicatorProps,
   type StylesConfig,
 } from "react-select";
-import { Formik, Form, Field, useFormik } from "formik";
+import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
-import { useDispatch } from "react-redux";
-import { CalendarDate } from "@internationalized/date";
 
 // Assets & Icons
 import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
@@ -31,10 +27,8 @@ import {
   type ClaimFormPayload,
 } from "../../../services/Claims/Claims";
 import {
-  closeFile,
-  getPresentPositions,
+  closeFile
 } from "../../../services/Lookups/Generaldetails";
-import { setClaimId, setClaimReferrence, setIsClosed } from "../../../redux/Claim/claimSlice";
 import { CustomDatePicker } from "../Components/DatePicker";
 
 // Custom Blue Arrow Component for react-select
@@ -104,7 +98,6 @@ export const customStyles: StylesConfig<any, false> = {
 // --- COMPONENT ---
 const GeneralDetailsForm = ({ formRef }: any) => {
   const { id } = useParams();
-  const dispatch = useDispatch();
   const navigate= useNavigate()
   const [fileClosedOn, setFileClosedOn] = useState<any>(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -236,7 +229,7 @@ console.log(formik.values)
   const handleCloseFile = async () => {
     try {
       await closeFile({ reason: closureReason, claim_id: parseInt(claimId) });
-      setIsClosed(true);
+      // setIsClosed(true);
       setFileClosedOn(
         new Date().toLocaleDateString("sv-SE"),
       );

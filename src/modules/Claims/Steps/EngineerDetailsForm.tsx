@@ -14,7 +14,7 @@ import { toast } from "react-toastify";
 import { V5CUploadModal } from "../Components/V5CUploadModal";
 import * as Yup from 'yup'
 import { useFormik } from "formik";
-import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/Vehicle";
+import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";
 import { cleanPayload } from "./ClientDetailsForm";
 import TotalLossView from "../Components/TotalLossModal";
 import RepairCostRouteModal from "../Components/RepairCostModal";

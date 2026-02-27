@@ -1,11 +1,10 @@
-import MID from "../../../assets/AutoClaim_icon/MID.svg";
-
-export const MIDModal = ({ isOpen, onClose }) => {
+import VulnerablePDF from "../../../assets/documents/Vulnerable_Person_Policy (7) (1).pdf";
+import Vulnerable from '../../../assets/AutoClaim_icon/Vulnerable.svg'
+export const VulnerablePolicyModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[100] p-10">
-      <div className="card bg-white w-full h-full flex flex-col overflow-hidden">
+      <div className="card bg-white w-[788px] h-full flex flex-col overflow-hidden ">
         {/* Modal Header */}
         <div
           data-layer="Header"
@@ -16,21 +15,21 @@ export const MIDModal = ({ isOpen, onClose }) => {
             data-layer="Back Button Container"
             className="flex justify-start items-center gap-4"
           >
-            <button
-              onClick={onClose}
-              className="hover:bg-gray-100 p-1 rounded-full transition-colors"
-            >
-              <img src={MID} />
-            </button>
             <div
               data-layer="Header Text Container"
               className="flex justify-start items-center gap-6"
             >
+              <button
+                onClick={onClose}
+                className="hover:bg-gray-100 p-1 rounded-full transition-colors"
+              >
+                <img src={Vulnerable} />
+              </button>
               <div
                 data-layer="Header Title"
                 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
               >
-                MID
+                Vulnerable Policy
               </div>
             </div>
           </div>
@@ -53,11 +52,22 @@ export const MIDModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* The Website Content */}
-        <iframe
-          src="https://www.askmid.com/"
-          className="w-full h-full border-none"
-          title="MID"
-        />
+        <div className="w-full h-[800px] bg-white relative">
+          <iframe
+            src={`${VulnerablePDF}#toolbar=0&navpanes=0&view=FitW`}
+            title="Policy"
+            className="absolute"
+            style={{
+              // We make the iframe 20% wider and taller to "push"
+              backgroundColor: "white",
+              width: "120%",
+              height: "120%",
+              top: "-5%",
+              left: "-10%",
+              border: "none",
+            }}
+          />
+        </div>
       </div>
     </div>
   );

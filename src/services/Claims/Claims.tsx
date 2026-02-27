@@ -207,5 +207,5 @@ export const downloadCSV = async (id: string) => {
 }
 
 export const notifyManager = (id: any) => {
-  return axiosInstance.post(`/claims/${id}/notify-manager`);
+  return axiosInstance.post(`/claims/${id}/notify-manager/${JSON.parse(localStorage.getItem("activeUser")).email}`);
 }

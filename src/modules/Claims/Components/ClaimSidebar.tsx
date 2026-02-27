@@ -6,8 +6,6 @@ import Vector10 from "../../../assets/AutoClaim_icon/Vector-10.svg";
 import type1 from "../../../assets/AutoClaim_icon/type1.svg";
 import type2 from "../../../assets/AutoClaim_icon/type2.svg";
 import pending from "../../../assets/AutoClaim_icon/Pending.svg";
-import greenCircle from "../../../assets/AutoClaim_icon/GreenCircle.svg";
-import checkIcon from "../../../assets/AutoClaim_icon/CheckIcon.svg";
 
 interface SidebarProps {
   steps: { label: string }[];

@@ -13,7 +13,7 @@ import Select, {
 import { Formik, Form, Field, useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { CalendarDate } from "@internationalized/date";
 
@@ -53,7 +53,7 @@ export const customStyles: StylesConfig<any, false> = {
     height: "52px",
     borderRadius: "4px",
     borderWidth: state.isFocused ? "2px" : "1px",
-    borderColor: state.isFocused ? "#d9ebff" : "#CCCCCC",
+    borderColor: state.isFocused ? "#d9ebff" : "#e5e7eb",
     boxShadow: "none",
     paddingLeft: "8px",
     backgroundColor: "white",
@@ -105,7 +105,7 @@ export const customStyles: StylesConfig<any, false> = {
 const GeneralDetailsForm = ({ formRef }: any) => {
   const { id } = useParams();
   const dispatch = useDispatch();
-  const formikRef = useRef<any>(null);
+  const navigate= useNavigate()
   const [fileClosedOn, setFileClosedOn] = useState<any>(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closureReason, setClosureReason] = useState("");
@@ -242,6 +242,7 @@ console.log(formik.values)
       );
       setShowCloseModal(false);
       toast.success("File closed successfully");
+      navigate("/dashboard")
     } catch (e) {
       toast.error("Failed to close file");
     }

@@ -1,8 +1,7 @@
-import { components, type DropdownIndicatorProps, type StylesConfig } from "react-select";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
 import Vulnerable from "../../../assets/AutoClaim_icon/Vulnerable.svg";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Select from "react-select";
 import { createClient, getClientByClaimID, updateClient, vulnerablePersonPolicy } from "../../../services/Client/Client";
@@ -10,13 +9,14 @@ import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from "yup"
 import { notifyManager } from "../../../services/Claims/Claims";
-import VulnerableFile from '../../../assets/documents/VulnerablePersonsPolicy.docx';
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 import CreditCard from "../../../assets/AutoClaim_icon/MID.svg";
 import { PayDriverModal } from "./PayDriverModal";
+import { VulnerablePolicyModal } from "./VulnerablePolicyModal";
+
 const handlerOptions = [
   { value: "Private Hire Driver", label: "Private Hire Driver" },
   { value: "Taxi Driver", label: "Taxi Driver" },
@@ -195,14 +195,16 @@ export const ClientDetailsForm = ({ formRef }: any) => {
         formRef.current = formik;
       }
     }, [formRef, formik]);
-  const handleVulnarablePersonPolicy = () => {
-    const link = document.createElement("a");
-    link.href = VulnerableFile;
-    // Set the extension to .docx to match your import
-    link.download = "Vulnerable_Person_Policy.docx";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const [docModalOpen,setDocModalOpen]=useState<boolean>(false)
+  const handleVulnerablePersonPolicy = () => {
+    setDocModalOpen(true);
+    // const link = document.createElement("a");
+    // link.href = VulnerableFile;
+    // // Set the extension to .docx to match your import
+    // link.download = "Vulnerable_Person_Policy.docx";
+    // document.body.appendChild(link);
+    // link.click();
+    // document.body.removeChild(link);
   };
 
 
@@ -253,6 +255,12 @@ export const ClientDetailsForm = ({ formRef }: any) => {
   
   return (
     <>
+      {docModalOpen && (
+        <VulnerablePolicyModal
+          isOpen={docModalOpen}
+          onClose={() => setDocModalOpen(false)}
+        />
+      )}
       {payDriverModal && (
         <PayDriverModal
           isOpen={payDriverModal}
@@ -626,10 +634,10 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                           className="peer appearance-none transition-all"
                           checked={formik.values.clientSpeakEnglish === option}
                           onChange={() =>
-                            formik.setFieldValue("speaksClearEnglish", option)
+                            formik.setFieldValue("clientSpeakEnglish", option)
                           }
                         />
-                        {formik.values.speaksClearEnglish === option ? (
+                        {formik.values.clientSpeakEnglish === option ? (
                           <img src={Yes} />
                         ) : (
                           <img src={No} />
@@ -852,18 +860,18 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   </span>
                 </button>
               )}
-              {formik.values.vulnerablePerson === "Yes" && (
-                <button
-                  className="h-8 px-3 py-2 bg-blue-100 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group"
-                  onClick={handleVulnarablePersonPolicy}
-                  // download="Vulnerable_Person_Policy.docx"
-                >
-                  <img src={Vulnerable} alt="" />
-                  <span className="text-blue-600 text-sm font-normal">
-                    Vulnerable Policy
-                  </span>
-                </button>
-              )}
+              {/* {formik.values.vulnerablePerson === "Yes" && ( */}
+              <button
+                className="h-8 px-3 py-2 bg-blue-100 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group"
+                onClick={handleVulnerablePersonPolicy}
+                // download="Vulnerable_Person_Policy.docx"
+              >
+                <img src={Vulnerable} alt="" />
+                <span className="text-blue-600 text-sm font-normal">
+                  Vulnerable Policy
+                </span>
+              </button>
+              {/* )} */}
             </div>
           </div>
 

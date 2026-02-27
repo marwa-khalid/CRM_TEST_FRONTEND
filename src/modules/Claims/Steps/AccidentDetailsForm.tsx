@@ -1,7 +1,8 @@
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
 import trash from "../../../assets/AutoClaim_icon/trash.svg";
-
+import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
+import No from "../../../assets/AutoClaim_icon/No.svg";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Select from "react-select";
@@ -459,7 +460,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                   value={formik.values.time}
                   onChange={(e) => formik.setFieldValue("time", e.target.value)}
                   placeholder="Enter Time"
-                  className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-['system-ui'] focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300"
+                  className="h-[52px] w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-['system-ui'] focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300"
                 />
                 {/* <Clock className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" /> */}
               </div>
@@ -488,23 +489,23 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
             </div>
 
             {/* Location Input */}
-            <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Location
-              </label>
-              <LeafletAutocompleteMap
-                showMap={true}
-                apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-                address={formik.values.location}
-                onPlaceSelected={(place) => {
-                  if (place.name) {
-                    formik.setFieldValue("location", place.address);
-                    // formik.setFieldValue("postcode", place?.postalCode);
-                  }
-                }}
-                disabled={false}
-              />
-            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-700 text-sm font-weight-400">
+              Location
+            </label>
+            <LeafletAutocompleteMap
+              showMap={true}
+              apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
+              address={formik.values.location}
+              onPlaceSelected={(place) => {
+                if (place.name) {
+                  formik.setFieldValue("location", place.address);
+                  // formik.setFieldValue("postcode", place?.postalCode);
+                }
+              }}
+              disabled={false}
+            />
           </div>
           {/* Version of Events Textarea */}
           <div className="flex flex-col gap-2">
@@ -570,7 +571,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                   onChange={(e) =>
                     formik.setFieldValue("servicesTime", e.target.value)
                   }
-                  className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-['system-ui'] focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300"
+                  className="h-[53px] w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-['system-ui'] focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300"
                 />
                 {/* <Clock className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" /> */}
               </div>
@@ -608,13 +609,14 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                         formik.setFieldValue("passengers", option)
                       }
                     />
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 ${formik.values.passengers === option ? "border-blue-500 bg-blue-100" : "border-gray-300 bg-white"}`}
-                    />
-                    {formik.values.passengers === option && (
-                      <div className="absolute w-2 h-2 rounded-full bg-blue-600" />
+
+                    {formik.values.passengers === option ? (
+                      <img src={Yes} />
+                    ) : (
+                      <img src={No} />
                     )}
                   </div>
+
                   <span className="text-black text-sm">{option}</span>
                 </label>
               ))}
@@ -765,11 +767,11 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                         formik.setFieldValue("hasWitnesses", option)
                       }
                     />
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 ${formik.values.hasWitnesses === option ? "border-blue-500 bg-blue-100" : "border-gray-300 bg-white"}`}
-                    />
-                    {formik.values.hasWitnesses === option && (
-                      <div className="absolute w-2 h-2 rounded-full bg-blue-600" />
+
+                    {formik.values.hasWitnesses === option ? (
+                      <img src={Yes} />
+                    ) : (
+                      <img src={No} />
                     )}
                   </div>
                   <span className="text-black text-sm">{option}</span>
@@ -873,11 +875,10 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                         formik.setFieldValue("policeAttended", option)
                       }
                     />
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 ${formik.values.policeAttended === option ? "border-blue-500 bg-blue-100" : "border-gray-300 bg-white"}`}
-                    />
-                    {formik.values.policeAttended === option && (
-                      <div className="absolute w-2 h-2 rounded-full bg-blue-600" />
+                    {formik.values.policeAttended === option ? (
+                      <img src={Yes} />
+                    ) : (
+                      <img src={No} />
                     )}
                   </div>
                   <span className="text-black text-sm">{option}</span>
@@ -902,67 +903,82 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
             </button>
           </div>
           <div className="grid gap-3">
-           {policeList.length > 0 ? (
-        policeList.map((record: any) => (
-          <div
-            key={record.id}
-            data-layer="Frame 1171277554"
-            className="self-stretch px-4 py-3 bg-white border border-gray-100 rounded-lg inline-flex justify-between items-start transition-shadow hover:shadow-sm"
-          >
-            {/* Left Section: Details */}
-            <div data-layer="Frame 1171277556" className="inline-flex flex-col justify-start items-start gap-1">
-              
-              {/* Name and Reference */}
-              <div data-layer="Frame 1171277555" className="inline-flex justify-start items-center gap-2">
-                <div className="text-gray-700 text-sm font-weight-600 font-['Stack_Sans_Headline']">
-                  {record.name}
+            {policeList.length > 0 ? (
+              policeList.map((record: any) => (
+                <div
+                  key={record.id}
+                  data-layer="Frame 1171277554"
+                  className="self-stretch px-4 py-3 bg-white border border-gray-100 rounded-lg inline-flex justify-between items-start transition-shadow hover:shadow-sm"
+                >
+                  {/* Left Section: Details */}
+                  <div
+                    data-layer="Frame 1171277556"
+                    className="inline-flex flex-col justify-start items-start gap-1"
+                  >
+                    {/* Name and Reference */}
+                    <div
+                      data-layer="Frame 1171277555"
+                      className="inline-flex justify-start items-center gap-2"
+                    >
+                      <div className="text-gray-700 text-sm font-weight-600 font-['Stack_Sans_Headline']">
+                        {record.name}
+                      </div>
+                      <div className="flex justify-center items-center gap-1 text-xs">
+                        <span className="text-gray-700 font-weight-600 font-['Stack_Sans_Headline']">
+                          Ref. no:{" "}
+                        </span>
+                        <span className="text-gray-700 font-normal font-['Stack_Sans_Headline']">
+                          {record.reference_no}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Station Address */}
+                    <div className="text-gray-700 text-xs font-normal font-['Stack_Sans_Headline'] max-w-[500px]">
+                      {record.station_name}
+                      {record.station_address
+                        ? `, ${record.station_address}`
+                        : ""}
+                    </div>
+
+                    {/* Received Date */}
+                    <div className="text-xs">
+                      <span className="text-gray-700 font-weight-600 font-['Stack_Sans_Headline']">
+                        Incident Report Received on:{" "}
+                      </span>
+                      <span className="text-gray-700 font-normal font-['Stack_Sans_Headline']">
+                        {formatWitnessDate(record.report_received_date)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right Section: Actions */}
+                  <div
+                    data-layer="Frame 1171277557"
+                    className="flex justify-start items-center gap-4 pt-1"
+                  >
+                    <button
+                      onClick={() => handleEditPolice(record)}
+                      className="hover:opacity-70 transition-opacity"
+                      title="Edit"
+                    >
+                      <img src={pencil} className="w-4 h-4" alt="edit" />
+                    </button>
+                    <button
+                      onClick={() => handleDeletePolice(record.id)}
+                      className="hover:opacity-70 transition-opacity"
+                      title="Delete"
+                    >
+                      <img src={trash} className="w-4 h-4" alt="delete" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex justify-center items-center gap-1 text-xs">
-                  <span className="text-gray-700 font-weight-600 font-['Stack_Sans_Headline']">Ref. no: </span>
-                  <span className="text-gray-700 font-normal font-['Stack_Sans_Headline']">{record.reference_no}</span>
-                </div>
-              </div>
-
-              {/* Station Address */}
-              <div className="text-gray-700 text-xs font-normal font-['Stack_Sans_Headline'] max-w-[500px]">
-                {record.station_name}{record.station_address ? `, ${record.station_address}` : ""}
-              </div>
-
-              {/* Received Date */}
-              <div className="text-xs">
-                <span className="text-gray-700 font-weight-600 font-['Stack_Sans_Headline']">
-                  Incident Report Received on:{" "}
-                </span>
-                <span className="text-gray-700 font-normal font-['Stack_Sans_Headline']">
-                  {formatWitnessDate(record.report_received_date)}
-                </span>
-              </div>
-            </div>
-
-            {/* Right Section: Actions */}
-            <div data-layer="Frame 1171277557" className="flex justify-start items-center gap-4 pt-1">
-              <button
-                onClick={() => handleEditPolice(record)}
-                className="hover:opacity-70 transition-opacity"
-                title="Edit"
-              >
-                <img src={pencil} className="w-4 h-4" alt="edit" />
-              </button>
-              <button
-                onClick={() => handleDeletePolice(record.id)}
-                className="hover:opacity-70 transition-opacity"
-                title="Delete"
-              >
-                <img src={trash} className="w-4 h-4" alt="delete" />
-              </button>
-            </div>
-          </div>
-        ))
-      ) : (
-        <p className="text-gray-600 text-sm p-4 border border-dashed border-gray-200 rounded-lg text-center">
-          Add Police details by clicking on “Add Police Details”.
-        </p>
-      )}
+              ))
+            ) : (
+              <p className="text-gray-600 text-sm p-4 border border-dashed border-gray-200 rounded-lg text-center">
+                Add Police details by clicking on “Add Police Details”.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -990,12 +1006,13 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                     formik.setFieldValue("dashcamFootage", option)
                   }
                 />
-                <div
-                  className={`w-5 h-5 rounded-full border-2 ${formik.values.dashcamFootage === option ? "border-blue-500 bg-blue-100" : "border-gray-300 bg-white"}`}
-                />
-                {formik.values.dashcamFootage === option && (
-                  <div className="absolute w-2 h-2 rounded-full bg-blue-600" />
+                {formik.values.dashcamFootage === option ? (
+                  <img src={Yes} />
+                ) : (
+                  <img src={No} />
                 )}
+
+               
               </div>
               <span className="text-black text-sm">{option}</span>
             </label>

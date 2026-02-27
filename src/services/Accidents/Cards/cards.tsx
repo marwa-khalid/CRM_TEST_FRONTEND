@@ -127,6 +127,8 @@ export const deleteWitness = async (id: number): Promise<void> => {
 
 export const sendEmail = async (email: any, claimID: any, firstName: any, referrence_no: any, option: any) => {
   console.log(option)
+    console.log(email)
+      console.log(firstName);
   const data = {
     witness_email: email,
     witness_name: firstName,

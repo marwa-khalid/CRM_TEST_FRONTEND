@@ -240,7 +240,7 @@
 // };
 import React, { useState } from "react";
 import Select from "react-select";
-import { X, FileText, Mail, Link, Download, ChevronLeft } from "lucide-react";
+import { X,ChevronLeft } from "lucide-react";
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import {
   createWitness,
@@ -250,10 +250,12 @@ import {
 import { toast } from "react-toastify";
 import Vulnerable from '../../../assets/AutoClaim_icon/Vulnerable.svg'
 import Vector3 from '../../../assets/AutoClaim_icon/Vector-3.svg'
+import type2 from "../../../assets/AutoClaim_icon/type2.svg";
 import checkgreen from "../../../assets/AutoClaim_icon/checkgreen.svg";
 import pdf from '../../../assets/AutoClaim_icon/pdf.svg'
 import download from '../../../assets/AutoClaim_icon/download.svg'
-
+import Letter from '../../../assets/documents/letter.pdf';
+import Questionnaire from '../../../assets/documents/questionnaire.pdf';
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 
 export const WitnessDetailsModal = ({ onClose, claimId, initialData }) => {
@@ -340,16 +342,32 @@ const SentStatusRow = ({
   const handleFunctionality = async (option: any) => {
     setIsProcessing(true);
     try {
-      const res = await sendEmail(
-        witness.email,
-        claimId,
-        witness.firstName,
-        "1234ref",
-        option,
-      );
-
-      // Format timestamp: 02-10-26  5:25PM
-      const now = new Date();
+      if (option.id === "pdf") {
+        const res = await sendEmail(
+          witness.email,
+          claimId,
+          witness.firstName,
+          "1234ref",
+          option,
+        );
+      }
+      else if (option.id === "download") {
+        const link = document.createElement("a");
+        link.href = Letter;
+        // Set the extension to .docx to match your import
+        link.download = "Letter.pdf";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        link.href = Questionnaire;
+        // Set the extension to .docx to match your import
+        link.download = "Questionnaire.pdf";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+        // Format timestamp: 02-10-26  5:25PM
+        const now = new Date();
       const timestamp = `${now.getDate().toString().padStart(2, "0")}-${(now.getMonth() + 1).toString().padStart(2, "0")}-${now.getFullYear().toString().slice(-2)}  ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}`;
 
       // If PDF (Option 1) is clicked, we mark "link" (Option 2) as sent
@@ -407,7 +425,7 @@ const SentStatusRow = ({
         {step === 1 ? (
           /* STEP 1: THE FORM */
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2">
+            <div className="grid grid-cols-2 gap-5">
               <div className="flex flex-col gap-2">
                 <label className="text-gray-700 text-sm font-weight-400">
                   Title
@@ -436,7 +454,7 @@ const SentStatusRow = ({
                 <input
                   type="text"
                   placeholder="Enter First Name"
-                  className="px-5 py-4 border border-gray-200 rounded text-base outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
                   value={witness.firstName}
                   onChange={(e) =>
                     setWitness({ ...witness, firstName: e.target.value })
@@ -450,7 +468,7 @@ const SentStatusRow = ({
                 <input
                   type="text"
                   placeholder="Enter Last Name"
-                  className="px-5 py-4 border border-gray-200 rounded text-base outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
                   value={witness.surname}
                   onChange={(e) =>
                     setWitness({ ...witness, surname: e.target.value })
@@ -488,7 +506,7 @@ const SentStatusRow = ({
                 <input
                   type="text"
                   placeholder="Enter Post Code"
-                  className="px-5 py-4 border border-gray-200 rounded text-base outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
                   value={witness.postCode}
                   onChange={(e) =>
                     setWitness({ ...witness, postCode: e.target.value })
@@ -502,7 +520,7 @@ const SentStatusRow = ({
                 <input
                   type="email"
                   placeholder="Enter Email"
-                  className="px-5 py-4 border border-gray-200 rounded text-base outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
                   value={witness.email}
                   onChange={(e) =>
                     setWitness({ ...witness, email: e.target.value })
@@ -516,12 +534,13 @@ const SentStatusRow = ({
                 Telephone
               </label>
               <div className="relative flex items-center">
-                <span className="absolute left-5 text-gray-400 border-r border-gray-200 pr-3">
+                <span className="absolute left-5 text-gray-700 pr-3">
                   +44
                 </span>
                 <input
                   type="tel"
-                  className="w-full pl-16 pr-5 py-4 border border-gray-200 rounded text-base focus:ring-2 focus:ring-blue-500/20 outline-none"
+                  className="w-full h-[52px] px-5 pl-16 pr-5  bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
+                  // className="w-full pl-16 pr-5 py-4 border border-gray-200 rounded text-base focus:ring-2 focus:ring-blue-500/20 outline-none"
                   value={witness.telephone}
                   onChange={handlePhoneChange}
                   maxLength={12}
@@ -580,18 +599,19 @@ const SentStatusRow = ({
                             {method.label}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <img src={checkgreen} alt="" />
-                          <span className="text-gray-500 text-xs font-normal">
-                            Questionnaire Sent: {sentMethods[method.id]}
-                          </span>
-                        </div>
+                        {method.id !== "download" &&
+                          <div className="flex items-center gap-2">
+                            <img src={checkgreen} alt="" />
+                            <span className="text-gray-500 text-xs font-normal">
+                              Questionnaire Sent: {sentMethods[method.id]}
+                            </span>
+                          </div>}
                       </div>
                     ) : (
                       /* ACTIONABLE BUTTON */
                       <button
                         onClick={() => handleFunctionality(method)}
-                        disabled={isProcessing||isDisabled}
+                        disabled={isProcessing || isDisabled}
                         className={`w-full px-4 py-3 rounded-lg flex items-center gap-4 transition-all 
               ${isDisabled ? "opacity-40 cursor-not-allowed grayscale" : "border-transparent hover:bg-gray-50"}
             `}
@@ -600,6 +620,7 @@ const SentStatusRow = ({
                         <span className="text-blue-500 text-sm font-normal">
                           {method.label}
                         </span>
+                        {isProcessing && <img src={type2} />}
                       </button>
                     )}
                     {/* Line Separator (Optional, matches your layers) */}

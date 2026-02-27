@@ -7,14 +7,13 @@ import { useEffect, useState } from "react";
 import Select from "react-select";
 import { Calendar, Edit2, Minus, Plus,Trash2, Upload, X } from "lucide-react";
 import { VehicleCheckModal } from "./VehicleCheckModal";
-import { MIDModal } from "./MIDModal";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
 import trash from "../../../assets/AutoClaim_icon/trash.svg";
 import { toast } from "react-toastify";
 import { V5CUploadModal } from "../Components/V5CUploadModal";
 import * as Yup from 'yup'
-import { useFormik } from "formik";
+import { ErrorMessage, useFormik } from "formik";
 import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/Vehicle";
 import { cleanPayload } from "./ClientDetailsForm";
 export const VehicleDetailsForm = ({ formRef }: any) => {
@@ -56,8 +55,6 @@ export const VehicleDetailsForm = ({ formRef }: any) => {
   const claimType = localStorage.getItem("claimType");
   // Validation Logic based on Acceptance Criteria
   const [checkModal, openModal1] = useState<boolean>(false)
-  const [dvlaModal, openModal2] = useState<boolean>(false);
-  const [midModal, openModal3] = useState<boolean>(false);
   
   const isVehicleValid =
     currentVehicle.make && currentVehicle.model && currentVehicle.registration;
@@ -115,7 +112,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
         clientBadgeNumber: "",
         badgeExpirationDate: "",
         vehicleBadgeNumber: "",
-        otherBorough: false,
+        otherBorough: "No",
       },
       thirdPartyVehicles: [
         
@@ -144,8 +141,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
             badge_expiration_date: values.borough.badgeExpirationDate,
             vehicle_badge_number: values.borough.vehicleBadgeNumber,
             any_other_borough:
-              values.borough.otherBorough === "true" ||
-              values.borough.otherBorough === true,
+              values.borough.otherBorough === "Yes"? true:false,
             other_borough_name: values.borough.otherBoroughName || "",
           },
 
@@ -158,7 +154,6 @@ const [isModalOpen, setIsModalOpen] = useState(false);
           })),
         };
         const payloadToSend = cleanPayload(payload);
-        console.log(parseInt(claimId));
         // return
         if (claimId && vehicleId) {
           const response = await updateVehicle(
@@ -177,11 +172,11 @@ const [isModalOpen, setIsModalOpen] = useState(false);
       }
     },
   });
+  const [fieldError, setFieldError] = useState({});
   useEffect(() => {
     const fetchData = async () => {
       const res = await getVehicleDetail(parseInt(claimId));
-      console.log(res);
-        const mappedValues = {
+     const mappedValues = {
           vehicle: {
             make: res.make || "",
             model: res.model || "",
@@ -200,7 +195,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
             clientBadgeNumber: res.borough?.client_badge_number || "",
             badgeExpirationDate: res.borough?.badge_expiration_date || "",
             vehicleBadgeNumber: res.borough?.vehicle_badge_number || "",
-            otherBorough: res.borough?.any_other_borough?.toString() || "false",
+            otherBorough: res.borough?.any_other_borough ? "Yes":"No",
           },
           thirdPartyVehicles:
             res.third_party_vehicles?.map((v) => ({
@@ -214,7 +209,6 @@ const [isModalOpen, setIsModalOpen] = useState(false);
 
       formik.setValues(mappedValues);
     };
-    console.log(formik.values)
     if (claimId && vehicleId) {
       fetchData();
     }
@@ -224,7 +218,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
         formRef.current = formik;
       }
     }, [formRef, formik]);
-  const pollJobStatus = async (jobId: string) => {
+  const pollJobStatus = async (vehicleDetails: any) => {
     // Show a global loader for the OCR processing
     // setLoading(true);
     try {
@@ -232,17 +226,51 @@ const [isModalOpen, setIsModalOpen] = useState(false);
       // const result = await checkOCRStatus(jobId);
       // console.log(result)
       // if (result.status === "completed") {
-        // Pre-fill your Formik fields
-        // formik.setValues({
-        //   ...formik.values,
-        //   make: result.data.make,
-        //   model: result.data.model,
-        //   registration: result.data.registration,
-        //   colour: result.data.colour,
-        // });
-        toast.success("Data extracted successfully!");
-      }
-     catch (e) {
+      // Pre-fill your Formik fields
+      // formik.setValues({
+      //   ...formik.values,
+      //   make: result.data.make,
+      //   model: result.data.model,
+      //   registration: result.data.registration,
+      //   colour: result.data.colour,
+      // });
+      const newErrors: Record<string, string> = {};
+
+
+      if (!vehicleDetails.make)
+        newErrors["vehicle.make"] =
+          "Low confidence OCR result - please verify.";
+      if (!vehicleDetails.model)
+        newErrors["vehicle.model"] =
+          "Low confidence OCR result - please verify.";
+      if (!vehicleDetails.registration)
+        newErrors["vehicle.registration"] =
+          "Low confidence OCR result - please verify.";
+      if (!vehicleDetails.color)
+        newErrors["vehicle.color"] =
+          "Low confidence OCR result - please verify.";
+      if (!vehicleDetails.fuel_type_id)
+        newErrors["vehicle.fuelType"] =
+          "Low confidence OCR result - please verify.";
+      if (!vehicleDetails.engine_size)
+        newErrors["vehicle.engineSize"] =
+          "Low confidence OCR result - please verify.";
+      if (!vehicleDetails.transmission_id)
+        newErrors["vehicle.transmission"] =
+          "Low confidence OCR result - please verify.";
+      if (!vehicleDetails.body_type)
+        newErrors["vehicle.bodyType"] =
+          "Low confidence OCR result - please verify.";
+      if (!vehicleDetails["number_of_seat"])
+        newErrors["vehicle.seats"] =
+          "Low confidence OCR result - please verify.";
+      if (!vehicleDetails.vehicle_category)
+        newErrors["vehicle.category"] =
+          "Low confidence OCR result - please verify.";
+
+      setFieldError(newErrors);
+      toast.success("Data extracted successfully!");
+    } catch (e) {
       toast.error("OCR extraction failed");
     } finally {
       // setLoading(false);
@@ -286,13 +314,28 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               </label>
               <input
                 value={formik.values.vehicle.make}
-                onChange={(e) =>
-                  formik.setFieldValue("vehicle.make", e.target.value)
-                }
+                onChange={(e) => {
+                  formik.setFieldValue("vehicle.make", e.target.value);
+                  if (e.target.value) {
+                    setFieldError((prevState: any) => {
+                      const newState = { ...prevState };
+                      delete newState["vehicle.make"];
+                      return newState;
+                    });
+                    formik.setFieldError("vehicle.make", undefined);
+                  }
+                }}
                 type="text"
                 placeholder="Enter Make"
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className={`w-full px-5 py-4 bg-white rounded border  ${fieldError["vehicle.make"] ? "border-red-500" : "border-gray-200"} text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
               />
+              {fieldError["vehicle.make"] ? (
+                <p className="text-red-500 text-xs">
+                  {fieldError["vehicle.make"]}
+                </p>
+              ) : (
+                ""
+              )}
             </div>
             {/* Model */}
             <div className="flex flex-col gap-2">
@@ -303,11 +346,32 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 type="text"
                 placeholder="Enter Model"
                 value={formik.values.vehicle.model}
-                onChange={(e) =>
-                  formik.setFieldValue("vehicle.model", e.target.value)
-                }
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                onChange={(e) => {
+                  formik.setFieldValue("vehicle.model", e.target.value);
+                  if (e.target.value) {
+                    setFieldError((prevState: any) => {
+                      const newState = { ...prevState };
+                      delete newState["vehicle.model"];
+                      return newState;
+                    });
+                    formik.setFieldError("vehicle.model", undefined);
+                  }
+                }}
+                className={`w-full px-5 py-4 bg-white rounded border  ${fieldError["vehicle.model"] ? "border-red-500" : "border-gray-200"} text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
               />
+              {fieldError["vehicle.model"] ? (
+                <p className="text-red-500 text-xs">
+                  {fieldError["vehicle.model"]}
+                </p>
+              ) : (
+                ""
+              )}
+              {/* {fieldError["vehicle.model"] &&
+                <ErrorMessage
+                  name="vehicle.model"
+                  component="div"
+                  className="text-red-500 text-xs mt-1"
+                />} */}
             </div>
             {/* Body Type */}
             <div className="flex flex-col gap-2">
@@ -317,12 +381,27 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               <input
                 type="text"
                 value={formik.values.vehicle.bodyType}
-                onChange={(e) =>
-                  formik.setFieldValue("vehicle.bodyType", e.target.value)
-                }
+                onChange={(e) => {
+                  formik.setFieldValue("vehicle.bodyType", e.target.value);
+                  if (e.target.value) {
+                    setFieldError((prevState: any) => {
+                      const newState = { ...prevState };
+                      delete newState["vehicle.bodyType"];
+                      return newState;
+                    });
+                    formik.setFieldError("vehicle.bodyType", undefined);
+                  }
+                }}
                 placeholder="Enter Body Type"
                 className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
+              {fieldError["vehicle.bodyType"] ? (
+                <p className="text-red-500 text-xs">
+                  {fieldError["vehicle.bodyType"]}
+                </p>
+              ) : (
+                ""
+              )}
             </div>
             {/* Vehicle Registration */}
             <div className="flex flex-col gap-2">
@@ -332,12 +411,27 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               <input
                 type="text"
                 value={formik.values.vehicle.registration}
-                onChange={(e) =>
-                  formik.setFieldValue("vehicle.registration", e.target.value)
-                }
+                onChange={(e) => {
+                  formik.setFieldValue("vehicle.registration", e.target.value);
+                  if (e.target.value) {
+                    setFieldError((prevState: any) => {
+                      const newState = { ...prevState };
+                      delete newState["vehicle.registration"];
+                      return newState;
+                    });
+                    formik.setFieldError("vehicle.registration", undefined);
+                  }
+                }}
                 placeholder="Enter Registration"
                 className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
+              {fieldError["vehicle.registration"] ? (
+                <p className="text-red-500 text-xs">
+                  {fieldError["vehicle.registration"]}
+                </p>
+              ) : (
+                ""
+              )}
             </div>
             {/* Color */}
             <div className="flex flex-col gap-2">
@@ -348,11 +442,26 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 type="text"
                 placeholder="Enter Color"
                 value={formik.values.vehicle.color}
-                onChange={(e) =>
-                  formik.setFieldValue("vehicle.color", e.target.value)
-                }
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                onChange={(e) => {
+                  formik.setFieldValue("vehicle.color", e.target.value);
+                  if (e.target.value) {
+                    setFieldError((prevState: any) => {
+                      const newState = { ...prevState };
+                      delete newState["vehicle.color"];
+                      return newState;
+                    });
+                    formik.setFieldError("vehicle.color", undefined);
+                  }
+                }}
+                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between cursor-pointer focus-within:border-blue-500"
               />
+              {fieldError["vehicle.color"] ? (
+                <p className="text-red-500 text-xs">
+                  {fieldError["vehicle.color"]}
+                </p>
+              ) : (
+                ""
+              )}
             </div>
             {/* Fuel Type */}
             <div className="flex flex-col gap-2">
@@ -370,10 +479,26 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 value={fuelOptions.find(
                   (op) => op.value === formik.values.vehicle.fuelType,
                 )}
-                onChange={(e) =>
-                  formik.setFieldValue("vehicle.fuelType", e.value)
-                }
+                onChange={(e) => {
+                  formik.setFieldValue("vehicle.fuelType", e.value);
+
+                  if (e.value) {
+                    setFieldError((prevState: any) => {
+                      const newState = { ...prevState };
+                      delete newState["vehicle.fuelType"];
+                      return newState;
+                    });
+                    formik.setFieldError("vehicle.fuelType", undefined);
+                  }
+                }}
               />
+              {fieldError["vehicle.fuelType"] ? (
+                <p className="text-red-500 text-xs">
+                  {fieldError["vehicle.fuelType"]}
+                </p>
+              ) : (
+                ""
+              )}
             </div>
             {/* Engine Size */}
             <div className="flex flex-col gap-2">
@@ -382,13 +507,29 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               </label>
               <input
                 value={formik.values.vehicle.engineSize}
-                onChange={(e) =>
-                  formik.setFieldValue("vehicle.engineSize", e.target.value)
-                }
+                onChange={(e) => {
+                  formik.setFieldValue("vehicle.engineSize", e.target.value);
+
+                  if (e.target.value) {
+                    setFieldError((prevState: any) => {
+                      const newState = { ...prevState };
+                      delete newState["vehicle.engineSize"];
+                      return newState;
+                    });
+                    formik.setFieldError("vehicle.engineSize", undefined);
+                  }
+                }}
                 type="number"
                 placeholder="Enter Size (cc)"
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between cursor-pointer focus-within:border-blue-500"
               />
+              {fieldError["vehicle.engineSize"] ? (
+                <p className="text-red-500 text-xs">
+                  {fieldError["vehicle.engineSize"]}
+                </p>
+              ) : (
+                ""
+              )}
             </div>
             {/* Transmission */}
             <div className="flex flex-col gap-2">
@@ -406,10 +547,26 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 value={transmissionOptions.find(
                   (op) => op.value === formik.values.vehicle.transmission,
                 )}
-                onChange={(e) =>
-                  formik.setFieldValue("vehicle.transmission", e.value)
-                }
+                onChange={(e) => {
+                  formik.setFieldValue("vehicle.transmission", e.value);
+
+                  if (e.value) {
+                    setFieldError((prevState: any) => {
+                      const newState = { ...prevState };
+                      delete newState["vehicle.transmission"];
+                      return newState;
+                    });
+                    formik.setFieldError("vehicle.transmission", undefined);
+                  }
+                }}
               />
+              {fieldError["vehicle.transmission"] ? (
+                <p className="text-red-500 text-xs">
+                  {fieldError["vehicle.transmission"]}
+                </p>
+              ) : (
+                ""
+              )}
             </div>
             {/* Number of Seats */}
             <div className="flex flex-col gap-2">
@@ -456,14 +613,30 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 value={categoryOptions.find(
                   (op) => op.value === formik.values.vehicle.category,
                 )}
-                onChange={(e) =>
-                  formik.setFieldValue("vehicle.category", e.value)
-                }
+                onChange={(e) => {
+                  formik.setFieldValue("vehicle.category", e.value);
+
+                  if (e.value) {
+                    setFieldError((prevState: any) => {
+                      const newState = { ...prevState };
+                      delete newState["vehicle.category"];
+                      return newState;
+                    });
+                    formik.setFieldError("vehicle.category", undefined);
+                  }
+                }}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
                 }}
               />
+              {fieldError["vehicle.category"] ? (
+                <p className="text-red-500 text-xs">
+                  {fieldError["vehicle.category"]}
+                </p>
+              ) : (
+                ""
+              )}
             </div>
           </div>
 
@@ -505,7 +678,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                     formik.setFieldValue("borough.name", e.target.value)
                   }
                   placeholder="Enter Name"
-                  className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full h-[52px] px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   required
                 />
               </div>
@@ -611,7 +784,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                           }
                         />
 
-                        {formik.values.borough.otherBorough ? (
+                        {formik.values.borough.otherBorough === option ? (
                           <img src={Yes} alt="" />
                         ) : (
                           <img src={No} alt="" />
@@ -744,12 +917,6 @@ const [isModalOpen, setIsModalOpen] = useState(false);
             isOpen={checkModal}
             onClose={() => openModal1(false)}
           />
-        )}
-        {/* {dvlaModal && (
-          <DVLAModal isOpen={dvlaModal} onClose={() => openModal2(false)} />
-        )} */}
-        {midModal && (
-          <MIDModal isOpen={midModal} onClose={() => openModal3(false)} />
         )}
         {/* MODAL: Third Party Vehicle Entry */}
         {isModalOpen && (
@@ -938,7 +1105,6 @@ const [isModalOpen, setIsModalOpen] = useState(false);
             <a
               href="https://www.askmid.com/"
               target="_blank"
-              // onClick={() => openModal3(true)}
               className="p-4 rounded-lg border border-blue-300 flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors group"
             >
               <img src={MID} alt="" />

@@ -35,7 +35,7 @@ export const uploadVCDocs = async (files: File[], id: any) => {
     });
 
     const response = await axiosInstance.post(
-      `/vehicle-owners/import-vehicle-owner/?claim_id=${id}`,
+      `/vehicle-owners/import_vehicle_owner/`,
       formData,
       {
         headers: {

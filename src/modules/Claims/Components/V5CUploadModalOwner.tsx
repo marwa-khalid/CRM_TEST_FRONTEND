@@ -1,10 +1,12 @@
 import React, { useState, useRef } from "react";
-import { X } from "lucide-react";
 import { toast } from "react-toastify";
-import { uploadVCDoc } from "../../../services/Vehicle/Vehicle";
+import { uploadVCDocs } from "../../../services/VehicleOwner/VehicleOwner";
 import Complete from "../../../assets/AutoClaim_icon/Complete.svg"
 import Upload from "../../../assets/AutoClaim_icon/Upload.svg";
 import Processing from "../../../assets/AutoClaim_icon/Processing.svg";
+import { X } from "lucide-react";
+
+
 interface V5CModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -13,7 +15,7 @@ interface V5CModalProps {
   formik:any
 }
 
-export const V5CUploadModal: React.FC<V5CModalProps> = ({
+export const V5CUploadModalOwner: React.FC<V5CModalProps> = ({
   isOpen,
   onClose,
   onUploadSuccess,
@@ -52,46 +54,46 @@ export const V5CUploadModal: React.FC<V5CModalProps> = ({
   const executeActualUpload = async (selectedFile: File) => {
     try {
       // Calling your actual API function
-      const response = await uploadVCDoc([selectedFile], claimId);
+      const response = await uploadVCDocs([selectedFile], claimId);
       const jobId = response?.job_id;
 
       setStep(3);
       toast.success("File uploaded successfully");
 
       // Delay slightly so user sees the "Green" success state before closing/polling
-     setTimeout(() => {
-       onUploadSuccess(response.client_vehicle_detail);
-       onClose();
+      setTimeout(() => {
+        onUploadSuccess("mock-job-id");
+        onClose();
 
-       const vehicleData = response.client_vehicle_detail;
+        const vehicleData = response.client_vehicle_detail;
 
-       if (vehicleData) {
-         // Map Formik field names to the API response keys
-         const fieldMapping = {
-           "vehicle.make": vehicleData.make,
-           "vehicle.model": vehicleData.model,
-           "vehicle.bodyType": vehicleData.body_type,
-           "vehicle.registration": vehicleData.registration,
-           "vehicle.color": vehicleData.color,
-           "vehicle.engineSize": vehicleData.engine_size,
-           "vehicle.fuelType": vehicleData.fuel_type_id,
-           "vehicle.transmission": vehicleData.transmission_id, // Added this back in based on your snippet
-           "vehicle.seats": vehicleData.number_of_seat,
-           "vehicle.category": vehicleData.vehicle_category,
-         };
+        if (vehicleData) {
+          // Map Formik field names to the API response keys
+          const fieldMapping = {
+            "vehicle.make": vehicleData.make,
+            "vehicle.model": vehicleData.model,
+            "vehicle.bodyType": vehicleData.body_type,
+            "vehicle.registration": vehicleData.registration,
+            "vehicle.color": vehicleData.color,
+            "vehicle.engineSize": vehicleData.engine_size,
+            "vehicle.fuelType": vehicleData.fuel_type_id,
+            "vehicle.transmission": vehicleData.transmission_id, // Added this back in based on your snippet
+            "vehicle.seats": vehicleData.number_of_seat,
+            "vehicle.category": vehicleData.vehicle_category,
+          };
 
-         // Only update Formik if the value from the response is NOT null/undefined
-         Object.entries(fieldMapping).forEach(([formikKey, apiValue]) => {
-          //  if (
-          //    apiValue === null &&
-          //    apiValue === undefined &&
-          //    apiValue === "") {
-             formik.setFieldValue(formikKey, apiValue);
-          //  }
-         });
-         setStep(1)
-       }
-     }, 1500);
+          // Only update Formik if the value from the response is NOT null/undefined
+          Object.entries(fieldMapping).forEach(([formikKey, apiValue]) => {
+            if (
+              apiValue !== null &&
+              apiValue !== undefined &&
+              apiValue !== ""
+            ) {
+              formik.setFieldValue(formikKey, apiValue);
+            }
+          });
+        }
+      }, 1500);
     } catch (error) {
       setStep(1);
       toast.error("Upload failed");

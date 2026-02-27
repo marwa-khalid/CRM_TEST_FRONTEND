@@ -7,12 +7,11 @@ import { useEffect, useState } from "react";
 import Select from "react-select";
 import { Calendar, Minus, Plus, Upload, X } from "lucide-react";
 import { VehicleCheckModal } from "./VehicleCheckModal";
-import { MIDModal } from "./MIDModal";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
 import trash from "../../../assets/AutoClaim_icon/trash.svg";
 import { toast } from "react-toastify";
-import { V5CUploadModal } from "../Components/V5CUploadModal";
+import { V5CUploadModalOwner } from "../Components/V5CUploadModalOwner";
 import * as Yup from 'yup'
 import { useFormik } from "formik";
 import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/Vehicle";
@@ -56,12 +55,6 @@ export const VehicleOwnerForm = ({ formRef }: any) => {
     imagesAvailable: "Yes",
   });
   const claimId = localStorage.getItem("claimId")
-  const claimType = localStorage.getItem("claimType");
-  // Validation Logic based on Acceptance Criteria
-  const [checkModal, openModal1] = useState<boolean>(false)
-  const [dvlaModal, openModal2] = useState<boolean>(false);
-  const [midModal, openModal3] = useState<boolean>(false);
-  
   const isVehicleValid =
     currentVehicle.make && currentVehicle.model && currentVehicle.registration;
 const [isModalOpen, setIsModalOpen] = useState(false);
@@ -262,7 +255,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
   };
   return (
     <>
-      <V5CUploadModal
+      <V5CUploadModalOwner
         isOpen={showUploadModal}
         claimId={claimId}
         formik={formik}
@@ -303,7 +296,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 }
                 type="text"
                 placeholder="Enter First Name"
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
               />
             </div>
             {/* Model */}
@@ -318,7 +311,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 onChange={(e) =>
                   formik.setFieldValue("vehicle.model", e.target.value)
                 }
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
               />
             </div>
           </div>
@@ -352,7 +345,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   formik.setFieldValue("vehicle.bodyType", e.target.value)
                 }
                 placeholder="Enter Post Code"
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
               />
             </div>
             {/* Vehicle Registration */}
@@ -367,7 +360,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   formik.setFieldValue("vehicle.registration", e.target.value)
                 }
                 placeholder="Enter Email"
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
               />
             </div>
           </div>
@@ -378,7 +371,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 Home Telephone
               </label>
               <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-300 text-base font-light">+44</span>
+                <span className="text-gray-700 text-base font-light">+44</span>
                 <input
                   name="contact_number"
                   type="tel"
@@ -395,7 +388,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 Mobile Number
               </label>
               <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-300 text-base font-light">+44</span>
+                <span className="text-gray-700 text-base font-light">+44</span>
                 <input
                   name="contact_number"
                   type="tel"
@@ -420,11 +413,10 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 }
                 type="text"
                 placeholder="Enter Beneficiary"
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
               />
             </div>
-            </div>
-     
+          </div>
 
           {/* Conditional Borough Section */}
           {/* {claimType !== "RTA - NA" && (

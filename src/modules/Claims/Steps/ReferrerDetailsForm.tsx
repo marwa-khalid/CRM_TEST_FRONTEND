@@ -245,7 +245,7 @@ const handleCompanySelect = (selected: any) => {
               }}
               onFocus={() => setShowDropdown(true)}
               placeholder="Enter Name"
-              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-900 font-light"
+              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-900 font-['system-ui']"
             />
             {showDropdown && searchTerm && (
               <div className="absolute top-[80px] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
@@ -272,7 +272,7 @@ const handleCompanySelect = (selected: any) => {
             value={formik.values.address}
             onChange={(e) => formik.setFieldValue("address", e.target.value)}
             placeholder="Enter Address"
-            className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light"
+            className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui']"
           /> */}
           <LeafletAutocompleteMap
             showMap={false}
@@ -299,7 +299,7 @@ const handleCompanySelect = (selected: any) => {
                 formik.setFieldValue("contact_name", e.target.value)
               }
               placeholder="Enter Name"
-              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light"
+              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui']"
             />
           </div>
         </div>
@@ -314,7 +314,7 @@ const handleCompanySelect = (selected: any) => {
               value={formik.values.postcode}
               onChange={(e) => formik.setFieldValue("postcode", e.target.value)}
               placeholder="Enter Postcode"
-              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light"
+              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui']"
             />
           </div>
 
@@ -330,7 +330,7 @@ const handleCompanySelect = (selected: any) => {
                 formik.setFieldValue("contact_email", e.target.value)
               }
               placeholder="Enter Email"
-              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light focus-within:border-blue-500 transition-all"
+              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
             />
           </div>
         </div>
@@ -342,14 +342,14 @@ const handleCompanySelect = (selected: any) => {
               Mobile Number
             </label>
             <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-              <span className="text-gray-300 text-base font-light">+44</span>
+              <span className="text-gray-700 text-base font-['system-ui']">+44</span>
               <input
                 name="contact_number"
                 type="tel"
                 onChange={handleMobileChange}
                 maxLength={12}
                 value={formik.values.contact_number}
-                className="w-full bg-transparent outline-none text-gray-900 font-light placeholder:text-gray-300"
+                className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] placeholder:text-gray-300"
               />
             </div>
           </div>
@@ -371,7 +371,7 @@ const handleCompanySelect = (selected: any) => {
                 On Hire Payment
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-light">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">£</span>
                 <input
                   type="text"
                   value={formik.values.driver_commission.on_hire_amount}
@@ -381,7 +381,7 @@ const handleCompanySelect = (selected: any) => {
                       e.target.value,
                     )
                   }
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
@@ -397,7 +397,7 @@ const handleCompanySelect = (selected: any) => {
             ${showOnHirePicker ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
               >
                 <span
-                  className={`${formik.values.driver_commission.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-light`}
+                  className={`${formik.values.driver_commission.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
                   {formatDate(formik.values.driver_commission.on_hire_paid_on)}
                 </span>
@@ -430,7 +430,7 @@ const handleCompanySelect = (selected: any) => {
                 Off Hire Payment
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-light">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">£</span>
                 <input
                   type="text"
                   value={formik.values.driver_commission.off_hire_amount}
@@ -440,7 +440,7 @@ const handleCompanySelect = (selected: any) => {
                       e.target.value,
                     )
                   }
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
@@ -456,7 +456,7 @@ const handleCompanySelect = (selected: any) => {
             ${showOffHirePicker ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
               >
                 <span
-                  className={`${formik.values.driver_commission.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-light`}
+                  className={`${formik.values.driver_commission.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
                   {formatDate(formik.values.driver_commission.off_hire_paid_on)}
                 </span>
@@ -489,14 +489,14 @@ const handleCompanySelect = (selected: any) => {
                 Congestion Charges
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-light">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">£</span>
                 <input
                   type="text"
                   value={formik.values.congestion_charges}
                   onChange={(e) =>
                     formik.setFieldValue("congestion_charges", e.target.value)
                   }
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
@@ -506,14 +506,14 @@ const handleCompanySelect = (selected: any) => {
                 Other Charges
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-light">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">£</span>
                 <input
                   type="text"
                   value={formik.values.other_charges}
                   onChange={(e) =>
                     formik.setFieldValue("other_charges", e.target.value)
                   }
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
@@ -536,7 +536,7 @@ const handleCompanySelect = (selected: any) => {
                 On Hire Payment
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-light">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">£</span>
                 <input
                   type="text"
                   value={formik.values.referrer_commission.on_hire_amount}
@@ -546,7 +546,7 @@ const handleCompanySelect = (selected: any) => {
                       e.target.value,
                     )
                   }
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
@@ -562,7 +562,7 @@ const handleCompanySelect = (selected: any) => {
             ${showOnHirePicker2 ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
               >
                 <span
-                  className={`${formik.values.referrer_commission.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-light`}
+                  className={`${formik.values.referrer_commission.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
                   {formatDate(
                     formik.values.referrer_commission.on_hire_paid_on,
@@ -597,7 +597,7 @@ const handleCompanySelect = (selected: any) => {
                 Off Hire Payment
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-light">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">£</span>
                 <input
                   type="text"
                   value={formik.values.referrer_commission.off_hire_amount}
@@ -607,7 +607,7 @@ const handleCompanySelect = (selected: any) => {
                       e.target.value,
                     )
                   }
-                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
               </div>
             </div>
@@ -623,7 +623,7 @@ const handleCompanySelect = (selected: any) => {
             ${showOffHirePicker2 ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
               >
                 <span
-                  className={`${formik.values.referrer_commission.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-light`}
+                  className={`${formik.values.referrer_commission.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
                   {formatDate(
                     formik.values.referrer_commission.off_hire_paid_on,
@@ -676,7 +676,7 @@ const handleCompanySelect = (selected: any) => {
                 onChange={(e) =>
                   formik.setFieldValue("solicitor", e.target.value)
                 }
-                className="w-full bg-transparent outline-none text-gray-900 font-light"
+                className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
               />
             </div>
           </div>

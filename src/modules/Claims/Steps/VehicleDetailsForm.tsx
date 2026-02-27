@@ -14,7 +14,7 @@ import { toast } from "react-toastify";
 import { V5CUploadModal } from "../Components/V5CUploadModal";
 import * as Yup from 'yup'
 import { ErrorMessage, useFormik } from "formik";
-import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/Vehicle";
+import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";
 import { cleanPayload } from "./ClientDetailsForm";
 export const VehicleDetailsForm = ({ formRef }: any) => {
 

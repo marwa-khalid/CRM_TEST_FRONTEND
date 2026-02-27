@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
-import { uploadVCDoc } from "../../../services/Vehicle/Vehicle";
+import { uploadVCDoc } from "../../../services/Vehicle/vehicle";
 import Complete from "../../../assets/AutoClaim_icon/Complete.svg"
 import Upload from "../../../assets/AutoClaim_icon/Upload.svg";
 import Processing from "../../../assets/AutoClaim_icon/Processing.svg";

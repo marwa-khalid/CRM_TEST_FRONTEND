@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { toast } from "react-toastify";
-import { uploadVCDocs } from "../../../services/VehicleOwner/VehicleOwner";
+import { uploadVCDocs } from "../../../services/VehicleOwner/vehicleOwner";
 import Complete from "../../../assets/AutoClaim_icon/Complete.svg"
 import Upload from "../../../assets/AutoClaim_icon/Upload.svg";
 import Processing from "../../../assets/AutoClaim_icon/Processing.svg";

@@ -7,7 +7,7 @@ import { getLocalTimeZone, today } from "@internationalized/date";
 import type { DateValue } from "react-aria-components";
 import { DatePicker } from "../../components/application/date-picker/date-picker";
 import { toast } from 'react-toastify';
-import { formSubmitquestionaire, getQuestionnaireFromId } from '../../services/Accidents/Cards/Cards';
+import { formSubmitquestionaire, getQuestionnaireFromId } from '../../services/Accidents/Cards/cards';
 import { useLocation, useNavigate } from 'react-router-dom';
 import SignaturePad from 'react-signature-canvas';
 import { useRef } from 'react';

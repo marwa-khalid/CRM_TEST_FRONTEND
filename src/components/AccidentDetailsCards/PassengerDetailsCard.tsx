@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import AddPassengerModal from './AddPassenger.tsx';
 import { User2, Pencil, Trash2, Loader2 } from "lucide-react";
-import { getPassengerById, deletePassenger } from '../../services/Accidents/Cards/Cards.tsx';
+import { getPassengerById, deletePassenger } from '../../services/Accidents/Cards/cards.tsx';
 import { useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import 'react-responsive-modal/styles.css';

@@ -6,7 +6,7 @@ import {
   createWitness,
   type Witness as ApiWitness,
   deleteWitness,
-} from "../../services/Accidents/Cards/Cards";
+} from "../../services/Accidents/Cards/cards";
 import { useParams } from "react-router-dom";
 import "react-responsive-modal/styles.css";
 import { Modal } from "react-responsive-modal";

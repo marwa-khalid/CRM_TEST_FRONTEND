@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import AddPoliceModal from './AddPolice';
 import { User2, Pencil, Trash2, Loader2 } from "lucide-react";
-import { createPoliceDetail, deletePoliceDetail, getPoliceDetails, type PoliceDetail as ApiPoliceDetail } from '../../services/Accidents/Cards/Cards';
+import { createPoliceDetail, deletePoliceDetail, getPoliceDetails, type PoliceDetail as ApiPoliceDetail } from '../../services/Accidents/Cards/cards';
 import 'react-responsive-modal/styles.css';
 import { Modal } from 'react-responsive-modal';
 import { useParams } from 'react-router-dom';

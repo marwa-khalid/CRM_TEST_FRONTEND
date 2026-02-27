@@ -7,10 +7,10 @@ import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import { toast } from "react-toastify";
-import { createPoliceDetail, updatePoliceDetail } from "../../../services/Accidents/Cards/Cards";
+import { createPoliceDetail, updatePoliceDetail } from "../../../services/Accidents/Cards/cards";
 import { CustomDatePicker } from "../Components/DatePicker";
 // Assuming these are your service imports
-// import { createPoliceDetails, updatePoliceDetails } from "../../../services/Accidents/Cards/Cards";
+// import { createPoliceDetails, updatePoliceDetails } from "../../../services/Accidents/Cards/cards";
 
 interface PoliceDetailsModalProps {
   onClose: () => void;

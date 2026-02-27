@@ -9,7 +9,7 @@ import {
   createPoliceDetail,
   getPoliceDetailById,
   updatePoliceDetail,
-} from "../../services/Accidents/Cards/Cards";
+} from "../../services/Accidents/Cards/cards";
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";

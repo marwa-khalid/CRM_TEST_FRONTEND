@@ -9,7 +9,7 @@ import {
   createPassenger,
   getPassengerByPassengerId,
   updatePassenger
-} from '../../services/Accidents/Cards/Cards';
+} from '../../services/Accidents/Cards/cards';
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";

@@ -13,7 +13,7 @@ import {
   getWitnessById,
   sendEmail,
   updateWitness,
-} from "../../services/Accidents/Cards/Cards.tsx";
+} from "../../services/Accidents/Cards/cards.tsx";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { getClaimById } from "../../services/Claims/Claims.tsx";

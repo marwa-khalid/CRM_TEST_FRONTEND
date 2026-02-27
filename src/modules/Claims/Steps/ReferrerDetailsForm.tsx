@@ -7,7 +7,6 @@ import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/Go
 import * as Yup from "yup";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
-import { useSelector } from "react-redux";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 export const ReferrerDetailsForm = ({ formRef }: any) => {
@@ -198,9 +197,6 @@ const handleCompanySelect = (selected: any) => {
   formik.setFieldValue("postcode", selected.postcode ?? "");
   formik.setFieldValue("referrer_id", selected.id ?? undefined);
 };
-   const { isClosed, selectedPosition } = useSelector(
-     (state:any) => state.isClosed,
-   );
   // Date Pickers
   const [showOnHirePicker, setShowOnHirePicker] = useState(false);
   const [showOffHirePicker, setShowOffHirePicker] = useState(false);

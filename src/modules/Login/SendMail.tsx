@@ -68,7 +68,7 @@ const handleInvite = async () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           recipientEmail: email,
-          inviteLink: `http://localhost:5174/auth/reset-password?email=${email}`,
+          inviteLink: `https://crmtestfe.netlify.app/auth/reset-password?email=${email}`,
         }),
       },
     );
@@ -81,7 +81,7 @@ const handleInvite = async () => {
     setEmail(""); // optional clear input
   } catch (err) {
     console.error(err);
-    setStatus("error");
+    setStatus(err.message);
   } finally {
     setLoading(false);
   }
@@ -129,16 +129,16 @@ const handleInvite = async () => {
           )}
         </button>
 
-        {status === "success" && (
+        {status === "success" ? (
           <p className="text-center text-sm text-green-600 font-medium animate-fade-in">
             ✓ Invitation sent to the inbox!
           </p>
-        )}
-        {status === "error" && (
+        ) :
+          status &&
           <p className="text-center text-sm text-red-600 font-medium">
-            × Failed to send. Please try again.
+            {status || "× Failed to send. Please try again."}
           </p>
-        )}
+        }
       </div>
     </div>
   );

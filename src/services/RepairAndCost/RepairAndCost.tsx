@@ -3,33 +3,7 @@
 import axiosInstance from "../axiosConfig";
 
 export const costRepairApi = {
-  createVehicleRepair: async (payload: {
-    labour: number;
-    paintMaterials: number;
-    parts: number;
-    specialistCost: number;
-    jobHire: number;
-    subTotal: number;
-    vat: number;
-    totalIncVat: number;
-    cilTotalReceived: number;
-    actualRepairParts: number;
-    actualRepairLabour: number;
-    netCilAmount: number;
-    cilAgreed: boolean;
-    roadworthyCilFeeAgreed: boolean;
-    agreementReceived: string | null;
-    engRepSentToTPI: string | null;
-    cilChequeReceived: string | null;
-    cilChequeSentToCL: string | null;
-    cilRemovalConfirmationRec: string | null;
-    vehiclePaymentBeneficiary: string;
-    repairInst: string | null;
-    repairAuth: string | null;
-    estimationReceived: string | null;
-    repairStart: string | null;
-    repairCompleted: string | null;
-  }) => {
+  createVehicleRepair: async (payload:any) => {
     try {
       const response = await axiosInstance.post("/route-repairs/", payload);
       return response.data;

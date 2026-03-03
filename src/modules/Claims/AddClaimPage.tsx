@@ -91,6 +91,8 @@ import { AccidentDetailsForm } from "./Steps/AccidentDetailsForm";
 import { VehicleDetailsForm } from "./Steps/VehicleDetailsForm";
 import { VehicleOwnerForm } from "./Steps/VehicleOwnerForm";
 import { EngineerDetailsForm } from "./Steps/EngineerDetailsForm";
+import { ClientInsurerBrokerForm } from "./Steps/ClientInsurerBrokerForm";
+import { PanelSolicitorForm } from "./Steps/PanelSolicitorForm";
 
 const AddClaimPage = () => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -144,6 +146,12 @@ const AddClaimPage = () => {
         return <VehicleOwnerForm formRef={formRef} />;
       case 6:
         return <EngineerDetailsForm formRef={formRef} />;
+      case 7:
+        return <ClientInsurerBrokerForm formRef={formRef} />;
+      case 8:
+        return <PanelSolicitorForm formRef={formRef} />;
+
+
       default:
         return <div>Coming soon...</div>;
     }

@@ -370,7 +370,7 @@ const handleCompanySelect = (selected: any) => {
                 <span className="text-gray-400 text-base font-['system-ui']">£</span>
                 <input
                   type="text"
-                  value={formik.values.driver_commission.on_hire_amount}
+                  value={formik.values.driver_commission?.on_hire_amount}
                   onChange={(e) =>
                     formik.setFieldValue(
                       "driver_commission.on_hire_amount",
@@ -393,9 +393,9 @@ const handleCompanySelect = (selected: any) => {
             ${showOnHirePicker ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
               >
                 <span
-                  className={`${formik.values.driver_commission.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
+                  className={`${formik.values.driver_commission?.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
-                  {formatDate(formik.values.driver_commission.on_hire_paid_on)}
+                  {formatDate(formik.values.driver_commission?.on_hire_paid_on)}
                 </span>
                 <img src={Vector6} alt="calendar" />
               </div>
@@ -403,7 +403,7 @@ const handleCompanySelect = (selected: any) => {
                 <div className="absolute bottom-[300px] left-0 z-[100]">
                   <CustomDatePicker
                     selectedDate={
-                      formik.values.driver_commission.on_hire_paid_on ||
+                      formik.values.driver_commission?.on_hire_paid_on ||
                       new Date()
                     }
                     onDateSelect={(date) => {
@@ -429,7 +429,7 @@ const handleCompanySelect = (selected: any) => {
                 <span className="text-gray-400 text-base font-['system-ui']">£</span>
                 <input
                   type="text"
-                  value={formik.values.driver_commission.off_hire_amount}
+                  value={formik.values.driver_commission?.off_hire_amount}
                   onChange={(e) =>
                     formik.setFieldValue(
                       "driver_commission.off_hire_amount",
@@ -452,9 +452,9 @@ const handleCompanySelect = (selected: any) => {
             ${showOffHirePicker ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
               >
                 <span
-                  className={`${formik.values.driver_commission.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
+                  className={`${formik.values.driver_commission?.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
-                  {formatDate(formik.values.driver_commission.off_hire_paid_on)}
+                  {formatDate(formik.values.driver_commission?.off_hire_paid_on)}
                 </span>
                 <img src={Vector6} alt="calendar" />
               </div>
@@ -462,7 +462,7 @@ const handleCompanySelect = (selected: any) => {
                 <div className="absolute bottom-[300px] left-0 z-[100]">
                   <CustomDatePicker
                     selectedDate={
-                      formik.values.driver_commission.off_hire_paid_on ||
+                      formik.values.driver_commission?.off_hire_paid_on ||
                       new Date()
                     }
                     onDateSelect={(date) => {
@@ -535,7 +535,7 @@ const handleCompanySelect = (selected: any) => {
                 <span className="text-gray-400 text-base font-['system-ui']">£</span>
                 <input
                   type="text"
-                  value={formik.values.referrer_commission.on_hire_amount}
+                  value={formik.values.referrer_commission?.on_hire_amount}
                   onChange={(e) =>
                     formik.setFieldValue(
                       "referrer_commission.on_hire_amount",
@@ -558,10 +558,10 @@ const handleCompanySelect = (selected: any) => {
             ${showOnHirePicker2 ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
               >
                 <span
-                  className={`${formik.values.referrer_commission.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
+                  className={`${formik.values.referrer_commission?.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
                   {formatDate(
-                    formik.values.referrer_commission.on_hire_paid_on,
+                    formik.values.referrer_commission?.on_hire_paid_on,
                   )}
                 </span>
                 <img src={Vector6} alt="calendar" />
@@ -570,7 +570,7 @@ const handleCompanySelect = (selected: any) => {
                 <div className="absolute bottom-[300px] left-0 z-[100]">
                   <CustomDatePicker
                     selectedDate={
-                      formik.values.referrer_commission.on_hire_paid_on ||
+                      formik.values.referrer_commission?.on_hire_paid_on ||
                       new Date()
                     }
                     onDateSelect={(date) => {
@@ -596,7 +596,7 @@ const handleCompanySelect = (selected: any) => {
                 <span className="text-gray-400 text-base font-['system-ui']">£</span>
                 <input
                   type="text"
-                  value={formik.values.referrer_commission.off_hire_amount}
+                  value={formik.values.referrer_commission?.off_hire_amount}
                   onChange={(e) =>
                     formik.setFieldValue(
                       "referrer_commission.off_hire_amount",
@@ -619,10 +619,10 @@ const handleCompanySelect = (selected: any) => {
             ${showOffHirePicker2 ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
               >
                 <span
-                  className={`${formik.values.referrer_commission.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
+                  className={`${formik.values.referrer_commission?.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
                   {formatDate(
-                    formik.values.referrer_commission.off_hire_paid_on,
+                    formik.values.referrer_commission?.off_hire_paid_on,
                   )}
                 </span>
                 <img src={Vector6} alt="calendar" />
@@ -631,7 +631,7 @@ const handleCompanySelect = (selected: any) => {
                 <div className="absolute bottom-[300px] left-0 z-[100]">
                   <CustomDatePicker
                     selectedDate={
-                      formik.values.referrer_commission.off_hire_paid_on ||
+                      formik.values.referrer_commission?.off_hire_paid_on ||
                       new Date()
                     }
                     onDateSelect={(date) => {

@@ -35,14 +35,14 @@ export const uploadVCDocs = async (files: File[], id: any) => {
     });
 
     const response = await axiosInstance.post(
-      `/vehicle-owners/import_vehicle_owner/`,
+      `/vehicle-owners/import-vehicle-owner/?claim_id=${id}`,
       formData,
       {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
         timeout: 300000,
-      }
+      },
     );
 
     return response.data;
@@ -54,7 +54,7 @@ export const uploadVCDocs = async (files: File[], id: any) => {
 
 
 export const getVehicleOwner = async (id: any) => {
-  const response = await axiosInstance.get(`vehicle_owners/${id}`);
+  const response = await axiosInstance.get(`vehicle-owners/${id}`);
   return response.data;
 };
 

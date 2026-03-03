@@ -1,26 +1,31 @@
 import React, { useState, useRef } from "react";
+import { X } from "lucide-react";
 import { toast } from "react-toastify";
-import { uploadVCDocs } from "../../../services/VehicleOwner/vehicleOwner";
+import { uploadVCDoc } from "../../../services/Vehicle/vehicle";
 import Complete from "../../../assets/AutoClaim_icon/Complete.svg"
 import Upload from "../../../assets/AutoClaim_icon/Upload.svg";
 import Processing from "../../../assets/AutoClaim_icon/Processing.svg";
-import { X } from "lucide-react";
-
+import { uploadVCEngineer } from "../../../services/EngineeringDetails/engineeringDetails";
+import { useDispatch } from "react-redux";
+import { setOcrEngineer } from "../../../redux/Engineer/engineerSlice";
+import { CalendarDate } from "@internationalized/date";
 
 interface V5CModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUploadSuccess: (jobId: string) => void;
-  claimId: string;
-  formik:any
+  claimId: string | number;
+  formik: any;
+  setReportData:any
 }
 
-export const V5CUploadModalOwner: React.FC<V5CModalProps> = ({
+export const V5CEngineerUploadModal: React.FC<V5CModalProps> = ({
   isOpen,
   onClose,
   onUploadSuccess,
   claimId,
   formik,
+  setReportData,
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [file, setFile] = useState<File | null>(null);
@@ -28,7 +33,11 @@ export const V5CUploadModalOwner: React.FC<V5CModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
-
+  const parseDateInspection = (dateStr?: string) => {
+    if (!dateStr) return undefined;
+    const [day, month, year] = dateStr.split("-").map(Number);
+    return new CalendarDate(year, month, day);
+  };
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -50,48 +59,54 @@ export const V5CUploadModalOwner: React.FC<V5CModalProps> = ({
       }
     }, 150);
   };
-const executeActualUpload = async (selectedFile: File) => {
-  try {
-    const response = await uploadVCDocs([selectedFile], parseInt(claimId));
 
-    setStep(3);
-    toast.success("File uploaded successfully");
+  // const dispatch = useDispatch()
+  const executeActualUpload = async (selectedFile: File) => {
+    try {
+      // Calling your actual API function
+      const response = await uploadVCEngineer([selectedFile], claimId);
+      const jobId = response?.job_id;
 
-    setTimeout(() => {
-      // 1. Safe access to the nested owner data
-      const ownerData = response?.client_vehicle_owner_detail?.[0]?.[0];
+      setStep(3);
+      toast.success("File uploaded successfully");
 
-      if (ownerData) {
-        // 2. Map Formik keys to your specific API response keys
-        const fieldMapping = {
-          clientFirstName: ownerData.first_name,
-          clientSurname: ownerData.surname,
-          address: ownerData.address,
-          postcode: ownerData.postcode,
-          vehiclePaymentBeneficiary: ownerData.payment_benificiary,
-          email: ownerData.email,
-          homeTelephone: ownerData.home_tel,
-          mobileTelephone: ownerData.mobile_tel,
-          // gender: ownerData.gender // Add if you have a title/gender field
-        };
+      // Delay slightly so user sees the "Green" success state before closing/polling
+      setTimeout(() => {
+        onUploadSuccess(response.client_vehicle_detail);
+        onClose();
 
-        // 3. Update Formik fields loop
-        Object.entries(fieldMapping).forEach(([formikKey, apiValue]) => {
-          if (apiValue !== null && apiValue !== undefined && apiValue !== "") {
-            formik.setFieldValue(formikKey, apiValue);
-          }
-        });
-      }
+        const engineerDetail = response?.engineer_report_details?.[0]?.[0];
 
-      onUploadSuccess(response?.job_id || "mock-job-id");
-      onClose();
-    }, 1500);
-  } catch (error) {
-    setStep(1);
-    toast.error("Upload failed");
-    console.error("OCR Upload Error:", error);
-  }
-};
+        if (engineerDetail) {
+          // Map Formik field names to the API response keys
+
+          // dispatch(setOcrEngineer(engineerDetail));
+setReportData(engineerDetail)
+          const inspectionDate = parseDateInspection(
+            engineerDetail.inspection_date,
+          );
+          const receivedDate = parseDateInspection(
+            engineerDetail.engineer_report_received_date,
+          );
+          const instructedDate = parseDateInspection(
+            engineerDetail.engineer_instructed,
+          );
+
+          // FIX: Use setFieldValue to update Formik without resetting the form (avoiding setInitialValues)
+
+          formik.setFieldValue("inspection_date", inspectionDate);
+          formik.setFieldValue("engineer_instructed", instructedDate);
+          formik.setFieldValue("engineer_report_received_date", receivedDate);
+          formik.setFieldValue("engineer_fee", engineerDetail.engineer_fee);
+        }
+        setStep(1);
+      }, 1500);
+    } catch (error) {
+      setStep(1);
+      toast.error("Upload failed");
+    }
+  };
+
   const formatSize = (bytes: number) => (bytes / 1024).toFixed(0) + "KB";
 
   return (

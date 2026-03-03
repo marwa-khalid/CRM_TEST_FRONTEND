@@ -13,201 +13,85 @@ import { useFormik } from "formik";
 import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";
 import { cleanPayload } from "./ClientDetailsForm";
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
-import { getVehicleOwner } from "../../../services/VehicleOwner/vehicleOwner";
+import { getVehicleOwner, updateVehicleOwner, VehicleOwnersApi } from "../../../services/VehicleOwner/vehicleOwner";
 
 export const VehicleOwnerForm = ({ formRef }: any) => {
 
-  const fuelOptions = [
-    { value: 1, label: "Petrol" },
-    { value: 2, label: "Diesel" },
-    { value: 3, label: "Electric" },
-    { value: 4, label: "Hybrid" },
-  ];
-
-  const transmissionOptions = [
-    { value: 1, label: "Automatic" },
-    { value: 2, label: "Manual" },
-  ];
-
-  const categoryOptions = [
-    { value: "PCO", label: "PCO" },
-    { value: "Standard", label: "Standard" },
-    { value: "Commercial", label: "Commercial" },
-  ];const taxiTypeOptions = [
-    { value: 1, label: "Hackney" },
-    { value: 2, label: "Private Hire" },
-  ];
-
-  const removeTPVehicle = (id: number) => {
-    if (formik.values.thirdPartyVehicles.length > 1) {
-      formik.setFieldValue("thirdPartyVehicles",formik.values.thirdPartyVehicles.filter((v) => v.id !== id));
-    }
-  };
-  const [currentVehicle, setCurrentVehicle] = useState({
-    make: "",
-    model: "",
-    registration: "",
-    color: "",
-    imagesAvailable: "Yes",
-  });
-  const claimId = localStorage.getItem("claimId")
-  const isVehicleValid =
-    currentVehicle.make && currentVehicle.model && currentVehicle.registration;
-const [isModalOpen, setIsModalOpen] = useState(false);
-  const handleSave = (addNext = false) => {
-    if (!isVehicleValid) {
-      alert("Please fill in mandatory fields: Make, Model, and Registration.");
-      return;
-    }
-
-    formik.setFieldValue("thirdPartyVehicles",([
-      ...formik.values.thirdPartyVehicles,
-      { ...currentVehicle, id: Date.now() },
-    ]));
-
-    if (addNext) {
-      setCurrentVehicle({
-        make: "",
-        model: "",
-        registration: "",
-        color: "",
-        imagesAvailable: "Yes",
-      });
-    } else {
-      setIsModalOpen(false);
-      setCurrentVehicle({
-        make: "",
-        model: "",
-        registration: "",
-        color: "",
-        imagesAvailable: "Yes",
-      });
-    }
-  };
+ const claimId = localStorage.getItem("claimId")
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const vehicleId = localStorage.getItem("vehicleId");
+  const vehicleOwnerId = localStorage.getItem("vehicleOwnerId");
 
   const formik = useFormik({
     initialValues: {
-      vehicle: {
-        make: "",
-        model: "",
-        registration: "",
-        color: "",
-        fuelType: null,
-        engineSize: "",
-        transmission: null,
-        bodyType: "",
-        seats: 0,
-        category: null,
-      },
-      borough: {
-        name: "",
-        taxiType: null,
-        clientBadgeNumber: "",
-        badgeExpirationDate: "",
-        vehicleBadgeNumber: "",
-        otherBorough: false,
-      },
-      thirdPartyVehicles: [
-        
-      ],
+      clientTitle: "mr",
+      clientFirstName: "",
+      clientSurname: "",
+      address: "",
+      postcode: "",
+      homeTelephone: "",
+      mobileTelephone: "",
+      email: "",
+      vehiclePaymentBeneficiary: "",
     },
     validationSchema: Yup.object().shape({}),
     onSubmit: async (values: any) => {
       try {
         const payload = {
+          gender: "mr",
+          first_name: values.clientFirstName,
+          surname: values.clientSurname,
+          payment_benificiary: values.vehiclePaymentBeneficiary,
           claim_id: parseInt(claimId),
-          make: values.vehicle.make,
-          model: values.vehicle.model,
-          body_type: values.vehicle.bodyType,
-          registration: values.vehicle.registration,
-          color: values.vehicle.color,
-          fuel_type_id: values.vehicle.fuelType,
-          engine_size: values.vehicle.engineSize,
-          transmission_id: values.vehicle.transmission,
-          number_of_seat: values.vehicle.seats,
-          vehicle_category: values.vehicle.category,
-
-          borough: {
-            borough_name: values.borough.name,
-            taxi_type_id: values.borough.taxiType,
-            client_badge_number: values.borough.clientBadgeNumber,
-            badge_expiration_date: values.borough.badgeExpirationDate,
-            vehicle_badge_number: values.borough.vehicleBadgeNumber,
-            any_other_borough:
-              values.borough.otherBorough === "true" ||
-              values.borough.otherBorough === true,
-            other_borough_name: values.borough.otherBoroughName || "",
+          tenant_id: 1,
+          address: {
+            address: values.address,
+            postcode: values.postcode,
+            home_tel: values.homeTelephone,
+            mobile_tel: values.mobileTelephone,
+            email: values.email,
           },
-
-          third_party_vehicles: values.thirdPartyVehicles.map((v: any) => ({
-            make: v.make,
-            model: v.model,
-            registration: v.registration,
-            color: v.color,
-            images_available: v.imagesAvailable,
-          })),
         };
+
         const payloadToSend = cleanPayload(payload);
         console.log(parseInt(claimId));
         // return
-        if (claimId && vehicleId) {
-          const response = await updateVehicle(
+        if (claimId && vehicleOwnerId) {
+          const response = await updateVehicleOwner(
             payloadToSend,
             parseInt(claimId),
           );
-          localStorage.setItem("vehicleId", response.id);
+          localStorage.setItem("vehicleOwnerId", response.id);
         } else {
-          const response = await createVehicleDetail(payloadToSend);
-          localStorage.setItem("vehicleId", response.id);
+          const response = await VehicleOwnersApi.createVehicleOwner(payloadToSend);
+          localStorage.setItem("vehicleOwnerId", response.id);
         }
-        toast.success("Vehicle details saved successfully");
+        toast.success("Vehicle Owner details saved successfully");
       } catch (error) {
-        toast.error("Error saving vehicle details");
+        toast.error("Error saving vehicle ownerdetails");
         throw error;
       }
     },
   });
   useEffect(() => {
     const fetchData = async () => {
-      const res = await getVehicleOwner(parseInt(claimId));
-      console.log(res);
+      const ownerData = await getVehicleOwner(parseInt(claimId));
+      console.log(ownerData);
         const mappedValues = {
-          vehicle: {
-            make: res.make || "",
-            model: res.model || "",
-            registration: res.registration || "",
-            color: res.color || "",
-            fuelType: res.fuel_type_id || "",
-            engineSize: res.engine_size || "",
-            transmission: res.transmission_id || "",
-            bodyType: res.body_type || "",
-            seats: res.number_of_seat?.toString() || 0,
-            category: res.vehicle_category || "",
-          },
-          borough: {
-            name: res.borough?.borough_name || "",
-            taxiType: res.borough?.taxi_type_id || "",
-            clientBadgeNumber: res.borough?.client_badge_number || "",
-            badgeExpirationDate: res.borough?.badge_expiration_date || "",
-            vehicleBadgeNumber: res.borough?.vehicle_badge_number || "",
-            otherBorough: res.borough?.any_other_borough?.toString() || "false",
-          },
-          thirdPartyVehicles:
-            res.third_party_vehicles?.map((v) => ({
-              make: v.make || "",
-              model: v.model || "",
-              registration: v.registration || "",
-              color: v.color || "",
-              imagesAvailable: v.images_available ?? true,
-            })) || [],
+          clientTitle: ownerData?.gender,
+          clientFirstName: ownerData?.first_name,
+          clientSurname: ownerData?.surname,
+          email: ownerData?.address?.email,
+          homeTelephone: ownerData?.address?.home_tel,
+          mobileTelephone: ownerData?.address?.mobile_tel,
+          vehiclePaymentBeneficiary: ownerData?.payment_benificiary,
+          address: ownerData?.address?.address,
+          postcode: ownerData?.address?.postcode,
         };
 
       formik.setValues(mappedValues);
     };
     console.log(formik.values)
-    if (claimId && vehicleId) {
+    if (claimId && vehicleOwnerId) {
       fetchData();
     }
   }, []);
@@ -227,7 +111,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
         // Pre-fill your Formik fields
         // formik.setValues({
         //   ...formik.values,
-        //   make: result.data.make,
+        //   clientFirstName: result.data.clientFirstName,
         //   model: result.data.model,
         //   registration: result.data.registration,
         //   colour: result.data.colour,
@@ -240,15 +124,25 @@ const [isModalOpen, setIsModalOpen] = useState(false);
       // setLoading(false);
     }
   };
-  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlHomeTelephoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
     if (value.length > 5) {
       value = value.slice(0, 5) + " " + value.slice(5, 11);
     }
 
-    formik.setFieldValue("contact_number", value);
+    formik.setFieldValue("homeTelephone", value);
   };
+    const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      let value = e.target.value.replace(/\D/g, ""); // remove non-digits
+
+      if (value.length > 5) {
+        value = value.slice(0, 5) + " " + value.slice(5, 11);
+      }
+
+      formik.setFieldValue("mobileTelephone", value);
+    };
+  console.log(formik.values)
   return (
     <>
       <V5CUploadModalOwner
@@ -280,15 +174,18 @@ const [isModalOpen, setIsModalOpen] = useState(false);
           <div className="h-px bg-gray-100 w-full" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Make */}
+            {/* clientFirstName */}
             <div className="flex flex-col gap-2">
               <label className="text-neutral-900 text-sm font-weight-400">
                 First Name
               </label>
               <input
-                value={formik.values.vehicle.make}
+                value={formik.values.clientFirstName}
                 onChange={(e) =>
-                  formik.setFieldValue("vehicle.make", e.target.value)
+                  formik.setFieldValue(
+                    "clientFirstName",
+                    e.target.value,
+                  )
                 }
                 type="text"
                 placeholder="Enter First Name"
@@ -303,9 +200,9 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               <input
                 type="text"
                 placeholder="Enter Last Name"
-                value={formik.values.vehicle.model}
+                value={formik.values.clientSurname}
                 onChange={(e) =>
-                  formik.setFieldValue("vehicle.model", e.target.value)
+                  formik.setFieldValue("clientSurname", e.target.value)
                 }
                 className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
               />
@@ -336,9 +233,9 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               </label>
               <input
                 type="text"
-                value={formik.values.vehicle.bodyType}
+                value={formik.values.postcode}
                 onChange={(e) =>
-                  formik.setFieldValue("vehicle.bodyType", e.target.value)
+                  formik.setFieldValue("postcode", e.target.value)
                 }
                 placeholder="Enter Post Code"
                 className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
@@ -351,9 +248,9 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               </label>
               <input
                 type="text"
-                value={formik.values.vehicle.registration}
+                value={formik.values.email}
                 onChange={(e) =>
-                  formik.setFieldValue("vehicle.registration", e.target.value)
+                  formik.setFieldValue("email", e.target.value)
                 }
                 placeholder="Enter Email"
                 className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
@@ -369,11 +266,11 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
                 <span className="text-gray-700 text-base font-light">+44</span>
                 <input
-                  name="contact_number"
+                  name="homeTelephone"
                   type="tel"
-                  onChange={handleMobileChange}
+                  onChange={handlHomeTelephoneChange}
                   maxLength={12}
-                  value={formik.values.contact_number}
+                  value={formik.values.homeTelephone}
                   className="w-full bg-transparent outline-none text-gray-900 font-light placeholder:text-gray-300"
                 />
               </div>
@@ -386,11 +283,11 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
                 <span className="text-gray-700 text-base font-light">+44</span>
                 <input
-                  name="contact_number"
+                  name="mobileTelephone"
                   type="tel"
                   onChange={handleMobileChange}
                   maxLength={12}
-                  value={formik.values.contact_number}
+                  value={formik.values.mobileTelephone}
                   className="w-full bg-transparent outline-none text-gray-900 font-light placeholder:text-gray-300"
                 />
               </div>
@@ -403,9 +300,12 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 Vehicle Payment Beneficiary
               </label>
               <input
-                value={formik.values.vehicle.engineSize}
+                value={formik.values.vehiclePaymentBeneficiary}
                 onChange={(e) =>
-                  formik.setFieldValue("vehicle.engineSize", e.target.value)
+                  formik.setFieldValue(
+                    "vehiclePaymentBeneficiary",
+                    e.target.value,
+                  )
                 }
                 type="text"
                 placeholder="Enter Beneficiary"

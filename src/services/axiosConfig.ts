@@ -3,11 +3,12 @@ import axios from "axios";
 export const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL;
 
 const axiosInstance = axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-        "Content-Type": "application/json",
-    },
-    timeout: 10000000000,
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "69420",
+  },
+  timeout: 10000000000,
 });
 
 axiosInstance.interceptors.request.use(

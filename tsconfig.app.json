@@ -28,5 +28,5 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src"]
+  "include": ["src", "src/modules/Claims/Steps/PanelSolicitorForm.tsx"]
 }

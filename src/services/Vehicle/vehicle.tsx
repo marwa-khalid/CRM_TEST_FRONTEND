@@ -14,11 +14,15 @@ export const uploadVCDoc = async (files: File[], id: any) => {
       formData.append('files', file);
     });
 
-    const response = await axiosInstance.post(`/client-vehicles/import_client_vehicle/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
+    const response = await axiosInstance.post(
+      `/client-vehicles/import_client_vehicle/?claim_id=${id}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       },
-    });
+    );
 
     return response.data;
   } catch (error) {

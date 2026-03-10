@@ -31,7 +31,7 @@ const ForgotPassword = () => {
           },
           body: JSON.stringify({
             recipientEmail: email,
-            inviteLink: `https://crmtestfe.netlify.app/auth/reset-password?email=${email}`,
+            inviteLink: `https://claimcrm.netlify.app/auth/reset-password?email=${email}`,
           }),
         },
       );

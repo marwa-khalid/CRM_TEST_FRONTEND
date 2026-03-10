@@ -47,16 +47,19 @@ const OTPPage = () => {
          return;
        }
       const storedUser = JSON.parse(storedUserRaw);
-           const response2 = await fetch("http://localhost:8000/auth/login", {
-             method: "POST",
-             headers: {
-               "Content-Type": "application/json",
+           const response2 = await fetch(
+             "https://noninflected-saul-stratiformis.ngrok-free.dev/auth/login",
+             {
+               method: "POST",
+               headers: {
+                 "Content-Type": "application/json",
+               },
+               body: JSON.stringify({
+                 user_name: storedUser.email,
+                 password: storedUser.password,
+               }),
              },
-             body: JSON.stringify({
-               user_name: storedUser.email,
-               password: storedUser.password,
-             }),
-           });
+           );
 
            if (!response2.ok) {
              setErrorMessage("Invalid credentials");

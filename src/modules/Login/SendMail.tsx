@@ -42,7 +42,7 @@ const handleInvite = async () => {
   try {
     // 1️⃣ Call FastAPI register endpoint
     const registerResponse = await fetch(
-      "http://localhost:8000/auth/register", // change to your backend URL
+      "https://noninflected-saul-stratiformis.ngrok-free.dev/auth/register", // change to your backend URL
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -74,14 +74,17 @@ const ResetPassword = () => {
   }
 
   try {
-    const response = await fetch("http://localhost:8000/auth/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_name: emailFromUrl,
-        password: password,
-      }),
-    });
+    const response = await fetch(
+      "https://noninflected-saul-stratiformis.ngrok-free.dev/auth/reset-password",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_name: emailFromUrl,
+          password: password,
+        }),
+      },
+    );
       const newUser = {
         email: emailFromUrl,
         password: password, // In a real app, never store plain text passwords!

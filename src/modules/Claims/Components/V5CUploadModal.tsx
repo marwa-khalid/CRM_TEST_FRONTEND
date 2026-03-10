@@ -60,11 +60,11 @@ export const V5CUploadModal: React.FC<V5CModalProps> = ({
 
       // Delay slightly so user sees the "Green" success state before closing/polling
      setTimeout(() => {
-       onUploadSuccess(response.client_vehicle_detail);
+       onUploadSuccess(response.client_vehicle_detail?.[0]?.[0]);
        onClose();
 
-       const vehicleData = response.client_vehicle_detail;
-
+       const vehicleData = response.client_vehicle_detail?.[0]?.[0];
+console.log(vehicleData);
        if (vehicleData) {
          // Map Formik field names to the API response keys
          const fieldMapping = {

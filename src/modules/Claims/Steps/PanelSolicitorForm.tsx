@@ -178,9 +178,9 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
 
     // Close dropdown
     setShowDropdown(false);
-
+console.log(selected)
     // Set Formik fields (correct backend keys!)
-    formik.setFieldValue("company_ame", selected.companyName);
+    formik.setFieldValue("company_name", selected.company_name);
     formik.setFieldValue("address.address", selected.address ?? "");
     formik.setFieldValue("address.postcode", selected.postcode ?? "");
   };
@@ -215,7 +215,7 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
             Company Name
           </label>
           <input
-            className="w-full h-[52px] px-5 bg-white rounded border border-gray-200"
+            className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 font-weight-300 font-light"
             value={searchTerm || formik.values.company_name}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -291,9 +291,7 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
               Telephone{" "}
             </label>
             <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-              <span className="text-gray-700 text-base font-light">
-                +44
-              </span>
+              <span className="text-gray-700 text-base font-light">+44</span>
               <input
                 name="contact_number"
                 type="tel"
@@ -311,7 +309,7 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
               Reference
             </label>
             <input
-              className="h-[52px] px-5 rounded border border-gray-200"
+              className="h-[52px] px-5 rounded border border-gray-200 font-weight-300 font-light"
               name="reference"
               onChange={formik.handleChange}
               value={formik.values.reference}
@@ -360,7 +358,7 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+          <label className="text-gray-700 text-sm h-[20px] flex items-center font-weight-300 font-light">
             Note
           </label>
           <textarea

@@ -7,6 +7,7 @@ import background from "../../assets/images/background.png";
 import group2 from "../../assets/images/group-2608221.svg";
 import Vector4 from "../../assets/images/Vector4.svg";
 import Vector3 from "../../assets/images/Vector3.svg";
+import { API_BASE_URL } from "../../services/axiosConfig.ts";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -75,7 +76,7 @@ const ResetPassword = () => {
 
   try {
     const response = await fetch(
-      "https://noninflected-saul-stratiformis.ngrok-free.dev/auth/reset-password",
+      `${API_BASE_URL}/auth/reset-password`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -10,7 +10,7 @@ import union from '../../assets/images/union.svg'
 
 const SingleSignOn = () => {
   const navigate = useNavigate();
-  const email = localStorage.getItem("email");
+  const email = JSON.parse(localStorage.getItem("user")).email;
   const [scale, setScale] = useState(1);
   const containerRef = useRef(null);
 

@@ -1,7 +1,7 @@
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
 import Vulnerable from "../../../assets/AutoClaim_icon/Vulnerable.svg";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Select from "react-select";
 import { createClient, getClientByClaimID, updateClient, vulnerablePersonPolicy } from "../../../services/Client/client";
@@ -91,10 +91,10 @@ export const ClientDetailsForm = ({ formRef }: any) => {
           surname: values.clientSurname,
           age: values.age || 0,
           occupation:
-            values.occupation !== "Other"
+            values.occupation !== "Others"
               ? values.occupation
               : values.customOccupation,
-          date_of_birth: values.dateOfBirth || null,
+          date_of_birth: values.dateOfBirth ? values.dateOfBirth?.toLocaleDateString("sv-SE") : null,
           ni_number: values.niNumber,
           driver_code: values.driverCode,
           day_driver: values.dayNightDriver === "Yes",
@@ -123,7 +123,6 @@ export const ClientDetailsForm = ({ formRef }: any) => {
           },
         };
         const payloadToSend = cleanPayload(payload);
-        console.log(parseInt(claimId));
         // return
         if (claimId && clientId) {
           const response = await updateClient(
@@ -142,6 +141,11 @@ export const ClientDetailsForm = ({ formRef }: any) => {
       }
     },
   });
+  useEffect(() => {
+    if (formik.values.occupation !== "Others") {
+      formik.setFieldValue("customOccupation", "");
+    }
+  }, [formik.values.occupation]);
   useEffect(() => {
     const fetchData = async () => {
       const clientData = await getClientByClaimID(parseInt(claimId));
@@ -164,15 +168,18 @@ export const ClientDetailsForm = ({ formRef }: any) => {
               ? "Yes"
               : "No",
             contactName: clientData.alter_person || "",
+            dateOfBirth: new Date(clientData.date_of_birth) || null,
             contactTelephone: clientData.alter_number || "",
             sortCode: clientData.sort_code || "",
             accountNumber: clientData.account_number || "",
             payDriverNotificationDate: "", // Adjust based on your data
             payDriverNotes: clientData.bank_details_note || "",
             niNumber: clientData.ni_number || "",
-            occupation: clientData.occupation || "",
+            occupation:
+              clientData?.occupation !== "Private Hire Driver" && 
+              clientData?.occupation !== "Taxi Driver" ?"Others": clientData?.occupation ,
             customOccupation:
-              clientData?.occupation !== "Private Hire Driver" ||
+              clientData?.occupation !== "Private Hire Driver" &&
               clientData?.occupation !== "Taxi Driver"
                 ? clientData?.occupation
                 : "",
@@ -185,7 +192,7 @@ export const ClientDetailsForm = ({ formRef }: any) => {
           };
       formik.setValues(mappedValues);
     };
-    console.log(clientId)
+   
     if (claimId && clientId) {
       fetchData();
     }
@@ -195,6 +202,24 @@ export const ClientDetailsForm = ({ formRef }: any) => {
         formRef.current = formik;
       }
     }, [formRef, formik]);
+  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, ""); // remove non-digits
+
+    if (value.length > 5) {
+      value = value.slice(0, 5) + " " + value.slice(5, 11);
+    }
+
+    formik.setFieldValue("mobileTelephone", value);
+  };
+    const handleHomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      let value = e.target.value.replace(/\D/g, ""); // remove non-digits
+
+      if (value.length > 5) {
+        value = value.slice(0, 5) + " " + value.slice(5, 11);
+      }
+
+      formik.setFieldValue("homeTelephone", value);
+    };
   const [docModalOpen,setDocModalOpen]=useState<boolean>(false)
   const handleVulnerablePersonPolicy = () => {
     setDocModalOpen(true);
@@ -224,6 +249,32 @@ export const ClientDetailsForm = ({ formRef }: any) => {
       }
     };
   const [showPayDatePicker, setShowPayDatePicker] = useState(false);
+    const payDateRef = useRef<HTMLDivElement>(null);
+    const dobRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+          if (
+            payDateRef.current &&
+            !payDateRef.current.contains(event.target as Node)
+          )
+            setShowPayDatePicker(false);
+          if (
+            dobRef.current &&
+            !dobRef.current.contains(event.target as Node)
+          )
+            setShowDobPicker(false);
+         
+        };
+      if (payDateRef) {
+        document.addEventListener("mousedown", handleClickOutside);
+      }
+      if (dobRef) {
+        document.addEventListener("mousedown", handleClickOutside);
+      }
+        return () =>
+          document.removeEventListener("mousedown", handleClickOutside);
+      }, []);
+  
   // Auto-calculate age when DOB changes
   useEffect(() => {
     if (!formik.values.dateOfBirth) return undefined;
@@ -317,7 +368,10 @@ export const ClientDetailsForm = ({ formRef }: any) => {
 
             {/* Row 2: DOB & Age (Auto-calculated) */}
             <div className="grid grid-cols-12 gap-5 w-full">
-              <div className="col-span-6 flex flex-col gap-2 relative">
+              <div
+                className="col-span-6 flex flex-col gap-2 relative"
+                ref={dobRef}
+              >
                 <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                   Date of Birth
                 </label>
@@ -384,6 +438,10 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 </label>
                 <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                   <input
+                    value={formik.values.niNumber}
+                    onChange={(e) =>
+                      formik.setFieldValue("niNumber", e.target.value)
+                    }
                     placeholder="e.g. QQ 12 34 56 C"
                     className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] uppercase"
                   />
@@ -425,6 +483,10 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   <input
                     disabled={formik.values.occupation !== "Others"}
                     placeholder="Please specify"
+                    value={formik.values.customOccupation}
+                    onChange={(e) =>
+                      formik.setFieldValue("customOccupation", e.target.value)
+                    }
                     className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                   />
                 </div>
@@ -440,6 +502,10 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   <input
                     placeholder="Enter Code"
                     className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                    value={formik.values.driverCode}
+                    onChange={(e) =>
+                      formik.setFieldValue("driverCode", e.target.value)
+                    }
                   />
                 </div>
               </div>
@@ -486,6 +552,10 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   <input
                     placeholder="Enter Driver Base"
                     className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                    value={formik.values.driverBase}
+                    onChange={(e) =>
+                      formik.setFieldValue("driverBase", e.target.value)
+                    }
                   />
                 </div>
               </div>
@@ -520,7 +590,6 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
                   address={formik.values.address}
                   onPlaceSelected={(place) => {
-                    console.log(place);
                     if (place.name) {
                       formik.setFieldValue("address", place.address);
                       formik.setFieldValue("postcode", place?.postalCode);
@@ -540,6 +609,7 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                   <input
                     placeholder="Enter Code"
+                    value={formik.values.postcode}
                     className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                     onChange={(e) =>
                       formik.setFieldValue("postcode", e.target.value)
@@ -555,6 +625,7 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   <input
                     placeholder="Enter Email"
                     className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                    value={formik.values.email}
                     onChange={(e) =>
                       formik.setFieldValue("email", e.target.value)
                     }
@@ -569,13 +640,17 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 <label className="text-gray-700 text-sm font-weight-400">
                   Home Telephone
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                  <span className="text-gray-700 text-base font-['system-ui']">
+                    +44
+                  </span>
                   <input
-                    value={formik.values.homePhone}
-                    onChange={(e) =>
-                      formik.setFieldValue("homeTelephone", e.target.value)
-                    }
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                    name="homeTelephone"
+                    type="tel"
+                    onChange={handleHomeChange}
+                    maxLength={12}
+                    value={formik.values.homeTelephone}
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] placeholder:text-gray-300"
                   />
                 </div>
               </div>
@@ -583,13 +658,17 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 <label className="text-gray-700 text-sm font-weight-400">
                   Mobile Number
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                  <span className="text-gray-700 text-base font-['system-ui']">
+                    +44
+                  </span>
                   <input
-                    value={formik.values.mobileNumber}
-                    onChange={(e) =>
-                      formik.setFieldValue("contactTelephone", e.target.value)
-                    }
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                    name="mobileTelephone"
+                    type="tel"
+                    onChange={handleMobileChange}
+                    maxLength={12}
+                    value={formik.values.mobileTelephone}
+                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] placeholder:text-gray-300"
                   />
                 </div>
               </div>
@@ -755,7 +834,10 @@ export const ClientDetailsForm = ({ formRef }: any) => {
 
             {/* Row 2: Pay Notification Date */}
             <div className="grid grid-cols-12 gap-5 w-full">
-              <div className="col-span-6 flex flex-col gap-2 relative">
+              <div
+                className="col-span-6 flex flex-col gap-2 relative"
+                ref={payDateRef}
+              >
                 <label className="text-gray-700 text-sm font-weight-400">
                   Pay Notification Date
                 </label>
@@ -780,7 +862,7 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 </div>
 
                 {showPayDatePicker && (
-                  <div className="absolute top-[80px] left-0 z-[100] shadow-xl rounded-lg bg-white">
+                  <div className="absolute bottom-[53px] left-0 z-[100] shadow-xl rounded-lg bg-white">
                     <CustomDatePicker
                       selectedDate={
                         formik.values.payDriverNotificationDate || new Date()

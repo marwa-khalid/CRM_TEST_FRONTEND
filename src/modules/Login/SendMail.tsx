@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Mail, Send, Loader2 } from "lucide-react"; // Optional: npm install lucide-react
-
+import {API_BASE_URL} from '../../services/axiosConfig.ts'
 const InviteUser = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ const handleInvite = async () => {
   try {
     // 1️⃣ Call FastAPI register endpoint
     const registerResponse = await fetch(
-      "https://noninflected-saul-stratiformis.ngrok-free.dev/auth/register", // change to your backend URL
+      `${API_BASE_URL}/auth/register`, // change to your backend URL
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -78,6 +78,7 @@ const handleInvite = async () => {
     }
 
     setStatus("success");
+    localStorage.clear()
     setEmail(""); // optional clear input
   } catch (err) {
     console.error(err);

@@ -61,6 +61,9 @@ console.log(response)
           setShowOffHirePicker2(false);
       };
       // document.addEventListener("mousedown", handleClickOutside);
+        if (onHireRef) {
+          document.addEventListener("mousedown", handleClickOutside);
+        }
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
     }, []);
@@ -127,7 +130,7 @@ const cleanPayload = (obj: any) => {
       try {
         const payload = {
           ...values,
-          on_hire_payment: parseFloat(values.onHirePayment) || "",
+          on_hire_payment: parseFloat(values.on_hire_amount) || "",
           driver_commission: {
             congestion_charges:
               parseFloat(values.driver_commission.congestion_charges) || "",
@@ -137,7 +140,7 @@ const cleanPayload = (obj: any) => {
               parseFloat(values.driver_commission.off_hire_amount) || "",
             off_hire_paid_on: values.driver_commission.off_hire_paid_on,
             on_hire_amount:
-              parseFloat(values.driver_commission.onHirePayment) || "",
+              parseFloat(values.driver_commission.on_hire_amount) || "",
             on_hire_paid_on: values.driver_commission.on_hire_paid_on,
           },
           referrer_commission: {
@@ -146,7 +149,7 @@ const cleanPayload = (obj: any) => {
             off_hire_amount: values.referrer_commission.off_hire_amount,
             off_hire_paid_on: values.referrer_commission.off_hire_paid_on,
           },
-          claim_id:claimId || null
+          claim_id: claimId || null,
         };
 
         const payloadToSend = cleanPayload(payload);
@@ -166,6 +169,7 @@ const cleanPayload = (obj: any) => {
       }
     },
   });
+  console.log(formik.values);
      useEffect(() => {
        const fetchData = async () => {
          const res = await getReferrer(parseInt(claimId))
@@ -216,7 +220,7 @@ const handleCompanySelect = (selected: any) => {
     });
   };
   return (
-    <div className="MainContent w-[788px] ms-[140px] flex-1 flex flex-col gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline'] ">
+    <div className="MainContent w-[798px] ms-[140px] flex-1 flex flex-col gap-6 p-8 pb-20 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline'] ">
       <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
         Referrer Details
       </h1>
@@ -338,7 +342,9 @@ const handleCompanySelect = (selected: any) => {
               Mobile Number
             </label>
             <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-              <span className="text-gray-700 text-base font-['system-ui']">+44</span>
+              <span className="text-gray-700 text-base font-['system-ui']">
+                +44
+              </span>
               <input
                 name="contact_number"
                 type="tel"
@@ -367,7 +373,9 @@ const handleCompanySelect = (selected: any) => {
                 On Hire Payment
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-['system-ui']">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">
+                  £
+                </span>
                 <input
                   type="text"
                   value={formik.values.driver_commission?.on_hire_amount}
@@ -383,7 +391,10 @@ const handleCompanySelect = (selected: any) => {
             </div>
 
             {/* On Hire Paid On Date Picker */}
-            <div className="col-span-6 flex flex-col gap-2 relative">
+            <div
+              className="col-span-6 flex flex-col gap-2 relative"
+              ref={onHireRef}
+            >
               <label className="text-gray-700 text-sm font-weight-400">
                 Paid On
               </label>
@@ -395,12 +406,12 @@ const handleCompanySelect = (selected: any) => {
                 <span
                   className={`${formik.values.driver_commission?.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
-                  {formatDate(formik.values.driver_commission?.on_hire_paid_on)}
+                  {formik.values.driver_commission?.on_hire_paid_on}
                 </span>
                 <img src={Vector6} alt="calendar" />
               </div>
               {showOnHirePicker && (
-                <div className="absolute bottom-[300px] left-0 z-[100]">
+                <div className="absolute bottom-[53px] left-0 z-[100]">
                   <CustomDatePicker
                     selectedDate={
                       formik.values.driver_commission?.on_hire_paid_on ||
@@ -409,7 +420,7 @@ const handleCompanySelect = (selected: any) => {
                     onDateSelect={(date) => {
                       formik.setFieldValue(
                         "driver_commission.on_hire_paid_on",
-                        date,
+                        date.toLocaleDateString("sv-SE"),
                       );
                       setShowOnHirePicker(false);
                     }}
@@ -426,7 +437,9 @@ const handleCompanySelect = (selected: any) => {
                 Off Hire Payment
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-['system-ui']">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">
+                  £
+                </span>
                 <input
                   type="text"
                   value={formik.values.driver_commission?.off_hire_amount}
@@ -442,7 +455,10 @@ const handleCompanySelect = (selected: any) => {
             </div>
 
             {/* Off Hire Paid On Date Picker */}
-            <div className="col-span-6 flex flex-col gap-2 relative">
+            <div
+              className="col-span-6 flex flex-col gap-2 relative"
+              ref={offHireRef}
+            >
               <label className="text-gray-700 text-sm font-weight-400">
                 Paid On
               </label>
@@ -454,12 +470,12 @@ const handleCompanySelect = (selected: any) => {
                 <span
                   className={`${formik.values.driver_commission?.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
-                  {formatDate(formik.values.driver_commission?.off_hire_paid_on)}
+                  {formik.values.driver_commission?.off_hire_paid_on}
                 </span>
                 <img src={Vector6} alt="calendar" />
               </div>
               {showOffHirePicker && (
-                <div className="absolute bottom-[300px] left-0 z-[100]">
+                <div className="absolute bottom-[53px] left-0 z-[100]">
                   <CustomDatePicker
                     selectedDate={
                       formik.values.driver_commission?.off_hire_paid_on ||
@@ -468,7 +484,7 @@ const handleCompanySelect = (selected: any) => {
                     onDateSelect={(date) => {
                       formik.setFieldValue(
                         "driver_commission.off_hire_paid_on",
-                        date,
+                        date.toLocaleDateString("sv-SE"),
                       );
                       setShowOffHirePicker(false);
                     }}
@@ -485,12 +501,17 @@ const handleCompanySelect = (selected: any) => {
                 Congestion Charges
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-['system-ui']">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">
+                  £
+                </span>
                 <input
                   type="text"
-                  value={formik.values.congestion_charges}
+                  value={formik.values.driver_commission.congestion_charges}
                   onChange={(e) =>
-                    formik.setFieldValue("congestion_charges", e.target.value)
+                    formik.setFieldValue(
+                      "driver_commission.congestion_charges",
+                      e.target.value,
+                    )
                   }
                   className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
@@ -502,12 +523,17 @@ const handleCompanySelect = (selected: any) => {
                 Other Charges
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-['system-ui']">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">
+                  £
+                </span>
                 <input
                   type="text"
-                  value={formik.values.other_charges}
+                  value={formik.values.driver_commission.other_charges}
                   onChange={(e) =>
-                    formik.setFieldValue("other_charges", e.target.value)
+                    formik.setFieldValue(
+                      "driver_commission.other_charges",
+                      e.target.value,
+                    )
                   }
                   className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
                 />
@@ -532,7 +558,9 @@ const handleCompanySelect = (selected: any) => {
                 On Hire Payment
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-['system-ui']">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">
+                  £
+                </span>
                 <input
                   type="text"
                   value={formik.values.referrer_commission?.on_hire_amount}
@@ -548,7 +576,10 @@ const handleCompanySelect = (selected: any) => {
             </div>
 
             {/* On Hire Paid On Date Picker */}
-            <div className="col-span-6 flex flex-col gap-2 relative">
+            <div
+              className="col-span-6 flex flex-col gap-2 relative"
+              ref={onHireRef2}
+            >
               <label className="text-gray-700 text-sm font-weight-400">
                 Paid On
               </label>
@@ -560,14 +591,12 @@ const handleCompanySelect = (selected: any) => {
                 <span
                   className={`${formik.values.referrer_commission?.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
-                  {formatDate(
-                    formik.values.referrer_commission?.on_hire_paid_on,
-                  )}
+                  {formik.values.referrer_commission?.on_hire_paid_on}
                 </span>
                 <img src={Vector6} alt="calendar" />
               </div>
               {showOnHirePicker2 && (
-                <div className="absolute bottom-[300px] left-0 z-[100]">
+                <div className="absolute bottom-[53px] left-0 z-[100]">
                   <CustomDatePicker
                     selectedDate={
                       formik.values.referrer_commission?.on_hire_paid_on ||
@@ -576,7 +605,7 @@ const handleCompanySelect = (selected: any) => {
                     onDateSelect={(date) => {
                       formik.setFieldValue(
                         "referrer_commission.on_hire_paid_on",
-                        date,
+                        date.toLocaleDateString("sv-SE"),
                       );
                       setShowOnHirePicker2(false);
                     }}
@@ -593,7 +622,9 @@ const handleCompanySelect = (selected: any) => {
                 Off Hire Payment
               </label>
               <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-['system-ui']">£</span>
+                <span className="text-gray-400 text-base font-['system-ui']">
+                  £
+                </span>
                 <input
                   type="text"
                   value={formik.values.referrer_commission?.off_hire_amount}
@@ -609,7 +640,10 @@ const handleCompanySelect = (selected: any) => {
             </div>
 
             {/* Off Hire Paid On Date Picker */}
-            <div className="col-span-6 flex flex-col gap-2 relative">
+            <div
+              className="col-span-6 flex flex-col gap-2 relative"
+              ref={offHireRef2}
+            >
               <label className="text-gray-700 text-sm font-weight-400">
                 Paid On
               </label>
@@ -621,14 +655,12 @@ const handleCompanySelect = (selected: any) => {
                 <span
                   className={`${formik.values.referrer_commission?.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-['system-ui']`}
                 >
-                  {formatDate(
-                    formik.values.referrer_commission?.off_hire_paid_on,
-                  )}
+                  {formik.values.referrer_commission?.off_hire_paid_on}
                 </span>
                 <img src={Vector6} alt="calendar" />
               </div>
               {showOffHirePicker2 && (
-                <div className="absolute bottom-[300px] left-0 z-[100]">
+                <div className="absolute bottom-[423px] left-0 z-[100]">
                   <CustomDatePicker
                     selectedDate={
                       formik.values.referrer_commission?.off_hire_paid_on ||
@@ -637,7 +669,7 @@ const handleCompanySelect = (selected: any) => {
                     onDateSelect={(date) => {
                       formik.setFieldValue(
                         "referrer_commission.off_hire_paid_on",
-                        date,
+                        date.toLocaleDateString("sv-SE"),
                       );
                       setShowOffHirePicker2(false);
                     }}

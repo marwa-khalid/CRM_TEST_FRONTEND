@@ -1,0 +1,372 @@
+import { useEffect, useRef, useState } from "react";
+import { X, ChevronLeft } from "lucide-react";
+import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import { debounce } from "lodash";
+import { getRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
+import { CustomDatePicker } from "../Components/DatePicker";
+
+export const RecoveryProviderModal = ({
+  onClose,
+  claimId,
+  initialData,
+  formik,
+}: any) => {
+  const [step, setStep] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [recoverySuggestions, setRecoverySuggestions] = useState<any[]>([]);
+  const [showRecoveryDatePicker, setShowRecoveryDatePicker] = useState(false);
+   const datepickerRef = useRef<HTMLDivElement>(null);
+   useEffect(() => {
+     const handleClickOutside = (event: MouseEvent) => {
+       if (
+         datepickerRef.current &&
+         !datepickerRef.current.contains(event.target as Node)
+       )
+         setShowRecoveryDatePicker(false);
+      
+     };
+     return () => document.removeEventListener("mousedown", handleClickOutside);
+   }, []);
+  // LOCAL STATE (Buffer): Only push to Parent Formik on "Save"
+  const [localData, setLocalData] = useState({
+    id: initialData?.id || 0, // Temporary ID if new
+    recovery_provider: initialData?.recovery_provider || "",
+    name: initialData?.name || "",
+    claim_id: parseInt(claimId),
+    currency: "GBP",
+    date_of_recovery: initialData?.date_of_recovery || null,
+    recovery_charges: initialData?.recovery_charges || 0,
+    address: {
+      address: initialData?.address?.address || "",
+      postcode: initialData?.address?.postcode || "",
+      mobile_tel: initialData?.address?.mobile_tel || "",
+      email: initialData?.address?.email || "",
+    }
+  });
+
+  // --- HANDLERS ---
+  const fetchRecoverySuggestions = debounce(async (query: string) => {
+    if (!query) return;
+    try {
+      const response = await getRecoveryProvider(query);
+      setRecoverySuggestions(response.data || response);
+    } catch (error) {
+      console.error(error);
+    }
+  }, 300);
+
+  const handleCompanySelect = (selected: any) => {
+    setSearchTerm(selected.recovery_provider);
+    setShowDropdown(false);
+    setLocalData((prev) => ({
+      ...prev,
+      recovery_provider: selected.recovery_provider,
+      address: {
+        ...prev.address,
+        address: selected.address || "",
+        postcode: selected.postcode || "",
+      },
+    }));
+  };
+
+  const handleSave = () => {
+    // This is where you pass the local buffer back to the parent's Formik
+    const exists = formik.values.recoveries.find((s) => s.id === localData.id);
+    const rawNumber = localData.address.mobile_tel.replace("+44 ", "").trim();
+
+    const finalData = {
+      ...localData,
+      address: {
+        ...localData.address,
+        // Store the final formatted string: +44 12345 678901
+        mobile_tel: rawNumber ? `+44 ${rawNumber}` : "",
+      },
+    };
+    if (exists) {
+      formik.setFieldValue(
+        "recoveries",
+        formik.values.recoveries.map((s) =>
+          s.id === finalData.id ? finalData : s,
+        ),
+      );
+    } else {
+      formik.setFieldValue("recoveries", [...formik.values.recoveries, finalData]);
+    }
+    onClose();
+  };
+
+  const formatDateLabel = (date: any) => {
+    if (!date) return "Select Date";
+    return new Date(date).toLocaleDateString("en-GB");
+  };
+console.log(localData)
+  return (
+    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[70] p-4 font-['Stack_Sans_Headline']">
+      <div className="w-[800px] p-6 bg-white rounded-lg shadow-xl flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-black text-xl font-weight-600">
+            {step === 1
+              ? "Recovery Provider Details"
+              : "Recovery Provider Billing Details"}
+          </h2>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setStep(1)}
+              className={`w-3 h-3 rounded-full ${step === 1 ? "bg-blue-500" : "bg-zinc-300"}`}
+            />
+            <button
+              onClick={() => setStep(2)}
+              className={`w-3 h-3 rounded-full ${step === 2 ? "bg-blue-500" : "bg-zinc-300"}`}
+            />
+            <X
+              className="w-6 h-6 cursor-pointer text-gray-400"
+              onClick={onClose}
+            />
+          </div>
+        </div>
+
+        <div className="h-px bg-gray-100 w-full" />
+
+        {step === 1 ? (
+          <div className="flex flex-col gap-4">
+            {/* Network Provider Search */}
+            <div className="flex flex-col gap-2 relative">
+              <label className="text-neutral-700 text-sm">
+                Network Recovery Provider
+              </label>
+              <input
+                type="text"
+                value={searchTerm || localData.recovery_provider}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setShowDropdown(true);
+                  fetchRecoverySuggestions(e.target.value);
+                }}
+                placeholder="Enter Company Name"
+                className="w-full h-[52px] px-5 border rounded font-weight-300 font-light"
+              />
+              {showDropdown && recoverySuggestions.length > 0 && (
+                <div className="absolute top-[80px] w-full bg-white border shadow-lg z-50 max-h-40 overflow-auto">
+                  {recoverySuggestions.map((s, i) => (
+                    <div
+                      key={i}
+                      onClick={() => handleCompanySelect(s)}
+                      className="p-3 hover:bg-gray-50 cursor-pointer border-b"
+                    >
+                      {s.recovery_provider}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-neutral-700 text-sm">Name</label>
+              <input
+                className="h-[52px] px-5 border rounded font-weight-300 font-light"
+                value={localData.name}
+                placeholder="Enter Name"
+                onChange={(e) =>
+                  setLocalData({ ...localData, name: e.target.value })
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-neutral-700 text-sm">Address</label>
+              <LeafletAutocompleteMap
+                apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
+                showMap={false}
+                disabled={false}
+                address={localData.address.address}
+                onPlaceSelected={(p) =>
+                  setLocalData({
+                    ...localData,
+                    address: {
+                      ...localData.address,
+                      address: p.address,
+                      postcode: p.postalCode || "",
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-5">
+              <div className="flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400">
+                  Post Code
+                </label>
+
+                <input
+                  type="text"
+                  placeholder="Enter Post Code"
+                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-weight-300 font-light focus-within:border-blue-500 transition-all"
+                  value={localData.address.postcode}
+                  onChange={(e) =>
+                    setLocalData({
+                      ...localData,
+                      address: {
+                        ...localData.address,
+                        postcode: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400">
+                  Email
+                </label>
+
+                <input
+                  type="email"
+                  placeholder="Enter Email"
+                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-weight-300 font-light focus-within:border-blue-500 transition-all"
+                  value={localData.address.email}
+                  onChange={(e) =>
+                    setLocalData({
+                      ...localData,
+                      address: {
+                        ...localData.address,
+                        email: e.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-neutral-700 text-sm">Telephone</label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-5 text-gray-400 font-weight-300 font-light ">
+                    +44
+                  </span>
+                  <input
+                    className="h-[52px] pl-14 w-full border rounded"
+                    value={localData.address.mobile_tel}
+                    maxLength={12}
+                    onChange={(e) => {
+                      let value = e.target.value.replace(/\D/g, ""); // remove non-digits
+
+                      if (value.length > 5) {
+                        value = value.slice(0, 5) + " " + value.slice(5, 11);
+                      }
+
+                      setLocalData({
+                        ...localData,
+                        address: {
+                          ...localData.address,
+                          mobile_tel: value,
+                        },
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-6 ">
+            <div className="grid grid-cols-2 gap-5">
+              {/* Start Date */}
+              <div className="relative flex flex-col gap-2">
+                <label className="text-neutral-700  text-sm font-weight-400">
+                  Date of Recovery{" "}
+                </label>
+                <div
+                  onClick={() => setShowRecoveryDatePicker(!showRecoveryDatePicker)}
+                  className="h-[52px] px-5 border rounded flex justify-between items-center cursor-pointer"
+                >
+                  <span className="font-weight-300 font-light text-neutral-700">
+                    {formatDateLabel(localData.date_of_recovery)}
+                  </span>
+                  <img src={Vector6} alt="cal" />
+                </div>
+                {showRecoveryDatePicker && (
+                  <div className="absolute top-[26px] z-50">
+                    <CustomDatePicker
+                      selectedDate={localData.date_of_recovery}
+                      onDateSelect={(d) => {
+                        setLocalData({
+                          ...localData,
+                          date_of_recovery: new Date(d).toLocaleDateString(
+                            "sv-SE",
+                          ),
+                        });
+                        setShowRecoveryDatePicker(false);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* charges  */}
+              <div className="flex flex-col gap-2">
+                <label className="text-neutral-700 text-sm">
+                  Recovery Charges{" "}
+                </label>
+                <div className="h-[52px] px-5 border rounded flex items-center">
+                  <span className="mr-2 font-weight-300 font-light text-neutral-700">
+                    £
+                  </span>
+                  <input
+                    value={localData.recovery_charges}
+                    onChange={(e) =>
+                      setLocalData({
+                        ...localData,
+                        recovery_charges: Number(e.target.value),
+                      })
+                    }
+                    className="outline-none w-full font-weight-300 font-light text-neutral-700"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="h-px bg-gray-100 w-full" />
+
+        <div className="flex justify-between items-center">
+          {step === 2 ? (
+            <button
+              onClick={() => setStep(1)}
+              className="flex items-center gap-2 text-blue-500 text-sm"
+            >
+              <ChevronLeft className="w-4 h-4" /> Back to Details
+            </button>
+          ) : (
+            <div />
+          )}
+
+          <div className="flex gap-4">
+            <button
+              onClick={onClose}
+              className="px-6 py-4 border border-blue-600 text-blue-600 rounded"
+            >
+              Cancel
+            </button>
+            {step === 1 ? (
+              <button
+                onClick={() => setStep(2)}
+                className="px-6 py-4 bg-blue-500 text-white rounded"
+              >
+                Add Billing Details
+              </button>
+            ) : (
+              <button
+                onClick={handleSave}
+                className="px-6 py-4 bg-blue-500 text-white rounded"
+              >
+                Save
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

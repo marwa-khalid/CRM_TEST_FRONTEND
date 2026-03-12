@@ -8,7 +8,7 @@ import claim from "../../assets/images/claim.svg";
 import { useNavigate } from "react-router-dom";
 const SingleSignOn2 = () => {
   const [password, setPassword] = useState("");
-const email = localStorage.getItem("email")
+const email = JSON.parse(localStorage.getItem("user")).email;
   const navigate = useNavigate();
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

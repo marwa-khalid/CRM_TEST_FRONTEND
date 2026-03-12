@@ -1,32 +1,26 @@
-import { useEffect, useState } from "react";
-import Select from "react-select";
+import { useEffect, useRef, useState } from "react";
 import { useFormik } from "formik";
-import * as Yup from "yup";
 import { toast } from "react-toastify";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
-import {
-  getClientInsurer,
-  updateClientInsurer,
-  createClientInsurer,
-} from "../../../services/ClientInsurer/ClientInsurer";
+import { CustomDatePicker } from "../Components/DatePicker";
 import { getCompanySuggestions } from "../../../services/Referrer/Referrer";
 import {
   getVehicleOwner,
   updateVehicleOwner,
 } from "../../../services/VehicleOwner/vehicleOwner"; // For two-way sync
 import { cleanPayload } from "./ClientDetailsForm";
-
 // Icons
-import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
-import No from "../../../assets/AutoClaim_icon/No.svg";
+import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import { createPanelSolicitors, getPanelSolicitorDetails, updatePanelSolicitors } from "../../../services/PanelSolicitorDetails/PanelSolicitorDetails";
 
 export const PanelSolicitorForm = ({ formRef }: any) => {
   const claimId = localStorage.getItem("claimId");
-  const insurerId = localStorage.getItem("insurerId");
+  const panelId = localStorage.getItem("panelId");
   const [companies, setCompanies] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+  
    useEffect(() => {
      const fetchCompanies = async () => {
        try {
@@ -49,61 +43,67 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
        fetchCompanies();
      }
    }, [searchTerm]);
+   useEffect(() => {
+     const handleClickOutside = (event: MouseEvent) => {
+       if (
+         containerRef.current &&
+         !containerRef.current.contains(event.target as Node)
+       )
+         setShowPicker(false);
+     }
+        // document.addEventListener("mousedown", handleClickOutside);
+        return () =>
+          document.removeEventListener("mousedown", handleClickOutside);
+      }, []);
   const formik = useFormik({
     initialValues: {
-      companyName: "",
-      address: "",
-      postcode: "",
-      telephoneMain: "",
-      email: "",
+      company_name: "",
       reference: "",
-      policy_number: "",
-      policy_holder: "",
-      type_of_policy: "", // Fleet, TBC, Trade [cite: 23]
-      policy_cover_level: "", // Comprehensive, etc [cite: 23]
-      policy_cover_excess: "",
-      no_of_additional_driver: "",
-      no_of_vehicles_policy: "",
-      no_of_vehicles_use: "",
-      sdp: false,
-      private_hire: false,
+      recommendation_sent: "",
+      note: "",
+      claim_id: parseInt(claimId) || 0,
+      email_sent_date: "",
+      accepted_sent_date: "",
+      address: {
+        address: "",
+        postcode: "",
+        mobile_tel: "",
+        email: "",
+      },
     },
     onSubmit: async (values) => {
       try {
-        const payload = {
-          company_name: values.companyName,
-          reference: values.reference,
-          policy_number: values.policy_number,
-          policy_holder: values.policy_holder,
-          policy_type: values.type_of_policy,
-          policy_cover_level: values.policy_cover_level,
-          policy_cover_excess: values.policy_cover_excess,
-          sdp: values.sdp,
-          private_hire: values.private_hire,
-          number_of_additional_driver: values.no_of_additional_driver,
-          number_vehicle_on_policy: values.no_of_vehicles_policy,
-          number_vehicle_in_use: values.no_of_vehicles_use,
-          claim_id: parseInt(claimId),
-          address: values.address,
-          postcode: values.postcode,
-          telephone: values.telephoneMain,
-          email: values.email,
-        };
+          const payload = {
+            company_name: values.company_name,
+            reference: values.reference,
+            recommendation_sent: values.recommendation_sent,
+            note: values.note,
+            claim_id: parseInt(claimId),
+            email_sent_date: new Date().toLocaleDateString("sv-SE"), //remove from back end
+            accepted_sent_date: new Date().toLocaleDateString("sv-SE"), //remove from back end
+            address: {
+              address: values.address.address,
+              postcode: values.address.postcode,
+              mobile_tel: values.address.mobile_tel,
+              email: values.address.email,
+            },
+          };
 
         const payloadToSend = cleanPayload(payload);
-        if (claimId && insurerId) {
-          await updateClientInsurer(payloadToSend, parseInt(claimId));
+        if (claimId && panelId) {
+          await updatePanelSolicitors(payloadToSend, parseInt(claimId),'');
         } else {
-          const res = await createClientInsurer(payloadToSend);
-          localStorage.setItem("insurerId", res.id);
+          const res = await createPanelSolicitors(payloadToSend,'');
+          localStorage.setItem("panelId", res.id);
         }
-        toast.success("Client insurer Details saved successfully");
+        toast.success("Panel Solicitor Details saved successfully");
       } catch (error) {
-        toast.error("Error saving client insurer details");
+        toast.error("Error saving panel solicitor details");
         throw error;
       }
     },
   });
+  const [showPicker, setShowPicker] = useState(false);
 
   //  CTA: Vehicle Owner logic
   const handleVehicleOwnerCTA = async () => {
@@ -119,33 +119,45 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
   useEffect(() => {
     handleVehicleOwnerCTA();
   }, []);
-  const fetchClientInsurer = async () => {
-    try {
-      const res = await getClientInsurer(parseInt(claimId));
+   const fetchPanelSolicitosDetails = async () => {
+       try {
+        //  setIsLoading(true);
+         const response = await getPanelSolicitorDetails(claimId);
+         const panelSolicitors = response.data || response;
+         if (panelSolicitors) {
 
-      formik.setValues((prev) => ({
-        ...prev,
-        companyName: res?.company_name,
-        address: res?.address?.address,
-        postcode: res?.address?.postcode,
-        telephoneMain: res?.address?.mobile_tel,
-        email: res?.address?.email,
-        reference: res?.reference,
-        policy_number: res?.policy_number,
-        policy_holder: res?.policy_holder,
-        type_of_policy: res?.policy_type_id,
-        no_of_additional_driver: res?.number_of_additional_driver,
-        no_of_vehicles_policy: res?.number_vehicle_on_policy,
-        no_of_vehicles_use: res?.number_vehicle_in_use,
-        policy_cover_level: res?.policy_cover_id,
-        policy_cover_excess: res?.policy_cover_excess,
-        sdp: res?.sdp || false,
-        private_hire: res?.private_hire || false,
-      }));
-    } catch (e) {}
-  };
+           formik.setValues((prev) => ({
+             ...prev,
+             company_name: panelSolicitors.company_name,
+             reference: panelSolicitors.reference,
+             recommendation_sent:panelSolicitors.recommendation_sent,
+             note: panelSolicitors.note,
+             claim_id: parseInt(claimId) || 0,
+             email_sent_date: panelSolicitors.email_sent_date,
+             accepted_sent_date: panelSolicitors.accepted_sent_date,
+             address: {
+               address: panelSolicitors.address.address,
+               postcode: panelSolicitors.address.postcode,
+               mobile_tel: panelSolicitors.address.mobile_tel,
+               email: panelSolicitors.address.email,
+             },
+           }));
+         }
+       } catch (error) {
+         console.error("Error fetching panel details:", error);
+       } finally {
+       }
+     };
+ 
+     const formatDate = (val: string | Date | null) => {
+       if (!val) return null;
+       const d = new Date(val);
+       return d.toISOString().split("T")[0];
+     };
   useEffect(() => {
-    fetchClientInsurer();
+    if (claimId && panelId) {
+      fetchPanelSolicitosDetails();
+    }
   }, []);
 
   //  Two-way sync: Update Vehicle Owner when Policy Holder changes
@@ -168,9 +180,9 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
     setShowDropdown(false);
 
     // Set Formik fields (correct backend keys!)
-    formik.setFieldValue("companyName", selected.companyName);
-    formik.setFieldValue("address", selected.address ?? "");
-    formik.setFieldValue("postcode", selected.postcode ?? "");
+    formik.setFieldValue("company_ame", selected.companyName);
+    formik.setFieldValue("address.address", selected.address ?? "");
+    formik.setFieldValue("address.postcode", selected.postcode ?? "");
   };
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, ""); // remove non-digits
@@ -179,7 +191,7 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
       value = value.slice(0, 5) + " " + value.slice(5, 11);
     }
 
-    formik.setFieldValue("telephoneMain", value);
+    formik.setFieldValue("address.mobile_tel", value);
   };
   useEffect(() => {
     if (formRef) formRef.current = formik;
@@ -204,7 +216,7 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
           </label>
           <input
             className="w-full h-[52px] px-5 bg-white rounded border border-gray-200"
-            value={searchTerm || formik.values.companyName}
+            value={searchTerm || formik.values.company_name}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setShowDropdown(true);
@@ -232,11 +244,11 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
           <LeafletAutocompleteMap
             disabled={false}
             apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-            address={formik.values.address}
+            address={formik.values.address.address}
             showMap={false}
             onPlaceSelected={(place) => {
-              formik.setFieldValue("address", place.address);
-              formik.setFieldValue("postcode", place.postalCode);
+              formik.setFieldValue("address.address", place.address);
+              formik.setFieldValue("address.postcode", place.postalCode);
             }}
           />
         </div>
@@ -248,10 +260,12 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
             </label>
             <input
               name="postcode"
-              value={formik.values.postcode}
-              onChange={(e) => formik.setFieldValue("postcode", e.target.value)}
+              value={formik.values.address.postcode}
+              onChange={(e) =>
+                formik.setFieldValue("address.postcode", e.target.value)
+              }
               placeholder="Enter Postcode"
-              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui']"
+              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light"
             />
           </div>
 
@@ -262,10 +276,12 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
             <input
               name="email"
               type="email"
-              value={formik.values.email}
-              onChange={(e) => formik.setFieldValue("email", e.target.value)}
+              value={formik.values.address.email}
+              onChange={(e) =>
+                formik.setFieldValue("address.email", e.target.value)
+              }
               placeholder="Enter Email"
-              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
+              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light focus-within:border-blue-500 transition-all"
             />
           </div>
         </div>
@@ -275,7 +291,7 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
               Telephone{" "}
             </label>
             <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-              <span className="text-gray-700 text-base font-['system-ui']">
+              <span className="text-gray-700 text-base font-light">
                 +44
               </span>
               <input
@@ -283,8 +299,8 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
                 type="tel"
                 onChange={handleMobileChange}
                 maxLength={12}
-                value={formik.values.telephoneMain}
-                className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] placeholder:text-gray-300"
+                value={formik.values.address.mobile_tel}
+                className="w-full bg-transparent outline-none text-gray-900 font-light placeholder:text-gray-300"
               />
             </div>
           </div>
@@ -301,16 +317,46 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
               value={formik.values.reference}
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+
+          <div className="flex flex-col gap-2 relative" ref={containerRef}>
+            <label className="text-gray-700 text-sm font-weight-500 ">
               Recommendations Send On
             </label>
-            <input
-              className="h-[52px] px-5 rounded border border-gray-200"
-              name="policy_number"
-              onChange={formik.handleChange}
-              value={formik.values.policy_number}
-            />
+            <div
+              onClick={() => setShowPicker(!showPicker)}
+              className="h-[52px] px-5 bg-white border border-gray-200 rounded flex items-center justify-between cursor-pointer"
+            >
+              <span
+                className={`
+                   font-light font-weight-300
+                  ${
+                    formik.values.recommendation_sent
+                      ? "text-gray-900"
+                      : "text-gray-400"
+                  }`}
+              >
+                {formik.values.recommendation_sent || "Select Date"}
+              </span>
+              <img src={Vector6} alt="" />
+            </div>
+            {showPicker && (
+              <div className="absolute bottom-[54px] left-0 z-100">
+                <CustomDatePicker
+                  selectedDate={
+                    formik.values.recommendation_sent
+                      ? new Date(formik.values.recommendation_sent)
+                      : new Date()
+                  }
+                  onDateSelect={(date) => {
+                    formik.setFieldValue(
+                      "recommendation_sent",
+                      date.toISOString().split("T")[0],
+                    );
+                    setShowPicker(false);
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -319,171 +365,13 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
           </label>
           <textarea
             className="p-4 border border-gray-200 rounded-lg outline-none focus:border-blue-200 focus:ring-2 focus:ring-blue-200"
-              placeholder="Value"
-        rows={3}
+            placeholder="Value"
+            rows={3}
+            maxLength={500}
+            value={formik.values.note}
+            name="note"
+            onChange={formik.handleChange}
           />
-        </div>
-      </div>
-
-      {/* 2. Cover Details Section [cite: 16] */}
-      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-black text-xl font-weight-600">Cover Details</h2>
-          {/* <button
-            type="button"
-            onClick={handleVehicleOwnerCTA}
-            className="px-4 py-2 bg-blue-50 text-blue-600 rounded text-sm font-weight-400 border border-blue-200 hover:bg-blue-100"
-          >
-            Vehicle Owner
-          </button> */}
-        </div>
-        <div className="h-px bg-gray-100 w-full" />
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-              Policy Holder
-            </label>
-            <input
-              className="h-[52px] px-5 rounded border border-gray-200"
-              name="policy_holder"
-              value={formik.values.policy_holder}
-              onChange={(e) => {
-                formik.handleChange(e);
-                syncBackToVehicleOwner(e.target.value); //  Two-way sync
-              }}
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-5">
-          <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-              Type of Policy
-            </label>
-            <Select
-              options={[
-                { value: "Fleet", label: "Fleet" },
-                { value: "TBC", label: "TBC" },
-                { value: "Trade", label: "Trade" },
-              ]}
-              styles={customStyles}
-              onChange={(opt: any) =>
-                formik.setFieldValue("type_of_policy", opt.value)
-              }
-              value={[
-                { value: "Fleet", label: "Fleet" },
-                { value: "TBC", label: "TBC" },
-                { value: "Trade", label: "Trade" },
-              ].find((opt) => opt.value === formik.values.type_of_policy)}
-              components={{
-                DropdownIndicator: BlueDropdownIndicator,
-                IndicatorSeparator: () => null,
-              }}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-              Policy Cover Level
-            </label>
-            <Select
-              options={[
-                { value: "Comprehensive", label: "Comprehensive" },
-                { value: "Third Party", label: "Third Party" },
-              ]}
-              styles={customStyles}
-              onChange={(opt: any) =>
-                formik.setFieldValue("policy_cover_level", opt.value)
-              }
-              components={{
-                DropdownIndicator: BlueDropdownIndicator,
-                IndicatorSeparator: () => null,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* [cite: 25, 26, 37] Conditional Logic for Fleet */}
-        {formik.values.type_of_policy === "Fleet" && (
-          <div className="grid grid-cols-3 gap-5 p-4 bg-gray-50 rounded-lg animate-in fade-in duration-300">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">
-                Additional Drivers
-              </label>
-              <input
-                type="number"
-                name="no_of_additional_driver"
-                value={formik.values.no_of_additional_driver}
-                onChange={formik.handleChange}
-                className="h-10 px-3 rounded border border-gray-200"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">
-                Vehicles on Policy
-              </label>
-              <input
-                type="number"
-                value={formik.values.no_of_vehicles_policy}
-                name="no_of_vehicles_policy"
-                onChange={formik.handleChange}
-                className="h-10 px-3 rounded border border-gray-200"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">Vehicles in Use</label>
-              <input
-                type="number"
-                name="no_of_vehicles_use"
-                value={formik.values.no_of_vehicles_use}
-                onChange={formik.handleChange}
-                className="h-10 px-3 rounded border border-gray-200"
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-5">
-          <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-              Policy Cover Excess (£)
-            </label>
-            <input
-              type="number"
-              name="policy_cover_excess"
-              onChange={formik.handleChange}
-              value={formik.values.policy_cover_excess}
-              className="h-[52px] px-5 rounded border border-gray-200"
-            />
-          </div>
-
-          <div className="flex items-center gap-6 mt-6">
-            <div
-              className="flex items-center gap-2 cursor-pointer"
-              onClick={() => formik.setFieldValue("sdp", !formik.values.sdp)}
-            >
-              <img
-                src={formik.values.sdp ? Yes : No}
-                alt="toggle"
-                className="w-6 h-6"
-              />
-              <span className="text-sm">SDP</span>
-            </div>
-            <div
-              className="flex items-center gap-2 cursor-pointer"
-              onClick={() =>
-                formik.setFieldValue(
-                  "private_hire",
-                  !formik.values.private_hire,
-                )
-              }
-            >
-              <img
-                src={formik.values.private_hire ? Yes : No}
-                alt="toggle"
-                className="w-6 h-6"
-              />
-              <span className="text-sm">Private Hire/Hackney</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

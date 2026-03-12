@@ -8,6 +8,7 @@ import Vector from "../../assets/images/Vector.svg";
 import Vector2 from "../../assets/images/Vector2.svg";
 import union from "../../assets/images/union.svg";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../../services/axiosConfig.ts";
 
 const OTPPage = () => {
   const [otp, setOtp] = useState("");
@@ -48,7 +49,7 @@ const OTPPage = () => {
        }
       const storedUser = JSON.parse(storedUserRaw);
            const response2 = await fetch(
-             "https://noninflected-saul-stratiformis.ngrok-free.dev/auth/login",
+            `${API_BASE_URL}/auth/login`,
              {
                method: "POST",
                headers: {

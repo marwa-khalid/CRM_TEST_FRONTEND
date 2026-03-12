@@ -18,6 +18,8 @@ import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
 import Vector9 from "../../../assets/AutoClaim_icon/Vector-9.svg";
 import Vector10 from "../../../assets/AutoClaim_icon/Vector-10.svg";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
+import No from "../../../assets/AutoClaim_icon/No.svg";
 
 // Services & Redux
 import {
@@ -103,8 +105,28 @@ const GeneralDetailsForm = ({ formRef }: any) => {
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closureReason, setClosureReason] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+     const datepickerRef = useRef<HTMLDivElement>(null);
+  
+useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    if (
+      datepickerRef.current &&
+      !datepickerRef.current.contains(event.target as Node)
+    ) {
+      setShowPicker(false);
+    }
+  };
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Check if showPicker is true before adding (optional but better)
+  if (showPicker) {
+    document.addEventListener("mousedown", handleClickOutside);
+  }
+
+  // Cleanup: This is crucial to prevent memory leaks
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, [showPicker]); // Re-run effect when showPicker changes
   const claimTypeOptions = [
     { value: 1, label: "RTA - NA" },
     { value: 2, label: "RTA - CAMS" },
@@ -148,7 +170,12 @@ const GeneralDetailsForm = ({ formRef }: any) => {
    useEffect(() => {
      const fetchData = async () => {
        const res = await getClaimById(parseInt(claimId))
-       formik.setValues(res)
+       const formData= {
+          ...res,
+          credit_hire_accepted: res.credit_hire_accepted ?"Yes" :"No",
+          client_going_abroad: res.client_going_abroad ? "Yes" :"No"
+        };
+       formik.setValues(formData);
      }
      if (claimId) {
        fetchData();
@@ -157,7 +184,7 @@ const GeneralDetailsForm = ({ formRef }: any) => {
 
   const formik = useFormik({
     initialValues: {
-      claim_id: claimId || 0,
+      id: claimId || 0,
       claim_type_id: null,
       handler_id: null,
       is_locked: false,
@@ -165,13 +192,13 @@ const GeneralDetailsForm = ({ formRef }: any) => {
       source_id: null,
       source_staff_user_id: null,
       case_status_id: null,
-      credit_hire_accepted: false,
+      credit_hire_accepted: "No",
       non_fault_accident: "NO",
       any_passengers: "NO",
       client_injured: "NO",
       prospects_id: null,
       present_position_id: null,
-      client_going_abroad: false,
+      client_going_abroad: "No",
       abroad_date: null,
     },
 
@@ -181,6 +208,8 @@ const GeneralDetailsForm = ({ formRef }: any) => {
         const payload: ClaimFormPayload = {
           ...values,
           file_opened_on: new Date().toLocaleDateString("sv-SE"),
+          credit_hire_accepted: values.credit_hire_accepted === "Yes" ? true : false,
+          client_going_abroad: values.client_going_abroad === "Yes" ? true : false
         };
         console.log(payload);
         if (values.id) {
@@ -219,7 +248,7 @@ useEffect(() => {
 console.log(formik.values)
   const handleNotifyManager = async () => {
     try {
-      await notifyManager(parseInt(claimId));
+      await notifyManager(parseInt(formik.values.id));
       toast.success("Manager Notified");
     } catch (e) {
       toast.error("Failed to notify manager");
@@ -235,7 +264,7 @@ console.log(formik.values)
       );
       setShowCloseModal(false);
       toast.success("File closed successfully");
-      navigate("/dashboard")
+      // navigate("/dashboard")
     } catch (e) {
       toast.error("Failed to close file");
     }
@@ -408,7 +437,31 @@ console.log(formik.values)
                 Credit Hire Accepted?
               </label>
               <div className="flex gap-6 items-center h-[52px]">
-                <label className="flex items-center gap-2 cursor-pointer">
+                {["Yes", "No"].map((option) => (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="radio"
+                        name="credit_hire_accepted"
+                        className="sr-only"
+                        checked={formik.values.credit_hire_accepted === option}
+                        onChange={() =>
+                          formik.setFieldValue("credit_hire_accepted", option)
+                        }
+                      />
+                      {formik.values.credit_hire_accepted === option ? (
+                        <img src={Yes} />
+                      ) : (
+                        <img src={No} />
+                      )}
+                    </div>
+                    <span className="text-black text-sm">{option}</span>
+                  </label>
+                ))}
+                {/* <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
                     name="credit_hire_accepted"
@@ -431,7 +484,7 @@ console.log(formik.values)
                     }
                   />
                   <span className="text-sm">No</span>
-                </label>
+                </label> */}
               </div>
             </div>
 
@@ -576,7 +629,6 @@ console.log(formik.values)
                 <span>{fileClosedOn}</span>
               </div>
             </div>
-           
           </div>
         </div>
 
@@ -586,7 +638,7 @@ console.log(formik.values)
             <h2 className="text-black text-xl font-weight-600">
               Present File Position
             </h2>
-            {formik.values.client_going_abroad && (
+            {formik.values.client_going_abroad==="Yes" && (
               <button
                 type="button"
                 onClick={handleNotifyManager}
@@ -629,33 +681,35 @@ console.log(formik.values)
                 Client going abroad soon?
               </span>
               <div className="flex gap-10 h-[52px] items-center">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={formik.values.client_going_abroad}
-                    onChange={() =>
-                      formik.setFieldValue("client_going_abroad", true)
-                    }
-                    className="w-5 h-5 accent-blue-500"
-                  />
-                  <span className="text-sm">Yes</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={!formik.values.client_going_abroad}
-                    onChange={() =>
-                      formik.setFieldValue("client_going_abroad", false)
-                    }
-                    className="w-5 h-5 accent-blue-500"
-                  />
-                  <span className="text-sm">No</span>
-                </label>
+                {["Yes", "No"].map((option) => (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="radio"
+                        name="client_going_abroad"
+                        className="sr-only"
+                        checked={formik.values.client_going_abroad === option}
+                        onChange={() =>
+                          formik.setFieldValue("client_going_abroad", option)
+                        }
+                      />
+                      {formik.values.client_going_abroad === option ? (
+                        <img src={Yes} />
+                      ) : (
+                        <img src={No} />
+                      )}
+                    </div>
+                    <span className="text-black text-sm">{option}</span>
+                  </label>
+                ))}
               </div>
             </div>
 
-            {formik.values.client_going_abroad && (
-              <div className="flex flex-col gap-2 relative" ref={containerRef}>
+            {formik.values.client_going_abroad === "Yes"  && (
+              <div className="flex flex-col gap-2 relative" ref={datepickerRef}>
                 <label className="text-gray-700 text-sm font-weight-500 ">
                   Date
                 </label>
@@ -675,7 +729,7 @@ console.log(formik.values)
                   <img src={Vector6} alt="" />
                 </div>
                 {showPicker && (
-                  <div className="absolute bottom-[60px] left-0 z-50">
+                  <div className="absolute bottom-[423px] left-0 z-50">
                     <CustomDatePicker
                       selectedDate={
                         formik.values.abroad_date

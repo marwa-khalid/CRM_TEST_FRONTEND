@@ -184,7 +184,8 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
               address={passenger.address}
               onPlaceSelected={(place) => {
                 if (place.name) {
-                  setPassenger({ ...passenger, address: place.address });
+                  setPassenger({ ...passenger, address: place.address, postCode: place.postalCode });
+
                   // formik.setFieldValue("postcode", place?.postalCode);
                 }
               }}
@@ -231,7 +232,7 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
             </label>
             <div className="relative flex items-center">
               {/* Visual Prefix */}
-              <span className="absolute left-5 text-gray-400 font-['system-ui'] border-r border-gray-200 pr-3">
+              <span className="absolute left-5 text-gray-400 font-['system-ui'] pr-3">
                 +44
               </span>
               <input

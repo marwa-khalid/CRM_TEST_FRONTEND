@@ -362,7 +362,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
     }
   }, [witnessesList.length]);
   return (
-    <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+    <div className="MainContent w-[788px] ms-[140px] pb-20 flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
       {passengerModal && (
         <PassengerDetailsModal
           onClose={() => {

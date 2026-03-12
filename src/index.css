@@ -1,10 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import url('https://fonts.googleapis.com/css2?family=Stack+Sans+Headline:ital,wght@0,400&display=swap'); @layer theme, base, components, utilities;
+@config "../tailwind.config.js";
 
-body{
-    font-family: Inter;
+body {
+  	@apply leading-[normal] m-0;
 }
+@layer base { *, *::before, *::after { border-width: 0; } }
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;

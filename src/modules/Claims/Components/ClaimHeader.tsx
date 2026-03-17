@@ -26,7 +26,7 @@ const Header = ({ onNext }) => {
 
         <div className="ActivityLogContainer flex justify-start items-center gap-1 cursor-pointer group">
           <img src={Vector4} alt="" />
-          <div className="ActivityLogText text-blue-300 text-xs font-semibold font-['Stack_Sans_Headline'] group-hover:underline">
+          <div className="ActivityLogText text-blue-300 text-xs font-weight-600 font-['Stack_Sans_Headline'] group-hover:underline">
             View Activity Log
           </div>
         </div>
@@ -36,7 +36,7 @@ const Header = ({ onNext }) => {
         {/* Discard Click -> Dashboard */}
         <button
           onClick={goToDashboard}
-          className="px-10 py-4 bg-white rounded outline outline-1 outline-primary text-blue-600 text-base font-medium font-['Stack_Sans_Headline'] hover:bg-gray-50 transition"
+          className="px-10 py-4 bg-white rounded outline outline-1 outline-primary text-blue-600 text-base font-weight-400 font-['Stack_Sans_Headline'] hover:bg-gray-50 transition"
         >
           Discard
         </button>
@@ -44,7 +44,7 @@ const Header = ({ onNext }) => {
         {/* Save & Next -> Next Step */}
         <button
           onClick={onNext} // Trigger the step increase here
-          className="px-10 py-4 bg-blue-500 rounded text-white text-base font-medium font-['Stack_Sans_Headline'] hover:bg-blue-500 transition"
+          className="px-10 py-4 bg-blue-500 rounded text-white text-base font-weight-400 font-['Stack_Sans_Headline'] hover:bg-blue-500 transition"
         >
           Save & Next
         </button>

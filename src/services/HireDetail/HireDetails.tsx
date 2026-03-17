@@ -33,6 +33,14 @@ export const getHireDetails = (id: any) => {
   return axiosInstance.get(`/hire-details/${id}`);
 }
 
+export const sendOffHireMail = (data:any) => {
+  return axiosInstance.post("/hire-vehicle-provided/inst-to-off-hire", data);
+};
+
+export const sendOnHireMail = (data:any) => {
+  return axiosInstance.post("/hire-vehicle-provided/inst-to-on-hire", data);
+};
+
 export const fetchVehicleExtraData = (id: any) => {
   return axiosInstance.get(`/hire-details/hire-vehicle-provided/${id}`)
 }

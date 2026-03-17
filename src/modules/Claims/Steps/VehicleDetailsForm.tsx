@@ -285,7 +285,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
         onClose={() => setShowUploadModal(false)}
         onUploadSuccess={(jobId) => pollJobStatus(jobId)}
       />
-      <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide">
+      <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
         {/* Container matching left-[534px] and top-[157px] from source */}
         <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
           Vehicle Details

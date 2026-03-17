@@ -1,0 +1,229 @@
+import { toast } from "react-toastify";
+import logo from "../../../assets/AutoClaim_icon/logo.svg";
+import { sendOnHireMail } from "../../../services/HireDetail/HireDetails"; // Ensure this service exists
+
+interface OnHirePreviewProps {
+  isOpen: boolean;
+  onClose: () => void;
+  data: {
+    Reference: string;
+    Referrer: string;
+    client_name: string;
+    mobile_tel: string;
+    registration: string;
+    make: string;
+    model: string;
+    body_type: string;
+    Auto: string;
+    engine_size: string;
+    fuel_type: string;
+    number_of_seat: number;
+    borough_name: string | null;
+    taxi_type: string | null;
+    driver_base: string | null;
+    to: string;
+    Subject: string;
+    vehicleCategory?: string; // e.g. T12<3YRS
+    activeUser?:string
+  };
+}
+
+export const OnHireEmailPreviewModal = ({
+  isOpen,
+  onClose,
+  data,
+}: OnHirePreviewProps) => {
+  if (!isOpen) return null;
+
+  const sendEmail = async () => {
+    try {
+      const res = await sendOnHireMail(data);
+      if (res.status === 200) {
+        toast.success(res.data.msg || "On-Hire Email sent successfully");
+        onClose();
+      } else {
+        toast.error(res.data.msg || "Failed to send email");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || "An error occurred");
+    }
+  };
+
+  const todayStr = new Date().toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/10 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl w-[700px] flex flex-col overflow-hidden max-h-[90vh]">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white sticky top-0 z-10">
+          <h2 className="text-neutral-800 font-bold text-base">
+            Inst to Fleet to On Hire
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-neutral-400 hover:text-neutral-600"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Recipients & Subject */}
+        <div className="px-8 py-4 bg-neutral-50 border-b border-neutral-100 space-y-3">
+          <div className="flex items-start gap-4">
+            <span className="text-neutral-500 text-sm font-medium w-16 pt-1">
+              To:
+            </span>
+            <div className="flex flex-wrap gap-2 flex-1">
+              {data.to.split(";").map((email, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 bg-gray-50 text-darkGray border border-gray rounded text-xs"
+                >
+                  {email.trim()}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-start gap-4">
+            <span className="text-neutral-500 text-sm font-medium w-16">
+              Subject:
+            </span>
+            <span className="text-neutral-800 text-sm font-weight-600 flex-1">
+              {data.Subject}
+            </span>
+          </div>
+        </div>
+
+        {/* --- SCROLLABLE EMAIL BODY --- */}
+        <div className="p-12 flex flex-col items-center bg-white overflow-y-auto">
+          <img src={logo} alt="Nationwide Assist Logo" />
+
+          {/* Section 1: General Info */}
+          <div className="w-[420px] p-4 mt-8 rounded-lg border border-neutral-200 flex flex-col gap-2 bg-white shadow-sm">
+            <DataRow label="Brand" value="RTA - Nationwide Assist" />
+            <div className="h-px bg-neutral-100 w-full" />
+            <DataRow label="Reference" value={data.Reference} />
+            <div className="h-px bg-neutral-100 w-full" />
+            <DataRow label="Referrer" value={data.Referrer} />
+            <div className="h-px bg-neutral-100 w-full" />
+            <DataRow label="Client" value={data.client_name} />
+            <div className="h-px bg-neutral-100 w-full" />
+            <DataRow label="Cl Mobile No" value={data.mobile_tel} />
+            <div className="h-px bg-neutral-100 w-full" />
+            <div className="py-1 text-center">
+              <span className="text-neutral-700 text-sm font-normal">
+                Does Hirer Require Vehicle Documents:{" "}
+              </span>
+              <span className="text-neutral-700 text-sm font-weight-600">Yes</span>
+            </div>
+          </div>
+
+          {/* Section 2: Client's Vehicle Details */}
+          <div className="w-[420px] p-4 mt-6 rounded-lg border border-neutral-200 flex flex-col gap-2 bg-white shadow-sm">
+            <h3 className="text-neutral-700 text-sm font-weight-600 mb-2">
+              Client's Vehicle Details
+            </h3>
+            <DataRow label="Reg" value={data.registration} />
+            <div className="h-px bg-neutral-100 w-full" />
+            <DataRow
+              label="Make/Model"
+              value={`${data.make} / ${data.model}`}
+            />
+            <div className="h-px bg-neutral-100 w-full" />
+            <DataRow label="Body Type" value={data.body_type} />
+            <div className="h-px bg-neutral-100 w-full" />
+            <DataRow label="Auto" value={data.Auto} />
+            <div className="h-px bg-neutral-100 w-full" />
+            <DataRow label="Engine Size" value={data.engine_size} />
+            <div className="h-px bg-neutral-100 w-full" />
+            <DataRow label="Fuel Type" value={data.fuel_type} />
+            <div className="h-px bg-neutral-100 w-full" />
+            <DataRow
+              label="No of Seats inc Driver"
+              value={data.number_of_seat.toString()}
+            />
+          </div>
+
+          {/* Section 3: If Taxi (Conditional) */}
+          {(data.borough_name || data.taxi_type || data.driver_base) && (
+            <div className="w-[420px] p-4 mt-6 rounded-lg border border-neutral-200 flex flex-col gap-2 bg-white shadow-sm">
+              <h3 className="text-neutral-700 text-sm font-weight-600 mb-2">
+                If Taxi Vehicle
+              </h3>
+              <DataRow label="Borough:" value={data.borough_name || "N/A"} />
+              <div className="h-px bg-neutral-100 w-full" />
+              <DataRow label="Type of Plate:" value={data.taxi_type || "N/A"} />
+              <div className="h-px bg-neutral-100 w-full" />
+              <DataRow label="Driver Base:" value={data.driver_base || "N/A"} />
+            </div>
+          )}
+
+          {/* Message Content */}
+          <div className="w-[400px] text-center my-10">
+            <p className="text-neutral-700 text-sm font-normal leading-relaxed">
+              Hi,
+              <br />
+              <br />
+              Please contact the Client to arrange a hire vehicle.
+              <br />
+              <br />
+              Hire needs to start on{" "}
+              <span className="font-weight-600">{todayStr}</span>
+              <br />
+              <br />
+              We need to provide hire vehicle category{" "}
+              <span className="font-weight-600">
+                {data.vehicleCategory}
+              </span>
+              .
+            </p>
+          </div>
+
+          <div className="w-full max-w-[580px] h-px bg-neutral-200 mb-4" />
+
+          {/* Sign-off */}
+          <div className="text-center pb-8">
+            <p className="text-neutral-700 text-xs font-weight-600 mb-1">
+              Kind regards,
+            </p>
+            <p className="text-neutral-700 text-sm font-weight-600">
+              Nationwide Assist IT / Systems Team
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="px-8 py-5 bg-white border-t border-neutral-100 flex justify-end gap-4 sticky bottom-0">
+          <button
+            onClick={onClose}
+            className="px-10 py-4 bg-white rounded outline outline-1 outline-primary text-blue-600 text-base font-medium hover:bg-gray-50 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={sendEmail}
+            className="px-10 py-4 bg-blue-500 rounded text-white text-base font-medium hover:bg-blue-600 transition"
+          >
+            Send Email
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Sub-component remains the same
+const DataRow = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex justify-start items-center gap-5">
+    <div className="w-32 text-[11px] text-neutral-700 tracking-wider font-light">
+      {label}
+    </div>
+    <div className="flex-1 text-neutral-700 text-xs font-weight-600 uppercase">
+      {value || "N/A"}
+    </div>
+  </div>
+);

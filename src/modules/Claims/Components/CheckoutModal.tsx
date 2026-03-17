@@ -312,7 +312,7 @@ const ModalRadioGroup = ({ label, value, onChange }: any) => (
 
 const PhotoUploadBox = ({ label }: { label: string }) => (
   <div className="w-full p-6 rounded-lg border border-slate-200 flex flex-col justify-center items-center gap-6 cursor-pointer hover:bg-slate-50">
-    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+    <div className="w-12 h-12 rounded-full flex items-center justify-center">
       <img src={Downloadd} alt="" />
     </div>
     <span className="text-black text-base font-weight-600">{label}</span>

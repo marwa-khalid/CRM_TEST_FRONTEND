@@ -125,197 +125,191 @@ export const VehicleOwnerForm = ({ formRef }: any) => {
     }
   };
   const handlHomeTelephoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, ""); // remove non-digits
+    // let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
-    if (value.length > 5) {
-      value = value.slice(0, 5) + " " + value.slice(5, 11);
-    }
+    // if (value.length > 4) {
+    //   value = value.slice(0, 4) + " " + value.slice(4);
+    // }
 
-    formik.setFieldValue("homeTelephone", value);
+    formik.setFieldValue("homeTelephone", e.target.value);
   };
+const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
+
     const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
-      if (value.length > 5) {
-        value = value.slice(0, 5) + " " + value.slice(5, 11);
+      if (value.length > 4) {
+        value = value.slice(0, 4) + " " + value.slice(4);
       }
 
       formik.setFieldValue("mobileTelephone", value);
     };
-  console.log(formik.values)
-  return (
-    <>
-      <V5CUploadModalOwner
-        isOpen={showUploadModal}
-        claimId={claimId}
-        formik={formik}
-        onClose={() => setShowUploadModal(false)}
-        onUploadSuccess={(jobId) => pollJobStatus(jobId)}
-      />
-      <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide">
-        {/* Container matching left-[534px] and top-[157px] from source */}
-        <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
-          Owner Details
-        </h1>
-        {/* Section 1: Personal Information Section */}
-        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-          <div className="flex justify-between items-center w-full">
-            <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
-              Vehicle Owner Details
-            </h2>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-md text-sm font-weight-400 hover:bg-blue-100 transition-colors"
-            >
-              <Upload className="w-4 h-4" />
-              Upload V5C File
-            </button>
-          </div>
-          <div className="h-px bg-gray-100 w-full" />
+return (
+  <>
+    <V5CUploadModalOwner
+      isOpen={showUploadModal}
+      claimId={claimId}
+      formik={formik}
+      onClose={() => setShowUploadModal(false)}
+      onUploadSuccess={(jobId) => pollJobStatus(jobId)}
+    />
+    <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+      {/* Container matching left-[534px] and top-[157px] from source */}
+      <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
+        Owner Details
+      </h1>
+      {/* Section 1: Personal Information Section */}
+      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
+        <div className="flex justify-between items-center w-full">
+          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+            Vehicle Owner Details
+          </h2>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-md text-sm font-weight-400 hover:bg-blue-100 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Upload V5C File
+          </button>
+        </div>
+        <div className="h-px bg-gray-100 w-full" />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* clientFirstName */}
-            <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
-                First Name
-              </label>
-              <input
-                value={formik.values.clientFirstName}
-                onChange={(e) =>
-                  formik.setFieldValue(
-                    "clientFirstName",
-                    e.target.value,
-                  )
-                }
-                type="text"
-                placeholder="Enter First Name"
-                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
-              />
-            </div>
-            {/* Model */}
-            <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
-                Last Name
-              </label>
-              <input
-                type="text"
-                placeholder="Enter Last Name"
-                value={formik.values.clientSurname}
-                onChange={(e) =>
-                  formik.setFieldValue("clientSurname", e.target.value)
-                }
-                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
-              />
-            </div>
-          </div>
-          <div className="row flex flex-col gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* clientFirstName */}
+          <div className="flex flex-col gap-2">
             <label className="text-neutral-900 text-sm font-weight-400">
-              Address{" "}
+              First Name
             </label>
-            <LeafletAutocompleteMap
-              showMap={false}
-              apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-              address={formik.values.address}
-              onPlaceSelected={(place) => {
-                if (place.name) {
-                  formik.setFieldValue("address", place.address);
-                  formik.setFieldValue("postcode", place?.postalCode);
-                }
-              }}
-              disabled={false}
+            <input
+              value={formik.values.clientFirstName}
+              onChange={(e) =>
+                formik.setFieldValue("clientFirstName", e.target.value)
+              }
+              type="text"
+              placeholder="Enter First Name"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Body Type */}
-            <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
-                Post Code{" "}
-              </label>
-              <input
-                type="text"
-                value={formik.values.postcode}
-                onChange={(e) =>
-                  formik.setFieldValue("postcode", e.target.value)
-                }
-                placeholder="Enter Post Code"
-                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
-              />
-            </div>
-            {/* Vehicle Registration */}
-            <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
-                Email
-              </label>
-              <input
-                type="text"
-                value={formik.values.email}
-                onChange={(e) =>
-                  formik.setFieldValue("email", e.target.value)
-                }
-                placeholder="Enter Email"
-                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
-              />
-            </div>
+          {/* Model */}
+          <div className="flex flex-col gap-2">
+            <label className="text-neutral-900 text-sm font-weight-400">
+              Last Name
+            </label>
+            <input
+              type="text"
+              placeholder="Enter Last Name"
+              value={formik.values.clientSurname}
+              onChange={(e) =>
+                formik.setFieldValue("clientSurname", e.target.value)
+              }
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+            />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Color */}
-            <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Home Telephone
-              </label>
-              <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-700 text-base font-light">+44</span>
-                <input
-                  name="homeTelephone"
-                  type="tel"
-                  onChange={handlHomeTelephoneChange}
-                  maxLength={12}
-                  value={formik.values.homeTelephone}
-                  className="w-full bg-transparent outline-none text-gray-900 font-light placeholder:text-gray-300"
-                />
-              </div>
-            </div>
-            {/* Fuel Type */}
-            <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
-                Mobile Number
-              </label>
-              <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-700 text-base font-light">+44</span>
-                <input
-                  name="mobileTelephone"
-                  type="tel"
-                  onChange={handleMobileChange}
-                  maxLength={12}
-                  value={formik.values.mobileTelephone}
-                  className="w-full bg-transparent outline-none text-gray-900 font-light placeholder:text-gray-300"
-                />
-              </div>
-            </div>
+        </div>
+        <div className="row flex flex-col gap-2">
+          <label className="text-neutral-900 text-sm font-weight-400">
+            Address{" "}
+          </label>
+          <LeafletAutocompleteMap
+            showMap={false}
+            apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
+            address={formik.values.address}
+            onPlaceSelected={(place) => {
+              if (place.name) {
+                formik.setFieldValue("address", place.address);
+                formik.setFieldValue("postcode", place?.postalCode);
+              }
+            }}
+            disabled={false}
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Body Type */}
+          <div className="flex flex-col gap-2">
+            <label className="text-neutral-900 text-sm font-weight-400">
+              Post Code{" "}
+            </label>
+            <input
+              type="text"
+              value={formik.values.postcode}
+              onChange={(e) => formik.setFieldValue("postcode", e.target.value)}
+              placeholder="Enter Post Code"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+            />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Engine Size */}
-            <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
-                Vehicle Payment Beneficiary
-              </label>
+          {/* Vehicle Registration */}
+          <div className="flex flex-col gap-2">
+            <label className="text-neutral-900 text-sm font-weight-400">
+              Email
+            </label>
+            <input
+              type="text"
+              value={formik.values.email}
+              onChange={(e) => formik.setFieldValue("email", e.target.value)}
+              placeholder="Enter Email"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Color */}
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-700 text-sm font-weight-400">
+              Home Telephone
+            </label>
+            <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+              <span className="text-gray-400 text-base font-light">+44</span>
               <input
-                value={formik.values.vehiclePaymentBeneficiary}
-                onChange={(e) =>
-                  formik.setFieldValue(
-                    "vehiclePaymentBeneficiary",
-                    e.target.value,
-                  )
-                }
-                type="text"
-                placeholder="Enter Beneficiary"
-                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between  focus-within:border-blue-500"
+                name="homeTelephone"
+                type="tel"
+                onChange={handlHomeTelephoneChange}
+                maxLength={11}
+                value={formik.values.homeTelephone}
+                className="w-full bg-transparent outline-none text-neutral-700 mb-0.5 font-light placeholder:text-gray-300"
               />
             </div>
           </div>
+          {/* Fuel Type */}
+          <div className="flex flex-col gap-2">
+            <label className="text-gray-700 text-sm font-weight-400">
+              Mobile Number
+            </label>
+            <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+              <span className="text-gray-400 text-base font-light">+44</span>
+              <input
+                name="mobileTelephone"
+                type="tel"
+                onChange={handleMobileChange}
+                maxLength={11}
+                value={formik.values.mobileTelephone}
+                className="w-full bg-transparent outline-none text-neutral-700 mb-0.5 font-light placeholder:text-gray-300"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Engine Size */}
+          <div className="flex flex-col gap-2">
+            <label className="text-neutral-900 text-sm font-weight-400">
+              Vehicle Payment Beneficiary
+            </label>
+            <input
+              value={formik.values.vehiclePaymentBeneficiary}
+              onChange={(e) =>
+                formik.setFieldValue(
+                  "vehiclePaymentBeneficiary",
+                  e.target.value,
+                )
+              }
+              type="text"
+              placeholder="Enter Beneficiary"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+            />
+          </div>
+        </div>
 
-          {/* Conditional Borough Section */}
-          {/* {claimType !== "RTA - NA" && (
+        {/* Conditional Borough Section */}
+        {/* {claimType !== "RTA - NA" && (
           <div className="mt-4 p-4 bg-blue-50/50 rounded-lg border border-blue-100 flex flex-col gap-2 animate-in fade-in duration-300">
             <label className="text-neutral-900 text-sm font-weight-400">
               Borough
@@ -328,8 +322,8 @@ export const VehicleOwnerForm = ({ formRef }: any) => {
             />
           </div>
         )} */}
-        </div>
       </div>
-    </>
-  );
+    </div>
+  </>
+);
 };;

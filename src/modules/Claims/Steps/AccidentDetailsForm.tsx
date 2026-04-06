@@ -120,6 +120,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
           const response = await createAccidentDetail(payloadToSend);
           localStorage.setItem("accidentId", response.id);
         }
+        localStorage.setItem("location", values.location);
         toast.success("Accident details saved successfully");
       } catch (error) {
         toast.error("Error saving accident details");
@@ -338,7 +339,43 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
     });
     setIsWitnessModalOpen(true);
   };
+    const datePickerRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+          if (
+            datePickerRef.current &&
+            !datePickerRef.current.contains(event.target as Node)
+          )
+            setShowPayDatePicker(false);
+         
+        };
+        // document.addEventListener("mousedown", handleClickOutside);
+          if (datePickerRef) {
+            document.addEventListener("mousedown", handleClickOutside);
+          }
+        return () =>
+          document.removeEventListener("mousedown", handleClickOutside);
+      }, []);
+const generateTimeOptions = () => {
+  const times: { label: string; value: string }[] = [];
 
+  for (let hour = 0; hour < 24; hour++) {
+    for (let min = 0; min < 60; min += 15) {
+      const h = hour.toString().padStart(2, "0");
+      const m = min.toString().padStart(2, "0");
+      const time = `${h}:${m}`;
+
+      times.push({
+        label: time,
+        value: time,
+      });
+    }
+  }
+
+  return times;
+};
+
+const timeOptions = generateTimeOptions();
   const formatWitnessDate = (isoString: string) => {
     const date = new Date(isoString);
 
@@ -408,7 +445,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
         <div className="flex flex-col gap-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Date Input */}
-            <div className="flex flex-col gap-2 relative">
+            <div className="flex flex-col gap-2 relative" ref={datePickerRef}>
               <label className="text-gray-700 text-sm font-weight-400">
                 Date
               </label>
@@ -417,11 +454,11 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                 className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between cursor-pointer focus-within:border-blue-500"
               >
                 <span
-                  className={
+                  className={`font-light font-['Stack_Sans_Headline'] ${
                     formik.values.date
-                      ? "text-gray-900 font-['system-ui']"
-                      : "text-gray-300 font-['system-ui']"
-                  }
+                      ? "text-neutral-700"
+                      : "text-neutral-300"
+                  }`}
                 >
                   {formik.values.date
                     ? formik.values.date.toLocaleDateString("sv-SE") // YYYY-MM-DD format
@@ -454,16 +491,30 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
               <label className="text-gray-700 text-sm font-weight-400">
                 Time
               </label>
-              <div className="relative">
+              <Select
+                options={timeOptions}
+                value={timeOptions.find(
+                  (option) => option.value === formik.values.time,
+                )}
+                onChange={(e) => formik.setFieldValue("time", e.value)}
+                placeholder="Select Time"
+                styles={customStyles} // Using your predefined styles
+                components={{
+                  DropdownIndicator: BlueDropdownIndicator, // Using your custom blue arrow
+                  IndicatorSeparator: () => null, // Removes the vertical line for a cleaner look
+                }}
+                isSearchable={true}
+                classNamePrefix="react-select"
+              />
+              {/* <div className="relative">
                 <input
                   type="text"
                   value={formik.values.time}
                   onChange={(e) => formik.setFieldValue("time", e.target.value)}
                   placeholder="Enter Time"
-                  className="h-[52px] w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-['system-ui'] focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300"
+                  className="h-[52px] w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-weight-300 font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300"
                 />
-                {/* <Clock className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" /> */}
-              </div>
+              </div> */}
             </div>
 
             {/* Weather Dropdown */}
@@ -501,7 +552,6 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
               onPlaceSelected={(place) => {
                 if (place.name) {
                   formik.setFieldValue("location", place.address);
-                  // formik.setFieldValue("postcode", place?.postalCode);
                 }
               }}
               disabled={false}
@@ -518,7 +568,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
               }
               value={formik.values.versionOfEvents}
               placeholder="Enter Events"
-              className="w-full h-32 px-5 py-4 bg-white rounded border border-gray-200 text-base font-['system-ui'] focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300 resize-none"
+              className="w-full h-32 px-5 py-4 bg-white rounded border border-gray-200 text-base font-weight-300 font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300 resize-none"
             />
           </div>
 
@@ -535,8 +585,8 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                 <span
                   className={
                     formik.values.servicesDate
-                      ? "text-gray-900 font-['system-ui']"
-                      : "text-gray-300 font-['system-ui']"
+                      ? "text-neutral-700 font-weight-300 font-light"
+                      : "text-neutral-300 font-weight-300 font-light"
                   }
                 >
                   {formik.values.servicesDate
@@ -563,7 +613,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
               <label className="text-gray-700 text-sm font-weight-400">
                 Services Time
               </label>
-              <div className="relative">
+              {/* <div className="relative">
                 <input
                   type="text"
                   placeholder="Enter Time"
@@ -571,10 +621,24 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                   onChange={(e) =>
                     formik.setFieldValue("servicesTime", e.target.value)
                   }
-                  className="h-[53px] w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-['system-ui'] focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300"
+                  className="h-[53px] w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-weight-300 font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300"
                 />
-                {/* <Clock className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" /> */}
-              </div>
+                </div> */}
+              <Select
+                options={timeOptions}
+                value={timeOptions.find(
+                  (option) => option.value === formik.values.servicesTime,
+                )}
+                onChange={(e) => formik.setFieldValue("servicesTime", e.value)}
+                placeholder="Select Time"
+                styles={customStyles} // Using your predefined styles
+                components={{
+                  DropdownIndicator: BlueDropdownIndicator, // Using your custom blue arrow
+                  IndicatorSeparator: () => null, // Removes the vertical line for a cleaner look
+                }}
+                isSearchable={true}
+                classNamePrefix="react-select"
+              />
             </div>
           </div>
         </div>
@@ -640,7 +704,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                 >
                   <Minus className="w-4 h-4" />
                 </button>
-                <span className="text-black text-base font-['system-ui']">
+                <span className="text-black text-base font-weight-300 font-light">
                   {formik.values.numPassengers}
                 </span>
                 <button
@@ -660,7 +724,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
         </div>
 
         {/* Passenger Details Info Box */}
-        {/* <div className="bg-gray-50 p-4 rounded-lg flex flex-col gap-3">
+        {/* <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <span className="text-gray-700 text-base font-weight-600">
               Passenger Details
@@ -677,7 +741,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
             Add passengers details by clicking on “Add Passenger Details”.
           </p>
         </div> */}
-        <div className="bg-gray-50 p-4 rounded-lg flex flex-col gap-3">
+        <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
           {/* Header */}
           <div className="flex justify-between items-center">
             <span className="text-gray-700 text-base font-weight-600">
@@ -782,7 +846,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
         </div>
 
         {/* Witnesses Details Box */}
-        <div className="bg-gray-50 p-4 rounded-lg flex flex-col gap-3">
+        <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <span className="text-gray-700 text-base font-weight-600">
               Witnesses Details
@@ -889,7 +953,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
         </div>
 
         {/* Police Details Box */}
-        <div className="bg-gray-50 p-4 rounded-lg flex flex-col gap-3">
+        <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <span className="text-gray-700 text-base font-weight-600">
               Police Details
@@ -907,7 +971,6 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
               policeList.map((record: any) => (
                 <div
                   key={record.id}
-                  data-layer="Frame 1171277554"
                   className="self-stretch px-4 py-3 bg-white border border-gray-100 rounded-lg inline-flex justify-between items-start transition-shadow hover:shadow-sm"
                 >
                   {/* Left Section: Details */}
@@ -975,7 +1038,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                 </div>
               ))
             ) : (
-              <p className="text-gray-600 text-sm p-4 border border-dashed border-gray-200 rounded-lg text-center">
+              <p className="text-gray-600 text-sm">
                 Add Police details by clicking on “Add Police Details”.
               </p>
             )}
@@ -1011,8 +1074,6 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
                 ) : (
                   <img src={No} />
                 )}
-
-               
               </div>
               <span className="text-black text-sm">{option}</span>
             </label>

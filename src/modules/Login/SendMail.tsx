@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Mail, Send, Loader2 } from "lucide-react"; // Optional: npm install lucide-react
 import {API_BASE_URL} from '../../services/axiosConfig.ts'
+import { useNavigate } from "react-router-dom";
 const InviteUser = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,6 +34,7 @@ const InviteUser = () => {
   //     setLoading(false);
   //   }
   // };
+  const navigate = useNavigate()
 const handleInvite = async () => {
   if (!email) return;
 
@@ -78,11 +80,14 @@ const handleInvite = async () => {
     }
 
     setStatus("success");
-    localStorage.clear()
+    // localStorage.clear()
     setEmail(""); // optional clear input
   } catch (err) {
     console.error(err);
+    
     setStatus(err.message);
+    if (err.message === "User already exists.")
+      navigate("/login")
   } finally {
     setLoading(false);
   }

@@ -2,7 +2,7 @@ import Vehicle from "../../../assets/AutoClaim_icon/Vehicle.svg";
 import DVLA from "../../../assets/AutoClaim_icon/DVLA.svg"
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
-import MID from "../../../assets/AutoClaim_icon/MID.svg";
+import ProcessMID from "../../../assets/AutoClaim_icon/ProcessMID.svg";
 import { useEffect, useState } from "react";
 import Select from "react-select";
 import { Calendar, Edit2, Minus, Plus,Trash2, Upload, X } from "lucide-react";
@@ -44,6 +44,11 @@ export const VehicleDetailsForm = ({ formRef }: any) => {
       formik.setFieldValue("thirdPartyVehicles",formik.values.thirdPartyVehicles.filter((v) => v.id !== id));
     }
   };
+  const handleEdit = (vehicle: any) => {
+    setCurrentVehicle(vehicle);
+    setEditingId(vehicle.id);
+    setIsModalOpen(true);
+  };
   const [currentVehicle, setCurrentVehicle] = useState({
     make: "",
     model: "",
@@ -58,17 +63,32 @@ export const VehicleDetailsForm = ({ formRef }: any) => {
   
   const isVehicleValid =
     currentVehicle.make && currentVehicle.model && currentVehicle.registration;
-const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const handleSave = (addNext = false) => {
     if (!isVehicleValid) {
       alert("Please fill in mandatory fields: Make, Model, and Registration.");
       return;
     }
 
-    formik.setFieldValue("thirdPartyVehicles",([
-      ...formik.values.thirdPartyVehicles,
-      { ...currentVehicle, id: Date.now() },
-    ]));
+    let updatedVehicles;
+
+    if (editingId) {
+      // ✅ UPDATE existing
+      updatedVehicles = formik.values.thirdPartyVehicles.map((v: any) =>
+        v.id === editingId ? { ...currentVehicle, id: editingId } : v,
+      );
+    } else {
+      // ✅ ADD new
+      updatedVehicles = [
+        ...formik.values.thirdPartyVehicles,
+        { ...currentVehicle, id: Date.now() },
+      ];
+    }
+
+    formik.setFieldValue("thirdPartyVehicles", updatedVehicles);
+
+    // Reset
+    setEditingId(null);
 
     if (addNext) {
       setCurrentVehicle({
@@ -89,6 +109,39 @@ const [isModalOpen, setIsModalOpen] = useState(false);
       });
     }
   };
+const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
+
+//   const handleSave = (addNext = false) => {
+//     if (!isVehicleValid) {
+//       alert("Please fill in mandatory fields: Make, Model, and Registration.");
+//       return;
+//     }
+// console.log(currentVehicle);
+//     formik.setFieldValue("thirdPartyVehicles",([
+//       ...formik.values.thirdPartyVehicles,
+//       { ...currentVehicle, id: Date.now() },
+//     ]));
+
+//     if (addNext) {
+//       setCurrentVehicle({
+//         make: "",
+//         model: "",
+//         registration: "",
+//         color: "",
+//         imagesAvailable: "Yes",
+//       });
+//     } else {
+//       setIsModalOpen(false);
+//       setCurrentVehicle({
+//         make: "",
+//         model: "",
+//         registration: "",
+//         color: "",
+//         imagesAvailable: "Yes",
+//       });
+//     }
+//   };
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const vehicleId = localStorage.getItem("vehicleId");
 
@@ -150,7 +203,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
             model: v.model,
             registration: v.registration,
             color: v.color,
-            images_available: v.imagesAvailable,
+            images_available: v.imagesAvailable==="Yes"?true:false,
           })),
         };
         const payloadToSend = cleanPayload(payload);
@@ -203,7 +256,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               model: v.model || "",
               registration: v.registration || "",
               color: v.color || "",
-              imagesAvailable: v.images_available ?? true,
+              imagesAvailable: v.images_available ? "Yes":"No",
             })) || [],
         };
 
@@ -327,7 +380,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 }}
                 type="text"
                 placeholder="Enter Make"
-                className={`w-full px-5 py-4 bg-white rounded border  ${fieldError["vehicle.make"] ? "border-red-500" : "border-gray-200"} text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                className={`w-full h-[52px] px-5 bg-white rounded border ${fieldError["vehicle.make"] ? "border-red-500" : "border-gray-200"}  text-neutral-700 ${inputStyles}`}
               />
               {fieldError["vehicle.make"] ? (
                 <p className="text-red-500 text-xs">
@@ -357,7 +410,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                     formik.setFieldError("vehicle.model", undefined);
                   }
                 }}
-                className={`w-full px-5 py-4 bg-white rounded border  ${fieldError["vehicle.model"] ? "border-red-500" : "border-gray-200"} text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                className={`w-full h-[52px] px-5 bg-white rounded border ${fieldError["vehicle.model"] ? "border-red-500" : "border-gray-200"}  text-neutral-700 ${inputStyles}`}
               />
               {fieldError["vehicle.model"] ? (
                 <p className="text-red-500 text-xs">
@@ -393,7 +446,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   }
                 }}
                 placeholder="Enter Body Type"
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className={`w-full h-[52px] px-5 bg-white rounded border ${fieldError["vehicle.bodyType"] ? "border-red-500" : "border-gray-200"}  text-neutral-700 ${inputStyles}`}
               />
               {fieldError["vehicle.bodyType"] ? (
                 <p className="text-red-500 text-xs">
@@ -423,7 +476,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   }
                 }}
                 placeholder="Enter Registration"
-                className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className={`w-full h-[52px] px-5 bg-white rounded border ${fieldError["vehicle.registration"] ? "border-red-500" : "border-gray-200"}  text-neutral-700 ${inputStyles}`}
               />
               {fieldError["vehicle.registration"] ? (
                 <p className="text-red-500 text-xs">
@@ -453,7 +506,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                     formik.setFieldError("vehicle.color", undefined);
                   }
                 }}
-                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between cursor-pointer focus-within:border-blue-500"
+                className={`w-full h-[52px] px-5 bg-white rounded border ${fieldError["vehicle.color"] ? "border-red-500" : "border-gray-200"}  text-neutral-700 ${inputStyles}`}
               />
               {fieldError["vehicle.color"] ? (
                 <p className="text-red-500 text-xs">
@@ -521,7 +574,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 }}
                 type="number"
                 placeholder="Enter Size (cc)"
-                className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center justify-between cursor-pointer focus-within:border-blue-500"
+                className={`w-full h-[52px] px-5 bg-white rounded border ${fieldError["vehicle.engineSize"] ? "border-red-500" : "border-gray-200"}  text-neutral-700 ${inputStyles}`}
               />
               {fieldError["vehicle.engineSize"] ? (
                 <p className="text-red-500 text-xs">
@@ -822,14 +875,14 @@ const [isModalOpen, setIsModalOpen] = useState(false);
         )}
 
         {/* SECTION: Third Party Vehicles */}
-        <div className="self-stretch p-5 bg-gray-50 rounded-lg border border-gray-100 flex flex-col gap-4">
+        <div className="self-stretch p-5 bg-neutral-100 rounded-lg border border-gray-100 flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h2 className="text-black text-xl font-weight-600">
               Third Party Vehicles
             </h2>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="h-8 px-3 py-2 rounded flex items-center gap-2.5 text-blue-500 hover:bg-blue-50 border border-blue-100"
+              className="h-8 px-3 py-2 rounded flex items-center gap-2.5 text-blue-500 hover:bg-blue-100"
             >
               <Plus className="w-4 h-4" /> Add Vehicle
             </button>
@@ -860,7 +913,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                         {/* Registration */}
                         <div className="flex justify-center items-center gap-2.5 text-xs text-gray-700">
                           <span className="font-weight-600">Reg No:</span>
-                          <span className="font-['system-ui']">
+                          <span className="font-weight-300 font-light">
                             M{vehicle.registration}
                           </span>
                         </div>
@@ -868,7 +921,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                         {/* Color */}
                         <div className="flex justify-center items-center gap-2.5 text-xs text-neutral-900 pl-3">
                           <span className="font-weight-600">Color:</span>
-                          <span className="font-['system-ui']">
+                          <span className="font-weight-300 font-light">
                             {vehicle.color}
                           </span>
                         </div>
@@ -876,7 +929,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                         {/* Images Status */}
                         <div className="flex justify-center items-center gap-2.5 text-xs text-neutral-900 pl-3">
                           <span className="font-weight-600">Images:</span>
-                          <span className="font-['system-ui']">
+                          <span className="font-weight-300 font-light">
                             {vehicle.imagesAvailable === "Yes"
                               ? "Available"
                               : "Not Available"}
@@ -893,8 +946,9 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   >
                     <button
                       onClick={() => {
-                        setCurrentVehicle(vehicle);
-                        setIsModalOpen(true);
+                        // setCurrentVehicle(vehicle);
+                        // setIsModalOpen(true);
+                        handleEdit(vehicle);
                       }}
                       className="text-neutral-900 hover:text-blue-500 transition-colors"
                     >
@@ -941,7 +995,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   </label>
                   <input
                     type="text"
-                    className="px-5 py-4 border border-gray-200 rounded outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
                     placeholder="Enter Make"
                     value={currentVehicle.make}
                     onChange={(e) =>
@@ -958,7 +1012,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   </label>
                   <input
                     type="text"
-                    className="px-5 py-4 border border-gray-200 rounded outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
                     placeholder="Enter Model"
                     value={currentVehicle.model}
                     onChange={(e) =>
@@ -975,7 +1029,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   </label>
                   <input
                     type="text"
-                    className="px-5 py-4 border border-gray-200 rounded outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
                     placeholder="Enter Registration"
                     value={currentVehicle.registration}
                     onChange={(e) =>
@@ -992,7 +1046,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   </label>
                   <input
                     type="text"
-                    className="px-5 py-4 border border-gray-200 rounded outline-none focus:ring-2 focus:ring-blue-500/20"
+                    className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
                     placeholder="Enter Color"
                     value={currentVehicle.color}
                     onChange={(e) =>
@@ -1107,7 +1161,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               target="_blank"
               className="p-4 rounded-lg border border-blue-300 flex flex-col items-center gap-2 hover:bg-blue-50 transition-colors group"
             >
-              <img src={MID} alt="" />
+              <img src={ProcessMID} alt="" />
               <span className="text-blue-500 text-sm font-weight-300">
                 Process MID
               </span>

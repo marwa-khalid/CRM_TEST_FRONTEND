@@ -33,7 +33,7 @@ export const ClientInsurerBrokerForm = ({ formRef }: any) => {
          
          const response = await getCompanySuggestions(searchTerm); // Replace with your API endpoint
          
-console.log(response)
+
          // Normalize empty strings to null
         //  const normalized = response.data.map((r) => ({
         //    company_name: r.company_name,
@@ -179,8 +179,8 @@ console.log(response)
 const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
-  if (value.length > 5) {
-    value = value.slice(0, 5) + " " + value.slice(5, 11);
+  if (value.length > 4) {
+    value = value.slice(0, 4) + " " + value.slice(4);
   }
 
   formik.setFieldValue("telephoneMain", value);
@@ -188,6 +188,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   useEffect(() => {
     if (formRef) formRef.current = formik;
   }, [formik]);
+const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
 
   return (
     <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col gap-6 p-8 overflow-y-auto scrollbar-hide  font-['Stack_Sans_Headline']">
@@ -207,7 +208,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             Company Name
           </label>
           <input
-            className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 font-weight-300 font-light"
+            className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
             value={searchTerm || formik.values.companyName}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -235,6 +236,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
           </label>
           <LeafletAutocompleteMap
             disabled={false}
+            showMap={false}
             apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
             address={formik.values.address}
             onPlaceSelected={(place) => {
@@ -254,7 +256,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               value={formik.values.postcode}
               onChange={(e) => formik.setFieldValue("postcode", e.target.value)}
               placeholder="Enter Postcode"
-              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-weight-300 font-light"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
             />
           </div>
 
@@ -268,7 +270,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               value={formik.values.email}
               onChange={(e) => formik.setFieldValue("email", e.target.value)}
               placeholder="Enter Email"
-              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-weight-300 font-light focus-within:border-blue-500 transition-all"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
             />
           </div>
         </div>
@@ -278,16 +280,16 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               Telephone{" "}
             </label>
             <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-              <span className="text-gray-700 text-base font-weight-300 font-light">
+              <span className="text-neutral-400 text-base font-weight-300 font-light">
                 +44
               </span>
               <input
                 name="contact_number"
                 type="tel"
                 onChange={handleMobileChange}
-                maxLength={12}
+                maxLength={11}
                 value={formik.values.telephoneMain}
-                className="w-full bg-transparent outline-none text-gray-900 font-weight-300 font-light placeholder:text-gray-300"
+                className="w-full bg-transparent outline-none text-gray-900 mb-0.5 font-weight-300 font-light placeholder:text-gray-300"
               />
             </div>
           </div>
@@ -298,7 +300,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               Reference
             </label>
             <input
-              className="h-[52px] px-5 rounded border border-gray-200 font-weight-300 font-light "
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
               name="reference"
               onChange={formik.handleChange}
               value={formik.values.reference}
@@ -309,7 +311,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               Policy Number
             </label>
             <input
-              className="h-[52px] px-5 rounded border border-gray-200 font-weight-300 font-light "
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
               name="policy_number"
               onChange={formik.handleChange}
               value={formik.values.policy_number}
@@ -337,7 +339,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               Policy Holder
             </label>
             <input
-              className="h-[52px] px-5 rounded border border-gray-200 font-weight-300 font-light"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
               name="policy_holder"
               value={formik.values.policy_holder}
               onChange={(e) => {
@@ -389,7 +391,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               value={[
                 { value: 1, label: "Comprehensive" },
                 { value: 2, label: "Third Party" },
-              ].find((opt)=>opt.value===formik.values.policy_cover_level)}
+              ].find((opt) => opt.value === formik.values.policy_cover_level)}
               components={{
                 DropdownIndicator: BlueDropdownIndicator,
                 IndicatorSeparator: () => null,
@@ -410,7 +412,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 name="no_of_additional_driver"
                 value={formik.values.no_of_additional_driver}
                 onChange={formik.handleChange}
-                className="h-10 px-3 rounded border border-gray-200"
+                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -422,7 +424,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 value={formik.values.no_of_vehicles_policy}
                 name="no_of_vehicles_policy"
                 onChange={formik.handleChange}
-                className="h-10 px-3 rounded border border-gray-200"
+                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -432,7 +434,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 name="no_of_vehicles_use"
                 value={formik.values.no_of_vehicles_use}
                 onChange={formik.handleChange}
-                className="h-10 px-3 rounded border border-gray-200"
+                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
               />
             </div>
           </div>
@@ -448,7 +450,7 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               name="policy_cover_excess"
               onChange={formik.handleChange}
               value={formik.values.policy_cover_excess}
-              className="h-[52px] px-5 rounded border border-gray-200 font-weight-300 font-light"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
             />
           </div>
 

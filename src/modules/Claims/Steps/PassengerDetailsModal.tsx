@@ -72,11 +72,11 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
     let formatted = "";
 
     if (digits.length > 0) {
-      // Take first 5 digits
-      formatted += digits.substring(0, 5);
-      if (digits.length > 5) {
+      // Take first 4 digits
+      formatted += digits.substring(0, 4);
+      if (digits.length > 4) {
         // Add space and next 6 digits
-        formatted += " " + digits.substring(5, 11);
+        formatted += " " + digits.substring(4, 11);
       }
     }
     return formatted;
@@ -96,6 +96,7 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
   ];
 
   // if (!isOpen) return null;
+const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[60] p-4 font-['Stack_Sans_Headline']">
@@ -116,9 +117,11 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
 
         <div className="flex flex-col gap-4">
           {/* Title Dropdown */}
-          <div className="grid grid-cols-2 ">
+          <div className="grid grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">Title</label>
+              <label className="text-gray-700 text-sm font-weight-500">
+                Title
+              </label>
               <Select
                 options={titleOptions}
                 value={titleOptions.find(
@@ -144,7 +147,7 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
               <input
                 type="text"
                 placeholder="Enter First Name"
-                className="px-5 py-4 border border-gray-200 rounded text-base font-['system-ui'] focus:ring-2 focus:ring-blue-500/20 outline-none"
+                className={`w-full h-[52px] px-5 bg-white rounded text-neutral-700 border border-gray-200 ${inputStyles}`}
                 value={passenger.firstName}
                 onChange={(e) =>
                   setPassenger({ ...passenger, firstName: e.target.value })
@@ -158,7 +161,7 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
               <input
                 type="text"
                 placeholder="Enter Last Name"
-                className="px-5 py-4 border border-gray-200 rounded text-base font-['system-ui'] focus:ring-2 focus:ring-blue-500/20 outline-none"
+                className={`w-full h-[52px] px-5 bg-white rounded text-neutral-700 border border-gray-200 ${inputStyles}`}
                 value={passenger.surname}
                 onChange={(e) =>
                   setPassenger({ ...passenger, surname: e.target.value })
@@ -169,10 +172,12 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
 
           {/* Address Textarea */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400">Address</label>
+            <label className="text-gray-700 text-sm font-weight-400">
+              Address
+            </label>
             {/* <textarea
               placeholder="Passenger's Address"
-              className="h-24 px-5 py-4 border border-gray-200 rounded text-base font-['system-ui'] focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
+              className="h-24 px-5 py-4 border border-gray-200 rounded text-base font-light focus:ring-2 focus:ring-blue-500/20 outline-none resize-none"
               value={passenger.address}
               onChange={(e) =>
                 setPassenger({ ...passenger, address: e.target.value })
@@ -184,7 +189,11 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
               address={passenger.address}
               onPlaceSelected={(place) => {
                 if (place.name) {
-                  setPassenger({ ...passenger, address: place.address, postCode: place.postalCode });
+                  setPassenger({
+                    ...passenger,
+                    address: place.address,
+                    postCode: place.postalCode,
+                  });
 
                   // formik.setFieldValue("postcode", place?.postalCode);
                 }
@@ -202,7 +211,7 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
               <input
                 type="text"
                 placeholder="Enter Post Code"
-                className="px-5 py-4 border border-gray-200 rounded text-base font-['system-ui'] focus:ring-2 focus:ring-blue-500/20 outline-none"
+                className={`w-full h-[52px] px-5 bg-white rounded text-neutral-700 border border-gray-200 ${inputStyles}`}
                 value={passenger.postCode}
                 onChange={(e) =>
                   setPassenger({ ...passenger, postCode: e.target.value })
@@ -216,7 +225,7 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
               <input
                 type="email"
                 placeholder="Enter Email"
-                className="px-5 py-4 border border-gray-200 rounded text-base font-['system-ui'] focus:ring-2 focus:ring-blue-500/20 outline-none"
+                className={`w-full h-[52px] px-5 bg-white rounded text-neutral-700 border border-gray-200 ${inputStyles}`}
                 value={passenger.email}
                 onChange={(e) =>
                   setPassenger({ ...passenger, email: e.target.value })
@@ -226,22 +235,21 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
           </div>
 
           {/* Telephone */}
-          <div className="w-96 flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400">
-              Telephone
-            </label>
-            <div className="relative flex items-center">
-              {/* Visual Prefix */}
-              <span className="absolute left-5 text-gray-400 font-['system-ui'] pr-3">
-                +44
-              </span>
-              <input
-                type="tel"
-                className="w-full pl-16 pr-5 py-4 border border-gray-200 rounded text-base font-['system-ui'] focus:ring-2 focus:ring-blue-500/20 outline-none"
-                value={passenger.telephone}
-                onChange={handlePhoneChange}
-                maxLength={12} // 5 digits + 1 space + 6 digits
-              />
+          <div className="grid grid-cols-2 gap-5">
+            <div className="flex flex-col gap-2">
+              <label className="text-gray-700 text-sm font-weight-400">
+                Telephone
+              </label>
+              <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                <span className="text-gray-400 text-base">+44</span>
+                <input
+                  type="tel"
+                  className="w-full bg-transparent outline-none text-neutral-900 mb-0.5 font-light placeholder:text-gray-300"
+                  value={passenger.telephone}
+                  onChange={handlePhoneChange}
+                  maxLength={11} // 4 digits + 1 space + 6 digits
+                />
+              </div>
             </div>
           </div>
         </div>

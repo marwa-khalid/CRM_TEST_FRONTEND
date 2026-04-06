@@ -49,14 +49,14 @@ export const customStyles: StylesConfig<any, false> = {
     height: "52px",
     borderRadius: "4px",
     borderWidth: state.isFocused ? "2px" : "1px",
-    borderColor: state.isFocused ? "#d9ebff" : "#e5e7eb",
+    borderColor: state.isFocused ? "#0352FD" : "#e5e7eb",
     boxShadow: "none",
     paddingLeft: "8px",
     backgroundColor: "white",
     fontSize: "14px",
     fontWeight: 400,
     fontStyle: "light",
-    fontFamily: "system-ui",
+    fontFamily: "Stack_Sans_Headline"
   }),
 
   input: (provided) => ({
@@ -68,7 +68,7 @@ export const customStyles: StylesConfig<any, false> = {
 
   placeholder: (provided) => ({
     ...provided,
-    color: "#D0D5DD",
+    color: "#a6aab1",
     fontWeight: 300,
     fontSize: "16px",
     opacity: 1,
@@ -270,7 +270,7 @@ console.log(formik.values)
     }
   };
   return (
-    <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+    <div className="MainContent w-[788px] ms-[200px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
       <h1 className="text-black text-2xl font-weight-600">General Details</h1>
 
       <div className="w-full flex flex-col gap-6">

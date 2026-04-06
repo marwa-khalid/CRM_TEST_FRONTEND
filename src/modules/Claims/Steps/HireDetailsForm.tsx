@@ -75,6 +75,8 @@ export const HireDetailsForm = ({ formRef }: any) => {
   const [clientVehicleCategory, setClientVehicleCategory] = useState([]);
   const [vehicleStatus, setVehicleStatus] = useState([]);
   const [activeVehicleTab, setActiveVehicleTab] = useState(0);
+  const DRAFT_KEY = `hire_details_draft_${claimId}`; // Unique key per claim
+const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
 
   // Picker States
   const [showHireOutPicker, setShowHireOutPicker] = useState(false);
@@ -136,7 +138,9 @@ export const HireDetailsForm = ({ formRef }: any) => {
     damageNotes: "",
     valetCharge: 30, // Default £30 as per user story [cite: 124, 131]
   });
-
+ const [checkoutData, setCheckoutData] = useState<{ forms: any[] }>({
+   forms: [],
+ });
   // Unified Formik
   const formik = useFormik({
     initialValues: {
@@ -168,6 +172,13 @@ export const HireDetailsForm = ({ formRef }: any) => {
           provider_name: "", // File Ref
           fuel_type: "",
           plate_transfer: false,
+          
+  actionsCompleted: {
+    onHire: false,
+    offHire: false,
+    switchStarted: false,
+    switchCompleted: false,
+  }
         },
       ],
     },
@@ -198,18 +209,19 @@ export const HireDetailsForm = ({ formRef }: any) => {
           })),
         };
 
-        await Promise.all([
-          claimId && hireId
-            ? updateHireDetails(chargesPayload, claimId)
-            : createHireDetails(chargesPayload),
-          claimId && hireProvidedId
-            ? updateHireProvided(claimId, provisionPayload, false)
-            : createHireProvided(claimId, provisionPayload, false),
-        ]);
+        // await Promise.all([
+        //   claimId && hireId
+        //     ? updateHireDetails(chargesPayload, claimId)
+        //     : createHireDetails(chargesPayload),
+        //   claimId && hireProvidedId
+        //     ? updateHireProvided(claimId, provisionPayload, false)
+        //     : createHireProvided(claimId, provisionPayload, false),
+        // ]);
 
         toast.success("All hire details saved successfully");
       } catch (error) {
         toast.error("Error saving hire information");
+        throw error;
       }
     },
   });
@@ -246,47 +258,70 @@ export const HireDetailsForm = ({ formRef }: any) => {
   useEffect(() => {
     if (!claimId) return;
     const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const provRes = await getHireProvided(claimId);
-        const detRes = await getHireDetails(claimId);
-        // getHireVehicleStatus(),
-        // getClientVehicleCategory(),
-        // getActualVehicleCategory(),
-        // getAdminFeeType()
-        // setVehicleStatus(statusRes.data.map((i: any) => ({ value: i.id, label: i.label })));
-        // setClientVehicleCategory(clientRes.data.map((i: any) => ({ value: i.id, label: i.label })));
-        // setActualVehicleCategory(actualRes.data.map((i: any) => ({ value: i.id, label: i.label, abi_rate: i.abi_rate, bhr_rate: i.bhr_rate })));
-        // setAdminFeeType(adminRes.data.map((i: any) => ({ value: i.id, label: i.label })));
+      const savedDraft = localStorage.getItem(DRAFT_KEY);
 
-        const hireProvided = Array.isArray(provRes?.data) ? provRes.data : [];
-        const hireDetails = Array.isArray(detRes?.data?.hire_details)
-          ? detRes.data.hire_details
-          : [];
-
-        const merged = hireProvided.map((prov: any, idx: number) => {
-          const det = hireDetails[idx] || {};
-          return {
-            ...prov,
-            ...det,
-            cross_hired: !!prov.cross_hire,
-            hireOutDate:
-              prov.hire_start_date ||
-              det.hire_out ||
-              today(getLocalTimeZone()).toString(),
-            hireBackDate: prov.hire_end_date || det.hire_back || null,
-          };
-        });
-
-        if (merged.length > 0) formik.setValues({ thirdPartyVehicles: merged });
-      } finally {
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        formik.setValues(parsed.formikValues);
+        console.log(parsed.formikValues);
+        setShowSwapBanner(true)
+        setCheckoutData(parsed.checkoutFormData);
+        // If we have a draft, we can skip the API call or merge them.
+        // Usually, draft takes priority for "it just works" feel.
         setIsLoading(false);
+        return;
       }
+      
+      // setIsLoading(true);
+      // try {
+      //   const provRes = await getHireProvided(claimId);
+      //   const detRes = await getHireDetails(claimId);
+      //   // getHireVehicleStatus(),
+      //   // getClientVehicleCategory(),
+      //   // getActualVehicleCategory(),
+      //   // getAdminFeeType()
+      //   // setVehicleStatus(statusRes.data.map((i: any) => ({ value: i.id, label: i.label })));
+      //   // setClientVehicleCategory(clientRes.data.map((i: any) => ({ value: i.id, label: i.label })));
+      //   // setActualVehicleCategory(actualRes.data.map((i: any) => ({ value: i.id, label: i.label, abi_rate: i.abi_rate, bhr_rate: i.bhr_rate })));
+      //   // setAdminFeeType(adminRes.data.map((i: any) => ({ value: i.id, label: i.label })));
+
+      //   const hireProvided = Array.isArray(provRes?.data) ? provRes.data : [];
+      //   const hireDetails = Array.isArray(detRes?.data?.hire_details)
+      //     ? detRes.data.hire_details
+      //     : [];
+
+      //   const merged = hireProvided.map((prov: any, idx: number) => {
+      //     const det = hireDetails[idx] || {};
+      //     return {
+      //       ...prov,
+      //       ...det,
+      //       cross_hired: !!prov.cross_hire,
+      //       hireOutDate:
+      //         prov.hire_start_date ||
+      //         det.hire_out ||
+      //         today(getLocalTimeZone()).toString(),
+      //       hireBackDate: prov.hire_end_date || det.hire_back || null,
+      //     };
+      //   });
+
+      //   if (merged.length > 0) formik.setValues({ thirdPartyVehicles: merged });
+      // } finally {
+      //   setIsLoading(false);
+      // }
     };
     loadData();
   }, [claimId]);
-
+  useEffect(() => {
+    if (claimId && formik.dirty) {
+      const draftData = {
+        formikValues: formik.values,
+        checkoutFormData: checkoutData,
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+    }
+  }, [formik.values, checkoutData, claimId]);
   // Live Calculations (So Far vs Final Days)
+  console.log(checkoutData)
   useEffect(() => {
     const vehicle = formik.values.thirdPartyVehicles[activeVehicleTab];
     if (!vehicle || !vehicle.hireOutDate) return;
@@ -418,8 +453,8 @@ export const HireDetailsForm = ({ formRef }: any) => {
       toast.error("Failed to download document.");
     }
   };
-  const [emailData, setEmailData] = useState<any>()
-  const [onHireEmailData,setOnHireEmailData]= useState<any>()
+  const [emailData, setEmailData] = useState<any>();
+  const [onHireEmailData, setOnHireEmailData] = useState<any>();
 
   const currentVehicle = formik.values.thirdPartyVehicles[activeVehicleTab];
   // Action Handlers
@@ -432,23 +467,25 @@ export const HireDetailsForm = ({ formRef }: any) => {
   ) => {
     // const firstName = values.company_name || "Client";
     try {
-      console.log(option)
+      console.log(option);
       if (option === "Inst Fleet to On Hire") {
         const { data } = await sendEmails(claimId, "on_hire");
-         console.log(
-           actualVehicleCategory.find((opt) => opt.value === currentVehicle.actual_vehicle_category)?.label
-        )
+        console.log(
+          actualVehicleCategory.find(
+            (opt) => opt.value === currentVehicle.actual_vehicle_category,
+          )?.label,
+        );
         const templateData = {
-           ...data,
-           activeUserEmail: JSON.parse(localStorage.getItem("activeUser"))
-             .email,
-           mobile_tel: `+44 ${data.mobile_tel}`,
-           vehicleCategory:
-             actualVehicleCategory.find((opt)=>opt.value===currentVehicle.actual_vehicle_category)?.label
-         };
+          ...data,
+          activeUserEmail: JSON.parse(localStorage.getItem("activeUser")).email,
+          mobile_tel: `+44 ${data.mobile_tel}`,
+          vehicleCategory: actualVehicleCategory.find(
+            (opt) => opt.value === currentVehicle.actual_vehicle_category,
+          )?.label,
+        };
         setOnHireEmailData(templateData);
-        console.log("working")
-         setOnHirePreviewModalOpen(true);
+        console.log("working");
+        setOnHirePreviewModalOpen(true);
 
         // const subject = "New Instruction to Fleet to On Hire Vehicle (CIL)";
         // const body =
@@ -485,10 +522,10 @@ export const HireDetailsForm = ({ formRef }: any) => {
           ...data,
           registration: currentVehicle.hire_vehicle_registration,
           activeUserEmail: JSON.parse(localStorage.getItem("activeUser")).email,
-          mobile_tel:`+44 ${data.mobile_tel}`
+          mobile_tel: `+44 ${data.mobile_tel}`,
         };
-        setEmailData(templateData)
-        setPreviewModalOpen(true)
+        setEmailData(templateData);
+        setPreviewModalOpen(true);
 
         // const subject = "New Instruction to Fleet to Off Hire Vehicle (CIL)";
 
@@ -511,12 +548,13 @@ export const HireDetailsForm = ({ formRef }: any) => {
       }
     } catch {}
   };
-  const [previewModal, setPreviewModalOpen] = useState<boolean>(false)
-  const [onHirePreviewModal,setOnHirePreviewModalOpen]= useState<boolean>(false)
-    console.log(onHirePreviewModal);
-const testDeepLink = () => {
-  setPreviewModalOpen(true)
-};
+  const [previewModal, setPreviewModalOpen] = useState<boolean>(false);
+  const [onHirePreviewModal, setOnHirePreviewModalOpen] =
+    useState<boolean>(false);
+  console.log(onHirePreviewModal);
+  const testDeepLink = () => {
+    setPreviewModalOpen(true);
+  };
   const handleAction = (type: string) => {
     const todayStr = new Date().toISOString().split("T")[0];
     const currentVehicles = formik.values.thirdPartyVehicles;
@@ -529,14 +567,22 @@ const testDeepLink = () => {
       );
       formik.setFieldValue(
         `thirdPartyVehicles[${activeVehicleTab}].hire_vehicle_status_id`,
-        1,
-      ); // Value 1 for On Hire
+        1)
+
+  formik.setFieldValue(
+    `thirdPartyVehicles[${activeVehicleTab}].actionsCompleted.onHire`,
+    true
+  );
       setShowActionPopup(false);
     } else if (type === "switchOff") {
       // 3rd Option: Start Switch (Off-Hire Old)
       setShowCheckoutModal(true);
       setModalStep(1);
       setSwitchVehicle(true); // Flag to indicate we are in a swap process
+       formik.setFieldValue(
+         `thirdPartyVehicles[${activeVehicleTab}].actionsCompleted.switchStarted`,
+         true,
+       );
       // We don't close the ActionPopup yet so they can see the next step after modal
     } else if (type === "onHireNew") {
       // 4th Option: Create New Record
@@ -546,22 +592,31 @@ const testDeepLink = () => {
       }
 
       // Safety check: Don't allow a new hire if the current one isn't off-hired
-      if (
-        !activeVehicle.hireBackDate &&
-        currentVehicles.length === activeVehicleTab + 1
-      ) {
-        toast.error(
-          "Please off-hire the current vehicle before switching to a new one.",
-        );
-        return;
-      }
-
+      // if (
+      //   !activeVehicle.hireBackDate &&
+      //   currentVehicles.length === activeVehicleTab + 1
+      // ) {
+      //   toast.error(
+      //     "Please off-hire the current vehicle before switching to a new one.",
+      //   );
+      //   return;
+      // }
+  formik.setFieldValue(
+    `thirdPartyVehicles[${activeVehicleTab}].actionsCompleted.switchCompleted`,
+    true,
+  );
       const newRecord = {
         ...formik.initialValues.thirdPartyVehicles[0],
         hireOutDate: todayStr,
         hire_vehicle_status_id: 1, // New record starts as On Hire
         administration_fee: 0, // Subsequent records have 0 admin fee
         collection_and_delivery_fee: 0, // Subsequent records have 0 collection fee
+  actionsCompleted: {
+    onHire: true, // new one starts ON
+    offHire: false,
+    switchStarted: false,
+    switchCompleted: false,
+  },
       };
 
       formik.setFieldValue("thirdPartyVehicles", [
@@ -576,9 +631,13 @@ const testDeepLink = () => {
       setShowCheckoutModal(true);
       setModalStep(1);
       setSwitchVehicle(false);
+      formik.setFieldValue(
+        `thirdPartyVehicles[${activeVehicleTab}].actionsCompleted.offHire`,
+        true,
+      );
     }
   };
-    console.log(currentVehicle.actual_vehicle_category);
+  console.log(currentVehicle.actual_vehicle_category);
   // 2. Tab System for multiple records (Vehicle Swap Handling) [cite: 207, 210]
   const renderVehicleTabs = () => (
     <div className="flex gap-4 border-b border-slate-100 mb-4">
@@ -631,11 +690,29 @@ const testDeepLink = () => {
   };
   const [isLogOpen, setIsLogOpen] = useState(false);
 
-const mockLogs = [
-  { registration: 'AB23 CDE', make: 'Toyota', model: 'Camry', start: '02-14-2026', end: '02-18-2026' },
-  { registration: 'CD34 EFG', make: 'Honda', model: 'Accord', start: '03-05-2026', end: '03-10-2026' },
-  { registration: 'EF45 HIJ', make: 'Ford', model: 'Fusion', start: '04-20-2026', end: '04-25-2026' },
-];
+  const mockLogs = [
+    {
+      registration: "AB23 CDE",
+      make: "Toyota",
+      model: "Camry",
+      start: "02-14-2026",
+      end: "02-18-2026",
+    },
+    {
+      registration: "CD34 EFG",
+      make: "Honda",
+      model: "Accord",
+      start: "03-05-2026",
+      end: "03-10-2026",
+    },
+    {
+      registration: "EF45 HIJ",
+      make: "Ford",
+      model: "Fusion",
+      start: "04-20-2026",
+      end: "04-25-2026",
+    },
+  ];
 
   console.log(formik.values.thirdPartyVehicles.length);
   return (
@@ -653,7 +730,7 @@ const mockLogs = [
           <VehicleProvisionSlider
             isOpen={isLogOpen}
             onClose={() => setIsLogOpen(false)}
-            logs={mockLogs}
+            logs={[]}
           />
           {onHirePreviewModal && (
             <OnHireEmailPreviewModal
@@ -666,7 +743,7 @@ const mockLogs = [
           <div className="flex justify-between">
             <h1 className="text-black text-2xl font-weight-600">
               Hire Details
-              <button onClick={testDeepLink}>Test</button>
+              {/* <button onClick={testDeepLink}>Test</button> */}
             </h1>
             <button
               className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center gap-2.5 text-blue-600"
@@ -700,6 +777,7 @@ const mockLogs = [
                       ref={i === activeVehicleTab ? docsPopupRef : null}
                     >
                       <button
+                        className="flex gap-2"
                         onClick={() => {
                           setActiveVehicleTab(i);
                           toggleDocsPopup(i);
@@ -711,7 +789,7 @@ const mockLogs = [
                         <div className="absolute left-0 top-10 z-[70] w-64 p-4 bg-white shadow-xl border rounded-lg">
                           {/* Item 1: Inst Fleet to On Hire */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
                             onClick={() =>
                               handleDownload("Hire_Vehicle_Check_Sheet")
                             }
@@ -722,7 +800,7 @@ const mockLogs = [
 
                           {/* Item 2: Inst Fleet to Off Hire */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
                             onClick={() => handleDownload("Hire_Documentation")}
                           >
                             Hire Documentation
@@ -731,7 +809,7 @@ const mockLogs = [
 
                           {/* Item 3: Check Sheet (Usually an XLS or PDF) */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
                             onClick={() => handleDownload("Fee_Exemption_Form")}
                           >
                             Fee Exemption Form
@@ -740,7 +818,7 @@ const mockLogs = [
 
                           {/* Item 4: Mitigation Questionnaire */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
                             onClick={() =>
                               handleDownload("Mitigation_Questionnaire")
                             }
@@ -751,7 +829,7 @@ const mockLogs = [
 
                           {/* Item 5: Authority Letter */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
                             onClick={() => handleDownload("Recovery_Storage")}
                           >
                             Recovery & Storage
@@ -765,6 +843,7 @@ const mockLogs = [
                       ref={i === activeVehicleTab ? emailPopupRef : null}
                     >
                       <button
+                        className="flex gap-2"
                         onClick={() => {
                           setActiveVehicleTab(i);
                           toggleEmailPopup(i);
@@ -777,7 +856,7 @@ const mockLogs = [
                           {" "}
                           {/* Item 1: Inst Fleet to On Hire */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
                             onClick={() =>
                               handleQuestionnaireSend(
                                 true,
@@ -790,7 +869,7 @@ const mockLogs = [
                           <div className="self-stretch h-px bg-slate-100"></div>
                           {/* Item 2: Inst Fleet to Off Hire */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
                             onClick={() =>
                               handleQuestionnaireSend(
                                 true,
@@ -958,13 +1037,17 @@ const mockLogs = [
                 {showActionPopup && (
                   <div className="absolute right-0 top-8 z-50 p-6 bg-white rounded-lg shadow-xl inline-flex flex-col gap-3 min-w-[330px] border border-slate-100">
                     {/* Option 1: Always available to edit provider */}
-                    <div className="text-primary text-sm cursor-pointer hover:bg-slate-50 p-1">
+                    <div className="text-blue-500 text-sm cursor-pointer hover:bg-slate-50 p-1">
                       Enter Cross-Hire Provider Details
                     </div>
                     <div className="h-px bg-slate-100 w-full" />
                     {/* Option 2: Disable if already has a start date */}
                     <div
-                      className={`text-sm p-1 ${currentVehicle.hire_vehicle_status_id === 1 ? "text-slate-300 pointer-events-none" : "text-primary cursor-pointer hover:bg-slate-50"}`}
+                      className={`text-sm p-1 ${
+                        currentVehicle.actionsCompleted?.onHire
+                          ? "text-slate-300 pointer-events-none"
+                          : "text-primary cursor-pointer hover:bg-slate-50"
+                      }`}
                       onClick={() => handleAction("onHire")}
                     >
                       On Hire Vehicle
@@ -974,33 +1057,38 @@ const mockLogs = [
                     <div className="h-px bg-slate-100 w-full" />
                     {/* Option 3: Disable if already off-hired */}
                     <div
-                      className={`text-sm font-weight-400 p-1 ${currentVehicle.hireBackDate || currentVehicle.hire_vehicle_status_id === 2 ? "text-slate-400 cursor-not-allowed" : "text-primary cursor-pointer hover:bg-slate-50"}`}
-                      onClick={() =>
-                        !currentVehicle.hireBackDate &&
-                        handleAction("switchOff")
-                      }
+                      className={`text-sm font-weight-400 p-1 ${
+                        currentVehicle.actionsCompleted?.switchStarted
+                          ? "text-slate-300 pointer-events-none"
+                          : "text-primary cursor-pointer hover:bg-slate-50"
+                      }`}
+                      onClick={() => handleAction("switchOff")}
                     >
                       Start Vehicle Switch (Off-Hire Old)
                     </div>
                     <div className="h-px bg-slate-100 w-full" />
                     {/* Option 4: Enable ONLY if current vehicle is off-hired and we have < 3 records */}
                     <div
-                      className={`text-sm font-medium p-1 ${!currentVehicle.hireBackDate ? "text-slate-400 cursor-not-allowed" : "text-primary cursor-pointer hover:bg-slate-50"}`}
-                      onClick={() =>
-                        currentVehicle.hireBackDate &&
-                        formik.values.thirdPartyVehicles.length < 3 &&
-                        handleAction("onHireNew")
-                      }
+                      className={`text-sm font-weight-400 p-1 ${
+                        currentVehicle.actionsCompleted?.switchCompleted
+                          ? "text-slate-300 pointer-events-none"
+                          : "text-primary cursor-pointer hover:bg-slate-50"
+                      }`}
+                      onClick={() => handleAction("onHireNew")}
                     >
                       Complete Vehicle Switch (On-Hire New)
                     </div>
                     <div className="h-px bg-slate-100 w-full" />
                     {/* Option 5: Disable if already off-hired */}
                     <div
-                      className={`text-sm p-1 ${!currentVehicle.hireOutDate || currentVehicle.hire_vehicle_status_id === 2 ? "text-slate-300 pointer-events-none" : "text-primary cursor-pointer hover:bg-slate-50"}`}
+                      className={`text-sm p-1 ${
+                        currentVehicle.actionsCompleted?.offHire
+                          ? "text-slate-300 pointer-events-none"
+                          : "text-primary cursor-pointer hover:bg-slate-50"
+                      }`}
                       onClick={() => handleAction("offHire")}
                     >
-                      Off Hire Vehicle{" "}
+                      Off Hire Vehicle
                       {currentVehicle.hire_vehicle_status_id === 2 &&
                         "(Completed)"}
                     </div>
@@ -1276,9 +1364,7 @@ const mockLogs = [
                 }
               />
             </div>
-            <div
-              className={`grid grid-cols-2 gap-5 mb-5 ${!currentVehicle.abi_insured ? "opacity-50 pointer-events-none" : ""}`}
-            >
+            <div className={`grid grid-cols-2 gap-5 mb-5 ""}`}>
               <InputField
                 label="ABI Hire Charge Per Day"
                 value={currentVehicle.abi_hire_charge_per_day.toString()}
@@ -1377,7 +1463,6 @@ const mockLogs = [
           onSave={(capturedFormData) => {
             const todayStr = new Date().toISOString().split("T")[0];
 
-            // 1. Update the current vehicle being off-hired
             formik.setFieldValue(
               `thirdPartyVehicles[${activeVehicleTab}].hireBackDate`,
               todayStr,
@@ -1385,31 +1470,45 @@ const mockLogs = [
             formik.setFieldValue(
               `thirdPartyVehicles[${activeVehicleTab}].hire_vehicle_status_id`,
               2,
-            ); // Value 2 for Off Hire
+            );
 
-            // 2. Store the cleanliness/damage data into the form state
-            setFormData(capturedFormData);
+            // 2. Store the data into the 'forms' array at the specific index
+            setCheckoutData((prev) => {
+              const updatedForms = [...prev.forms];
+              updatedForms[activeVehicleTab] = capturedFormData;
+              return { ...prev, forms: updatedForms };
+            });
 
-            // 3. UI logic
             setShowCheckoutModal(false);
             setShowActionPopup(false);
-            setShowSwapBanner(true); // Display the banner since it now has an end date
-
+            setShowSwapBanner(true);
             toast.success(
               switchVehicle
-                ? "Vehicle off-hired. You can now On-Hire the new vehicle."
+                ? "Vehicle off-hired..."
                 : "Vehicle off-hired successfully.",
             );
           }}
-          formData={formData}
-          setFormData={setFormData}
+          // Access from the forms array
+          formData={checkoutData.forms[activeVehicleTab] || {}}
+          setFormData={(updater: any) => {
+            setCheckoutData((prev) => {
+              const currentData = prev.forms[activeVehicleTab] || {};
+              // Handle functional updates from the modal's setFormData
+              const newData =
+                typeof updater === "function" ? updater(currentData) : updater;
+
+              const updatedForms = [...prev.forms];
+              updatedForms[activeVehicleTab] = newData;
+              return { ...prev, forms: updatedForms };
+            });
+          }}
           step={modalStep}
           setStep={setModalStep}
         />
       )}
     </>
   );
-};;;;;;
+};
 
 // --- Sub-components (Design Unchanged) ---
 const SectionWrapper: React.FC<{ title: string; children: React.ReactNode; actionIcon?: React.ReactNode }> = ({ title, children, actionIcon }) => (
@@ -1422,11 +1521,23 @@ const SectionWrapper: React.FC<{ title: string; children: React.ReactNode; actio
     <div className="pt-2">{children}</div>
   </div>
 );
+const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
 
-const InputField: React.FC<{ label: string; value: string; onChange?: any; disabled?: boolean }> = ({ label, value, onChange, disabled }) => (
+const InputField: React.FC<{
+  label: string;
+  value: string;
+  onChange?: any;
+  disabled?: boolean;
+}> = ({ label, value, onChange, disabled }) => (
   <div className="flex flex-col gap-2 w-full">
     <label className="text-slate-700 text-sm font-weight-400">{label}</label>
-    <input type="text" value={value} onChange={onChange} disabled={disabled} className={`px-5 py-3 border border-slate-200 rounded text-base font-light ${disabled ? "bg-slate-50" : "bg-white"}`} />
+    <input
+      type="text"
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles} ${disabled ? "bg-slate-50" : "bg-white"}`}
+    />
   </div>
 );
 

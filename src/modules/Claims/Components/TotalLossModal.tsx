@@ -6,6 +6,9 @@ import {
   BlueDropdownIndicator,
   customStyles,
 } from "../Steps/GeneralDetailsForm";
+import Yes from '../../../assets/AutoClaim_icon/Yes.svg'
+import No from '../../../assets/AutoClaim_icon/No.svg'
+
 import { createTotalLoss, getTotalLoss, updateTotalLoss } from "../../../services/TotalLoss/TotalLoss";
 import { toast } from "react-toastify";
 import type { CalendarDate } from "@internationalized/date";
@@ -126,7 +129,7 @@ export const TotalLossView = ({ isOpen, onClose, engineer_report_received }) => 
       onClose();
     },
   });
-  const [salvageCollected, setSalvageCollected] = useState(true);
+  const [salvageCollected, setSalvageCollected] = useState("Yes");
   const claimId = localStorage.getItem("claimId");
   useEffect(() => {
     const fetchData = async () => {
@@ -379,7 +382,8 @@ const commonOptions2 = [
                 <span className="text-gray-700 text-sm font-medium">
                   Has Salvage Been Collected?
                 </span>
-                <div className="flex gap-5">
+                {/* <div className="flex gap-5">
+                  <img src={Yes} alt="" />
                   <RadioButton
                     label="Yes"
                     active={salvageCollected}
@@ -390,6 +394,32 @@ const commonOptions2 = [
                     active={!salvageCollected}
                     onClick={() => setSalvageCollected(false)}
                   />
+                </div> */}
+                <div className="flex items-center gap-5">
+                  {["Yes", "No"].map((option) => (
+                    <label
+                      key={option}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="radio"
+                          name="passengers"
+                          className="sr-only"
+                          checked={salvageCollected === option}
+                          onChange={() => setSalvageCollected(option)}
+                        />
+
+                        {salvageCollected === option ? (
+                          <img src={Yes} />
+                        ) : (
+                          <img src={No} />
+                        )}
+                      </div>
+
+                      <span className="text-black text-sm">{option}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
               <InputGroup

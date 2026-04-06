@@ -4,6 +4,7 @@ import {
   Autocomplete,
   Marker,
   useJsApiLoader,
+  TrafficLayer, // <--- Add this
 } from "@react-google-maps/api";
 
 interface GoogleMapAutocompleteProps {
@@ -107,6 +108,7 @@ const GoogleMapAutocomplete: React.FC<GoogleMapAutocompleteProps> = ({
         onPlaceChanged={handlePlaceChanged}
         options={{
           componentRestrictions: { country: "uk" },
+          // types: ["address"],
         }}
       >
         <input
@@ -123,7 +125,7 @@ const GoogleMapAutocomplete: React.FC<GoogleMapAutocompleteProps> = ({
           //   border: "1px solid #ccc",
           //   borderRadius: "6px",
           // }}
-          className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light"
+          className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors"
         />
       </Autocomplete>
 
@@ -131,7 +133,7 @@ const GoogleMapAutocomplete: React.FC<GoogleMapAutocompleteProps> = ({
         <GoogleMap
           mapContainerStyle={containerStyle}
           center={position || defaultCenter}
-          zoom={position ? 14 : 10}
+          zoom={position ? 19 : 10}
           options={{
             restriction: {
               latLngBounds: ukBounds,
@@ -139,6 +141,8 @@ const GoogleMapAutocomplete: React.FC<GoogleMapAutocompleteProps> = ({
             },
           }}
         >
+          {/* This will overlay the green/yellow/red traffic lines */}
+          <TrafficLayer />
           {position && <Marker position={position} />}
         </GoogleMap>
       )}

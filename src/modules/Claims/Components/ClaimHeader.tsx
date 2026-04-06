@@ -5,7 +5,7 @@ import Vector4 from "../../../assets/AutoClaim_icon/Vector-4.svg";
 
 const Header = ({ onNext }) => {
   const navigate = useNavigate();
-
+const caseReference= localStorage.getItem("CaseReference")
   // Navigation Handlers
   const goToDashboard = () => navigate("/dashboard");
 
@@ -21,7 +21,9 @@ const Header = ({ onNext }) => {
         </div>
 
         <div className="HeaderTitle text-black text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6">
-          Add New Claim
+          {caseReference ? caseReference : "Add New Claim"}
+
+
         </div>
 
         <div className="ActivityLogContainer flex justify-start items-center gap-1 cursor-pointer group">

@@ -273,7 +273,7 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
             }}
             className="px-6 py-4 bg-blue-500 text-white rounded font-medium hover:bg-blue-600 transition-colors"
           >
-            Save and Add Next Witness
+            Save and Add Next Police Detail
           </button>
         </div>
       </form>

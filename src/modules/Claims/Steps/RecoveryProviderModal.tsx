@@ -5,6 +5,7 @@ import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { debounce } from "lodash";
 import { getRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { CustomDatePicker } from "../Components/DatePicker";
+import { getCompanySuggestions } from "../../../services/Referrer/Referrer";
 
 export const RecoveryProviderModal = ({
   onClose,
@@ -45,24 +46,39 @@ export const RecoveryProviderModal = ({
       email: initialData?.address?.email || "",
     }
   });
+ const fetchCompanies = async () => {
+   try {
+     const response = await getCompanySuggestions(searchTerm); // Replace with your API endpoint
 
+     console.log(response);
+     // Normalize empty strings to null
+     //  const normalized = response.data.map((r) => ({
+     //    company_name: r.company_name,
+     //    address: r.address?.trim() || null,
+     //    post_code: r.postcode?.trim() || null,
+     //  }));
+
+     setRecoverySuggestions(response.data);
+   } catch (err) {
+     console.error(err);
+   }
+ };
+const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
+  
   // --- HANDLERS ---
-  const fetchRecoverySuggestions = debounce(async (query: string) => {
-    if (!query) return;
-    try {
-      const response = await getRecoveryProvider(query);
-      setRecoverySuggestions(response.data || response);
-    } catch (error) {
-      console.error(error);
-    }
-  }, 300);
+ useEffect(() => {
+    
+     if (searchTerm) {
+       fetchCompanies();
+     }
+   }, [searchTerm]);
 
   const handleCompanySelect = (selected: any) => {
-    setSearchTerm(selected.recovery_provider);
+    setSearchTerm(selected.company_name);
     setShowDropdown(false);
     setLocalData((prev) => ({
       ...prev,
-      recovery_provider: selected.recovery_provider,
+      recovery_provider: selected.company_name,
       address: {
         ...prev.address,
         address: selected.address || "",
@@ -101,7 +117,6 @@ export const RecoveryProviderModal = ({
     if (!date) return "Select Date";
     return new Date(date).toLocaleDateString("en-GB");
   };
-console.log(localData)
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[70] p-4 font-['Stack_Sans_Headline']">
       <div className="w-[800px] p-6 bg-white rounded-lg shadow-xl flex flex-col gap-6">
@@ -143,10 +158,10 @@ console.log(localData)
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   setShowDropdown(true);
-                  fetchRecoverySuggestions(e.target.value);
+                  fetchCompanies();
                 }}
                 placeholder="Enter Company Name"
-                className="w-full h-[52px] px-5 border rounded font-weight-300 font-light"
+                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
               />
               {showDropdown && recoverySuggestions.length > 0 && (
                 <div className="absolute top-[80px] w-full bg-white border shadow-lg z-50 max-h-40 overflow-auto">
@@ -156,7 +171,7 @@ console.log(localData)
                       onClick={() => handleCompanySelect(s)}
                       className="p-3 hover:bg-gray-50 cursor-pointer border-b"
                     >
-                      {s.recovery_provider}
+                      {s.company_name}
                     </div>
                   ))}
                 </div>
@@ -165,7 +180,7 @@ console.log(localData)
             <div className="flex flex-col gap-2">
               <label className="text-neutral-700 text-sm">Name</label>
               <input
-                className="h-[52px] px-5 border rounded font-weight-300 font-light"
+                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
                 value={localData.name}
                 placeholder="Enter Name"
                 onChange={(e) =>
@@ -201,7 +216,7 @@ console.log(localData)
                 <input
                   type="text"
                   placeholder="Enter Post Code"
-                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-weight-300 font-light focus-within:border-blue-500 transition-all"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
                   value={localData.address.postcode}
                   onChange={(e) =>
                     setLocalData({
@@ -223,7 +238,7 @@ console.log(localData)
                 <input
                   type="email"
                   placeholder="Enter Email"
-                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-weight-300 font-light focus-within:border-blue-500 transition-all"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
                   value={localData.address.email}
                   onChange={(e) =>
                     setLocalData({
@@ -240,19 +255,19 @@ console.log(localData)
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
                 <label className="text-neutral-700 text-sm">Telephone</label>
-                <div className="relative flex items-center">
+                <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
                   <span className="absolute left-5 text-gray-400 font-weight-300 font-light ">
                     +44
                   </span>
                   <input
-                    className="h-[52px] pl-14 w-full border rounded"
+                    className="w-full bg-transparent outline-none text-neutral-700 mb-0.5 font-light placeholder:text-gray-300"
                     value={localData.address.mobile_tel}
-                    maxLength={12}
+                    maxLength={11}
                     onChange={(e) => {
                       let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
-                      if (value.length > 5) {
-                        value = value.slice(0, 5) + " " + value.slice(5, 11);
+                      if (value.length > 4) {
+                        value = value.slice(0, 4) + " " + value.slice(4);
                       }
 
                       setLocalData({
@@ -277,7 +292,9 @@ console.log(localData)
                   Date of Recovery{" "}
                 </label>
                 <div
-                  onClick={() => setShowRecoveryDatePicker(!showRecoveryDatePicker)}
+                  onClick={() =>
+                    setShowRecoveryDatePicker(!showRecoveryDatePicker)
+                  }
                   className="h-[52px] px-5 border rounded flex justify-between items-center cursor-pointer"
                 >
                   <span className="font-weight-300 font-light text-neutral-700">
@@ -309,7 +326,7 @@ console.log(localData)
                   Recovery Charges{" "}
                 </label>
                 <div className="h-[52px] px-5 border rounded flex items-center">
-                  <span className="mr-2 font-weight-300 font-light text-neutral-700">
+                  <span className="mr-2 font-weight-300 font-light text-gray-400">
                     £
                   </span>
                   <input

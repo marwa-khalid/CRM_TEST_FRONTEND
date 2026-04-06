@@ -34,6 +34,7 @@
     "react-aria-components": "^1.12.0",
     "react-datepicker": "^8.7.0",
     "react-dom": "^18.2.0",
+    "react-draggable": "^4.5.0",
     "react-icons": "^5.5.0",
     "react-konva": "^18.2.14",
     "react-leaflet": "^5.0.0",

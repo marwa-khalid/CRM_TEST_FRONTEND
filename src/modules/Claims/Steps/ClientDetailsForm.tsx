@@ -124,16 +124,35 @@ export const ClientDetailsForm = ({ formRef }: any) => {
         };
         const payloadToSend = cleanPayload(payload);
         // return
+        let response
         if (claimId && clientId) {
-          const response = await updateClient(
+           response = await updateClient(
             parseInt(claimId),
             payloadToSend,
           );
           localStorage.setItem("clientId", response.id);
         } else {
-          const response = await createClient(payloadToSend);
+           response = await createClient(payloadToSend);
           localStorage.setItem("clientId", response.id);
         }
+       
+
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const yearMonth = `${year}${month}`;
+
+      // 2. Clean Surname (Remove spaces and uppercase)
+      const cleanSurname = response.surname.replace(/\s+/g, "").toUpperCase();
+
+      // 3. Format Claim ID to 4 digits (e.g., 22 -> 0022)
+      const paddedId = String(claimId).padStart(4, "0");
+
+      // 4. Create the final reference
+      const caseReference = `${cleanSurname}-${yearMonth}-${paddedId}`;
+
+      // 5. Store in Local Storage
+      localStorage.setItem("CaseReference", caseReference);
         toast.success("Client details saved successfully");
       } catch (error) {
         toast.error("Error saving client details");
@@ -149,7 +168,6 @@ export const ClientDetailsForm = ({ formRef }: any) => {
   useEffect(() => {
     const fetchData = async () => {
       const clientData = await getClientByClaimID(parseInt(claimId));
-      console.log(clientData);
           const mappedValues = {
             clientTitle: clientData.gender || "",
             clientFirstName: clientData.first_name || "",
@@ -205,8 +223,8 @@ export const ClientDetailsForm = ({ formRef }: any) => {
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
-    if (value.length > 5) {
-      value = value.slice(0, 5) + " " + value.slice(5, 11);
+    if (value.length > 4) {
+      value = value.slice(0, 4) + " " + value.slice(4);
     }
 
     formik.setFieldValue("mobileTelephone", value);
@@ -214,9 +232,9 @@ export const ClientDetailsForm = ({ formRef }: any) => {
     const handleHomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
-      if (value.length > 5) {
-        value = value.slice(0, 5) + " " + value.slice(5, 11);
-      }
+      // if (value.length > 4) {
+      //   value = value.slice(0, 4) + " " + value.slice(4);
+      // }
 
       formik.setFieldValue("homeTelephone", value);
     };
@@ -303,6 +321,7 @@ export const ClientDetailsForm = ({ formRef }: any) => {
     }
   }, [formik.values.vulnerablePerson]);
     const [payDriverModal, openModal] = useState<boolean>(false);
+const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
   
   return (
     <>
@@ -338,31 +357,28 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                   First Name
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                  <input
-                    placeholder="Enter First Name"
-                    value={formik.values.clientFirstName}
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                    onChange={(e) =>
-                      formik.setFieldValue("clientFirstName", e.target.value)
-                    }
-                  />
-                </div>
+
+                <input
+                  placeholder="Enter First Name"
+                  value={formik.values.clientFirstName}
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                  onChange={(e) =>
+                    formik.setFieldValue("clientFirstName", e.target.value)
+                  }
+                />
               </div>
               <div className="col-span-6 flex flex-col gap-2">
                 <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                   Last Name
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                  <input
-                    placeholder="Enter Last Name"
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                    value={formik.values.clientSurname}
-                    onChange={(e) =>
-                      formik.setFieldValue("clientSurname", e.target.value)
-                    }
-                  />
-                </div>
+                <input
+                  placeholder="Enter Last Name"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                  value={formik.values.clientSurname}
+                  onChange={(e) =>
+                    formik.setFieldValue("clientSurname", e.target.value)
+                  }
+                />
               </div>
             </div>
 
@@ -382,8 +398,8 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   <span
                     className={
                       formik.values.dateOfBirth
-                        ? "text-gray-900 font-['system-ui']"
-                        : "text-gray-300 font-['system-ui']"
+                        ? "text-neutral-700 font-light"
+                        : "text-gray-300 font-light"
                     }
                   >
                     {formik.values.dateOfBirth
@@ -422,8 +438,8 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                     readOnly
                     value={formik.values.age}
                     placeholder="Age"
-                    className={`w-full bg-transparent outline-none font-['system-ui'] ${
-                      formik.values.age ? "text-gray-900" : "text-gray-400"
+                    className={`w-full bg-transparent outline-none font-light ${
+                      formik.values.age ? "text-neutral-700" : "text-gray-400"
                     }`}
                   />
                 </div>
@@ -436,16 +452,14 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                   NI Number
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                  <input
-                    value={formik.values.niNumber}
-                    onChange={(e) =>
-                      formik.setFieldValue("niNumber", e.target.value)
-                    }
-                    placeholder="e.g. QQ 12 34 56 C"
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] uppercase"
-                  />
-                </div>
+                <input
+                  value={formik.values.niNumber}
+                  onChange={(e) =>
+                    formik.setFieldValue("niNumber", e.target.value)
+                  }
+                  placeholder="e.g. QQ 12 34 56 C"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                />
               </div>
             </div>
 
@@ -471,26 +485,27 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   }}
                 />
               </div>
-
               {/* Conditional Rendering for 'Others' - Aligned with the Select box */}
-              <div
-                className={`col-span-6 flex flex-col gap-2 transition-opacity duration-300 ${formik.values.occupation === "Others" ? "opacity-100" : "opacity-30 pointer-events-none"}`}
-              >
-                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-                  Custom Occupation
-                </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                  <input
-                    disabled={formik.values.occupation !== "Others"}
-                    placeholder="Please specify"
-                    value={formik.values.customOccupation}
-                    onChange={(e) =>
-                      formik.setFieldValue("customOccupation", e.target.value)
-                    }
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
-                  />
+              {formik.values.occupation === "Others" && (
+                <div
+                  className={`col-span-6 flex flex-col gap-2 transition-opacity duration-300 ${formik.values.occupation === "Others" ? "opacity-100" : "opacity-30 pointer-events-none"}`}
+                >
+                  <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                    Custom Occupation
+                  </label>
+                  <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
+                    <input
+                      disabled={formik.values.occupation !== "Others"}
+                      placeholder="Please specify"
+                      value={formik.values.customOccupation}
+                      onChange={(e) =>
+                        formik.setFieldValue("customOccupation", e.target.value)
+                      }
+                     className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             {/* Row 5: Driver Code & Day/Night Radio */}
             <div className="grid grid-cols-12 gap-5 w-full">
@@ -498,16 +513,15 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                   Driver Code
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                  <input
+              <input
                     placeholder="Enter Code"
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
                     value={formik.values.driverCode}
                     onChange={(e) =>
                       formik.setFieldValue("driverCode", e.target.value)
                     }
                   />
-                </div>
+           
               </div>
               <div className="col-span-6 flex flex-col gap-2">
                 <span className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
@@ -548,16 +562,14 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                   Driver Base
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                  <input
+                <input
                     placeholder="Enter Driver Base"
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
                     value={formik.values.driverBase}
                     onChange={(e) =>
                       formik.setFieldValue("driverBase", e.target.value)
                     }
                   />
-                </div>
               </div>
             </div>
           </div>
@@ -579,7 +591,7 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 {/* <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
                 <input
                   placeholder="Enter Address"
-                  className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                 className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
                   onChange={(e) =>
                     formik.setFieldValue("address", e.target.value)
                   }
@@ -606,31 +618,28 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 <label className="text-gray-700 text-sm font-weight-400">
                   Post Code
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                  <input
+            <input
                     placeholder="Enter Code"
                     value={formik.values.postcode}
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
                     onChange={(e) =>
                       formik.setFieldValue("postcode", e.target.value)
                     }
                   />
-                </div>
+              
               </div>
               <div className="col-span-8 flex flex-col gap-2">
                 <label className="text-gray-700 text-sm font-weight-400">
                   Email Address
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                  <input
+                <input
                     placeholder="Enter Email"
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
                     value={formik.values.email}
                     onChange={(e) =>
                       formik.setFieldValue("email", e.target.value)
                     }
                   />
-                </div>
               </div>
             </div>
 
@@ -641,16 +650,16 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   Home Telephone
                 </label>
                 <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                  <span className="text-gray-700 text-base font-['system-ui']">
+                  <span className="text-gray-400 text-base font-light">
                     +44
                   </span>
                   <input
                     name="homeTelephone"
                     type="tel"
                     onChange={handleHomeChange}
-                    maxLength={12}
+                    maxLength={11}
                     value={formik.values.homeTelephone}
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] placeholder:text-gray-300"
+                    className="w-full bg-transparent outline-none text-neutral-700 font-light placeholder:text-gray-300"
                   />
                 </div>
               </div>
@@ -659,16 +668,16 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   Mobile Number
                 </label>
                 <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                  <span className="text-gray-700 text-base font-['system-ui']">
+                  <span className="text-gray-400 text-base font-light">
                     +44
                   </span>
                   <input
                     name="mobileTelephone"
                     type="tel"
                     onChange={handleMobileChange}
-                    maxLength={12}
+                    maxLength={11}
                     value={formik.values.mobileTelephone}
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] placeholder:text-gray-300"
+                    className="w-full bg-transparent outline-none text-neutral-700 font-light placeholder:text-gray-300"
                   />
                 </div>
               </div>
@@ -791,12 +800,12 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                 <label className="text-gray-700 text-sm font-weight-400">
                   Sort Code
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
-                  <input
+              <input
                     type="text"
                     placeholder="00-00-00"
                     maxLength={8} // 6 digits + 2 hyphens
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] tracking-widest"
+                                     className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+
                     value={formik.values.sortCode || ""}
                     onChange={(e) => {
                       let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
@@ -812,23 +821,21 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                       formik.setFieldValue("sortCode", formatted);
                     }}
                   />
-                </div>
               </div>
               <div className="col-span-6 flex flex-col gap-2">
                 <label className="text-gray-700 text-sm font-weight-400">
                   Account Number
                 </label>
-                <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                  <input
+                 <input
                     placeholder="8 Digits Number"
-                    className="w-full bg-transparent outline-none text-gray-900 font-['system-ui']"
+                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
                     maxLength={8}
                     value={formik.values.accountNumber}
                     onChange={(e) =>
                       formik.setFieldValue("accountNumber", e.target.value)
                     }
                   />
-                </div>
+               
               </div>
             </div>
 
@@ -848,8 +855,8 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   <span
                     className={
                       formik.values.payDriverNotificationDate
-                        ? "text-gray-900 font-['system-ui']"
-                        : "text-gray-300 font-['system-ui']"
+                        ? "text-neutral-700 font-light"
+                        : "text-gray-300 font-light"
                     }
                   >
                     {formik.values.payDriverNotificationDate
@@ -1000,10 +1007,9 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                   <label className="text-gray-700 text-sm font-weight-400">
                     Provide Reason
                   </label>
-                  <div className="px-5 py-4 bg-white rounded border border-gray-200 focus-within:border-blue-500">
                     <textarea
                       placeholder="Please provide details regarding the driver's vulnerability..."
-                      className="w-full bg-transparent outline-none text-gray-900 font-['system-ui'] min-h-[80px] resize-none"
+                      className={`w-full bg-transparent border border-gray-200 rounded outline-none text-neutral-700 font-light min-h-[130px] resize-none px-5 py-4 ${inputStyles}`}
                       value={formik.values.vulnerablePersonWhy}
                       onChange={(e) =>
                         formik.setFieldValue(
@@ -1012,7 +1018,7 @@ export const ClientDetailsForm = ({ formRef }: any) => {
                         )
                       }
                     />
-                  </div>
+                
                 </div>
               </div>
             )}

@@ -9,13 +9,18 @@ import pending from "../../../assets/AutoClaim_icon/Pending.svg";
 
 interface SidebarProps {
   steps: { label: string }[];
+  paymentSteps: { label: string }[];
   activeStep: number;
   onStepClick: (index: number) => void;
+  activePaymentStep: number;
+  onPaymentStepClick: (index: number) => void;
 }
 
-const Sidebar = ({ steps, activeStep, onStepClick }: SidebarProps) => {
+const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep,onPaymentStepClick }: SidebarProps) => {
   // 2. Local state to track if "Claim Details" is expanded
   const [isClaimsExpanded, setIsClaimsExpanded] = useState(true);
+  const [isPaymentExpanded, setIsPaymentExpanded] = useState(true);
+
 
   return (
     <div
@@ -95,8 +100,59 @@ const Sidebar = ({ steps, activeStep, onStepClick }: SidebarProps) => {
               Payment Details
             </div>
           </div>
-          <img src={Vector10} alt="" />
+          <img
+            src={Vector10}
+            className={`cursor-pointer transition-transform duration-300 ${isPaymentExpanded ? "" : "rotate-180"}`}
+            alt=""
+            onClick={() => setIsPaymentExpanded(!isPaymentExpanded)}
+          />
         </div>
+        {/* 4. Conditional Rendering Logic */}
+        {isPaymentExpanded && (
+          <>
+            <div className="Line1 self-stretch h-px bg-blue-200 animate-in fade-in duration-300"></div>
+
+            <div className="flex flex-col gap-4 self-stretch animate-in slide-in-from-top-2 duration-300">
+              {paymentSteps.map((step, idx) => {
+                const isActive = idx === activePaymentStep;
+                const isCompleted = idx < activePaymentStep;
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => onStepClick(idx)}
+                    className="Claimsteps self-stretch inline-flex justify-start items-center gap-3 cursor-pointer group"
+                  >
+                    {isActive ? (
+                      <img src={type1} alt="active" />
+                    ) : isCompleted ? (
+                      // <div className="relative">
+                      //   <img src={greenCircle} alt="green circle" />
+                      //   <img
+                      //     src={checkIcon}
+                      //     alt="check"
+                      //     className="absolute inset-0 m-auto"
+                      //   />
+                      // </div>
+                      <img src={pending} alt="upcoming" />
+                    ) : (
+                      <img src={type2} alt="upcoming" />
+                    )}
+
+                    <div
+                      className={`Label text-sm transition-colors ${
+                        isActive
+                          ? "text-blue-500"
+                          : "text-gray-500 group-hover:text-gray-700"
+                      }`}
+                    >
+                      {step.label}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

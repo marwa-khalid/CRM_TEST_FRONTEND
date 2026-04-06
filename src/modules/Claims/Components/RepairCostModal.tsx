@@ -247,7 +247,7 @@ const RepairCostRouteModal: React.FC<{
             >
               Cancel
             </button>
-            <button className="px-10 py-4 bg-blue-500 rounded text-white text-base font-medium hover:bg-blue-600 transition-colors">
+            <button className="px-10 py-4 bg-blue-500 rounded text-white text-base font-medium hover:bg-blue-600 transition-colors" onClick={()=>formik.handleSubmit()}>
               Update
             </button>
           </div>

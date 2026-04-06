@@ -1,10 +1,13 @@
-import VulnerablePDF from "../../../assets/documents/Vulnerable_Person_Policy (7) (1).pdf";
+import VulnerablePDF from "../../../assets/documents/Vulnerable_Person_Policy.pdf";
 import Vulnerable from '../../../assets/AutoClaim_icon/Vulnerable.svg'
 export const VulnerablePolicyModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[100] p-10">
-      <div className="card bg-white w-[788px] h-full flex flex-col overflow-hidden ">
+    <div onClick={onClose}className="fixed inset-0 bg-black/50 flex justify-center items-center z-[100] p-10">
+      <div
+        className="card  bg-white w-[788px] h-full flex flex-col overflow-hidden "
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Modal Header */}
         <div
           data-layer="Header"
@@ -62,7 +65,8 @@ export const VulnerablePolicyModal = ({ isOpen, onClose }) => {
               backgroundColor: "white",
               width: "120%",
               height: "120%",
-              top: "-5%",
+              top: "-1%",
+              bottom: "-1%",
               left: "-10%",
               border: "none",
             }}

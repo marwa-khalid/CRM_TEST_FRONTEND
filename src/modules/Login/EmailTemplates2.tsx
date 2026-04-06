@@ -45,7 +45,7 @@ const EmailTemplates2 = () => {
 
         {/* Sign-off */}
         <div className="mb-12">
-          <span className="text-black text-[12px] font-normal">
+          <span className="text-black text-[12px] font-semibold">
             Kind regards,
           </span>
           <br />

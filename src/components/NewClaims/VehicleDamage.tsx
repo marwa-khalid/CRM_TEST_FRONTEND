@@ -21,7 +21,7 @@ const validationSchema = Yup.object().shape({
   client: Yup.object().shape({
     areaDamage: Yup.string().required("Client area of damage is required"),
     unrelatedDamage: Yup.string().nullable(),
-    status: Yup.string().required("Client vehicle status is required"),
+    // status: Yup.string().required("Client vehicle status is required"),
     images: Yup.array().when("entryMode", {
       is: "ai",
       then: Yup.array().min(1, "At least one client image is required"),
@@ -31,7 +31,7 @@ const validationSchema = Yup.object().shape({
   thirdParty: Yup.object().shape({
     areaDamage: Yup.string().required("Third party area of damage is required"),
     unrelatedDamage: Yup.string().nullable(),
-    status: Yup.string().required("Third party vehicle status is required"),
+    // status: Yup.string().required("Third party vehicle status is required"),
     images: Yup.array().when("entryMode", {
       is: "ai",
       then: Yup.array().min(1, "At least one third party image is required"),

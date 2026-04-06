@@ -20,6 +20,7 @@ export const PanelSolicitorForm = ({ formRef }: any) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
   
    useEffect(() => {
      const fetchCompanies = async () => {
@@ -187,8 +188,8 @@ console.log(selected)
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
-    if (value.length > 5) {
-      value = value.slice(0, 5) + " " + value.slice(5, 11);
+    if (value.length > 4) {
+      value = value.slice(0, 4) + " " + value.slice(4);
     }
 
     formik.setFieldValue("address.mobile_tel", value);
@@ -215,7 +216,7 @@ console.log(selected)
             Company Name
           </label>
           <input
-            className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 font-weight-300 font-light"
+            className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
             value={searchTerm || formik.values.company_name}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -265,7 +266,7 @@ console.log(selected)
                 formik.setFieldValue("address.postcode", e.target.value)
               }
               placeholder="Enter Postcode"
-              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
             />
           </div>
 
@@ -281,7 +282,7 @@ console.log(selected)
                 formik.setFieldValue("address.email", e.target.value)
               }
               placeholder="Enter Email"
-              className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light focus-within:border-blue-500 transition-all"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
             />
           </div>
         </div>
@@ -291,14 +292,14 @@ console.log(selected)
               Telephone{" "}
             </label>
             <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-              <span className="text-gray-700 text-base font-light">+44</span>
+              <span className="text-gray-400 text-base font-light">+44</span>
               <input
                 name="contact_number"
                 type="tel"
                 onChange={handleMobileChange}
-                maxLength={12}
+                maxLength={11}
                 value={formik.values.address.mobile_tel}
-                className="w-full bg-transparent outline-none text-gray-900 font-light placeholder:text-gray-300"
+                className="w-full bg-transparent outline-none text-neutral-700 mb-0.5 font-light placeholder:text-gray-300"
               />
             </div>
           </div>
@@ -309,7 +310,7 @@ console.log(selected)
               Reference
             </label>
             <input
-              className="h-[52px] px-5 rounded border border-gray-200 font-weight-300 font-light"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
               name="reference"
               onChange={formik.handleChange}
               value={formik.values.reference}
@@ -362,7 +363,7 @@ console.log(selected)
             Note
           </label>
           <textarea
-            className="p-4 border border-gray-200 rounded-lg outline-none focus:border-blue-200 focus:ring-2 focus:ring-blue-200"
+            className={`w-full p-3 px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
             placeholder="Value"
             rows={3}
             maxLength={500}

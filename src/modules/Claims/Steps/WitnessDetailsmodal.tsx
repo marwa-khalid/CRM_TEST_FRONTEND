@@ -39,10 +39,12 @@ export const WitnessDetailsModal = ({ onClose, claimId, initialData }) => {
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const digits = e.target.value.replace(/\D/g, "");
-    let formatted = digits.substring(0, 5);
-    if (digits.length > 5) formatted += " " + digits.substring(5, 11);
+    let formatted = digits.substring(0, 4);
+    if (digits.length > 4) formatted += " " + digits.substring(4, 11);
     setWitness({ ...witness, telephone: formatted });
   };
+const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
+
 const SentStatusRow = ({
   label,
   timestamp,
@@ -50,7 +52,7 @@ const SentStatusRow = ({
   label: string;
   timestamp: string;
 }) => (
-  <div className="self-stretch px-4 py-2 rounded-lg inline-flex justify-between items-center w-full bg-white">
+  <div className="self-stretch px-4 py-2 rounded-lg inline-flex justify-between items-center w-full bg-white font-['Stack_Sans_Headline']">
     <div className="flex justify-start items-center gap-4">
       <img src={Vector3} alt="" />
       <span className="text-gray-900 text-sm font-normal font-['Stack_Sans_Headline']">
@@ -65,8 +67,8 @@ const SentStatusRow = ({
       </span>
     </div>
   </div>
-)
-  const handleAction = async (addNext = false) => {
+);
+  const handleAction = async (addNext:boolean) => {
     try {
       const cleanPhone = `+44${witness.telephone.replace(/\s/g, "")}`;
       const payload = {
@@ -92,14 +94,16 @@ const SentStatusRow = ({
         await createWitness(payload);
         toast.success("Witness added successfully");
       }
-      onClose();
+      if (!addNext) {
+        onClose();
+      }
     } catch (error) {
       toast.error("Error saving witness details");
     }
   };
   const [sentMethods, setSentMethods] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState(false);
-
+const claimRef = localStorage.getItem("CaseReference")
   const handleFunctionality = async (option: any) => {
     setIsProcessing(true);
     try {
@@ -108,7 +112,7 @@ const SentStatusRow = ({
           witness.email,
           claimId,
           witness.firstName,
-          "1234ref",
+          claimRef,
           option,
         );
       }
@@ -146,7 +150,7 @@ const SentStatusRow = ({
     }
   };
   const titleOptions = [
-    { value: "Mr", label: "Mr" },
+    { value: "Mr", label: "Mr&" },
     { value: "Mrs", label: "Mrs" },
     { value: "Ms", label: "Ms" },
     { value: "Dr", label: "Dr" },
@@ -215,7 +219,7 @@ const SentStatusRow = ({
                 <input
                   type="text"
                   placeholder="Enter First Name"
-                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
                   value={witness.firstName}
                   onChange={(e) =>
                     setWitness({ ...witness, firstName: e.target.value })
@@ -229,7 +233,7 @@ const SentStatusRow = ({
                 <input
                   type="text"
                   placeholder="Enter Last Name"
-                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
                   value={witness.surname}
                   onChange={(e) =>
                     setWitness({ ...witness, surname: e.target.value })
@@ -267,7 +271,7 @@ const SentStatusRow = ({
                 <input
                   type="text"
                   placeholder="Enter Post Code"
-                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
                   value={witness.postCode}
                   onChange={(e) =>
                     setWitness({ ...witness, postCode: e.target.value })
@@ -281,7 +285,7 @@ const SentStatusRow = ({
                 <input
                   type="email"
                   placeholder="Enter Email"
-                  className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
                   value={witness.email}
                   onChange={(e) =>
                     setWitness({ ...witness, email: e.target.value })
@@ -289,25 +293,23 @@ const SentStatusRow = ({
                 />
               </div>
             </div>
-
-            <div className="w-96 flex flex-col gap-2">
+<div className="grid grid-cols-2 gap-5">
+            <div className="flex flex-col gap-2">
               <label className="text-gray-700 text-sm font-normal">
                 Telephone
               </label>
-              <div className="relative flex items-center">
-                <span className="absolute left-5 text-gray-700 pr-3">
-                  +44
-                </span>
+              <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                <span className="text-gray-400 text-base">+44</span>
                 <input
                   type="tel"
-                  className="w-full h-[52px] px-5 pl-16 pr-5  bg-white rounded border border-gray-200 text-gray-600 font-['system-ui'] focus-within:border-blue-500 transition-all"
-                  // className="w-full pl-16 pr-5 py-4 border border-gray-200 rounded text-base focus:ring-2 focus:ring-blue-500/20 outline-none"
+                  className="w-full bg-transparent outline-none text-neutral-900 mb-0.5 font-light placeholder:text-gray-300"
                   value={witness.telephone}
                   onChange={handlePhoneChange}
-                  maxLength={12}
+                  maxLength={11}
                 />
               </div>
-            </div>
+              </div>
+              </div>
           </div>
         ) : (
           /* STEP 2: THE QUESTIONNAIRE (CONVERTED DATA) */
@@ -319,7 +321,12 @@ const SentStatusRow = ({
                   Questionnaire for Witness
                 </span>
               </div>
-              <button className="text-blue-500 text-sm font-normal hover:underline">
+              <button
+                className="text-blue-500 text-sm font-normal hover:underline"
+                onClick={() =>
+                  window.open("/questionnaire", "_blank", "noreferrer")
+                }
+              >
                 View
               </button>
             </div>
@@ -360,13 +367,14 @@ const SentStatusRow = ({
                             {method.label}
                           </span>
                         </div>
-                        {method.id !== "download" &&
+                        {method.id !== "download" && (
                           <div className="flex items-center gap-2">
                             <img src={checkgreen} alt="" />
                             <span className="text-gray-500 text-xs font-normal">
                               Questionnaire Sent: {sentMethods[method.id]}
                             </span>
-                          </div>}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       /* ACTIONABLE BUTTON */
@@ -381,7 +389,7 @@ const SentStatusRow = ({
                         <span className="text-blue-500 text-sm font-normal">
                           {method.label}
                         </span>
-                        {isProcessing && <img src={type2} />}
+                        {/* {isProcessing && <img src={type2} />} */}
                       </button>
                     )}
                     {/* Line Separator (Optional, matches your layers) */}

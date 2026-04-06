@@ -1,86 +1,3 @@
-// import { useState } from "react";
-// import Sidebar from "./Components/ClaimSidebar";
-// import {Header} from "./Components/ClaimHeader";
-// import GeneralDetailsForm  from "./Steps/GeneralDetailsForm";
-// import { ReferrerDetailsForm } from "./Steps/ReferrerDetailsForm";
-// import { ClientDetailsForm } from "./Steps/ClientDetailsForm";
-// import { AccidentDetailsForm } from "./Steps/AccidentDetailsForm";
-// import { VehicleDetailsForm } from "./Steps/VehicleDetailsForm";
-// // import { PassengerDetailsForm } from "./Steps/PassengerDetailsModal";
-
-// const AddClaimPage = () => {
-//   // 1. Manage current step index
-//   const [currentStep, setCurrentStep] = useState(0);
-// const handleNext = () => {
-//   if (currentStep < steps.length - 1) {
-//     setCurrentStep((prev) => prev + 1);
-//   }
-// };
-//   const steps = [
-//     { label: "General Details" },
-//     { label: "Referrer Details" },
-//     { label: "Client Details" },
-//     { label: "Accident Details" },
-//     { label: "Vehicle Details" },
-//     { label: "Vehicle Owner" },
-//     { label: "Engineer Details" },
-//     { label: "Client Insurer & Broker" },
-//     { label: "Panel Solicitor Details" },
-//     { label: "Storage & Recovery" },
-//     { label: "Vehicle Damage Details" },
-//     { label: "Third Party & Insurer" },
-//     { label: "Hire Vehicle Provided" },
-//     { label: "Driver Document & Agreement" },
-//     { label: "Driver Checkout" },
-//   ];
-
-//   // 2. Component Switcher Logic
-//   const renderForm = () => {
-//     switch (currentStep) {
-//       case 0:
-//         return <GeneralDetailsForm />;
-//       case 1:
-//         return <ReferrerDetailsForm />;
-//       case 2:
-//         return <ClientDetailsForm />;
-//       case 3:
-//         return <AccidentDetailsForm />;
-//       case 4:
-//         return <VehicleDetailsForm/>
-//       default:
-//         return (
-//           <div className="p-10 text-gray-400">
-//             Form for "{steps[currentStep].label}" coming soon...
-//           </div>
-//         );
-//     }
-//   };
-
-//   return (
-//     <div className="flex flex-col h-screen w-full bg-white overflow-hidden">
-//       <Header onNext={handleNext} />
-
-//       <div className="flex flex-1 overflow-hidden pt-6">
-//         <div className="pl-10 h-full">
-//           {/* 3. Pass currentStep and setter to Sidebar */}
-//           <Sidebar
-//             steps={steps}
-//             activeStep={currentStep}
-//             onStepClick={setCurrentStep}
-//           />
-//         </div>
-
-//         <div className="flex-1 h-full w-full overflow-y-auto px-10 pb-20">
-//           {renderForm()}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default AddClaimPage;
-
-
 import { useState, useRef } from "react";
 import Sidebar from "./Components/ClaimSidebar";
 import { Header } from "./Components/ClaimHeader";
@@ -97,12 +14,18 @@ import { StorageRecoveryDetails } from "./Steps/StorageRecoveryDetails";
 import { HireDetailsForm } from "./Steps/HireDetailsForm";
 import { DriverCheckoutForm } from "./Steps/DriverCheckoutForm";
 import { VehicleDamageAI } from "./Steps/VehicleDamageAI";
+import DriverDocumentAgreement from "./Steps/DriverDocumentAgreement";
+import ThirdPartyInsurer from "./Steps/ThirdPartyInsurer";
+import PlatingChargesSection from "./PaymentSteps/PlatingAdditionalChargesForm";
+import ABIBHRCharges from "./PaymentSteps/ABI&BHRChargesForm";
 
 const AddClaimPage = () => {
   const [currentStep, setCurrentStep] = useState(0);
+  const [currentPaymentStep, setCurrentPaymentStep] = useState(0);
 
   // 🔥 This ref will hold formik reference
   const formRef = useRef<any>(null);
+  const paymentFormRef = useRef<any>(null);
 
   const steps = [
     { label: "General Details" },
@@ -121,6 +44,13 @@ const AddClaimPage = () => {
     { label: "Driver Document & Agreement" },
     { label: "Driver Checkout" },
   ];
+  const paymentSteps = [
+    { label: "Plating & Additional Charges" },
+    { label: "ABI and BHR Charges" },
+    { label: "Comparison - Agreed & Actual Settlement" },
+    { label: "Hire Payment Details & Recovery Management" },
+    { label: "Direct Hire Payment" },
+  ];
 
   // ✅ This is called from Header
   const handleSaveAndNext = async () => {
@@ -128,6 +58,17 @@ const AddClaimPage = () => {
       try {
         await formRef.current.submitForm(); // 🔥 trigger formik submit
         setCurrentStep((prev) => prev + 1); // move next only after success
+      } catch (err) {
+        console.error("Submission failed");
+      }
+    }
+  };
+  // ✅ This is called from Header
+  const handleSaveAndNextPayment = async () => {
+    if (paymentFormRef.current) {
+      try {
+        await paymentFormRef.current.submitForm(); // 🔥 trigger formik submit
+        setCurrentPaymentStep((prev) => prev + 1); // move next only after success
       } catch (err) {
         console.error("Submission failed");
       }
@@ -158,15 +99,35 @@ const AddClaimPage = () => {
         return <StorageRecoveryDetails formRef={formRef} />;
       case 10:
         return <VehicleDamageAI formRef={formRef} />;
+      case 11:
+        return <ThirdPartyInsurer formRef={formRef} />;
+
       case 12:
         return <HireDetailsForm formRef={formRef} />;
+      case 13:
+        return <DriverDocumentAgreement formRef={formRef} />;
       case 14:
         return <DriverCheckoutForm formRef={formRef} />;
       default:
         return <div>Coming soon...</div>;
     }
   };
-
+ const renderPaymentForm = () => {
+   switch (currentStep) {
+     case 0:
+       return <PlatingChargesSection paymentFormRef={paymentFormRef} />;
+     case 1:
+       return <ABIBHRCharges paymentFormRef={paymentFormRef} />;
+     case 2:
+       return <ClientDetailsForm formRef={formRef} />;
+     case 3:
+       return <AccidentDetailsForm formRef={formRef} />;
+     case 4:
+       return <VehicleDetailsForm formRef={formRef} />;
+     default:
+       return <div>Coming soon...</div>;
+   }
+ };
   return (
     <div className="flex flex-col h-screen w-full bg-white overflow-hidden">
       <Header onNext={handleSaveAndNext} />
@@ -177,15 +138,21 @@ const AddClaimPage = () => {
             steps={steps}
             activeStep={currentStep}
             onStepClick={setCurrentStep}
+            paymentSteps={paymentSteps}
+            activePaymentStep={currentPaymentStep}
+            onPaymentStepClick={setCurrentPaymentStep}
           />
         </div>
 
         <div className="flex-1 h-full w-full overflow-y-auto px-10 justify-center">
           {renderForm()}
         </div>
+        {/* <div className="flex-1 h-full w-full overflow-y-auto px-10 justify-center">
+          {renderPaymentForm()}
+        </div> */}
       </div>
     </div>
   );
-};
+};;
 
 export default AddClaimPage;

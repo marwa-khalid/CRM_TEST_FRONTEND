@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 // import Signup from './modules/Signup/signup';
 import LoginPage from './modules/Login/login';
 import Dashboard from './modules/Dashboard/dashboard';
@@ -25,6 +25,12 @@ import EmailTemplates3 from './modules/Login/EmailTemplates3';
 import SendMail from './modules/Login/SendMail';
 import AddClaimPage from "./modules/Claims/AddClaimPage";
 import {AccidentSketch} from './modules/Login/Canvas';
+import QuestionnaireLayout from "./modules/Claims/Questionnaire/QuestionnaireLayout";
+import Step1Witness from './modules/Claims/Questionnaire/WitnessStep1';
+import Step2Questions from './modules/Claims/Questionnaire/WitnessStep2';
+import Step3SketchPreview from './modules/Claims/Questionnaire/WitnessStep3';
+import Step4Canvas from './modules/Claims/Questionnaire/WitnessStep4';
+import CaseActivityStream from './modules/Claims/CaseActivity/CaseActivityStream';
 const App: React.FC = () => {
 
   return (
@@ -51,7 +57,15 @@ const App: React.FC = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/add-claim" element={<AddClaimPage />} />
           <Route path="/canvas" element={<AccidentSketch />} />
+          <Route path="/case-activity" element={<CaseActivityStream />} />
 
+          <Route path="/questionnaire" element={<QuestionnaireLayout />}>
+            <Route index element={<Navigate to="step-1" />} />
+            <Route path="step-1" element={<Step1Witness />} />
+            <Route path="step-2" element={<Step2Questions />} />
+            <Route path="step-3" element={<Step3SketchPreview />} />
+            <Route path="step-4" element={<Step4Canvas />} />
+          </Route>
           {/* Redirect to login if no route matches */}
           {/* Protected Routes with Layout */}
           <Route element={<MainLayout />}>

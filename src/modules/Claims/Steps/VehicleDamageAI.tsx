@@ -17,7 +17,7 @@ import low from "../../../assets/AutoClaim_icon/low.svg";
 import type2 from "../../../assets/AutoClaim_icon/analyzing.svg";
 import Document from "../../../assets/AutoClaim_icon/Document.svg";
 
-import VehicleManualForm from "./VehiclemanualForm";
+import VehicleManualForm from "./VehicleManualForm";
 import AIDamageReportSlider from "../Components/AIReportSlider";
 
 

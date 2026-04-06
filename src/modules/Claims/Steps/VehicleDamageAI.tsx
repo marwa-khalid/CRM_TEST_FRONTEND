@@ -6,7 +6,7 @@ import {
 } from "../../../services/VehicleDamage/VehicleDamage";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
-import downloadd from "../../../assets/AutoClaim_icon/downloadd.svg";
+import downloadd from "../../../assets/AutoClaim_icon/Downloadd.svg";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 import Plus from "../../../assets/AutoClaim_icon/Plus.svg";

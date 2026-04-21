@@ -2,10 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { toast } from "react-toastify";
 import {
   aiAnalyze,
-  saveDamageDetails,
+  getLatestVehicleDamageReport,
 } from "../../../services/VehicleDamage/VehicleDamage";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
 import downloadd from "../../../assets/AutoClaim_icon/Downloadd.svg";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
@@ -15,8 +13,6 @@ import medium from "../../../assets/AutoClaim_icon/medium.svg";
 import high from "../../../assets/AutoClaim_icon/high.svg";
 import low from "../../../assets/AutoClaim_icon/low.svg";
 import type2 from "../../../assets/AutoClaim_icon/analyzing.svg";
-import Document from "../../../assets/AutoClaim_icon/Document.svg";
-
 import VehicleManualForm from "./VehicleManualForm";
 import AIDamageReportSlider from "../Components/AIReportSlider";
 
@@ -39,39 +35,52 @@ const DamageSummaryRow = ({
 
 export const VehicleDamageAI = ({ formRef }: any) => {
   const claimID = localStorage.getItem("claimId");
+useEffect(() => {
+  const loadSavedReport = async () => {
+    try {
+      const data = await getLatestVehicleDamageReport(claimID!);
+
+      const payload = data?.report_payload;
+      if (!payload) return;
+
+      setAiResult({
+        predictions: payload.all_predictions || [],
+        images: payload.images || [],
+        count: payload.count || 0,
+        high_severity_count: payload.high_severity_count || 0,
+      });
+
+      setAssessmentType(payload.assessmentType || "Client vehicle only");
+      setSelectedImageIndex(payload.selectedImageIndex || 0);
+      setCurrentPredictions(
+        payload.images?.[payload.selectedImageIndex || 0]?.predictions || [],
+      );
+      // setPreviews(
+      //   payload.images?.map(
+      //     (img: any) => img.annotated_image_url || img.original_image_url,
+      //   ) || [],
+      // );
+      setPreviews(
+        payload.images?.map(
+          (img: any) => img.original_image_url || img.annotated_image_url,
+        ) || [],
+      );
+    } catch (err) {
+      console.error("Failed to load saved report", err);
+    }
+  };
+
+  if (claimID) loadSavedReport();
+}, [claimID]);
 
   // --- State Management ---
   const [assessmentType, setAssessmentType] = useState("Client vehicle only");
   const [open, setOpen] = useState(false);
-
-
-  // <AIDamageReportSlider
-  //   isOpen={open}
-  //   onClose={() => setOpen(false)}
-  //   selectedType={type}
-  //   data={apiData}
-  // />
-
-  // ===== SAMPLE DATA FORMAT =====
-  // const apiData = [
-  //   {
-  //     type: "client",
-  //     side: "Front",
-  //     area: "Bonnet",
-  //     damage: "Dent",
-  //     severity: "High",
-  //     confidence: 70,
-  //     points: 2,
-  //     repair: "Repair",
-  //     image: "https://placehold.co/300"
-  //   }
-  // ];
-
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-
+console.log(uploadedFiles);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   // --- AI Integration Logic (from old VehicleDamage.tsx) ---
@@ -84,9 +93,9 @@ export const VehicleDamageAI = ({ formRef }: any) => {
     setIsAnalyzing(true);
     try {
       const formData = new FormData();
+      formData.append("claim_id", String(claimID));
+      formData.append("assessment_type", assessmentType);
       uploadedFiles.forEach((file) => formData.append("images", file));
-      formData.append("include_summary", "true");
-      formData.append("include_annotated_image", "true");
 
       const response = await aiAnalyze(formData);
       setAiResult(response);
@@ -96,43 +105,27 @@ export const VehicleDamageAI = ({ formRef }: any) => {
         ) || [],
       );
       // Filter predictions for current image
-
-      // Auto-save damage details as per old logic
-      const payload = transformToSavePayload(response);
-      await saveDamageDetails(payload);
-
       toast.success("AI Analysis Complete");
-    } catch (error) {
-      console.error("Analysis failed", error);
-      // toast.error("Detection failed - Try again");
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.detail ||
+        "AI analysis failed. Please try again.";
+      toast.error(message);
     } finally {
       setIsAnalyzing(false);
     }
   };
   console.log(selectedImageIndex);
   console.log(aiResult?.predictions);
-  const transformToSavePayload = (response: any) => {
-    const report = response.normalized_report;
-    return {
-      claim_id: parseInt(claimID),
-      damage_side: report?.damage_side || "",
-      area_of_damage: report?.area_of_damage || "",
-      severity: report?.severity || "",
-      confidence_percent: report?.confidence_percent || 0,
-      images:
-        response?.annotated_images?.map((img: any) => img.file_path) ||
-        previews,
-    };
-  };
+
+  
   const [currentPredictions, setCurrentPredictions] = useState<any>();
 
   useEffect(() => {
     setCurrentPredictions(
-      aiResult?.predictions?.filter(
-        (p: any) => p.image_index === selectedImageIndex,
-      ) || [],
+      aiResult?.images?.[selectedImageIndex]?.predictions || [],
     );
-  }, [aiResult?.predictions, selectedImageIndex]);
+  }, [aiResult, selectedImageIndex]);
   console.log(currentPredictions);
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -142,101 +135,35 @@ export const VehicleDamageAI = ({ formRef }: any) => {
       setPreviews((prev) => [...prev, ...newPreviews]);
     }
   };
-  //   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   if (e.target.files) {
-  //     const files = Array.from(e.target.files);
-
-  //     // Append to existing files
-  //     setUploadedFiles((prev) => [...prev, ...files]);
-
-  //     const newPreviews = files.map((file) => URL.createObjectURL(file));
-  //     setPreviews((prev) => [...prev, ...newPreviews]);
-  //   }
-  // };
-  // useEffect(() => {
-  //   if (uploadedFiles.length > 0 && aiResult) {
-  //     handleAnalyze(); // re-run analysis with new images
-  //   }
-  // }, [uploadedFiles]);
   const [entryMode, setEntryMode] = useState<string>("Manual");
-  console.log(currentPredictions);
      const reportRef = useRef<HTMLDivElement>(null);
-     const handleDownloadPDF = async () => {
-    const element = reportRef.current;
-    if (!element) return;
-  
-    // 1. Prepare the element for capture
-    // Sometimes browsers struggle with 'overflow-y-auto' during capture.
-    // We temporarily ensure the element calculates its full height.
-    const originalStyle = element.style.height;
-    element.style.height = 'auto'; 
-  
-         try {
-        setIsAnalyzing(true)
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        // KEY FIXES HERE:
-        windowHeight: element.scrollHeight, // Tells it the "window" is as tall as the content
-        height: element.scrollHeight, // Captures the full scrollable area
-        y: 0, // Start from the very top of the element
-        scrollX: 0,
-        scrollY: 0,
-        backgroundColor: "#ffffff", // Ensure background isn't transparent
-        // --- KEY ADDITION HERE ---
-        // This function modifies a copy of the HTML before rendering
-        onclone: (clonedDoc) => {
-          // Find all elements with the specific class and hide them
-          const elementsToHide = clonedDoc.querySelectorAll(".hide-in-pdf");
-          elementsToHide.forEach((el) => {
-            // We set visibility to hidden to keep the layout consistent
-            // (or display: none if you want to collapse the space)
-            (el as HTMLElement).style.visibility = "hidden";
-          });
-        },
-      });
-  
-      const imgData = canvas.toDataURL('image/png');
-      
-      // 2. Dynamic PDF Sizing
-      const pdf = new jsPDF({
-        orientation: 'p',
-        unit: 'px',
-        // We set the PDF format to the actual size of the content 
-        // so it's one long continuous page (standard for AI reports)
-        format: [canvas.width / 2, canvas.height / 2], 
-      });
-  
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-  
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Full-AI-Damage-Report-${Date.now()}.pdf`);
-  
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-    } finally {
-      // Restore original style
-             element.style.height = originalStyle;
-        setIsAnalyzing(false)
-             
-    }
-  };
+     
   return (
     <div className="MainContent w-[1157px] flex-1 items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
       {/* Header Section */}
       {open && (
         <AIDamageReportSlider
-          isOpen={open}
-          src={
-            aiResult?.annotated_images?.[selectedImageIndex] ||
-            previews[selectedImageIndex]
-          }
-          onClose={() => setOpen(false)}
-          selectedType={assessmentType}
-          data={currentPredictions}
-        />
+  isOpen={open}
+  currentImage={{
+    ...aiResult?.images?.[selectedImageIndex],
+    uploaded_by: JSON.parse(localStorage.getItem("activeUser")).email,
+    source_name: "Claim Portal",
+    assessment_type: assessmentType,
+    audit_trail: [
+      {
+        doneBy:  JSON.parse(localStorage.getItem("activeUser")).email,
+        action: "Generated Report",
+        timestamp: aiResult?.images?.[selectedImageIndex]?.generated_at,
+      },
+    ],
+  }}
+  onClose={() => setOpen(false)}
+  selectedType={assessmentType}
+  claimReference={localStorage.getItem("CaseReference") || ""}
+  clientName={ JSON.parse(localStorage.getItem("activeUser")).email}
+  sourceName="Claim Portal"
+  // onSaveToClaim={handleSaveToClaim}
+/>
       )}
       {isAnalyzing && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -282,9 +209,12 @@ export const VehicleDamageAI = ({ formRef }: any) => {
         <div className="flex gap-4 mb-20">
           <button
             className="bg-blue-100 text-primary px-4 py-2 rounded text-sm"
-            onClick={handleDownloadPDF}
+            onClick={() => {
+              const pdfUrl =
+                aiResult?.images?.[selectedImageIndex]?.report_pdf_url;
+              if (pdfUrl) window.open(pdfUrl, "_blank");
+            }}
           >
-            {/* <img src={Document} alt="" /> */}
             Download PDF
           </button>
           <button
@@ -370,14 +300,6 @@ export const VehicleDamageAI = ({ formRef }: any) => {
                       className="w-16 h-16 shrink-0 rounded-lg border border-blue-600 bg-white flex items-center justify-center cursor-pointer hover:bg-blue-50 transition-colors"
                     >
                       <img src={Plus} alt="" />
-                      {/* <input
-                        type="file"
-                        multiple
-                        ref={fileInputRef}
-                        className="hidden"
-                        onChange={handleFileChange}
-                        accept="image/*"
-                      /> */}
                     </div>
 
                     {/* Image Previews */}
@@ -425,18 +347,15 @@ export const VehicleDamageAI = ({ formRef }: any) => {
             </div>
           ) : (
             /* --- ANALYZED STATE (Figma Requirements) --- */
-            <div className="space-y-6">
+            <div ref={reportRef} className="space-y-6">
               <div className="flex gap-4">
                 <DamageSummaryRow
                   label="Total Damages Identified"
-                  value={
-                    aiResult.normalized_report
-                      ?.total_damaged_points_identified || 0
-                  }
+                  value={aiResult?.count || 0}
                 />
                 <DamageSummaryRow
                   label="High Severity Issues"
-                  value={aiResult?.summary?.high_severity_count}
+                  value={aiResult?.high_severity_count || 0}
                 />
               </div>
               {/* Image Display Card */}
@@ -456,61 +375,57 @@ export const VehicleDamageAI = ({ formRef }: any) => {
                   >
                     <img src={Plus} alt="" /> Add More Images
                   </button>
-                  {/* <button
-                    onClick={() => fileInputRef.current?.click()} // just open file picker
-                    className="h-8 px-3 py-2 bg-white rounded outline outline-1 outline-blue-600 text-blue-600 text-sm flex items-center gap-2"
-                  >
-                    <input
-                      type="file"
-                      multiple
-                      ref={fileInputRef}
-                      className="hidden"
-                      onChange={handleFileChange}
-                      accept="image/*"
-                    />
-                    <img src={Plus} alt="" /> Add More Images
-                  </button> */}
                 </div>
-                {/* <div className="w-full bg-neutral-100 rounded-lg flex justify-center items-center">
-                  <img
-                    src={
-                      aiResult.annotated_images?.[0]?.file_path || previews[0]
-                    }
-                    className="max-h-[350px] object-fit"
-                  />
-                </div> */}
+
                 <div className="flex bg-neutral-50  justify-between items-center mb-4">
-                      {aiResult.annotated_images?.length > 1 &&
-                        <button
-                          onClick={() =>
-                            setSelectedImageIndex((prev) => Math.max(prev - 1, 0))
-                          }
-                          disabled={selectedImageIndex === 0}
-                          className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
-                        >
-                          ◀
-                        </button>}
+                  {aiResult.images?.length > 1 && (
+                    <button
+                      onClick={() =>
+                        setSelectedImageIndex((prev) => Math.max(prev - 1, 0))
+                      }
+                      disabled={selectedImageIndex === 0}
+                      className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
+                    >
+                      ◀
+                    </button>
+                  )}
+                  {/* {
+                    console.log(
+                      aiResult?.images?.[selectedImageIndex]
+                        ?.original_image_url,
+                    )!
+                  } */}
                   <div className="w-full bg-neutral-50 rounded-lg flex justify-center items-center">
                     <img
                       src={
-                        aiResult.annotated_images?.[selectedImageIndex]
-                          ?.file_path || previews[selectedImageIndex]
+                        aiResult?.images?.[selectedImageIndex]
+                          ?.annotated_image_url ||
+                        aiResult?.images?.[selectedImageIndex]
+                          ?.original_image_url ||
+                        previews[selectedImageIndex]
                       }
                       className="max-h-[350px] object-cover"
                     />
-                      </div>
-                      {aiResult.annotated_images?.length > 1 &&
-                        <button
-                          onClick={() =>
-                            setSelectedImageIndex((prev) =>
-                              Math.min(prev + 1, previews.length - 1),
-                            )
-                          }
-                          disabled={selectedImageIndex === previews.length - 1}
-                          className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
-                        >
-                          ▶
-                        </button>}
+                  </div>
+                  {aiResult?.images?.length > 1 && (
+                    <button
+                      onClick={() =>
+                        setSelectedImageIndex((prev) =>
+                          Math.min(
+                            prev + 1,
+                            (aiResult?.images?.length || 1) - 1,
+                          ),
+                        )
+                      }
+                      disabled={
+                        selectedImageIndex ===
+                        (aiResult?.images?.length || 1) - 1
+                      }
+                      className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
+                    >
+                      ▶
+                    </button>
+                  )}
                 </div>
 
                 <div className="relative w-full flex items-center gap-3 text-left text-sm text-darkslategray">
@@ -544,66 +459,7 @@ export const VehicleDamageAI = ({ formRef }: any) => {
                     <div className="w-28">POINTS</div>
                     <div>SUGGESTED REPAIR</div>
                   </div>
-                  {/* <div className="flex p-4 text-sm items-center">
-                    <div className="w-36">
-                      {aiResult.normalized_report?.damage_side}
-                    </div>
-                    <div className="w-40">
-                      {aiResult.normalized_report?.area_of_damage}
-                    </div>
-                    <div className="w-44">
-                      {aiResult.normalized_report?.type_of_damage}
-                    </div>
-                    <div className="w-32">
-                      <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">
-                        {aiResult.normalized_report?.severity}
-                      </span>
-                    </div>
-                    <div className="w-28">
-                      {aiResult.normalized_report?.confidence_percent}%
-                    </div>
-                    <div>
-                      {aiResult.normalized_report?.suggested_repair_action}
-                    </div>
-                  </div> */}
-                  {/* {aiResult.predictions?.map((item: any, index: number) => (
-                    <div
-                      key={index}
-                      className="flex p-4 text-sm items-start border-b font-weight-400 font-light text-neutral-700"
-                    >
-                      <div className="w-36 capitalize">{item.side}</div>
 
-                      <div className="w-40 capitalize">{item.part}</div>
-
-                      <div className="w-44 capitalize">{item.damage_type}</div>
-
-                      <div className="w-32">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-bold ${
-                            item.severity === "High"
-                              ? "bg-red-100 text-red-700"
-                              : item.severity === "Medium"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-green-100 text-green-700"
-                          }`}
-                        >
-                          {item.severity}
-                        </span>
-                      </div>
-
-                      <div className="w-28">
-                        {(item.confidence * 100).toFixed(0)}%
-                      </div>
-                      <div className="w-28">{item.points || 1}</div>
-                      <div>
-                        {item.damage_type === "dent"
-                          ? "Repair & paint"
-                          : item.damage_type === "broken"
-                            ? "Replace part"
-                            : "Inspect"}
-                      </div>
-                    </div>
-                  ))} */}
                   {currentPredictions.map((item: any, index: number) => (
                     <div
                       key={index}
@@ -630,11 +486,20 @@ export const VehicleDamageAI = ({ formRef }: any) => {
                       </div>
                       <div className="w-28">{item.points || 1}</div>
                       <div>
-                        {item.damage_type === "dent"
-                          ? "Repair & paint"
-                          : item.damage_type === "broken"
-                            ? "Replace part"
-                            : "Inspect"}
+                        <div>
+                          {item.damage_type?.toLowerCase() === "dent"
+                            ? "Repair & paint"
+                            : item.damage_type?.toLowerCase() === "broken"
+                              ? "Replace part"
+                              : item.damage_type?.toLowerCase() === "crash"
+                                ? "Replace or major repair"
+                                : item.damage_type?.toLowerCase() === "scratch"
+                                  ? "Paint / polish"
+                                  : item.damage_type?.toLowerCase() ===
+                                      "shattered"
+                                    ? "Replace glass"
+                                    : "Inspect"}
+                        </div>
                       </div>
                     </div>
                   ))}

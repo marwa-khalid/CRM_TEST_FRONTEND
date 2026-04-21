@@ -31,6 +31,7 @@ import Step2Questions from './modules/Claims/Questionnaire/WitnessStep2';
 import Step3SketchPreview from './modules/Claims/Questionnaire/WitnessStep3';
 import Step4Canvas from './modules/Claims/Questionnaire/WitnessStep4';
 import CaseActivityStream from './modules/Claims/CaseActivity/CaseActivityStream';
+import DocumentLibrary from './modules/Claims/DocumentsLibrary/DocumentsLibrary';
 const App: React.FC = () => {
 
   return (
@@ -58,6 +59,7 @@ const App: React.FC = () => {
           <Route path="/add-claim" element={<AddClaimPage />} />
           <Route path="/canvas" element={<AccidentSketch />} />
           <Route path="/case-activity" element={<CaseActivityStream />} />
+          <Route path="/document-library" element={<DocumentLibrary />} />
 
           <Route path="/questionnaire" element={<QuestionnaireLayout />}>
             <Route index element={<Navigate to="step-1" />} />

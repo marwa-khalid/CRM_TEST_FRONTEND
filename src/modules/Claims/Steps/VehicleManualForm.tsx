@@ -183,7 +183,7 @@ const loadData = async () => {
     setThirdPartyVehicleId(vehicleData.third_party_vehicles?.[0]?.id || "");
   } catch (error) {
     console.error(error);
-    toast.error("Failed to load vehicle data");
+    // toast.error("Failed to load vehicle data");
   } finally {
     setIsLoading(false);
   }

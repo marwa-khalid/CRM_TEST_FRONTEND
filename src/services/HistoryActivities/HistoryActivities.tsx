@@ -97,3 +97,8 @@ export const searchTenantFiles = (
     },
   });
 };
+
+export const getCaseActivity = async (claimId: number | string) => {
+  const response = await axiosInstance.get(`/case-activity/claim/${claimId}`);
+  return response.data;
+};

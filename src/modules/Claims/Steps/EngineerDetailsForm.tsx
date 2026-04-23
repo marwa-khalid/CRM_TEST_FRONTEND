@@ -320,7 +320,7 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
         onUploadSuccess={(jobId) => pollJobStatus(jobId)}
         setReportData={setReportData}
       />
-      <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+      <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
         {/* Container matching left-[534px] and top-[157px] from source */}
         <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
           Engineer Details
@@ -673,7 +673,7 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
               setShowEngInstructed,
               engInstructedRef,
               "engineer_instructed",
-              false
+              false,
             )}
             {renderDatePickerField(
               "Inspection Date",
@@ -682,7 +682,7 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
               setShowInspection,
               inspectionRef,
               "inspection_date",
-              false
+              false,
             )}
             {renderDatePickerField(
               "Engineer’s Report Received",
@@ -691,7 +691,7 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
               setShowReportRec,
               reportRecRef,
               "engineer_report_received_date",
-              false
+              false,
             )}
 
             <div className="flex flex-col gap-2">

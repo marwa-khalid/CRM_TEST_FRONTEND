@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import Subtractt from '../../assets/images/Subtractt.svg';
+import Subtractt from "../../assets/images/Subtractt.svg";
 import group from "../../assets/images/Group 2608219.svg";
 import background from "../../assets/images/background.png";
 import group2 from "../../assets/images/group-2608221.svg";
 import subtract1 from "../../assets/images/subtract-1.svg";
 import Vector from "../../assets/images/Vector.svg";
-import Vector2 from "../../assets/images/Vector2.svg";
 import union from "../../assets/images/union.svg";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../services/axiosConfig.ts";
@@ -13,170 +12,152 @@ import { API_BASE_URL } from "../../services/axiosConfig.ts";
 const OTPPage = () => {
   const [otp, setOtp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const navigate = useNavigate();
   const [isResending, setIsResending] = useState(false);
-  const [countdown, setCountdown] = useState(0); // Timer state
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [scale, setScale] = useState(1);
+
+  const navigate = useNavigate();
+  const containerRef = useRef(null);
+
+  const pendingEmail = localStorage.getItem("pendingLoginEmail");
+
+  useEffect(() => {
+    if (!pendingEmail) {
+      setErrorMessage("Session expired. Please login again.");
+    }
+  }, [pendingEmail]);
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
     setErrorMessage("");
 
-    // 1. Get the OTP data we saved during login
-    const storedDataRaw = localStorage.getItem("pendingOTP");
-
-    if (!storedDataRaw) {
-      setErrorMessage("Invalid OTP.");
+    if (!pendingEmail) {
+      setErrorMessage("Session expired. Please login again.");
       return;
     }
 
-    const { code, expiresAt } = JSON.parse(storedDataRaw);
-
-    // 2. Check for Expiry
-    if (Date.now() > expiresAt) {
-      setErrorMessage(
-        "The verification code has expired/is incorrect. Please request a new code",
-      );
+    if (!otp || otp.length !== 6) {
+      setErrorMessage("Please enter the 6-digit OTP.");
       return;
     }
 
-    // 3. Compare Input with stored Code
-    if (otp === code) {
-      console.log("OTP Verified!");
-      localStorage.removeItem("pendingOTP"); // Clean up sensitive data
-       const storedUserRaw = localStorage.getItem("activeUser");
-       if (!storedUserRaw) {
-         setErrorMessage("Invalid Credentials");
-         return;
-       }
-      const storedUser = JSON.parse(storedUserRaw);
-           const response2 = await fetch(
-            `${API_BASE_URL}/auth/login`,
-             {
-               method: "POST",
-               headers: {
-                 "Content-Type": "application/json",
-               },
-               body: JSON.stringify({
-                 user_name: storedUser.email,
-                 password: storedUser.password,
-               }),
-             },
-           );
+    try {
+      setIsVerifying(true);
 
-           if (!response2.ok) {
-             setErrorMessage("Invalid credentials");
-             return;
-           }
+      const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_name: pendingEmail,
+          otp,
+        }),
+      });
 
-           const data = await response2.json();
+      const data = await response.json();
 
-           // Save token
-           localStorage.setItem("access_token", data.access_token);
-           localStorage.setItem("user", JSON.stringify(data));
+      if (!response.ok) {
+        setErrorMessage(data.detail || data.message || "Invalid OTP");
+        return;
+      }
 
-          //  navigate("/dashboard");
-      navigate("/single-signon"); // Or wherever your landing page is
-    } else {
-      setErrorMessage(
-        "The verification code has expired/is incorrect. Please request a new code",
-      );
+      const pendingUser = localStorage.getItem("pendingLoginUser");
+
+      if (!pendingUser) {
+        setErrorMessage("Login session missing. Please login again.");
+        return;
+      }
+
+      const parsedPendingUser = JSON.parse(pendingUser);
+
+      localStorage.setItem("access_token", parsedPendingUser.access_token);
+      localStorage.setItem("user", JSON.stringify(parsedPendingUser));
+
+      localStorage.removeItem("pendingLoginUser");
+      localStorage.removeItem("pendingLoginEmail");
+      localStorage.removeItem("activeUser");
+      localStorage.removeItem("pendingOTP");
+
+      navigate("/single-signon");
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("Something went wrong. Please try again.");
+    } finally {
+      setIsVerifying(false);
     }
   };
-    const [scale, setScale] = useState(1);
-    const containerRef = useRef(null);
 
-    useEffect(() => {
-      const handleResize = () => {
-        const baseWidth = 1600;
-        const baseHeight = 903;
+  useEffect(() => {
+    const handleResize = () => {
+      const baseWidth = 1600;
+      const baseHeight = 903;
 
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
 
-        const widthScale = windowWidth / baseWidth;
-        const heightScale = windowHeight / baseHeight;
+      const widthScale = windowWidth / baseWidth;
+      const heightScale = windowHeight / baseHeight;
 
-        // REMOVED Math.min(..., 1) so it expands to fill large screens
-        // Using Math.max ensures the whole screen is covered (no white space)
-        const newScale = Math.max(widthScale, heightScale);
+      const newScale = Math.max(widthScale, heightScale);
+      setScale(newScale);
+    };
 
-        setScale(newScale);
-      };
+    window.addEventListener("resize", handleResize);
+    handleResize();
 
-      window.addEventListener("resize", handleResize);
-      handleResize();
-      return () => window.removeEventListener("resize", handleResize);
-    }, []);
-  // Handle the countdown timer
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   useEffect(() => {
     if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      const timer = setTimeout(() => setCountdown((prev) => prev - 1), 1000);
       return () => clearTimeout(timer);
     }
   }, [countdown]);
 
   const handleResendOTP = async () => {
-    if (countdown > 0) return; // Prevent clicking if timer is active
-    setOtp("")
-    setIsResending(true);
+    if (countdown > 0 || isResending) return;
+
+    setOtp("");
     setErrorMessage("");
 
-    // 1. Get user email from local storage
-    const storedDataRaw = localStorage.getItem("pendingOTP");
-    const storedUserRaw = localStorage.getItem("activeUser");
-
-    // We need the email address to know where to send it
-    const email = storedDataRaw
-      ? JSON.parse(storedDataRaw).email
-      : storedUserRaw
-        ? JSON.parse(storedUserRaw).email
-        : null;
-
-    if (!email) {
-      setErrorMessage(
-        "The verification code has expired/is incorrect. Please request a new code",
-      );
-      setIsResending(false);
+    if (!pendingEmail) {
+      setErrorMessage("Session expired. Please login again.");
       return;
     }
 
-    // 2. Generate New OTP and Expiry
-    const newOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const newExpiresAt = Date.now() + 5 * 60 * 1000;
-
     try {
-      // 3. Call Backend
-      const response = await fetch("https://emailbackend-ten.vercel.app/send-otp", {
+      setIsResending(true);
+
+      const response = await fetch(`${API_BASE_URL}/auth/send-otp`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientEmail: email, otp: newOtpCode }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_name: pendingEmail,
+        }),
       });
 
-      if (response.ok) {
-        // 4. Update local storage with the NEW code
-        localStorage.setItem(
-          "pendingOTP",
-          JSON.stringify({
-            code: newOtpCode,
-            expiresAt: newExpiresAt,
-            email: email,
-          }),
-        );
+      const data = await response.json();
 
-        setCountdown(60); // Start 60s cooldown
-        console.log("New OTP sent!");
-      } else {
-        setErrorMessage(
-          "The verification code has expired/is incorrect. Please request a new code",
-        );
+      if (!response.ok) {
+        setErrorMessage(data.detail || data.message || "Failed to resend OTP");
+        return;
       }
+
+      setCountdown(60);
     } catch (error) {
-      setErrorMessage(
-        "The verification code has expired/is incorrect. Please request a new code",
-      );
+      console.error(error);
+      setErrorMessage("Failed to resend OTP. Please try again.");
     } finally {
       setIsResending(false);
     }
   };
+
   return (
     <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white">
       <div
@@ -184,7 +165,7 @@ const OTPPage = () => {
         style={{
           transform: `scale(${scale})`,
           transformOrigin: "center center",
-          width: "1600px", // Changed from minWidth to width for strictness
+          width: "1600px",
           height: "903px",
           flexShrink: 0,
         }}
@@ -272,29 +253,27 @@ const OTPPage = () => {
               Verify OTP
             </h2>
             <span className="text-neutral-700 text-md font-weight-400 font-regular margin-top-[10px]">
-              We have sent a one-time password (OTP) to your email <br/>address.
-              Enter it below to verify your account.
+              We have sent a one-time password (OTP) to your email
+              <br />
+              address. Enter it below to verify your account.
             </span>
           </div>
+
           <form
             onSubmit={handleSubmit}
             className="flex flex-col items-start gap-6 relative self-stretch w-full flex-[0_0_auto]"
           >
             <div className="flex flex-col items-start gap-5 relative self-stretch w-full flex-[0_0_auto]">
-              {/* <div className="w-full px-5 py-3 bg-blue-50 rounded flex justify-start items-center gap-3 border border-blue-100">
-                <img src={Vector2} className="w-5 h-5" alt="" /> */}
-
-              {/* </div> */}
               {errorMessage && (
                 <div className="w-full px-5 py-3 bg-red-50 rounded flex justify-start items-center gap-3 border border-red-100">
                   <img src={Vector} className="w-5 h-5" alt="" />
-
                   <div className="text-neutral-700 text-sm">{errorMessage}</div>
                 </div>
               )}
+
               <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
                 <label
-                  htmlFor="email"
+                  htmlFor="otp"
                   className="relative self-stretch text-[#444444] text-[14px] font-medium break-words"
                 >
                   OTP
@@ -306,21 +285,13 @@ const OTPPage = () => {
                     id="otp"
                     maxLength={6}
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} // Only allow numbers
-                    // placeholder="000000"
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                     className="w-full bg-transparent text-[16px] tracking-[0.5em] font-semibold outline-none"
                   />
                 </div>
               </div>
             </div>
 
-            {/* <button
-            type="button"
-            onClick={handleForgotPassword}
-            className="relative self-stretch font-CTA-link text-[#0352FD] text-[14px] text-[#0352fd] tracking-[var(--CTA-link-letter-spacing)] leading-[var(--CTA-link-line-height)] [font-style:var(--CTA-link-font-style)] text-left cursor-pointer hover:underline"
-          >
-            Forgot Password
-          </button> */}
             <div className="flex items-start justify-start w-full">
               <p className="text-[14px] font-normal">
                 <span className="text-[#444444]">Didn’t Receive OTP? </span>
@@ -343,19 +314,21 @@ const OTPPage = () => {
               </p>
             </div>
           </form>
+
           <button
-            type="submit"
-            onClick={handleSubmit}
-            className="flex items-center justify-center w-[508px] px-10 py-4 bg-[#0352FD] rounded-[4px] gap-[10px] hover:bg-[#0246d9] active:scale-[0.98] transition-all group"
+            type="button"
+            disabled={isVerifying}
+            onClick={() => handleSubmit()}
+            className="flex items-center justify-center w-[508px] px-10 py-4 bg-[#0352FD] rounded-[4px] gap-[10px] hover:bg-[#0246d9] active:scale-[0.98] transition-all group disabled:bg-blue-300"
           >
             <span className="text-white text-[16px] font-medium leading-[16px] break-words">
-              {" "}
-              Verify and Continue
+              {isVerifying ? "Verifying..." : "Verify and Continue"}
             </span>
           </button>
         </div>
       </div>
     </div>
   );
-};;
+};
+
 export default OTPPage;

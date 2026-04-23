@@ -144,8 +144,8 @@ const AddClaimPage = () => {
           />
         </div>
 
-        <div className="flex-1 h-full w-full overflow-y-auto px-10 justify-center">
-          {renderForm()}
+        <div className="flex-1 h-full w-full overflow-y-auto flex justify-center">
+          <div className="w-full max-w-[900px] px-4">{renderForm()}</div>
         </div>
         {/* <div className="flex-1 h-full w-full overflow-y-auto px-10 justify-center">
           {renderPaymentForm()}

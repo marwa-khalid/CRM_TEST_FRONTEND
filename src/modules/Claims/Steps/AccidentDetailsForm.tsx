@@ -399,7 +399,7 @@ const timeOptions = generateTimeOptions();
     }
   }, [witnessesList.length]);
   return (
-    <div className="MainContent w-[788px] ms-[140px] pb-20 flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+    <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       {passengerModal && (
         <PassengerDetailsModal
           onClose={() => {
@@ -455,9 +455,7 @@ const timeOptions = generateTimeOptions();
               >
                 <span
                   className={`font-light font-['Stack_Sans_Headline'] ${
-                    formik.values.date
-                      ? "text-neutral-700"
-                      : "text-neutral-300"
+                    formik.values.date ? "text-neutral-700" : "text-neutral-300"
                   }`}
                 >
                   {formik.values.date

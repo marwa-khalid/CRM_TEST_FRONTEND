@@ -157,7 +157,7 @@ export const StorageRecoveryDetails = ({ formRef }: any) => {
 
 
   return (
-    <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+    <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       {storageProviderModal && (
         <StorageProviderModal
           onClose={() => setStorageProviderModalOpen(false)}
@@ -316,7 +316,9 @@ export const StorageRecoveryDetails = ({ formRef }: any) => {
                 <div className="flex gap-4 items-center">
                   <div className="text-xs text-neutral-700">
                     Recovery Date:{" "}
-                    <span className="font-weight-600 ">{r.date_of_recovery}</span>
+                    <span className="font-weight-600 ">
+                      {r.date_of_recovery}
+                    </span>
                   </div>
                   <div className="text-xs text-neutral-700">
                     Total Charges:{" "}

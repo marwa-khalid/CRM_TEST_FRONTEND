@@ -359,12 +359,12 @@ const DocumentRow: React.FC<{
 };
              
   return (
-    <div className="w-[788px] ms-[140px] flex flex-col gap-6 p-8 font-['Stack_Sans_Headline']">
+    <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       <h1 className="text-black text-2xl font-weight-600">
         Driver Documents & Agreements
       </h1>
 
-      <div className="p-5 rounded-lg border border-neutral-100 flex flex-col gap-4 shadow-sm">
+        <div className="w-full p-5 rounded-lg border border-neutral-100 flex flex-col gap-4 shadow-sm">
         <h2 className="text-xl font-weight-600">Driver Proofs Check List</h2>
 
         <div className="self-stretch h-px bg-neutral-100" />

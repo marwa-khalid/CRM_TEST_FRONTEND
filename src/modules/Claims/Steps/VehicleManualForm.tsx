@@ -214,7 +214,7 @@ const RightPanel = ({
   const zones = formik.values[section].areaDamage;
 
   return (
-    <div className="flex-1 flex flex-col gap-4 font-['Stack_Sans_Headline']">
+    <div className="flex-1 min-w-0 flex flex-col gap-4 font-['Stack_Sans_Headline']">
       {/* AREA OF DAMAGE */}
       <div className="flex flex-col gap-2 w-full">
         <div className="text-neutral-700 text-sm font-weight-400">
@@ -252,7 +252,9 @@ const RightPanel = ({
         <textarea
           name={`${section}.unrelatedDamage`}
           value={formik.values[section].unrelatedDamage}
-                  onChange={(e) => formik.setFieldValue(`${section}.unrelatedDamage`, e.target.value)}
+          onChange={(e) =>
+            formik.setFieldValue(`${section}.unrelatedDamage`, e.target.value)
+          }
           placeholder="Enter Description"
           className="h-24 px-5 py-4 border border-neutral-200 rounded resize-none text-base"
         />
@@ -296,7 +298,7 @@ const RightPanel = ({
           <div
             key={zone.label}
             onClick={() => toggleZone(section, zone.label)}
-            className={`cursor-pointer w-40 h-44 p-4 bg-white rounded-lg border flex flex-col items-center justify-end ${zone.label==="Roof"?"gap-2":"gap-5"} 
+            className={`cursor-pointer w-full max-w-[160px] xl:max-w-none h-44 p-4 bg-white rounded-lg border flex flex-col items-center justify-end ${zone.label === "Roof" ? "gap-2" : "gap-5"} 
         ${selected ? "border-blue-200" : "border-gray-200"}
         hover:border-blue-200`}
           >
@@ -310,7 +312,7 @@ const RightPanel = ({
   };
 const SectionHeader = ({ title }: { title: string }) => {
   return (
-    <div className="w-80 flex flex-col items-start gap-1.5 ">
+    <div className="w-full max-w-80 flex flex-col items-start gap-1.5">
       <div className="w-full text-black text-base font-weight-400 leading-4">
         {title}
       </div>
@@ -325,13 +327,13 @@ const SectionHeader = ({ title }: { title: string }) => {
   return (
     <form
       onSubmit={formik.handleSubmit}
-      className="flex flex-col gap-10 max-w-6xl mx-auto"
+      className="flex flex-col gap-10 w-full mx-auto font-['Stack_Sans_Headline']"
     >
       {/* CLIENT VEHICLE */}
       <div className="border rounded-xl p-6 flex flex-col gap-10">
         <SectionHeader title="Client Vehicle Damage Areas" />
-        <div className="flex gap-10">
-          <div className="grid grid-cols-3 gap-4 bg-neutral-100 p-8 rounded-lg">
+        <div className="flex flex-col xl:flex-row gap-6 xl:gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-neutral-100 p-4 sm:p-6 rounded-lg w-full xl:w-auto">
             {renderZones("client")}
           </div>
 
@@ -342,8 +344,8 @@ const SectionHeader = ({ title }: { title: string }) => {
       {/* THIRD PARTY */}
       <div className="border rounded-xl p-6 flex flex-col gap-10">
         <SectionHeader title="Third Party Vehicle Damage Areas" />
-        <div className="flex gap-10">
-          <div className="grid grid-cols-3 gap-4 bg-neutral-100 p-8 rounded-lg">
+        <div className="flex flex-col xl:flex-row gap-6 xl:gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-neutral-100 p-4 sm:p-6 rounded-lg w-full xl:w-auto">
             {renderZones("thirdParty")}
           </div>
 

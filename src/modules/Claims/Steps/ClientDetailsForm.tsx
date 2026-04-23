@@ -337,7 +337,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           onClose={() => openModal(false)}
         />
       )}
-      <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+      <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
         {/* Container matching left-[534px] and top-[157px] from source */}
         <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
           Client Details
@@ -501,7 +501,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                       onChange={(e) =>
                         formik.setFieldValue("customOccupation", e.target.value)
                       }
-                     className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                      className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
                     />
                   </div>
                 </div>
@@ -513,15 +513,14 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                   Driver Code
                 </label>
-              <input
-                    placeholder="Enter Code"
-                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
-                    value={formik.values.driverCode}
-                    onChange={(e) =>
-                      formik.setFieldValue("driverCode", e.target.value)
-                    }
-                  />
-           
+                <input
+                  placeholder="Enter Code"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                  value={formik.values.driverCode}
+                  onChange={(e) =>
+                    formik.setFieldValue("driverCode", e.target.value)
+                  }
+                />
               </div>
               <div className="col-span-6 flex flex-col gap-2">
                 <span className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
@@ -563,13 +562,13 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   Driver Base
                 </label>
                 <input
-                    placeholder="Enter Driver Base"
-                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
-                    value={formik.values.driverBase}
-                    onChange={(e) =>
-                      formik.setFieldValue("driverBase", e.target.value)
-                    }
-                  />
+                  placeholder="Enter Driver Base"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                  value={formik.values.driverBase}
+                  onChange={(e) =>
+                    formik.setFieldValue("driverBase", e.target.value)
+                  }
+                />
               </div>
             </div>
           </div>
@@ -618,28 +617,27 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 <label className="text-gray-700 text-sm font-weight-400">
                   Post Code
                 </label>
-            <input
-                    placeholder="Enter Code"
-                    value={formik.values.postcode}
-                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
-                    onChange={(e) =>
-                      formik.setFieldValue("postcode", e.target.value)
-                    }
-                  />
-              
+                <input
+                  placeholder="Enter Code"
+                  value={formik.values.postcode}
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                  onChange={(e) =>
+                    formik.setFieldValue("postcode", e.target.value)
+                  }
+                />
               </div>
               <div className="col-span-8 flex flex-col gap-2">
                 <label className="text-gray-700 text-sm font-weight-400">
                   Email Address
                 </label>
                 <input
-                    placeholder="Enter Email"
-                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
-                    value={formik.values.email}
-                    onChange={(e) =>
-                      formik.setFieldValue("email", e.target.value)
-                    }
-                  />
+                  placeholder="Enter Email"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                  value={formik.values.email}
+                  onChange={(e) =>
+                    formik.setFieldValue("email", e.target.value)
+                  }
+                />
               </div>
             </div>
 
@@ -800,42 +798,40 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 <label className="text-gray-700 text-sm font-weight-400">
                   Sort Code
                 </label>
-              <input
-                    type="text"
-                    placeholder="00-00-00"
-                    maxLength={8} // 6 digits + 2 hyphens
-                                     className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                <input
+                  type="text"
+                  placeholder="00-00-00"
+                  maxLength={8} // 6 digits + 2 hyphens
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                  value={formik.values.sortCode || ""}
+                  onChange={(e) => {
+                    let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
 
-                    value={formik.values.sortCode || ""}
-                    onChange={(e) => {
-                      let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+                    // Apply the 00-00-00 pattern
+                    let formatted = value;
+                    if (value.length > 2 && value.length <= 4) {
+                      formatted = `${value.slice(0, 2)}-${value.slice(2)}`;
+                    } else if (value.length > 4) {
+                      formatted = `${value.slice(0, 2)}-${value.slice(2, 4)}-${value.slice(4, 6)}`;
+                    }
 
-                      // Apply the 00-00-00 pattern
-                      let formatted = value;
-                      if (value.length > 2 && value.length <= 4) {
-                        formatted = `${value.slice(0, 2)}-${value.slice(2)}`;
-                      } else if (value.length > 4) {
-                        formatted = `${value.slice(0, 2)}-${value.slice(2, 4)}-${value.slice(4, 6)}`;
-                      }
-
-                      formik.setFieldValue("sortCode", formatted);
-                    }}
-                  />
+                    formik.setFieldValue("sortCode", formatted);
+                  }}
+                />
               </div>
               <div className="col-span-6 flex flex-col gap-2">
                 <label className="text-gray-700 text-sm font-weight-400">
                   Account Number
                 </label>
-                 <input
-                    placeholder="8 Digits Number"
-                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
-                    maxLength={8}
-                    value={formik.values.accountNumber}
-                    onChange={(e) =>
-                      formik.setFieldValue("accountNumber", e.target.value)
-                    }
-                  />
-               
+                <input
+                  placeholder="8 Digits Number"
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                  maxLength={8}
+                  value={formik.values.accountNumber}
+                  onChange={(e) =>
+                    formik.setFieldValue("accountNumber", e.target.value)
+                  }
+                />
               </div>
             </div>
 
@@ -1007,18 +1003,17 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   <label className="text-gray-700 text-sm font-weight-400">
                     Provide Reason
                   </label>
-                    <textarea
-                      placeholder="Please provide details regarding the driver's vulnerability..."
-                      className={`w-full bg-transparent border border-gray-200 rounded outline-none text-neutral-700 font-light min-h-[130px] resize-none px-5 py-4 ${inputStyles}`}
-                      value={formik.values.vulnerablePersonWhy}
-                      onChange={(e) =>
-                        formik.setFieldValue(
-                          "vulnerablePersonWhy",
-                          e.target.value,
-                        )
-                      }
-                    />
-                
+                  <textarea
+                    placeholder="Please provide details regarding the driver's vulnerability..."
+                    className={`w-full bg-transparent border border-gray-200 rounded outline-none text-neutral-700 font-light min-h-[130px] resize-none px-5 py-4 ${inputStyles}`}
+                    value={formik.values.vulnerablePersonWhy}
+                    onChange={(e) =>
+                      formik.setFieldValue(
+                        "vulnerablePersonWhy",
+                        e.target.value,
+                      )
+                    }
+                  />
                 </div>
               </div>
             )}

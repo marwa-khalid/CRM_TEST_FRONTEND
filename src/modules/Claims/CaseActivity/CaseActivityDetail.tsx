@@ -1,20 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import {
-  X,
   Mail,
-  Paperclip,
   FileText,
   History,
   User,
   Edit3,
   Upload,
 } from "lucide-react";
-
+import attachment from '../../../assets/AutoClaim_icon/attachment.svg'
 interface ActivityDetailSliderProps {
   isOpen: boolean;
   onClose: () => void;
   data: any;
-  onAddNote?: (activity: any) => void;
+  onAddNote?: (payload: { activity: any; note: string }) => void;
   onViewInDocumentLibrary?: (activity: any) => void;
   onForwardToClient?: (activity: any) => void;
 }
@@ -27,6 +25,12 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
   onViewInDocumentLibrary,
   onForwardToClient,
 }) => {
+  const [showNoteBox, setShowNoteBox] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [notes, setNotes] = useState<
+    { id: number; text: string; createdAt: string }[]
+  >([]);
+
   if (!isOpen || !data) return null;
 
   const getIcon = () => {
@@ -59,6 +63,89 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
         hour12: true,
       })
       .replace(",", "");
+  };
+
+  const handleOpenNote = () => {
+    setShowNoteBox(true);
+  };
+
+  const handleSaveNote = () => {
+    if (!noteText.trim()) return;
+
+    const newNote = {
+      id: Date.now(),
+      text: noteText.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    setNotes((prev) => [newNote, ...prev]);
+    onAddNote?.({ activity: data, note: noteText.trim() });
+
+    setNoteText("");
+    setShowNoteBox(false);
+  };
+
+  const renderNotesSection = () => {
+    if (notes.length === 0) return null;
+
+    return (
+      <div className="flex flex-col gap-3">
+        <h3 className="text-base font-weight-600 text-black">Notes</h3>
+
+        {notes.map((note) => (
+          <div key={note.id} className="bg-neutral-100 p-4 rounded-lg">
+            <p className="text-neutral-700 text-sm font-weight-300 whitespace-pre-line leading-relaxed">
+              {note.text}
+            </p>
+            <p className="text-neutral-500 text-xs mt-2">
+              {formatDateTime(note.createdAt)}
+            </p>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderNoteBox = () => {
+    if (!showNoteBox) return null;
+
+    return (
+      <div className="mt-4 border-t border-neutral-100 pt-6">
+        <div className="flex flex-col gap-3">
+          <label className="text-sm text-neutral-700 font-weight-400">
+            Add Note
+          </label>
+
+          <textarea
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="Write your note here..."
+            rows={5}
+            className="w-full rounded-lg border border-neutral-200 px-4 py-3 text-sm text-neutral-700 outline-none focus:border-blue-500 resize-none"
+          />
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSaveNote}
+              disabled={!noteText.trim()}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm transition-colors"
+            >
+              Save Note
+            </button>
+
+            <button
+              onClick={() => {
+                setShowNoteBox(false);
+                setNoteText("");
+              }}
+              className="px-5 py-2.5 border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-lg text-sm transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -103,7 +190,7 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
               <div className="flex items-center gap-8 text-blue-600 text-sm border-b border-neutral-100 pb-6 flex-wrap">
                 <button
                   className="flex items-center gap-2 hover:text-blue-700"
-                  onClick={() => onAddNote?.(data)}
+                  onClick={handleOpenNote}
                 >
                   <Edit3 size={16} />
                   Add Note
@@ -179,7 +266,8 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                       rel="noreferrer"
                       className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-600 hover:bg-blue-50 transition-colors w-fit"
                     >
-                      <Paperclip size={16} />
+                      <img src={attachment} alt="" />
+
                       <span className="text-sm font-weight-300">
                         {attachment.file_name || "AI Damage Report.pdf"}
                       </span>
@@ -187,10 +275,39 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                   ))}
                 </div>
               )}
+
+              {renderNotesSection()}
+              {renderNoteBox()}
             </>
           ) : data.type === "Email" ? (
             <>
               <div className="space-y-1">
+                <div className="flex items-center gap-8 text-blue-600 text-sm border-b border-neutral-100 pb-3 mb-3 flex-wrap">
+                  <button
+                    className="flex items-center gap-2 hover:text-blue-700"
+                    onClick={handleOpenNote}
+                  >
+                    <Edit3 size={16} />
+                    Add Note
+                  </button>
+
+                  <button
+                    className="flex items-center gap-2 hover:text-blue-700"
+                    onClick={() => onViewInDocumentLibrary?.(data)}
+                  >
+                    <FileText size={16} />
+                    View attachment in Document Library
+                  </button>
+
+                  <button
+                    className="flex items-center gap-2 hover:text-blue-700"
+                    onClick={() => onForwardToClient?.(data)}
+                  >
+                    <FileText size={16} />
+                    Forward to Client
+                  </button>
+                </div>
+
                 <p className="text-sm text-neutral-700">
                   <span className="font-weight-300">Subject: </span>
                   <span className="font-weight-600">{data.subject || "-"}</span>
@@ -229,7 +346,8 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                       rel="noreferrer"
                       className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-600 hover:bg-blue-50 transition-colors w-fit"
                     >
-                      <Paperclip size={16} />
+                      <img src={attachment} alt="" />
+
                       <span className="text-sm font-weight-300">
                         {attachment.file_name}
                       </span>
@@ -237,6 +355,9 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                   ))}
                 </div>
               )}
+
+              {renderNotesSection()}
+              {renderNoteBox()}
             </>
           ) : (
             <>
@@ -269,7 +390,7 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                       rel="noreferrer"
                       className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-600 hover:bg-blue-50 transition-colors w-fit"
                     >
-                      <Paperclip size={16} />
+                      <img src={attachment} alt="" />
                       <span className="text-sm font-weight-300">
                         {attachment.file_name}
                       </span>
@@ -277,6 +398,9 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                   ))}
                 </div>
               )}
+
+              {renderNotesSection()}
+              {renderNoteBox()}
             </>
           )}
         </div>

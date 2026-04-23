@@ -228,7 +228,7 @@ Nationwide Assist Team`,
 
   const handleAddNote = (activity: ActivityItem) => {
     console.log("Add note for activity:", activity);
-    alert("Next step: open Add Note modal and save note to history_activities.");
+    // alert("Next step: open Add Note modal and save note to history_activities.");
   };
 
   const handleViewInDocumentLibrary = (activity: ActivityItem) => {

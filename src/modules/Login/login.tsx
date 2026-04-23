@@ -7,6 +7,7 @@ import subtract1 from "../../assets/images/subtract-1.svg";
 import Vector from "../../assets/images/Vector.svg";
 import union from "../../assets/images/union.svg";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../../services/axiosConfig.ts";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -15,79 +16,86 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
-   e.preventDefault();
-   setErrorMessage("");
+  e.preventDefault();
+  setErrorMessage("");
 
-   // 1. Check Lockout Status
-   const lockoutData = localStorage.getItem(`lockout_${email}`);
-   if (lockoutData) {
-     const { lockedUntil } = JSON.parse(lockoutData);
-     if (Date.now() < lockedUntil) {
-       navigate("/account-locked"); // Redirect if still locked
-       return;
-     } else {
-       // Lockout period expired, clear it
-       localStorage.removeItem(`lockout_${email}`);
-     }
-   }
+  const lockoutData = localStorage.getItem(`lockout_${email}`);
+  if (lockoutData) {
+    const { lockedUntil } = JSON.parse(lockoutData);
+    if (Date.now() < lockedUntil) {
+      navigate("/account-locked");
+      return;
+    } else {
+      localStorage.removeItem(`lockout_${email}`);
+    }
+  }
 
-   // 2. Get user data
-   const storedUserRaw = localStorage.getItem("activeUser");
-   if (!storedUserRaw) {
-     setErrorMessage("Invalid Credentials");
-     return;
-   }
-   const storedUser = JSON.parse(storedUserRaw);
+  try {
+    // 1. Validate email + password against backend
+    const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_name: email,
+        password,
+      }),
+    });
 
-   // 3. Validate Credentials
-   if (storedUser.email === email && storedUser.password === password) {
-     // SUCCESS: Clear any previous failed attempts
-     localStorage.removeItem(`attempts_${email}`);
+    if (!loginResponse.ok) {
+      const currentAttempts =
+        Number(localStorage.getItem(`attempts_${email}`)) || 0;
+      const newAttempts = currentAttempts + 1;
 
-     // ... (Your existing OTP generation and fetch logic)
-     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-     localStorage.setItem(
-       "pendingOTP",
-       JSON.stringify({
-         code: otpCode,
-         expiresAt: Date.now() + 5 * 60 * 1000,
-         email: email,
-       }),
-     );
-     const response = await fetch(
-       "https://emailbackend-ten.vercel.app/send-otp",
-       {
-         method: "POST",
-         headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ recipientEmail: email, otp: otpCode }),
-       },
-     );
+      if (newAttempts >= 5) {
+        const lockDuration = 5 * 60 * 1000;
+        const lockedUntil = Date.now() + lockDuration;
 
-     if (response.ok) navigate("/otp");
-   } else {
-     // FAILURE: Increment attempts
-     const currentAttempts =
-       Number(localStorage.getItem(`attempts_${email}`)) || 0;
-     const newAttempts = currentAttempts + 1;
+        localStorage.setItem(
+          `lockout_${email}`,
+          JSON.stringify({ lockedUntil }),
+        );
+        localStorage.removeItem(`attempts_${email}`);
+        navigate("/account-locked");
+        return;
+      } else {
+        localStorage.setItem(`attempts_${email}`, newAttempts.toString());
+      }
 
-     if (newAttempts >= 5) {
-       // LOCKOUT: Set for 5 minutes
-       const lockDuration = 5 * 60 * 1000;
-       const lockedUntil = Date.now() + lockDuration;
+      setErrorMessage("Invalid Credentials");
+      return;
+    }
 
-       localStorage.setItem(
-         `lockout_${email}`,
-         JSON.stringify({ lockedUntil }),
-       );
-       localStorage.removeItem(`attempts_${email}`); // Reset attempts for next cycle
+    const loginData = await loginResponse.json();
 
-       navigate("/account-locked");
-     } else {
-       localStorage.setItem(`attempts_${email}`, newAttempts.toString());
-       setErrorMessage(`Invalid Credentials.`);
-     }
-   }
- };
+    localStorage.removeItem(`attempts_${email}`);
+    localStorage.setItem("pendingLoginUser", JSON.stringify(loginData));
+    localStorage.setItem("pendingLoginEmail", email);
+
+    // 2. Ask backend to send OTP
+    const otpResponse = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_name: email,
+      }),
+    });
+
+    if (!otpResponse.ok) {
+      const otpErr = await otpResponse.json();
+      setErrorMessage(otpErr.detail || "Failed to send OTP");
+      return;
+    }
+
+    navigate("/otp");
+  } catch (error) {
+    console.error(error);
+    setErrorMessage("Something went wrong. Please try again.");
+  }
+};
 
   const [scale, setScale] = useState(1);
   const containerRef = useRef(null);

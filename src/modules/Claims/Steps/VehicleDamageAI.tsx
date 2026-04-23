@@ -80,7 +80,6 @@ useEffect(() => {
   const [aiResult, setAiResult] = useState<any>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-console.log(uploadedFiles);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   // --- AI Integration Logic (from old VehicleDamage.tsx) ---
@@ -115,10 +114,6 @@ console.log(uploadedFiles);
       setIsAnalyzing(false);
     }
   };
-  console.log(selectedImageIndex);
-  console.log(aiResult?.predictions);
-
-  
   const [currentPredictions, setCurrentPredictions] = useState<any>();
 
   useEffect(() => {
@@ -126,7 +121,6 @@ console.log(uploadedFiles);
       aiResult?.images?.[selectedImageIndex]?.predictions || [],
     );
   }, [aiResult, selectedImageIndex]);
-  console.log(currentPredictions);
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
@@ -139,31 +133,32 @@ console.log(uploadedFiles);
      const reportRef = useRef<HTMLDivElement>(null);
      
   return (
-    <div className="MainContent w-[1157px] flex-1 items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+    <div className="MainContent w-full flex flex-col items-stretch gap-6 py-6 font-['Stack_Sans_Headline']">
+      {" "}
       {/* Header Section */}
       {open && (
         <AIDamageReportSlider
-  isOpen={open}
-  currentImage={{
-    ...aiResult?.images?.[selectedImageIndex],
-    uploaded_by: JSON.parse(localStorage.getItem("activeUser")).email,
-    source_name: "Claim Portal",
-    assessment_type: assessmentType,
-    audit_trail: [
-      {
-        doneBy:  JSON.parse(localStorage.getItem("activeUser")).email,
-        action: "Generated Report",
-        timestamp: aiResult?.images?.[selectedImageIndex]?.generated_at,
-      },
-    ],
-  }}
-  onClose={() => setOpen(false)}
-  selectedType={assessmentType}
-  claimReference={localStorage.getItem("CaseReference") || ""}
-  clientName={ JSON.parse(localStorage.getItem("activeUser")).email}
-  sourceName="Claim Portal"
-  // onSaveToClaim={handleSaveToClaim}
-/>
+          isOpen={open}
+          currentImage={{
+            ...aiResult?.images?.[selectedImageIndex],
+            uploaded_by: JSON.parse(localStorage.getItem("activeUser")).email,
+            source_name: "Claim Portal",
+            assessment_type: assessmentType,
+            audit_trail: [
+              {
+                doneBy: JSON.parse(localStorage.getItem("activeUser")).email,
+                action: "Generated Report",
+                timestamp: aiResult?.images?.[selectedImageIndex]?.generated_at,
+              },
+            ],
+          }}
+          onClose={() => setOpen(false)}
+          selectedType={assessmentType}
+          claimReference={localStorage.getItem("CaseReference") || ""}
+          clientName={JSON.parse(localStorage.getItem("activeUser")).email}
+          sourceName="Claim Portal"
+          // onSaveToClaim={handleSaveToClaim}
+        />
       )}
       {isAnalyzing && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -206,7 +201,7 @@ console.log(uploadedFiles);
       </div>
       {/* Actions */}
       {entryMode !== "Manual" && (
-        <div className="flex gap-4 mb-20">
+        <div className="flex gap-4">
           <button
             className="bg-blue-100 text-primary px-4 py-2 rounded text-sm"
             onClick={() => {
@@ -389,12 +384,6 @@ console.log(uploadedFiles);
                       ◀
                     </button>
                   )}
-                  {/* {
-                    console.log(
-                      aiResult?.images?.[selectedImageIndex]
-                        ?.original_image_url,
-                    )!
-                  } */}
                   <div className="w-full bg-neutral-50 rounded-lg flex justify-center items-center">
                     <img
                       src={

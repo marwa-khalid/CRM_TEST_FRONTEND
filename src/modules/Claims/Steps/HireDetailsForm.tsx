@@ -718,7 +718,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
   return (
     <>
       <FormikProvider value={formik}>
-        <div className="MainContent w-[788px] ms-[140px] flex-1 flex flex-col gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+        <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
           {previewModal && (
             <EmailPreviewModal
               isOpen={previewModal}
@@ -746,7 +746,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               {/* <button onClick={testDeepLink}>Test</button> */}
             </h1>
             <button
-              className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center gap-2.5 text-blue-600"
+              className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center text-end gap-2.5 text-blue-600"
               onClick={() => setIsLogOpen(true)}
             >
               <Clock size={16} /> <span className="text-sm">Provision Log</span>

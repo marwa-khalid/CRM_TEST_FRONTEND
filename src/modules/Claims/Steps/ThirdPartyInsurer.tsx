@@ -1182,7 +1182,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
   };
 
   return (
-    <div className="w-[788px] ms-[140px] flex flex-col gap-6 p-8 font-['Stack_Sans_Headline']">
+    <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       <h1 className="text-black text-2xl font-weight-600">
         Third Party Insurer
       </h1>

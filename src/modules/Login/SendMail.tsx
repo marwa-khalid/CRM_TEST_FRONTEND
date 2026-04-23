@@ -1,97 +1,51 @@
 import React, { useState } from "react";
-import { Mail, Send, Loader2 } from "lucide-react"; // Optional: npm install lucide-react
-import {API_BASE_URL} from '../../services/axiosConfig.ts'
+import { Mail, Send, Loader2 } from "lucide-react";
+import { API_BASE_URL } from "../../services/axiosConfig.ts";
 import { useNavigate } from "react-router-dom";
+
 const InviteUser = () => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState(null); // 'success' | 'error' | null
+  const [status, setStatus] = useState<string | null>(null);
 
-  // const handleInvite = async () => {
-  //   if (!email) return;
-  //   setLoading(true);
-  //   setStatus(null);
+  const navigate = useNavigate();
 
-  //   try {
-  //     // Your Nodemailer backend call
-  //     const response = await fetch(
-  //       "https://emailbackend-ten.vercel.app/send-email",
-  //       {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify({
-  //           recipientEmail: email,
-  //           inviteLink: `https://crmtestfe.netlify.app/auth/reset-password?email=${email}`,
-  //         }),
-  //       },
-  //     );
+  const handleInvite = async () => {
+    if (!email) return;
 
-  //     if (response.ok) setStatus("success");
-  //     else setStatus("error");
-  //   } catch (err) {
-  //     setStatus("error");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-  const navigate = useNavigate()
-const handleInvite = async () => {
-  if (!email) return;
+    setLoading(true);
+    setStatus(null);
 
-  setLoading(true);
-  setStatus(null);
-
-  try {
-    // 1️⃣ Call FastAPI register endpoint
-    const registerResponse = await fetch(
-      `${API_BASE_URL}/auth/register`, // change to your backend URL
-      {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/invite-user`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           user_name: email,
         }),
-      },
-    );
+      });
 
-    if (!registerResponse.ok) {
-      const errData = await registerResponse.json();
-      throw new Error(errData.detail || "Registration failed");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || data.message || "Failed to send invite");
+      }
+
+      setStatus(data.message || "Invitation sent successfully.");
+      setEmail("");
+    } catch (err: any) {
+      console.error(err);
+      setStatus(err.message || "Failed to send invite");
+
+      if (err.message === "User already exists.") {
+        navigate("/login");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    const registerData = await registerResponse.json();
-    console.log("User registered:", registerData);
-
-    // 2️⃣ Send invite email
-    const emailResponse = await fetch(
-      "https://emailbackend-ten.vercel.app/send-email",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipientEmail: email,
-          inviteLink: `https://claimcrm.netlify.app/auth/reset-password?email=${email}`,
-        }),
-      },
-    );
-
-    if (!emailResponse.ok) {
-      throw new Error("Failed to send email");
-    }
-
-    setStatus("success");
-    // localStorage.clear()
-    setEmail(""); // optional clear input
-  } catch (err) {
-    console.error(err);
-    
-    setStatus(err.message);
-    if (err.message === "User already exists.")
-      navigate("/login")
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="max-w-md mx-auto mt-20 p-8 bg-white rounded-xl shadow-sm border border-gray-100 font-sans">
@@ -118,12 +72,11 @@ const handleInvite = async () => {
         <button
           onClick={handleInvite}
           disabled={loading || !email}
-          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-semibold text-white transition-all
-            ${
-              loading || !email
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-[#0352FD] hover:bg-[#0244d4] active:scale-[0.98]"
-            }`}
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-semibold text-white transition-all ${
+            loading || !email
+              ? "bg-gray-300 cursor-not-allowed"
+              : "bg-[#0352FD] hover:bg-[#0244d4] active:scale-[0.98]"
+          }`}
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -135,16 +88,19 @@ const handleInvite = async () => {
           )}
         </button>
 
-        {status === "success" ? (
-          <p className="text-center text-sm text-green-600 font-medium animate-fade-in">
-            ✓ Invitation sent to the inbox!
+        {status && (
+          <p
+            className={`text-center text-sm font-medium ${
+              status.toLowerCase().includes("success") ||
+              status.toLowerCase().includes("sent") ||
+              status.toLowerCase().includes("pending")
+                ? "text-green-600"
+                : "text-red-600"
+            }`}
+          >
+            {status}
           </p>
-        ) :
-          status &&
-          <p className="text-center text-sm text-red-600 font-medium">
-            {status || "× Failed to send. Please try again."}
-          </p>
-        }
+        )}
       </div>
     </div>
   );

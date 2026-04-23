@@ -46,6 +46,7 @@ export const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>)
 export const customStyles: StylesConfig<any, false> = {
   control: (base, state) => ({
     ...base,
+    minHeight: "52px",
     height: "52px",
     borderRadius: "4px",
     borderWidth: state.isFocused ? "2px" : "1px",
@@ -54,39 +55,46 @@ export const customStyles: StylesConfig<any, false> = {
     paddingLeft: "8px",
     backgroundColor: "white",
     fontSize: "14px",
-    fontWeight: 400,
-    fontStyle: "light",
-    fontFamily: "Stack_Sans_Headline"
+    fontWeight: 400, // ✅ normal
+    fontFamily: "'Stack Sans Headline', sans-serif",
+  }),
+
+  valueContainer: (provided) => ({
+    ...provided,
+    fontFamily: "'Stack Sans Headline', sans-serif",
+    fontSize: "16px",
+    fontWeight: 400, // ✅ normal
   }),
 
   input: (provided) => ({
     ...provided,
-    fontWeight: 300,
+    fontFamily: "'Stack Sans Headline', sans-serif",
+    fontWeight: 400, // ✅ force normal
     fontSize: "16px",
-    fontStyle: "light",
   }),
 
   placeholder: (provided) => ({
     ...provided,
+    fontFamily: "'Stack Sans Headline', sans-serif",
     color: "#a6aab1",
-    fontWeight: 300,
+    fontWeight: 400, // ✅ not bold
     fontSize: "16px",
     opacity: 1,
-    fontStyle: "light",
   }),
 
   singleValue: (provided) => ({
     ...provided,
-    fontWeight: 400,
+    fontFamily: "'Stack Sans Headline', sans-serif",
+    fontWeight: 400, // ✅ IMPORTANT (selected value)
     fontSize: "16px",
     color: "#444444",
-    fontStyle: "light",
   }),
 
   option: (provided, state) => ({
     ...provided,
+    fontFamily: "'Stack Sans Headline', sans-serif",
     fontSize: "14px",
-    fontWeight: 400,
+    fontWeight: 400, // ✅ IMPORTANT (dropdown items)
     color: state.isSelected ? "#fff" : state.isFocused ? "#286CFF" : "#444444",
     backgroundColor: state.isSelected
       ? "#286CFF"
@@ -94,7 +102,18 @@ export const customStyles: StylesConfig<any, false> = {
         ? "#d9ebff"
         : "white",
     cursor: "pointer",
-    fontStyle: "light",
+  }),
+
+  menu: (provided) => ({
+    ...provided,
+    fontFamily: "'Stack Sans Headline', sans-serif",
+    fontWeight: 400,
+  }),
+
+  menuList: (provided) => ({
+    ...provided,
+    fontFamily: "'Stack Sans Headline', sans-serif",
+    fontWeight: 400,
   }),
 };
 // --- COMPONENT ---
@@ -270,7 +289,7 @@ console.log(formik.values)
     }
   };
   return (
-    <div className="MainContent w-[788px] ms-[200px] flex-1 inline-flex flex-col items-start gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+   <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       <h1 className="text-black text-2xl font-weight-600">General Details</h1>
 
       <div className="w-full flex flex-col gap-6">

@@ -57,7 +57,7 @@ export const DriverCheckoutForm = ({ formRef }: any) => {
   );
 
   return (
-    <div className="MainContent w-[788px] ms-[140px] flex-1 inline-flex flex-col gap-6 p-8 overflow-y-auto scrollbar-hide font-['Stack_Sans_Headline']">
+    <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       <h1 className="text-black text-2xl font-weight-600">
         Driver Checkout Charges
       </h1>

@@ -175,7 +175,7 @@ export const StorageRecoveryDetails = ({ formRef }: any) => {
         />
       )}
       {/* Container matching left-[534px] and top-[157px] from source */}
-      <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
+      <h1 className="text-neutral-900 text-[24px] font-weight-600 font-['Stack_Sans_Headline']">
         Storage & Recovery
       </h1>
 

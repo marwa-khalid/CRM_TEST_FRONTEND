@@ -10,7 +10,7 @@ const styles = {
         rootWithPlaceholder: "p-1",
         content: "",
         icon: "size-9",
-        initials: "text-display-sm font-semibold",
+        initials: "text-display-sm font-weight-600",
         badge: "bottom-0.5 right-0.5",
     },
     md: {
@@ -18,7 +18,7 @@ const styles = {
         rootWithPlaceholder: "p-1.25",
         content: "shadow-xl",
         icon: "size-12",
-        initials: "text-display-md font-semibold",
+        initials: "text-display-md font-weight-600",
         badge: "bottom-1 right-1",
     },
     lg: {
@@ -26,7 +26,7 @@ const styles = {
         rootWithPlaceholder: "p-1.75",
         content: "shadow-2xl",
         icon: "size-20",
-        initials: "text-display-xl font-semibold",
+        initials: "text-display-xl font-weight-600",
         badge: "bottom-2 right-2",
     },
 };

@@ -68,7 +68,7 @@ const month = navDate.getMonth();
               <img src={ArrowLeft} alt="" />
             </button>
             <div
-              className="cursor-pointer text-gray-900 text-sm font-semibold hover:text-blue-500 uppercase transition-colors"
+              className="cursor-pointer text-gray-900 text-sm font-weight-600 hover:text-blue-500 uppercase transition-colors"
               onClick={() => setView("months")}
             >
               {MONTHS[month]} {year}
@@ -86,7 +86,7 @@ const month = navDate.getMonth();
               {DAYS.map((d) => (
                 <div
                   key={d}
-                  className="w-8 text-center text-gray-900 text-xs font-semibold"
+                  className="w-8 text-center text-gray-900 text-xs font-weight-600"
                 >
                   {d}
                 </div>
@@ -97,7 +97,7 @@ const month = navDate.getMonth();
               {[...Array(firstDayOfMonth)].map((_, i) => (
                 <div
                   key={`prev-${i}`}
-                  className="w-8 h-8 flex items-center justify-center text-gray-200 text-xs font-semibold"
+                  className="w-8 h-8 flex items-center justify-center text-gray-200 text-xs font-weight-600"
                 >
                   {daysInPrevMonth - (firstDayOfMonth - i - 1)}
                 </div>
@@ -115,7 +115,7 @@ const month = navDate.getMonth();
                   <button
                     key={day}
                     onClick={() => handleDaySelect(day)}
-                    className={`w-8 h-8 rounded text-xs font-semibold flex items-center justify-center transition-all
+                    className={`w-8 h-8 rounded text-xs font-weight-600 flex items-center justify-center transition-all
           ${isSelected ? "bg-blue-500 text-white shadow-md" : "text-gray-700 hover:bg-blue-50"}`}
                   >
                     {day}
@@ -135,7 +135,7 @@ const month = navDate.getMonth();
             >
               <img src={ArrowLeft} alt="" />
             </button>
-            <div className="text-gray-900 text-sm font-semibold">{year}</div>
+            <div className="text-gray-900 text-sm font-weight-600">{year}</div>
             <button
               onClick={() => setNavDate(new Date(year + 1, month, 1))}
               className="p-2 hover:bg-gray-50 rounded-full"
@@ -148,7 +148,7 @@ const month = navDate.getMonth();
               <button
                 key={m}
                 onClick={() => handleMonthSelect(idx)}
-                className={`w-16 h-8 rounded text-xs font-semibold flex items-center justify-center transition-colors
+                className={`w-16 h-8 rounded text-xs font-weight-600 flex items-center justify-center transition-colors
                   ${month === idx ? "bg-blue-500 text-white" : "text-gray-700 hover:bg-blue-50"}`}
               >
                 {m}

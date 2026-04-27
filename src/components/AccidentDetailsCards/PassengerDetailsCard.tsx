@@ -182,7 +182,7 @@ const PassengersModal = ({
                             </div>
                         </div>
 
-                        <h2 className="text-xl font-semibold mb-2 text-center text-gray-800">Passengers Details</h2>
+                        <h2 className="text-xl font-weight-600 mb-2 text-center text-gray-800">Passengers Details</h2>
                         <p className="text-sm text-gray-600 mb-6 text-center">
                             The list of the added passengers is below
                         </p>
@@ -210,7 +210,7 @@ const PassengersModal = ({
                                             className="border-b border-gray-200 flex justify-between items-start hover:bg-gray-50 transition-colors p-2"
                                         >
                                             <div className="flex-1 mb-1">
-                                                <h4 className="font-semibold text-gray-800">
+                                                <h4 className="font-weight-600 text-gray-800">
                                                     {formatPassengerName(passenger)}
                                                 </h4>
                                                 <p className="text-sm text-gray-600">
@@ -289,7 +289,7 @@ const PassengersModal = ({
                 closeIcon={<FaTimes size={18} className="text-gray-500 hover:text-gray-700" />}
             >
                 <div className="p-4">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-3">
+                    <h2 className="text-lg font-weight-600 text-gray-800 mb-3">
                         Are you sure?
                     </h2>
                     <p className="text-sm text-gray-600 mb-6">

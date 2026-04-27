@@ -64,7 +64,7 @@ const DropdownItem = ({ label, children, addon, icon: Icon, unstyled, ...props }
 
                     <span
                         className={cx(
-                            "grow truncate text-sm font-semibold",
+                            "grow truncate text-sm font-weight-600",
                             state.isDisabled ? "text-disabled" : "text-secondary",
                             state.isFocused && "text-secondary_hover",
                         )}

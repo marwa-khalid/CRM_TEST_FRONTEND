@@ -167,7 +167,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
         <div className="px-6 py-5 bg-white shadow-sm flex justify-between items-start sticky top-0 z-10">
           <div className="flex-1 flex flex-col gap-3.5">
             <div className="flex justify-between items-start">
-              <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6">
+              <h1 className="text-neutral-900 text-[24px] font-weight-600 font-['Stack_Sans_Headline'] leading-6">
                 AI Vehicle Damage Full Report
               </h1>
 
@@ -296,7 +296,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
 
           <div className="p-4 rounded-lg border border-gray-100 flex flex-col gap-4">
             <div>
-              <h3 className="text-black text-xl font-weight-600 leading-5">
+              <h3 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
                 Images with AI Detection
               </h3>
             </div>
@@ -321,7 +321,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
           </div>
 
           <div className="p-4 rounded-lg border border-neutral-200 flex flex-col gap-5">
-            <h3 className="text-black text-xl font-weight-600 leading-5">
+            <h3 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
               Damage By Severity
             </h3>
 
@@ -350,7 +350,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
           </div>
 
           <div className="px-4 py-3 rounded-lg border border-neutral-200 flex flex-col justify-start items-start gap-6">
-            <div className="justify-start text-black text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-5">
+            <div className="justify-start text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5">
               Damage By Location
             </div>
 
@@ -367,7 +367,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
           </div>
 
           <div className="p-4 rounded-lg border border-gray-200 flex flex-col gap-5">
-            <h3 className="text-black text-xl font-weight-600 leading-5">
+            <h3 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
               Audit Trail
             </h3>
 

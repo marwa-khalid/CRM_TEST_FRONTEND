@@ -45,13 +45,13 @@ const email = JSON.parse(localStorage.getItem("user")).email;
           src={group}
         />
 
-        <h1 className="relative w-fit text-white text-[40px] font-semibold leading-[40px] break-words font-sans">
+        <h1 className="relative w-fit text-white text-[40px] font-weight-600 leading-[40px] break-words font-sans">
           All Your Claims,
           <br />
           One Smart Platform
         </h1>
 
-        <p className="relative w-[431px] text-white text-[24px] font-semibold leading-[24px] break-words">
+        <p className="relative w-[431px] text-white text-[24px] font-weight-600 leading-[24px] break-words">
           Centralized CRM to track, process, and resolve claims smarter
         </p>
       </div>
@@ -83,7 +83,7 @@ const email = JSON.parse(localStorage.getItem("user")).email;
       />
 
       <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[170px] left-[810px]">
-        <h2 className="relative self-stretch text-black text-[24px] font-semibold leading-[24px] break-words">
+        <h2 className="relative self-stretch text-black text-[24px] font-weight-600 leading-[24px] break-words">
           Select Module
         </h2>
 
@@ -94,7 +94,7 @@ const email = JSON.parse(localStorage.getItem("user")).email;
           <div className="flex flex-col items-start gap-5 relative self-stretch w-full flex-[0_0_auto]">
             <div className="w-[440px] text-[#444444] text-base font-['Stack_Sans_Headline'] break-words leading-relaxed">
               <span className="font-normal">You have been logged in as </span>
-              <span className="font-semibold">{email}</span>
+              <span className="font-weight-600">{email}</span>
               <br />
               <span className="font-normal">
                 Select from the listed applications to proceed

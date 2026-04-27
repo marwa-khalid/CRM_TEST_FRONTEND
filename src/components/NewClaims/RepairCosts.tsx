@@ -680,7 +680,7 @@ const handleSetInitialValuesFromSource = (source: any) => {
                 {/* HEADER */}
                 <div className="flex justify-between items-center">
                   <div>
-                    <h1 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h1 className="text-lg font-weight-600 text-gray-900 mb-2">
                       Agreed Repair Costs As Per Engineer’s Report
                     </h1>
                   </div>
@@ -963,7 +963,7 @@ const handleSetInitialValuesFromSource = (source: any) => {
                 <section>
                   <div className="flex justify-between items-center">
                     <div>
-                      <h1 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h1 className="text-lg font-weight-600 text-gray-900 mb-2">
                         Actual repair costs
                       </h1>
                       <p className="text-sm text-gray-600 mb-4 sm:mb-6">
@@ -1102,7 +1102,7 @@ const handleSetInitialValuesFromSource = (source: any) => {
                 <section>
                   <div className="flex justify-between items-center">
                     <div>
-                      <h1 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h1 className="text-lg font-weight-600 text-gray-900 mb-2">
                         Where the repair followed a CIL settlement
                       </h1>
                       {/* <p className="text-sm text-gray-600 mb-4 sm:mb-6">
@@ -1285,14 +1285,14 @@ const handleSetInitialValuesFromSource = (source: any) => {
                     >
                       {cilLoading ? (
                         <>
-                          <h2 className="text-sm cursor-pointer mb-4 font-semibold text-gray-500">
+                          <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-gray-500">
                             CIL Agreement Letter Generating
                           </h2>
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#414651] mt-[5px] ml-1"></div>
                         </>
                       ) : (
                         <>
-                          <h2 className="text-sm cursor-pointer mb-4 font-semibold text-[#414651]">
+                          <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-[#414651]">
                             CIL Agreement Letter
                           </h2>
                           <MdArrowOutward className="text-[#414651] mt-[3px] ml-1" />
@@ -1302,7 +1302,7 @@ const handleSetInitialValuesFromSource = (source: any) => {
 
                     {/* Eng Rep to TPI for Auth */}
                     <div className="flex cursor-pointer ml-4">
-                      <h2 className="text-sm cursor-pointer mb-4 font-semibold text-[#414651]">
+                      <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-[#414651]">
                         Eng Rep to TPI for Auth
                       </h2>
                       <MdArrowOutward className="text-[#414651] mt-[3px] ml-1" />
@@ -1316,14 +1316,14 @@ const handleSetInitialValuesFromSource = (source: any) => {
                     >
                       {clientCilLoading ? (
                         <>
-                          <h2 className="text-sm cursor-pointer mb-4 font-semibold text-gray-500">
+                          <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-gray-500">
                             Send CIL to Client Generating
                           </h2>
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#414651] mt-[5px] ml-1"></div>
                         </>
                       ) : (
                         <>
-                          <h2 className="text-sm cursor-pointer mb-4 font-semibold text-[#414651]">
+                          <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-[#414651]">
                             Send CIL to Client
                           </h2>
                           <MdArrowOutward className="text-[#414651] mt-[3px] ml-1" />
@@ -1336,7 +1336,7 @@ const handleSetInitialValuesFromSource = (source: any) => {
                 {/* Repair Instruction Details */}
                 <div className="flex justify-between items-center">
                   <div>
-                    <h1 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h1 className="text-lg font-weight-600 text-gray-900 mb-2">
                       Repair instruction details
                     </h1>
                     <p className="text-sm text-gray-600 mb-4 sm:mb-6">
@@ -1363,7 +1363,7 @@ const handleSetInitialValuesFromSource = (source: any) => {
                 {/* Repair Loss of Use Dates */}
                 <div className="flex justify-between items-center">
                   <div>
-                    <h1 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h1 className="text-lg font-weight-600 text-gray-900 mb-2">
                       Where repair loss of use dates
                     </h1>
                   </div>

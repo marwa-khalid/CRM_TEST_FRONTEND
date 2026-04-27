@@ -42,7 +42,7 @@
 // //       <div className="w-[640px] bg-white rounded-lg p-6 flex flex-col gap-4 shadow-xl">
 // //         {/* Header */}
 // //         <div className="flex justify-between items-center">
-// //           <h2 className="text-black text-xl font-weight-600 leading-5">
+// //           <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
 // //             Driver Check-Out / Check-In - <br /> Cleanliness & Damage
 // //           </h2>
 // //           <div className="flex gap-3">
@@ -401,7 +401,7 @@
 //       <div className="w-[640px] bg-white rounded-lg p-6 flex flex-col gap-4 shadow-xl">
 //         {/* Header */}
 //         <div className="flex justify-between items-center">
-//           <h2 className="text-black text-xl font-weight-600 leading-5">
+//           <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
 //             Driver Check-Out / Check-In - <br /> Cleanliness & Damage
 //           </h2>
 //           <div className="flex gap-3">
@@ -796,7 +796,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       <div className="w-[640px] bg-white rounded-lg p-6 flex flex-col gap-4 shadow-xl">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <h2 className="text-black text-xl font-weight-600 leading-5">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
             Driver Check-Out / Check-In - <br /> Cleanliness & Damage
           </h2>
           <div className="flex gap-3">

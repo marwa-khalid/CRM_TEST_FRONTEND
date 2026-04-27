@@ -517,7 +517,7 @@ const ClientDetails = forwardRef<ClientDetailsHandle, ClientDetailsProps>(
             <div className="flex flex-col">
               <div className="bg-white border-b border-gray-200 mb-6">
                 <div className="bg-white mb-6">
-                  <h2 className="text-lg font-semibold  mb-2 sm:text-xl">
+                  <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">
                     Personal Information
                   </h2>
                   <p className="text-sm text-gray-600">
@@ -840,7 +840,7 @@ const ClientDetails = forwardRef<ClientDetailsHandle, ClientDetailsProps>(
             <div className="bg-white border-b border-gray-200 mb-6">
               <div className="pb-6 flex justify-between items-center">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                     Contact Information
                   </h2>
                   <p className="text-sm text-gray-600">
@@ -1100,7 +1100,7 @@ const ClientDetails = forwardRef<ClientDetailsHandle, ClientDetailsProps>(
             <div className="bg-white border-y border-gray-200 ">
               <div className="py-6 border-b border-gray-200 flex justify-between items-center">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                     Bank Details
                   </h2>
                   <p className="text-sm text-gray-600">Enter Bank Details</p>
@@ -1225,7 +1225,7 @@ const ClientDetails = forwardRef<ClientDetailsHandle, ClientDetailsProps>(
             {/* Age & Occupation Section */}
             <div className="bg-white border-b border-gray-200 mb-6">
               <div className="py-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                   VAT & Resgistration
                 </h2>
                 <p className="text-sm text-gray-600">
@@ -1280,7 +1280,7 @@ const ClientDetails = forwardRef<ClientDetailsHandle, ClientDetailsProps>(
               <div className="bg-white mb-6">
                 <div className="flex py-6 border-y border-gray-200 justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                       Vulnerable Persons Policy
                     </h2>
                     <p className="text-sm text-gray-600"></p>

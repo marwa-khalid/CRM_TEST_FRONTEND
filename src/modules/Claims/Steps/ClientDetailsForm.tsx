@@ -230,13 +230,13 @@ export const ClientDetailsForm = ({ formRef }: any) => {
     formik.setFieldValue("mobileTelephone", value);
   };
     const handleHomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      let value = e.target.value.replace(/\D/g, ""); // remove non-digits
+      // let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
       // if (value.length > 4) {
       //   value = value.slice(0, 4) + " " + value.slice(4);
       // }
 
-      formik.setFieldValue("homeTelephone", value);
+      formik.setFieldValue("homeTelephone", e.target.value);
     };
   const [docModalOpen,setDocModalOpen]=useState<boolean>(false)
   const handleVulnerablePersonPolicy = () => {
@@ -339,13 +339,13 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       )}
       <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
         {/* Container matching left-[534px] and top-[157px] from source */}
-        <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
+        <h1 className="text-neutral-900 text-[24px] font-weight-600 font-['Stack_Sans_Headline']">
           Client Details
         </h1>
         {/* Section 1: Personal Information Section */}
         <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
           {/* Header Aligned Exactly Like Previous Sections */}
-          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
             Personal Information
           </h2>
           <div className="h-px bg-gray-100 w-full" />
@@ -575,7 +575,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         </div>
         {/* Section 2:  Contact Information */}
         <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
-          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
             Contact Information
           </h2>
           <div className="h-px bg-gray-100 w-full" />
@@ -584,7 +584,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             {/* Row 1: Full Width Address */}
             <div className="grid grid-cols-12 gap-5 w-full">
               <div className="col-span-12 flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Address
                 </label>
                 {/* <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
@@ -614,7 +614,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             {/* Row 2: Post Code & Email Address */}
             <div className="grid grid-cols-12 gap-5 w-full">
               <div className="col-span-4 flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Post Code
                 </label>
                 <input
@@ -627,7 +627,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 />
               </div>
               <div className="col-span-8 flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Email Address
                 </label>
                 <input
@@ -644,25 +644,23 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             {/* Row 3: Home Telephone & Mobile Number */}
             <div className="grid grid-cols-12 gap-5 w-full">
               <div className="col-span-6 flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Home Telephone
                 </label>
                 <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                  <span className="text-gray-400 text-base font-light">
-                    +44
-                  </span>
+                  {/* <span className="text-gray-400 text-base font-light">+44</span> */}
                   <input
-                    name="homeTelephone"
-                    type="tel"
+                    name="contact_number"
+                    type="text"
                     onChange={handleHomeChange}
-                    maxLength={11}
+                    maxLength={15}
                     value={formik.values.homeTelephone}
-                    className="w-full bg-transparent outline-none text-neutral-700 font-light placeholder:text-gray-300"
+                    className="w-full bg-transparent mb-0.5 outline-none text-gray-900 font-light placeholder:text-gray-300"
                   />
                 </div>
               </div>
               <div className="col-span-6 flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Mobile Number
                 </label>
                 <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
@@ -675,7 +673,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                     onChange={handleMobileChange}
                     maxLength={11}
                     value={formik.values.mobileTelephone}
-                    className="w-full bg-transparent outline-none text-neutral-700 font-light placeholder:text-gray-300"
+                    className="w-full bg-transparent mb-0.5 outline-none text-neutral-700 font-light placeholder:text-gray-300"
                   />
                 </div>
               </div>
@@ -684,7 +682,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             {/* Row 4: Language & English Proficiency */}
             <div className="grid grid-cols-12 gap-5 w-full items-end">
               <div className="col-span-6 flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Client's Preferred Language
                 </label>
                 <Select
@@ -773,7 +771,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         {/* Section 3:  Bank Details */}
         <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
           <div className="self-stretch flex justify-between items-center">
-            <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+            <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
               Bank Details
             </h2>
 
@@ -795,7 +793,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             {/* Row 1: Sort Code & Account Number */}
             <div className="grid grid-cols-12 gap-5 w-full">
               <div className="col-span-6 flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Sort Code
                 </label>
                 <input
@@ -820,7 +818,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 />
               </div>
               <div className="col-span-6 flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Account Number
                 </label>
                 <input
@@ -841,7 +839,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 className="col-span-6 flex flex-col gap-2 relative"
                 ref={payDateRef}
               >
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Pay Notification Date
                 </label>
                 <div
@@ -885,7 +883,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
           {/* Header with Notify Manager Button */}
           <div className="self-stretch flex justify-between items-center">
-            <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+            <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
               VAT & Registration
             </h2>
           </div>
@@ -930,7 +928,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
           {/* Header with Policy Link Button */}
           <div className="self-stretch flex justify-between items-center  cursor-pointer ">
-            <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+            <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
               Vulnerable Persons Policy
             </h2>
             <div className="flex gap-4">
@@ -1000,7 +998,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             {formik.values.vulnerablePerson === "Yes" && (
               <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="flex flex-col gap-2">
-                  <label className="text-gray-700 text-sm font-weight-400">
+                  <label className="text-neutral-700 text-[14px] font-weight-500">
                     Provide Reason
                   </label>
                   <textarea

@@ -648,7 +648,7 @@ const DriverCheckoutChargesForm = forwardRef<
             <Form className="space-y-6 mt-2">
               {/* ---------- Tabs ---------- */}
               <div className="flex gap-5 pt-10">
-                <h3 className="text-lg font-semibold  mb-2 sm:text-xl">
+                <h3 className="text-lg font-weight-600  mb-2 sm:text-xl">
                   Driver Checkout Charges
                 </h3>
               </div>
@@ -656,7 +656,7 @@ const DriverCheckoutChargesForm = forwardRef<
                 {values.vehicles.map((vehicle, index) => (
                   <p
                     key={index}
-                    className={`text-sm font-semibold cursor-pointer ${
+                    className={`text-sm font-weight-600 cursor-pointer ${
                       activeTab === index
                         ? "underline decoration-2 underline-offset-8"
                         : "text-gray-500"
@@ -934,12 +934,12 @@ const DriverCheckoutChargesForm = forwardRef<
       >
         <form className="space-y-4" onSubmit={handleCheckoutSubmit}>
           <div className="flex gap-5 border-b border-cloudGray py-5 mb-5">
-            <p className="text-xl font-semibold">Vehicle Checkout</p>
+            <p className="text-xl font-weight-600">Vehicle Checkout</p>
           </div>
 
           {/* Interior Section */}
           <div className="space-y-4">
-            <p className="text-lg font-semibold">Interior (Inside)</p>
+            <p className="text-lg font-weight-600">Interior (Inside)</p>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-3 lg:col-span-1">
@@ -1086,7 +1086,7 @@ const DriverCheckoutChargesForm = forwardRef<
 
           {/* Exterior Section */}
           <div className="space-y-4">
-            <p className="text-lg font-semibold">Exterior (Outside)</p>
+            <p className="text-lg font-weight-600">Exterior (Outside)</p>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-3 lg:col-span-1">
@@ -1232,7 +1232,7 @@ const DriverCheckoutChargesForm = forwardRef<
 
           {/* Charges Section */}
           <div className="space-y-4">
-            <p className="text-lg font-semibold">Charges</p>
+            <p className="text-lg font-weight-600">Charges</p>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-3 lg:col-span-1">

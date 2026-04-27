@@ -193,13 +193,13 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
   return (
           <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
 
-      <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
+      <h1 className="text-neutral-900 text-[24px] font-weight-600 font-['Stack_Sans_Headline']">
         Client Insurer & Broker
       </h1>
 
       {/* 1. Client Insurers Section [cite: 7] */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600">
           Client Insurer Details
         </h2>
         <div className="h-px bg-gray-100 w-full" />
@@ -249,7 +249,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
         <div className="grid grid-cols-2 gap-5">
           <div className="flex-1 flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Post Code
             </label>
             <input
@@ -262,7 +262,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           </div>
 
           <div className="flex-1 flex flex-col gap-2 focus-within:border-blue-500 transition-all">
-            <label className="text-gray-700 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Email Address
             </label>
             <input
@@ -277,7 +277,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         </div>
         <div className="grid grid-cols-2 gap-5">
           <div className="flex-1 flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Telephone{" "}
             </label>
             <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
@@ -324,7 +324,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       {/* 2. Cover Details Section [cite: 16] */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-black text-xl font-weight-600">Cover Details</h2>
+          <h2 className="text-neutral-900 text-[20px] font-weight-600">Cover Details</h2>
           {/* <button
             type="button"
             onClick={handleVehicleOwnerCTA}

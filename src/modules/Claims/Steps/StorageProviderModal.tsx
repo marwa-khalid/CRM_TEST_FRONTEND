@@ -22,7 +22,14 @@ export const StorageProviderModal = ({
   const startDateRef = useRef<HTMLDivElement>(null);
   const endDateRef = useRef<HTMLDivElement>(null);
 const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
+  const formatTwoDecimals = (value: any) => {
+    if (value === "" || value === null || value === undefined) return "0.00";
 
+    const num = Number(value);
+    if (Number.isNaN(num)) return "0.00";
+
+    return num.toFixed(2);
+  };
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -49,8 +56,13 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     currency: "GBP",
     end_date: initialData?.end_date || null,
     total_storage_days: initialData?.total_storage_days || 0,
-    charge_per_day: initialData?.charge_per_day || 25,
-    total_storage_charges: initialData?.total_storage_charges || 0,
+    charge_per_day: initialData?.charge_per_day
+      ? formatTwoDecimals(initialData.charge_per_day)
+      : "25.00",
+
+    total_storage_charges: initialData?.total_storage_charges
+      ? formatTwoDecimals(initialData.total_storage_charges)
+      : "0.00",
     address: {
       address: initialData?.address?.address || "",
       postcode: initialData?.address?.postcode || "",
@@ -60,22 +72,24 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
   });
 
   // --- AUTO CALCULATIONS ---
-  useEffect(() => {
-    if (localData.start_date && localData.end_date) {
-      const start = new Date(localData.start_date);
-      const end = new Date(localData.end_date);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // Inclusive
+useEffect(() => {
+  if (localData.start_date && localData.end_date) {
+    const start = new Date(localData.start_date);
+    const end = new Date(localData.end_date);
 
-      const totalCharges = diffDays * localData.charge_per_day;
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-      setLocalData((prev) => ({
-        ...prev,
-        total_storage_days: diffDays,
-        total_storage_charges: totalCharges,
-      }));
-    }
-  }, [localData.start_date, localData.end_date, localData.charge_per_day]);
+    const chargePerDay = Number(localData.charge_per_day || 0);
+    const totalCharges = diffDays * chargePerDay;
+
+    setLocalData((prev) => ({
+      ...prev,
+      total_storage_days: diffDays,
+      total_storage_charges: totalCharges.toFixed(2),
+    }));
+  }
+}, [localData.start_date, localData.end_date, localData.charge_per_day]);
 
   // --- HANDLERS ---
  const fetchCompanies = async () => {
@@ -118,16 +132,23 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     }));
   };
 
+  const allowDecimalInput = (value: string) => {
+    return value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+  };
+
+
   const handleSave = () => {
+    
     // This is where you pass the local buffer back to the parent's Formik
     const exists = formik.values.storages.find((s) => s.id === localData.id);
     const rawNumber = localData.address.mobile_tel.replace("+44 ", "").trim();
 
     const finalData = {
       ...localData,
+      charge_per_day: formatTwoDecimals(localData.charge_per_day),
+      total_storage_charges: formatTwoDecimals(localData.total_storage_charges),
       address: {
         ...localData.address,
-        // Store the final formatted string: +44 12345 678901
         mobile_tel: rawNumber ? `+44 ${rawNumber}` : "",
       },
     };
@@ -153,7 +174,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       <div className="w-[800px] p-6 bg-white rounded-lg shadow-xl flex flex-col gap-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <h2 className="text-black text-xl font-weight-600">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600">
             {step === 1
               ? "Storage Provider Details"
               : "Storage Provider Billing Details"}
@@ -240,7 +261,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             <div className="grid grid-cols-2 gap-5">
               <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Post Code
                 </label>
 
@@ -262,7 +283,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Email
                 </label>
 
@@ -291,7 +312,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                     +44
                   </span>
                   <input
-                    className="w-full bg-transparent outline-none text-neutral-700 mb-0.5 font-light placeholder:text-gray-300"
+                    className="w-full bg-transparent outline-none text-neutral-700 pl-10 font-light placeholder:text-gray-300"
                     value={localData.address.mobile_tel}
                     maxLength={11}
                     onChange={(e) => {
@@ -398,12 +419,20 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   </span>
                   <input
                     value={localData.charge_per_day}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const value = allowDecimalInput(e.target.value);
+
                       setLocalData({
                         ...localData,
-                        charge_per_day: Number(e.target.value),
-                      })
-                    }
+                        charge_per_day: value,
+                      });
+                    }}
+                    onBlur={(e) => {
+                      setLocalData({
+                        ...localData,
+                        charge_per_day: formatTwoDecimals(e.target.value),
+                      });
+                    }}
                     className="outline-none w-full font-weight-300 font-light text-neutral-700"
                   />
                 </div>
@@ -418,7 +447,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   </span>
                   <input
                     readOnly
-                    value={localData.total_storage_charges}
+                    value={formatTwoDecimals(localData.total_storage_charges)}
                     disabled={true}
                     className="bg-transparent font-weight-300 font-light text-neutral-700"
                   />

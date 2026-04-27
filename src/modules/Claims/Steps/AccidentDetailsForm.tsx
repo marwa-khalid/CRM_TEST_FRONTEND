@@ -177,7 +177,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
   }, [formRef, formik]);
   useEffect(() => {
     if (formik.values.passengers === "No") {
-      formik.setFieldValue("numPassengers", 0);
+      formik.setFieldValue("numPassengers", passengersList.length);
     }
   }, [formik.values.passengers]);
   const [passengerModal, setPassengerModalOpen] = useState(false);
@@ -398,6 +398,7 @@ const timeOptions = generateTimeOptions();
       formik.setFieldValue("hasWitnesses", "Yes");
     }
   }, [witnessesList.length]);
+  console.log(formik.values.passengers);
   return (
     <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       {passengerModal && (
@@ -408,6 +409,7 @@ const timeOptions = generateTimeOptions();
           }}
           claimId={claimId}
           initialData={editingPassenger}
+          addNew={formik.values.passengers === "Yes"}
         />
       )}
       {isWitnessModalOpen && (
@@ -418,6 +420,7 @@ const timeOptions = generateTimeOptions();
           }}
           claimId={claimId}
           initialData={editingWitness}
+          addNew={formik.values.hasWitnesses === "Yes"}
         />
       )}
       {policeModal && (
@@ -428,16 +431,17 @@ const timeOptions = generateTimeOptions();
             setPoliceModal(false);
             refreshPolice(); // Refresh list after edit/save
           }}
+          addNew={formik.values.policeAttended === "Yes"}
         />
       )}
       {/* Container matching left-[534px] and top-[157px] from source */}
-      <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
+      <h1 className="text-neutral-900 text-[24px] font-weight-600 font-['Stack_Sans_Headline']">
         Accident Details
       </h1>
       {/* Section 1: Personal Information Section */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
         {/* Header Aligned Exactly Like Previous Sections */}
-        <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
           Location & Condition Details
         </h2>
         <div className="h-px bg-gray-100 w-full" />
@@ -446,7 +450,7 @@ const timeOptions = generateTimeOptions();
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Date Input */}
             <div className="flex flex-col gap-2 relative" ref={datePickerRef}>
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Date
               </label>
               <div
@@ -486,7 +490,7 @@ const timeOptions = generateTimeOptions();
 
             {/* Time Input */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Time
               </label>
               <Select
@@ -517,7 +521,7 @@ const timeOptions = generateTimeOptions();
 
             {/* Weather Dropdown */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Weather Conditions
               </label>
               <Select
@@ -540,7 +544,7 @@ const timeOptions = generateTimeOptions();
             {/* Location Input */}
           </div>
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Location
             </label>
             <LeafletAutocompleteMap
@@ -557,7 +561,7 @@ const timeOptions = generateTimeOptions();
           </div>
           {/* Version of Events Textarea */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Version of Events
             </label>
             <textarea
@@ -573,7 +577,7 @@ const timeOptions = generateTimeOptions();
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Services Date */}
             <div className="flex flex-col gap-2 relative">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Services Date
               </label>
               <div
@@ -608,7 +612,7 @@ const timeOptions = generateTimeOptions();
 
             {/* Services Time */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Services Time
               </label>
               {/* <div className="relative">
@@ -643,7 +647,7 @@ const timeOptions = generateTimeOptions();
       </div>
       {/* Section 2:  Contact Information */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
-        <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
           Attendees
         </h2>
         <div className="h-px bg-gray-100 w-full" />
@@ -687,7 +691,7 @@ const timeOptions = generateTimeOptions();
           {/* Counter Input */}
           {formik.values.passengers === "Yes" && (
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Number of Passengers
               </label>
               <div className="flex items-center justify-between px-4 py-3 bg-white rounded border border-gray-200">
@@ -755,7 +759,7 @@ const timeOptions = generateTimeOptions();
           </div>
 
           {/* Passenger List Rendering */}
-          {passengersList.length > 0 ? (
+          {formik.values.passengers === "Yes" && passengersList.length > 0 ? (
             <div className="flex flex-col gap-3">
               {passengersList.map((p) => (
                 <div
@@ -861,7 +865,7 @@ const timeOptions = generateTimeOptions();
             </button>
           </div>
 
-          {witnessesList.length > 0 ? (
+          {formik.values.hasWitnesses === "Yes" && witnessesList.length > 0 ? (
             witnessesList.map((w) => (
               <div
                 key={w.id}
@@ -965,7 +969,7 @@ const timeOptions = generateTimeOptions();
             </button>
           </div>
           <div className="grid gap-3">
-            {policeList.length > 0 ? (
+            {formik.values.policeAttended === "Yes" && policeList.length > 0 ? (
               policeList.map((record: any) => (
                 <div
                   key={record.id}
@@ -1047,7 +1051,7 @@ const timeOptions = generateTimeOptions();
       <div className="h-px bg-gray-100 w-full my-2" />
 
       {/* Dashcam Row */}
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-5 mb-10">
         <label className="text-black text-sm font-weight-400">
           Dashcam Footage?
         </label>

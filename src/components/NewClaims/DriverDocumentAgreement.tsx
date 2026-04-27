@@ -222,7 +222,7 @@ const DriverDocumentAgreement = forwardRef(
             <>
               {/* DRIVER PROOFS */}
               <div className="border-b border-cloudGray mb-5 mt-4">
-                <h2 className="text-lg font-semibold  mb-2 sm:text-xl">Driver Proofs</h2>
+                <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">Driver Proofs</h2>
                 <p className="pb-5 text-lightGray text-sm font-normal">
                   Enter details for Driver Proofs
                 </p>
@@ -246,7 +246,7 @@ const DriverDocumentAgreement = forwardRef(
               </form>
 
               <div className="border-b border-cloudGray my-5">
-                <h2 className="text-secondary text-lg font-semibold">Agreements & Statements</h2>
+                <h2 className="text-secondary text-lg font-weight-600">Agreements & Statements</h2>
                 <p className="pb-5 text-lightGray text-sm font-normal">
                   Enter details for Agreements & Statements
                 </p>

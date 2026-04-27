@@ -58,7 +58,7 @@ export const DriverCheckoutForm = ({ formRef }: any) => {
 
   return (
     <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
-      <h1 className="text-black text-2xl font-weight-600">
+      <h1 className="text-neutral-900 text-[24px] font-weight-600">
         Driver Checkout Charges
       </h1>
 
@@ -117,7 +117,7 @@ export const DriverCheckoutForm = ({ formRef }: any) => {
           )}
           <span className="text-sm font-normal text-black">
             Damage Charges Paid
-            {/* <span className="font-semibold">
+            {/* <span className="font-weight-600">
               {activeCheckout.applyDamageCharges || "No"}
             </span> */}
           </span>

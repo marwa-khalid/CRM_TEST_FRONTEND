@@ -360,7 +360,7 @@ const DocumentRow: React.FC<{
              
   return (
     <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
-      <h1 className="text-black text-2xl font-weight-600">
+      <h1 className="text-neutral-900 text-[24px] font-weight-600">
         Driver Documents & Agreements
       </h1>
 
@@ -453,7 +453,7 @@ const DocumentRow: React.FC<{
       </div>
 
       <div className="p-5 rounded-lg border border-neutral-100 flex flex-col gap-4 shadow-sm">
-        <div className="text-black text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-5">
+        <div className="text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5">
           Agreements & Statements Check List Section
         </div>
 

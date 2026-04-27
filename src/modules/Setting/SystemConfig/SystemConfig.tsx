@@ -62,7 +62,7 @@ const SettingsPage: React.FC = () => {
                             <div className="py-4">
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                     <div>
-                                        <h1 className="text-base font-semibold text-gray-900 mb-1 sm:mb-2">Personal info</h1>
+                                        <h1 className="text-base font-weight-600 text-gray-900 mb-1 sm:mb-2">Personal info</h1>
                                         <p className="text-gray-600 text-sm font-normal">Update your personal information.</p>
                                     </div>
                                     
@@ -111,7 +111,7 @@ const SettingsPage: React.FC = () => {
                                                         <FiUploadCloud className="text-gray-500 h-4 sm:h-5 w-4 sm:w-5" />
                                                     </div>
                                                     <p className="text-xs sm:text-sm text-gray-600">
-                                                        <span className="font-semibold text-custom cursor-pointer hover:underline">Click to upload</span> or drag and drop
+                                                        <span className="font-weight-600 text-custom cursor-pointer hover:underline">Click to upload</span> or drag and drop
                                                     </p>
                                                     <p className="text-xs text-gray-500 mt-1">SVG, PNG, JPG or GIF (max. 800x400px)</p>
                                                 </div>
@@ -183,7 +183,7 @@ const SettingsPage: React.FC = () => {
                                 <hr className="my-6 sm:my-8 border-gray-200" />
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6">
                                     <div className="md:col-span-1">
-                                        <h2 className="text-lg font-semibold text-gray-900">Portfolio projects</h2>
+                                        <h2 className="text-lg font-weight-600 text-gray-900">Portfolio projects</h2>
                                         <p className="mt-1 text-sm text-gray-600">Share a few snippets of your work.</p>
                                     </div>
                                     <div className="md:col-span-2 space-y-6">
@@ -194,7 +194,7 @@ const SettingsPage: React.FC = () => {
                                                     <FiUploadCloud className="text-gray-500 h-5 sm:h-6 w-5 sm:w-6" />
                                                 </div>
                                                 <p className="text-xs sm:text-sm text-gray-600">
-                                                    <span className="font-semibold text-custom cursor-pointer hover:underline">Click to upload</span> or drag and drop
+                                                    <span className="font-weight-600 text-custom cursor-pointer hover:underline">Click to upload</span> or drag and drop
                                                 </p>
                                                 <p className="text-xs text-gray-500 mt-1">SVG, PNG, JPG or GIF (max. 10MB)</p>
                                             </div>
@@ -293,16 +293,16 @@ const SettingsPage: React.FC = () => {
                         </div>
                     ))}
                     {/* Placeholder for other tabs */}
-                    {renderSection('Password', <div className="p-6"><h2 className="text-lg font-semibold text-gray-900">Password Settings</h2></div>)}
-                    {renderSection('Team', <div className="p-6"><h2 className="text-lg font-semibold text-gray-900">Team Management</h2></div>)}
+                    {renderSection('Password', <div className="p-6"><h2 className="text-lg font-weight-600 text-gray-900">Password Settings</h2></div>)}
+                    {renderSection('Team', <div className="p-6"><h2 className="text-lg font-weight-600 text-gray-900">Team Management</h2></div>)}
                     {/* ... add placeholders for other tabs as needed */}
 
                     {/* --- Action Buttons --- */}
                     <div className="p-4 sm:p-6 flex justify-end gap-x-3">
-                        <button type="button" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none">
+                        <button type="button" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm font-weight-600 text-gray-700 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none">
                             Cancel
                         </button>
-                        <button type="submit" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm font-semibold text-white bg-custom border border-transparent rounded-lg shadow-sm hover:bg-[#3b68ff] focus:outline-none focus:ring-2">
+                        <button type="submit" className="px-3 sm:px-4 py-1.5 sm:py-2 text-sm font-weight-600 text-white bg-custom border border-transparent rounded-lg shadow-sm hover:bg-[#3b68ff] focus:outline-none focus:ring-2">
                             Save 
                         </button>
                     </div>

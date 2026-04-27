@@ -12,6 +12,7 @@ import { ToastContainer } from 'react-toastify';
 // import Questionnaire from './modules/Questionnaire/Questionnaire';
 // import CarDamageOverlay from './components/NewClaims/AIDamageDetection';
 import OTPPage from './modules/Login/OTPPage';
+import AccountSettings from "./modules/dashboard/AccountSettings";
 import ForgotPassword from './modules/Login/ForgotPassword';
 import AccountLocked from './modules/Login/AccountLocked';
 import ForgotPassword2 from './modules/Login/ForgotPassword2';
@@ -60,9 +61,19 @@ const App: React.FC = () => {
           <Route path="/canvas" element={<AccidentSketch />} />
           <Route path="/case-activity" element={<CaseActivityStream />} />
           <Route path="/document-library" element={<DocumentLibrary />} />
+          <Route path="/settings" element={<AccountSettings />} />
 
-          <Route path="/questionnaire" element={<QuestionnaireLayout />}>
-            <Route index element={<Navigate to="step-1" />} />
+          <Route path="/questionnaire/:token" element={<QuestionnaireLayout />}>
+            <Route path="step-1" element={<Step1Witness />} />
+            <Route path="step-2" element={<Step2Questions />} />
+            <Route path="step-3" element={<Step3SketchPreview />} />
+            <Route path="step-4" element={<Step4Canvas />} />
+          </Route>
+
+          <Route
+            path="/questionnaire/view/:id"
+            element={<QuestionnaireLayout />}
+          >
             <Route path="step-1" element={<Step1Witness />} />
             <Route path="step-2" element={<Step2Questions />} />
             <Route path="step-3" element={<Step3SketchPreview />} />
@@ -75,6 +86,7 @@ const App: React.FC = () => {
             {/* <Route path="/" element={<Claims />} /> */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/add-claim" element={<AddClaimPage />} />
+            <Route path="/settings" element={<AccountSettings />} />
             {/* Claims Routes */}
             {/* <Route path="/claims" element={<Claims />} />
 

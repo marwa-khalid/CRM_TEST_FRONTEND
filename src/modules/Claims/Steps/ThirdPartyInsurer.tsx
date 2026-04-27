@@ -452,13 +452,13 @@
 //           onClose={() => setModalPopup(false)}
 //         />
 //       )}
-//       <h1 className="text-black text-2xl font-weight-600">
+//       <h1 className="text-neutral-900 text-[24px] font-weight-600">
 //         Third Party Insurer
 //       </h1>
 
 //       {/* Section 1: Third Party Details */}
 //       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-//         <h2 className="text-black text-xl font-weight-600">
+//         <h2 className="text-neutral-900 text-[20px] font-weight-600">
 //           Third Party Details
 //         </h2>
 //         <div className="h-px bg-neutral-100" />
@@ -537,13 +537,13 @@
 
 //       {/* Section 2: Third Party Insurer Details */}
 //       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-//         <h2 className="text-black text-xl font-weight-600">
+//         <h2 className="text-neutral-900 text-[20px] font-weight-600">
 //           Third Party Insurer Details
 //         </h2>
 //         <div className="h-px bg-neutral-100" />
 
 //         <div className="flex flex-col gap-2 relative">
-//           <label className="text-gray-700 text-sm font-weight-400">
+//           <label className="text-neutral-700 text-[14px] font-weight-500">
 //             Company Name
 //           </label>
 //           <input
@@ -667,7 +667,7 @@
 
 //       {/* Section 4: Incorrect MID Search Log */}
 //       <div className="self-stretch p-5 bg-indigo-50 rounded-lg border border-neutral-100 flex flex-col gap-4">
-//         <h2 className="text-black text-xl font-weight-600">
+//         <h2 className="text-neutral-900 text-[20px] font-weight-600">
 //           Incorrect MID Search Log
 //         </h2>
 //         <div className="h-px bg-neutral-100 opacity-20" />
@@ -755,7 +755,7 @@
 
 //       {/* Section 6: Liability Section */}
 //       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-//         <h2 className="text-black text-xl font-weight-600">
+//         <h2 className="text-neutral-900 text-[20px] font-weight-600">
 //           Liability Section
 //         </h2>
 //         <div className="h-px bg-neutral-100" />
@@ -818,7 +818,7 @@
 //       {/* Section 5: Notifications Section */}
 //       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">
 //         <div className="self-stretch rounded-lg inline-flex justify-start items-center gap-4">
-//           <div className="text-black text-xl font-weight-600 leading-5">
+//           <div className="text-neutral-900 text-[20px] font-weight-600 leading-5">
 //             Notifications Section
 //           </div>
 //         </div>
@@ -881,7 +881,7 @@
 //       </div>
 //       {/* Section 7: Settlement Status */}
 //       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-//         <h2 className="text-black text-xl font-weight-600">
+//         <h2 className="text-neutral-900 text-[20px] font-weight-600">
 //           Settlement Status
 //         </h2>
 //         <div className="h-px bg-neutral-100" />
@@ -1183,13 +1183,13 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
   return (
     <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
-      <h1 className="text-black text-2xl font-weight-600">
+      <h1 className="text-neutral-900 text-[24px] font-weight-600">
         Third Party Insurer
       </h1>
 
       {/* 1. Third Party Details */}
       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600">
           Third Party Details
         </h2>
         <div className="h-px bg-neutral-100" />
@@ -1246,7 +1246,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
       {/* 2. Third Party Insurer Details */}
       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4 shadow-sm">
-        <h2 className="text-black text-xl font-weight-600">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600">
           Third Party Insurer Details
         </h2>
         <div className="h-px bg-neutral-100" />
@@ -1366,7 +1366,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
       {/* 3. Third Party Handling Agent Section */}
       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600">
           Third Party Handling Agent
         </h2>
         <div className="h-px bg-neutral-100" />
@@ -1416,7 +1416,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
       {/* 4. Incorrect MID Search Log */}
       <div className="self-stretch p-5 bg-indigo-50 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600">
           Incorrect MID Search Log
         </h2>
         <div className="grid grid-cols-2 gap-5">
@@ -1499,7 +1499,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
       {/* 5. Notifications Section */}
       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600">
           Notifications Section
         </h2>
         <div className="flex justify-between items-center bg-gray-50 p-4 rounded-lg">
@@ -1548,7 +1548,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
       {/* 6. Liability Section */}
       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600">
           Liability Section
         </h2>
         <div className="flex flex-col gap-4">
@@ -1605,7 +1605,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
       {/* 7. Settlement Status */}
       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600">
           Settlement Status
         </h2>
         <div className="flex flex-col gap-2 w-full">

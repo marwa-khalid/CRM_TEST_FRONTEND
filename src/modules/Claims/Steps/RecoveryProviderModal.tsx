@@ -19,7 +19,18 @@ export const RecoveryProviderModal = ({
   const [recoverySuggestions, setRecoverySuggestions] = useState<any[]>([]);
   const [showRecoveryDatePicker, setShowRecoveryDatePicker] = useState(false);
    const datepickerRef = useRef<HTMLDivElement>(null);
-   useEffect(() => {
+   const allowDecimalInput = (value: string) => {
+     return value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+   };
+
+   const formatTwoDecimals = (value: any) => {
+     if (value === "" || value === null || value === undefined) return "0.00";
+
+     const num = Number(value);
+     if (Number.isNaN(num)) return "0.00";
+
+     return num.toFixed(2);
+   };useEffect(() => {
      const handleClickOutside = (event: MouseEvent) => {
        if (
          datepickerRef.current &&
@@ -38,13 +49,15 @@ export const RecoveryProviderModal = ({
     claim_id: parseInt(claimId),
     currency: "GBP",
     date_of_recovery: initialData?.date_of_recovery || null,
-    recovery_charges: initialData?.recovery_charges || 0,
+    recovery_charges: initialData?.recovery_charges
+      ? formatTwoDecimals(initialData.recovery_charges)
+      : "0.00",
     address: {
       address: initialData?.address?.address || "",
       postcode: initialData?.address?.postcode || "",
       mobile_tel: initialData?.address?.mobile_tel || "",
       email: initialData?.address?.email || "",
-    }
+    },
   });
  const fetchCompanies = async () => {
    try {
@@ -94,9 +107,9 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
     const finalData = {
       ...localData,
+      recovery_charges: formatTwoDecimals(localData.recovery_charges),
       address: {
         ...localData.address,
-        // Store the final formatted string: +44 12345 678901
         mobile_tel: rawNumber ? `+44 ${rawNumber}` : "",
       },
     };
@@ -122,7 +135,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       <div className="w-[800px] p-6 bg-white rounded-lg shadow-xl flex flex-col gap-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <h2 className="text-black text-xl font-weight-600">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600">
             {step === 1
               ? "Recovery Provider Details"
               : "Recovery Provider Billing Details"}
@@ -209,7 +222,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             <div className="grid grid-cols-2 gap-5">
               <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Post Code
                 </label>
 
@@ -231,7 +244,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-gray-700 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Email
                 </label>
 
@@ -260,7 +273,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                     +44
                   </span>
                   <input
-                    className="w-full bg-transparent outline-none text-neutral-700 mb-0.5 font-light placeholder:text-gray-300"
+                    className="w-full bg-transparent outline-none text-neutral-700 pl-10 font-light placeholder:text-gray-300"
                     value={localData.address.mobile_tel}
                     maxLength={11}
                     onChange={(e) => {
@@ -331,12 +344,20 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   </span>
                   <input
                     value={localData.recovery_charges}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const value = allowDecimalInput(e.target.value);
+
                       setLocalData({
                         ...localData,
-                        recovery_charges: Number(e.target.value),
-                      })
-                    }
+                        recovery_charges: value,
+                      });
+                    }}
+                    onBlur={(e) => {
+                      setLocalData({
+                        ...localData,
+                        recovery_charges: formatTwoDecimals(e.target.value),
+                      });
+                    }}
                     className="outline-none w-full font-weight-300 font-light text-neutral-700"
                   />
                 </div>

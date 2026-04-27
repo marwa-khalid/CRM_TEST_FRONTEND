@@ -413,7 +413,7 @@ const GeneralDetails = forwardRef(
                   {/* Case Details Section */}
                   <div className="border-b border-gray-200 mb-6">
                     <div className="pb-6">
-                      <h2 className="text-lg font-semibold  mb-2 sm:text-xl">
+                      <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">
                         Case Details
                       </h2>
                       <p className="text-sm text-gray-600">
@@ -936,7 +936,7 @@ const GeneralDetails = forwardRef(
                     <div className="pb-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h2 className="text-lg font-semibold  mb-2 sm:text-xl">
+                          <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">
                             Position Details
                           </h2>
                           <p className="text-sm text-gray-600">
@@ -1019,7 +1019,7 @@ const GeneralDetails = forwardRef(
                                   className="flex cursor-pointer mt-3"
                                   onClick={() => setCloseReasonViewModal(true)}
                                 >
-                                  <h2 className="text-sm cursor-pointer mb-4 font-semibold text-[#7f56d9]">
+                                  <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-[#7f56d9]">
                                     View close reason
                                   </h2>
                                   <MdArrowOutward className="text-[#7f56d9] mt-[3px] ml-2" />
@@ -1033,7 +1033,7 @@ const GeneralDetails = forwardRef(
                           {/* Present File Position Header */}
                           <div className="flex items-center justify-between mb-6">
                             <div>
-                              <h2 className="text-lg font-semibold text-gray-900">
+                              <h2 className="text-lg font-weight-600 text-gray-900">
                                 Present File Position
                               </h2>
                               <p className="text-sm text-gray-600">
@@ -1171,7 +1171,7 @@ const GeneralDetails = forwardRef(
                         </svg>
                       </div>
                     </div>
-                    <h3 className="text-lg font-semibold text-center mt-4">
+                    <h3 className="text-lg font-weight-600 text-center mt-4">
                       Close File
                     </h3>
                     <p className="text-sm text-gray-600 text-center mt-2">
@@ -1229,7 +1229,7 @@ const GeneralDetails = forwardRef(
                         </svg>
                       </div>
                     </div>
-                    <h3 className="text-lg font-semibold text-center mt-4">
+                    <h3 className="text-lg font-weight-600 text-center mt-4">
                       Claim Close Reason
                     </h3>
                     <p className="text-sm text-gray-600 text-center mt-2">

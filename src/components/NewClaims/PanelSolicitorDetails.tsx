@@ -341,7 +341,7 @@ const PanelSolicitorDetails = forwardRef(
           return (
             <form className="space-y-4 mt-12">
               <div className="border-b border-cloudGray mb-5 mt-8">
-                <h2 className="text-lg font-semibold  mb-2 sm:text-xl">
+                <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">
                   Panel Solicitor Details
                 </h2>
                 <p className="pb-5 text-lightGray text-sm font-normal">

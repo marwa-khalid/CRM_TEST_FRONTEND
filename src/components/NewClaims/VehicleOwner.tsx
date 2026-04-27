@@ -339,7 +339,7 @@ const handleSubmit = async (values: FormData) => {
               {/* HEADER */}
               <div className="flex justify-between items-center">
                 <div>
-                  <h1 className="text-lg font-semibold  mb-2 sm:text-xl">
+                  <h1 className="text-lg font-weight-600  mb-2 sm:text-xl">
                     Vehicle Owner Details
                   </h1>
                   <p className="text-sm text-gray-600 mb-4 sm:mb-6">

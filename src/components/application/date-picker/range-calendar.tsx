@@ -90,7 +90,7 @@ export const RangeCalendar = ({ presets, ...props }: RangeCalendarProps) => {
                     <header className="relative flex items-center justify-between md:justify-start">
                         <Button slot="previous" iconLeading={ChevronLeft} size="sm" color="tertiary" className="size-8" />
 
-                        <h2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-semibold text-fg-secondary">
+                        <h2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-weight-600 text-fg-secondary">
                             <RangeCalendarTitle part="start" />
                         </h2>
 
@@ -132,7 +132,7 @@ export const RangeCalendar = ({ presets, ...props }: RangeCalendarProps) => {
                 {isDesktop && (
                     <div className="flex flex-col gap-3 border-l border-secondary px-6 py-5">
                         <header className="relative flex items-center justify-end">
-                            <h2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-semibold text-fg-secondary">
+                            <h2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-sm font-weight-600 text-fg-secondary">
                                 <RangeCalendarTitle part="end" />
                             </h2>
 

@@ -108,7 +108,7 @@ const PoliceModal = ({
                             </div>
                         </div>
 
-                        <h2 className="text-xl font-semibold mb-2 text-center text-gray-800">Police Details</h2>
+                        <h2 className="text-xl font-weight-600 mb-2 text-center text-gray-800">Police Details</h2>
                         <p className="text-sm text-gray-600 mb-6 text-center">
                             The list of the police officers who attended is below
                         </p>
@@ -146,7 +146,7 @@ const PoliceModal = ({
                                                 className="border-b border-gray-200 flex justify-between items-start hover:bg-gray-50 transition-colors p-2"
                                             >
                                                 <div className="flex-1 mb-1">
-                                                    <h4 className="font-semibold text-gray-800">{detail.name}</h4>
+                                                    <h4 className="font-weight-600 text-gray-800">{detail.name}</h4>
                                                     <p className="text-sm text-gray-600">Address: {detail.station_address}</p>
                                                     <p className="text-sm text-gray-600">Referrence: {detail.reference_no}</p>
                                                     <p className="text-sm text-gray-600">
@@ -223,7 +223,7 @@ const PoliceModal = ({
                 closeIcon={<FaTimes size={18} className="text-gray-500 hover:text-gray-700" />}
             >
                 <div className="p-4">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-3">
+                    <h2 className="text-lg font-weight-600 text-gray-800 mb-3">
                         Are you sure?
                     </h2>
                     <p className="text-sm text-gray-600 mb-6">

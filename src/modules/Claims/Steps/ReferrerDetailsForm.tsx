@@ -1,132 +1,93 @@
-
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { useEffect, useState, useRef } from "react";
 import { CustomDatePicker } from "../Components/DatePicker";
-import { createReferrer, getCompanySuggestions, getReferrer, updateReferrer } from "../../../services/Referrer/Referrer";
+import {
+  createReferrer,
+  getCompanySuggestions,
+  getReferrer,
+  updateReferrer,
+} from "../../../services/Referrer/Referrer";
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import * as Yup from "yup";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
+
 export const ReferrerDetailsForm = ({ formRef }: any) => {
-  const [companies, setCompanies] = useState<any[]>([]);
-
-    const [searchTerm, setSearchTerm] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-   useEffect(() => {
-     const fetchCompanies = async () => {
-       try {
-         
-         const response = await getCompanySuggestions(searchTerm); // Replace with your API endpoint
-         
-console.log(response)
-         // Normalize empty strings to null
-        //  const normalized = response.data.map((r) => ({
-        //    company_name: r.company_name,
-        //    address: r.address?.trim() || null,
-        //    post_code: r.postcode?.trim() || null,
-        //  }));
-
-         setCompanies(response.data);
-       } catch (err) {
-         console.error(err);
-       }
-     };
-     if (searchTerm) {
-       fetchCompanies();
-     }
-   }, [searchTerm]);
-    useEffect(() => {
-      const handleClickOutside = (event: MouseEvent) => {
-        if (
-          onHireRef.current &&
-          !onHireRef.current.contains(event.target as Node)
-        )
-          setShowOnHirePicker(false);
-        if (
-          offHireRef.current &&
-          !offHireRef.current.contains(event.target as Node)
-        )
-          setShowOffHirePicker(false);
-        if (
-          onHireRef2.current &&
-          !onHireRef2.current.contains(event.target as Node)
-        )
-          setShowOnHirePicker2(false);
-        if (
-          offHireRef2.current &&
-          !offHireRef2.current.contains(event.target as Node)
-        )
-          setShowOffHirePicker2(false);
-      };
-      // document.addEventListener("mousedown", handleClickOutside);
-        if (onHireRef) {
-          document.addEventListener("mousedown", handleClickOutside);
-        }
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  let value = e.target.value.replace(/\D/g, ""); // remove non-digits
-
-  // limit to 10 digits total
-  value = value.slice(0, 10);
-
-  // format: 1234 567890
-  if (value.length > 4) {
-    value = value.slice(0, 4) + " " + value.slice(4);
-  }
-
-  formik.setFieldValue("contact_number", value);
-};
-const cleanPayload = (obj: any) => {
-  if (obj === "") return null;
-
-  if (Array.isArray(obj)) {
-    return obj.map(cleanPayload);
-  }
-
-  if (obj !== null && typeof obj === "object") {
-    return Object.fromEntries(
-      Object.entries(obj).map(([key, value]) => [key, cleanPayload(value)]),
-    );
-  }
-
-  return obj;
-};
-
-  const claimId = localStorage.getItem("claimId")
+  const claimId = localStorage.getItem("claimId");
   const referrerId = localStorage.getItem("referrerId");
-  
+
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const [showOnHirePicker, setShowOnHirePicker] = useState(false);
+  const [showOffHirePicker, setShowOffHirePicker] = useState(false);
+  const [showOnHirePicker2, setShowOnHirePicker2] = useState(false);
+  const [showOffHirePicker2, setShowOffHirePicker2] = useState(false);
+
+  const onHireRef = useRef<HTMLDivElement>(null);
+  const offHireRef = useRef<HTMLDivElement>(null);
+  const onHireRef2 = useRef<HTMLDivElement>(null);
+  const offHireRef2 = useRef<HTMLDivElement>(null);
+
+  const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
+
+  const cleanPayload = (obj: any) => {
+    if (obj === "") return null;
+
+    if (Array.isArray(obj)) {
+      return obj.map(cleanPayload);
+    }
+
+    if (obj !== null && typeof obj === "object") {
+      return Object.fromEntries(
+        Object.entries(obj).map(([key, value]) => [key, cleanPayload(value)]),
+      );
+    }
+
+    return obj;
+  };
+
+  const formatMoney = (value: any) => {
+    if (value === null || value === undefined || value === "") return "";
+    const num = Number(value);
+    if (Number.isNaN(num)) return "";
+    return num.toFixed(2);
+  };
+
+  const formatMoneyOnBlur = (fieldName: string, value: any) => {
+    formik.setFieldValue(fieldName, formatMoney(value));
+  };
+
   const formik = useFormik({
     initialValues: {
-      claim_id: claimId || null,
+      claim_id: claimId ? Number(claimId) : null,
       id: referrerId || null,
-      company_name:null,
-      address: null,
-      postcode: null,
-      primary_contact_number: null,
+      company_name: "",
+      address: "",
+      postcode: "",
+      primary_contact_number: "",
       country: "UK",
-      contact_name: null,
-      contact_number: null,
-      contact_email: null,
-      solicitor: null,
+      contact_name: "",
+      contact_number: "",
+      contact_email: "",
+      solicitor: "",
       third_party_capture: "Not Allowed",
       driver_commission: {
-        on_hire_amount: null,
-        on_hire_paid_on: null,
-        congestion_charges: null,
-        other_charges: null,
-        off_hire_amount: null,
-        off_hire_paid_on: null,
+        on_hire_amount: "",
+        on_hire_paid_on: "",
+        congestion_charges: "",
+        other_charges: "",
+        off_hire_amount: "",
+        off_hire_paid_on: "",
       },
       referrer_commission: {
-        on_hire_amount: null,
-        on_hire_paid_on: null,
-        off_hire_amount: null,
-        off_hire_paid_on: null,
+        on_hire_amount: "",
+        on_hire_paid_on: "",
+        off_hire_amount: "",
+        off_hire_paid_on: "",
       },
     },
     validationSchema: Yup.object().shape({}),
@@ -134,38 +95,52 @@ const cleanPayload = (obj: any) => {
       try {
         const payload = {
           ...values,
-          on_hire_payment: parseFloat(values.on_hire_amount) || "",
+          claim_id: claimId ? Number(claimId) : null,
+
           driver_commission: {
-            congestion_charges:
-              parseFloat(values.driver_commission.congestion_charges) || "",
-            other_charges:
-              parseFloat(values.driver_commission.other_charges) || "",
-            off_hire_amount:
-              parseFloat(values.driver_commission.off_hire_amount) || "",
-            off_hire_paid_on: values.driver_commission.off_hire_paid_on,
-            on_hire_amount:
-              parseFloat(values.driver_commission.on_hire_amount) || "",
-            on_hire_paid_on: values.driver_commission.on_hire_paid_on,
+            on_hire_amount: formatMoney(
+              values.driver_commission?.on_hire_amount,
+            ),
+            on_hire_paid_on: values.driver_commission?.on_hire_paid_on || null,
+
+            off_hire_amount: formatMoney(
+              values.driver_commission?.off_hire_amount,
+            ),
+            off_hire_paid_on:
+              values.driver_commission?.off_hire_paid_on || null,
+
+            congestion_charges: formatMoney(
+              values.driver_commission?.congestion_charges,
+            ),
+            other_charges: formatMoney(values.driver_commission?.other_charges),
           },
+
           referrer_commission: {
-            on_hire_amount: values.referrer_commission.on_hire_amount,
-            on_hire_paid_on: values.referrer_commission.on_hire_paid_on,
-            off_hire_amount: values.referrer_commission.off_hire_amount,
-            off_hire_paid_on: values.referrer_commission.off_hire_paid_on,
+            on_hire_amount: formatMoney(
+              values.referrer_commission?.on_hire_amount,
+            ),
+            on_hire_paid_on:
+              values.referrer_commission?.on_hire_paid_on || null,
+
+            off_hire_amount: formatMoney(
+              values.referrer_commission?.off_hire_amount,
+            ),
+            off_hire_paid_on:
+              values.referrer_commission?.off_hire_paid_on || null,
           },
-          claim_id: claimId || null,
         };
 
         const payloadToSend = cleanPayload(payload);
-        console.log(payloadToSend);
-        // return
+
+        let response;
+
         if (referrerId) {
-          const response = await updateReferrer(payloadToSend, claimId);
-          localStorage.setItem("referrerId", response.data.id);
+          response = await updateReferrer(payloadToSend, claimId);
         } else {
-          const response = await createReferrer(payloadToSend);
-          localStorage.setItem("referrerId", response.data.id);
+          response = await createReferrer(payloadToSend);
         }
+
+        localStorage.setItem("referrerId", response.data.id);
         toast.success("Referrer details saved successfully");
       } catch (error) {
         toast.error("Error saving referrer details");
@@ -173,573 +148,759 @@ const cleanPayload = (obj: any) => {
       }
     },
   });
-  console.log(formik.values);
-     useEffect(() => {
-       const fetchData = async () => {
-         const res = await getReferrer(parseInt(claimId))
-         console.log(res)
-         formik.setValues(res.data)
-       }
-       if (claimId && referrerId) {
-         fetchData();
-       }
-        }, []);
-  
-useEffect(() => {
-  if (formRef) {
-    formRef.current = formik;
-  }
-}, [formRef, formik]);
 
-  // Handle company select
-const handleCompanySelect = (selected: any) => {
-  // Update input field to show full company name
-  setSearchTerm(selected.company_name);
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const response = await getCompanySuggestions(searchTerm);
+        setCompanies(response.data || []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
 
-  // Close dropdown
-  setShowDropdown(false);
+    if (searchTerm) {
+      fetchCompanies();
+    } else {
+      setCompanies([]);
+    }
+  }, [searchTerm]);
 
-  // Set Formik fields (correct backend keys!)
-  formik.setFieldValue("company_name", selected.company_name);
-  formik.setFieldValue("address", selected.address ?? "");
-  formik.setFieldValue("postcode", selected.postcode ?? "");
-  formik.setFieldValue("referrer_id", selected.id ?? undefined);
-};
-  // Date Pickers
-  const [showOnHirePicker, setShowOnHirePicker] = useState(false);
-  const [showOffHirePicker, setShowOffHirePicker] = useState(false);
-  const onHireRef = useRef<HTMLDivElement>(null);
-  const offHireRef = useRef<HTMLDivElement>(null);
-    const [showOnHirePicker2, setShowOnHirePicker2] = useState(false);
-    const [showOffHirePicker2, setShowOffHirePicker2] = useState(false);
-    const onHireRef2 = useRef<HTMLDivElement>(null);
-    const offHireRef2 = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!claimId) return;
 
-  const formatDate = (date: Date | null) => {
-    if (!date) return "Date";
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
+      const res = await getReferrer(Number(claimId));
+
+      formik.setValues({
+        ...formik.initialValues,
+        ...res.data,
+        company_name: res.data?.company_name || "",
+        address: res.data?.address || "",
+        postcode: res.data?.postcode || "",
+        contact_name: res.data?.contact_name || "",
+        contact_number: res.data?.contact_number || "",
+        contact_email: res.data?.contact_email || "",
+        solicitor: res.data?.solicitor || "",
+        third_party_capture: res.data?.third_party_capture || "Not Allowed",
+
+        driver_commission: {
+          ...formik.initialValues.driver_commission,
+          ...res.data?.driver_commission,
+          on_hire_amount: formatMoney(
+            res.data?.driver_commission?.on_hire_amount,
+          ),
+          off_hire_amount: formatMoney(
+            res.data?.driver_commission?.off_hire_amount,
+          ),
+          congestion_charges: formatMoney(
+            res.data?.driver_commission?.congestion_charges,
+          ),
+          other_charges: formatMoney(
+            res.data?.driver_commission?.other_charges,
+          ),
+        },
+
+        referrer_commission: {
+          ...formik.initialValues.referrer_commission,
+          ...res.data?.referrer_commission,
+          on_hire_amount: formatMoney(
+            res.data?.referrer_commission?.on_hire_amount,
+          ),
+          off_hire_amount: formatMoney(
+            res.data?.referrer_commission?.off_hire_amount,
+          ),
+        },
+      });
+
+      setSearchTerm(res.data?.company_name || "");
+    };
+
+    if (claimId && referrerId) {
+      fetchData();
+    }
+  }, [claimId, referrerId]);
+
+  useEffect(() => {
+    if (formRef) {
+      formRef.current = formik;
+    }
+  }, [formRef, formik]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        onHireRef.current &&
+        !onHireRef.current.contains(event.target as Node)
+      ) {
+        setShowOnHirePicker(false);
+      }
+
+      if (
+        offHireRef.current &&
+        !offHireRef.current.contains(event.target as Node)
+      ) {
+        setShowOffHirePicker(false);
+      }
+
+      if (
+        onHireRef2.current &&
+        !onHireRef2.current.contains(event.target as Node)
+      ) {
+        setShowOnHirePicker2(false);
+      }
+
+      if (
+        offHireRef2.current &&
+        !offHireRef2.current.contains(event.target as Node)
+      ) {
+        setShowOffHirePicker2(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, "");
+    value = value.slice(0, 10);
+
+    if (value.length > 4) {
+      value = value.slice(0, 4) + " " + value.slice(4);
+    }
+
+    formik.setFieldValue("contact_number", value);
   };
-const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`
 
- return (
-  <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
-     
-     <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
-       Referrer Details
-     </h1>
+  const handleCompanySelect = (selected: any) => {
+    setSearchTerm(selected.company_name || "");
+    setShowDropdown(false);
 
-     <div className="CaseDetailsSection self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-       <h2 className="text-black text-xl font-weight-600 leading-5">
-         Referrer & Reporting Details
-       </h2>
-       <div className="h-px bg-gray-100 w-full" />
-       <div className="flex flex-col gap-4">
-         {/* Company Name Dropdown */}
-         <div className="flex flex-col gap-2 relative">
-           <label className="text-gray-700 text-sm font-weight-400">
-             Company Name
-           </label>
-           <input
-             type="text"
-             value={searchTerm || formik.values.company_name}
-             onChange={(e) => {
-               setSearchTerm(e.target.value);
-               setShowDropdown(true);
-             }}
-             onFocus={() => setShowDropdown(true)}
-             placeholder="Enter Name"
-             className={`w-full h-[52px] px-5 bg-white rounded text-neutral-700 border border-gray-200 ${inputStyles}`}
-           />
-           {showDropdown && searchTerm && (
-             <div className="absolute top-[80px] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-               {companies.map((r, i) => (
-                 <div
-                   key={i}
-                   onClick={() => handleCompanySelect(r)}
-                   className="px-5 py-3 hover:bg-gray-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-none"
-                 >
-                   {r.company_name}
-                 </div>
-               ))}
-             </div>
-           )}
-         </div>
-       </div>
-       {/* Address */}
-       <div className="flex flex-col gap-2">
-         <label className="text-gray-700 text-sm font-weight-400">
-           Company Address
-         </label>
-         {/* <input
-            name="address"
-            value={formik.values.address}
-            onChange={(e) => formik.setFieldValue("address", e.target.value)}
-            placeholder="Enter Address"
-            className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-gray-600 font-light"
-          /> */}
-         <LeafletAutocompleteMap
-           showMap={false}
-           apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-           address={formik.values.address}
-           onPlaceSelected={(place) => {
-             if (place.name) {
-               formik.setFieldValue("address", place.address);
-               formik.setFieldValue("postcode", place?.postalCode);
-             }
-           }}
-           disabled={false}
-         />
-       </div>
-       <div className="flex gap-5">
-         <div className="flex-1 flex flex-col gap-2">
-           <label className="text-gray-700 text-sm font-weight-400">
-             Contact Name
-           </label>
-           <input
-             name="contact_name"
-             value={formik.values.contact_name}
-             onChange={(e) =>
-               formik.setFieldValue("contact_name", e.target.value)
-             }
-             placeholder="Enter Name"
-             className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
-           />
-         </div>
-       </div>
-       {/* Postcode & Contact Name */}
-       <div className="flex gap-5">
-         <div className="flex-1 flex flex-col gap-2">
-           <label className="text-gray-700 text-sm font-weight-400">
-             Post Code
-           </label>
-           <input
-             name="postcode"
-             value={formik.values.postcode}
-             onChange={(e) => formik.setFieldValue("postcode", e.target.value)}
-             placeholder="Enter Postcode"
-             className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
-           />
-         </div>
+    formik.setFieldValue("company_name", selected.company_name || "");
+    formik.setFieldValue("address", selected.address || "");
+    formik.setFieldValue("postcode", selected.postcode || "");
+    formik.setFieldValue("referrer_id", selected.id || undefined);
+  };
 
-         <div className="flex-1 flex flex-col gap-2 focus-within:border-blue-500 transition-all">
-           <label className="text-gray-700 text-sm font-weight-400">
-             Email Address
-           </label>
-           <input
-             name="contact_email"
-             type="email"
-             value={formik.values.contact_email}
-             onChange={(e) =>
-               formik.setFieldValue("contact_email", e.target.value)
-             }
-             placeholder="Enter Email"
-             className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
-           />
-         </div>
-       </div>
+  return (
+    <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
+      <h1 className="text-neutral-900 text-[24px] font-weight-600">
+        Referrer Details
+      </h1>
 
-       {/* Email & Telephone */}
-       <div className="flex gap-5">
-         <div className="flex-1 flex flex-col gap-2">
-           <label className="text-gray-700 text-sm font-weight-400">
-             Mobile Number
-           </label>
-           <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-             <span className="text-gray-400 text-base">+44</span>
-             <input
-               name="contact_number"
-               type="tel"
-               onChange={handleMobileChange}
-               maxLength={11}
-               value={formik.values.contact_number}
-               className="w-full bg-transparent outline-none text-neutral-900 mb-0.5 font-light placeholder:text-gray-300"
-             />
-           </div>
-         </div>
-         <div className="flex-1 flex flex-col col-6 gap-2"></div>
-       </div>
-     </div>
-     {/* --- Section 2: Driver Commission Payments --- */}
-     <div className="DriverCommissionPayments self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-       <h2 className="text-black text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-5">
-         Driver Commission Payments
-       </h2>
-       <div className="h-px bg-gray-100 w-full" />
+      <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
+          Referrer & Reporting Details
+        </h2>
 
-       <div className="flex flex-col gap-6 w-full">
-         {/* Row 1: On Hire Payment & Date */}
-         <div className="grid grid-cols-12 gap-5 w-full">
-           <div className="col-span-6 flex flex-col gap-2">
-             <label className="text-gray-700 text-sm font-weight-400">
-               On Hire Payment
-             </label>
-             <div
-               className={`h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 text-neutral-700  focus-within:border-blue-500 transition-all`}
-             >
-               <span className="text-gray-400 text-base font-light">£</span>
-               <input
-                 type="text"
-                 value={formik.values.driver_commission?.on_hire_amount}
-                 onChange={(e) =>
-                   formik.setFieldValue(
-                     "driver_commission.on_hire_amount",
-                     e.target.value,
-                   )
-                 }
-                 className="w-full bg-transparent outline-none text-gray-900 font-light"
-               />
-             </div>
-           </div>
+        <div className="h-px bg-gray-100 w-full" />
 
-           {/* On Hire Paid On Date Picker */}
-           <div
-             className="col-span-6 flex flex-col gap-2 relative"
-             ref={onHireRef}
-           >
-             <label className="text-gray-700 text-sm font-weight-400">
-               Paid On
-             </label>
-             <div
-               onClick={() => setShowOnHirePicker(!showOnHirePicker)}
-               className={`w-full h-[52px] px-5 bg-white rounded border flex items-center justify-between cursor-pointer transition-all
-            ${showOnHirePicker ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
-             >
-               <span
-                 className={`${formik.values.driver_commission?.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-light`}
-               >
-                 {formik.values.driver_commission?.on_hire_paid_on}
-               </span>
-               <img src={Vector6} alt="calendar" />
-             </div>
-             {showOnHirePicker && (
-               <div className="absolute bottom-[53px] left-0 z-[100]">
-                 <CustomDatePicker
-                   selectedDate={
-                     formik.values.driver_commission?.on_hire_paid_on ||
-                     new Date()
-                   }
-                   onDateSelect={(date) => {
-                     formik.setFieldValue(
-                       "driver_commission.on_hire_paid_on",
-                       date.toLocaleDateString("sv-SE"),
-                     );
-                     setShowOnHirePicker(false);
-                   }}
-                 />
-               </div>
-             )}
-           </div>
-         </div>
+        <div className="flex flex-col gap-2 relative">
+          <label className="text-neutral-700 text-[14px] font-weight-500">
+            Company Name
+          </label>
 
-         {/* Row 2: Off Hire Payment & Date */}
-         <div className="grid grid-cols-12 gap-5 w-full">
-           <div className="col-span-6 flex flex-col gap-2">
-             <label className="text-gray-700 text-sm font-weight-400">
-               Off Hire Payment
-             </label>
-             <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-               <span className="text-gray-400 text-base font-light">£</span>
-               <input
-                 type="text"
-                 value={formik.values.driver_commission?.off_hire_amount}
-                 onChange={(e) =>
-                   formik.setFieldValue(
-                     "driver_commission.off_hire_amount",
-                     e.target.value,
-                   )
-                 }
-                 className="w-full bg-transparent outline-none text-gray-900 font-light"
-               />
-             </div>
-           </div>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearchTerm(value);
+              formik.setFieldValue("company_name", value);
+              setShowDropdown(true);
+            }}
+            onFocus={() => setShowDropdown(true)}
+            placeholder="Enter Name"
+            className={`w-full h-[52px] px-5 bg-white rounded text-neutral-700 border border-gray-200 ${inputStyles}`}
+          />
 
-           {/* Off Hire Paid On Date Picker */}
-           <div
-             className="col-span-6 flex flex-col gap-2 relative"
-             ref={offHireRef}
-           >
-             <label className="text-gray-700 text-sm font-weight-400">
-               Paid On
-             </label>
-             <div
-               onClick={() => setShowOffHirePicker(!showOffHirePicker)}
-               className={`w-full h-[52px] px-5 bg-white rounded border flex items-center justify-between cursor-pointer transition-all
-            ${showOffHirePicker ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
-             >
-               <span
-                 className={`${formik.values.driver_commission?.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-light`}
-               >
-                 {formik.values.driver_commission?.off_hire_paid_on}
-               </span>
-               <img src={Vector6} alt="calendar" />
-             </div>
-             {showOffHirePicker && (
-               <div className="absolute bottom-[53px] left-0 z-[100]">
-                 <CustomDatePicker
-                   selectedDate={
-                     formik.values.driver_commission?.off_hire_paid_on ||
-                     new Date()
-                   }
-                   onDateSelect={(date) => {
-                     formik.setFieldValue(
-                       "driver_commission.off_hire_paid_on",
-                       date.toLocaleDateString("sv-SE"),
-                     );
-                     setShowOffHirePicker(false);
-                   }}
-                 />
-               </div>
-             )}
-           </div>
-         </div>
+          {showDropdown && searchTerm && (
+            <div className="absolute top-[80px] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+              {companies.length > 0 ? (
+                companies.map((r, i) => (
+                  <div
+                    key={i}
+                    onClick={() => handleCompanySelect(r)}
+                    className="px-5 py-3 hover:bg-gray-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-none"
+                  >
+                    {r.company_name}
+                  </div>
+                ))
+              ) : (
+                <div className="px-5 py-3 text-sm text-gray-400">
+                  No company found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-         {/* Row 3: Congestion & Other Charges */}
-         <div className="grid grid-cols-12 gap-5 w-full">
-           <div className="col-span-6 flex flex-col gap-2">
-             <label className="text-gray-700 text-sm font-weight-400">
-               Congestion Charges
-             </label>
-             <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-               <span className="text-gray-400 text-base font-light">£</span>
-               <input
-                 type="text"
-                 value={formik.values.driver_commission.congestion_charges}
-                 onChange={(e) =>
-                   formik.setFieldValue(
-                     "driver_commission.congestion_charges",
-                     e.target.value,
-                   )
-                 }
-                 className="w-full bg-transparent outline-none text-gray-900 font-light"
-               />
-             </div>
-           </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-neutral-700 text-[14px] font-weight-500">
+            Company Address
+          </label>
 
-           <div className="col-span-6 flex flex-col gap-2">
-             <label className="text-gray-700 text-sm font-weight-400">
-               Other Charges
-             </label>
-             <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-               <span className="text-gray-400 text-base font-light">£</span>
-               <input
-                 type="text"
-                 value={formik.values.driver_commission.other_charges}
-                 onChange={(e) =>
-                   formik.setFieldValue(
-                     "driver_commission.other_charges",
-                     e.target.value,
-                   )
-                 }
-                 className="w-full bg-transparent outline-none text-gray-900 font-light"
-               />
-             </div>
-           </div>
-         </div>
-       </div>
-     </div>
+          <LeafletAutocompleteMap
+            showMap={false}
+            apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
+            address={formik.values.address || ""}
+            onPlaceSelected={(place) => {
+              if (place?.name || place?.address) {
+                formik.setFieldValue("address", place.address || "");
+                formik.setFieldValue("postcode", place?.postalCode || "");
+              }
+            }}
+            disabled={false}
+          />
+        </div>
 
-     {/* --- Section 3: Referrer Commission Review --- */}
-     <div className="DriverCommissionPayments self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-       <h2 className="text-black text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-5">
-         Referrer Commission Payment
-       </h2>
-       <div className="h-px bg-gray-100 w-full" />
+        <div className="flex gap-5">
+          <div className="flex-1 flex flex-col gap-2">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
+              Contact Name
+            </label>
 
-       <div className="flex flex-col gap-6 w-full">
-         {/* Row 1: On Hire Payment & Date */}
-         <div className="grid grid-cols-12 gap-5 w-full">
-           <div className="col-span-6 flex flex-col gap-2">
-             <label className="text-gray-700 text-sm font-weight-400">
-               On Hire Payment
-             </label>
-             <div
-               className={`h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all `}
-             >
-               <span className="text-gray-400 text-base font-light">£</span>
-               <input
-                 type="text"
-                 value={formik.values.referrer_commission?.on_hire_amount}
-                 onChange={(e) =>
-                   formik.setFieldValue(
-                     "referrer_commission.on_hire_amount",
-                     e.target.value,
-                   )
-                 }
-                 className="w-full bg-transparent outline-none text-gray-900 font-light"
-               />
-             </div>
-           </div>
+            <input
+              name="contact_name"
+              value={formik.values.contact_name || ""}
+              onChange={(e) =>
+                formik.setFieldValue("contact_name", e.target.value)
+              }
+              placeholder="Enter Name"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+            />
+          </div>
+        </div>
 
-           {/* On Hire Paid On Date Picker */}
-           <div
-             className="col-span-6 flex flex-col gap-2 relative"
-             ref={onHireRef2}
-           >
-             <label className="text-gray-700 text-sm font-weight-400">
-               Paid On
-             </label>
-             <div
-               onClick={() => setShowOnHirePicker2(!showOnHirePicker2)}
-               className={`w-full h-[52px] px-5 bg-white rounded border flex items-center justify-between cursor-pointer transition-all
-            ${showOnHirePicker2 ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
-             >
-               <span
-                 className={`${formik.values.referrer_commission?.on_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-light`}
-               >
-                 {formik.values.referrer_commission?.on_hire_paid_on}
-               </span>
-               <img src={Vector6} alt="calendar" />
-             </div>
-             {showOnHirePicker2 && (
-               <div className="absolute bottom-[53px] left-0 z-[100]">
-                 <CustomDatePicker
-                   selectedDate={
-                     formik.values.referrer_commission?.on_hire_paid_on ||
-                     new Date()
-                   }
-                   onDateSelect={(date) => {
-                     formik.setFieldValue(
-                       "referrer_commission.on_hire_paid_on",
-                       date.toLocaleDateString("sv-SE"),
-                     );
-                     setShowOnHirePicker2(false);
-                   }}
-                 />
-               </div>
-             )}
-           </div>
-         </div>
+        <div className="flex gap-5">
+          <div className="flex-1 flex flex-col gap-2">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
+              Post Code
+            </label>
 
-         {/* Row 2: Off Hire Payment & Date */}
-         <div className="grid grid-cols-12 gap-5 w-full">
-           <div className="col-span-6 flex flex-col gap-2">
-             <label className="text-gray-700 text-sm font-weight-400">
-               Off Hire Payment
-             </label>
-             <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-               <span className="text-gray-400 text-base font-light">£</span>
-               <input
-                 type="text"
-                 value={formik.values.referrer_commission?.off_hire_amount}
-                 onChange={(e) =>
-                   formik.setFieldValue(
-                     "referrer_commission.off_hire_amount",
-                     e.target.value,
-                   )
-                 }
-                 className="w-full bg-transparent outline-none text-gray-900 font-light"
-               />
-             </div>
-           </div>
+            <input
+              name="postcode"
+              value={formik.values.postcode || ""}
+              onChange={(e) => formik.setFieldValue("postcode", e.target.value)}
+              placeholder="Enter Postcode"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+            />
+          </div>
 
-           {/* Off Hire Paid On Date Picker */}
-           <div
-             className="col-span-6 flex flex-col gap-2 relative"
-             ref={offHireRef2}
-           >
-             <label className="text-gray-700 text-sm font-weight-400">
-               Paid On
-             </label>
-             <div
-               onClick={() => setShowOffHirePicker2(!showOffHirePicker2)}
-               className={`w-full h-[52px] px-5 bg-white rounded border flex items-center justify-between cursor-pointer transition-all
-            ${showOffHirePicker2 ? "border-blue-500 ring-1 ring-blue-500" : "border-gray-200 hover:border-gray-300"}`}
-             >
-               <span
-                 className={`${formik.values.referrer_commission?.off_hire_paid_on ? "text-gray-900" : "text-gray-400"} font-light`}
-               >
-                 {formik.values.referrer_commission?.off_hire_paid_on}
-               </span>
-               <img src={Vector6} alt="calendar" />
-             </div>
-             {showOffHirePicker2 && (
-               <div className="absolute bottom-[423px] left-0 z-[100]">
-                 <CustomDatePicker
-                   selectedDate={
-                     formik.values.referrer_commission?.off_hire_paid_on ||
-                     new Date()
-                   }
-                   onDateSelect={(date) => {
-                     formik.setFieldValue(
-                       "referrer_commission.off_hire_paid_on",
-                       date.toLocaleDateString("sv-SE"),
-                     );
-                     setShowOffHirePicker2(false);
-                   }}
-                 />
-               </div>
-             )}
-           </div>
-         </div>
-       </div>
-     </div>
+          <div className="flex-1 flex flex-col gap-2">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
+              Email Address
+            </label>
 
-     {/* --- Section 4: Referrers Nominated Solicitor --- */}
-     <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-       <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
-         Referrers Nominated Solicitor (PI must go to)
-       </h2>
+            <input
+              name="contact_email"
+              type="email"
+              value={formik.values.contact_email || ""}
+              onChange={(e) =>
+                formik.setFieldValue("contact_email", e.target.value)
+              }
+              placeholder="Enter Email"
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+            />
+          </div>
+        </div>
 
-       <div className="h-px bg-gray-100 w-full" />
+        <div className="flex gap-5">
+          <div className="flex-1 flex flex-col gap-2">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
+              Mobile Number
+            </label>
 
-       <div className="grid grid-cols-12 gap-5 w-full items-start">
-         {/* Left Column: Solicitor */}
-         <div className="col-span-6 flex flex-col gap-2">
-           <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-             Solicitor
-           </label>
-  
-             <input
-               type="text"
-               name="solicitor"
-               placeholder="Enter Solicitor Name"
-               value={formik.values.solicitor}
-               onChange={(e) =>
-                 formik.setFieldValue("solicitor", e.target.value)
-               }
-               className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
-             />
-         </div>
+            <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+              <span className="text-gray-400 text-base">+44</span>
 
-         {/* Right Column: Third Party Capture */}
-         <div className="col-span-6 flex flex-col gap-2">
-           <span className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
-             Third Party Capture
-           </span>
+              <input
+                name="contact_number"
+                type="tel"
+                onChange={handleMobileChange}
+                maxLength={11}
+                value={formik.values.contact_number || ""}
+                className="w-full bg-transparent outline-none text-neutral-900 mb-0.5 font-light placeholder:text-gray-300"
+              />
+            </div>
+          </div>
 
-           <div className="h-[52px] flex items-center gap-8">
-             {["Allowed", "Not Allowed"].map((option) => (
-               <label
-                 key={option}
-                 className="flex items-center gap-2 cursor-pointer"
-               >
-                 <div className="relative flex items-center justify-center">
-                   <input
-                     type="radio"
-                     name="third_party_capture"
-                     className="peer appearance-none transition-all"
-                     checked={formik.values.third_party_capture === option}
-                     onChange={() =>
-                       formik.setFieldValue("third_party_capture", option)
-                     }
-                   />
-                   {formik.values.third_party_capture === option ? (
-                     <img src={Yes} />
-                   ) : (
-                     <img src={No} />
-                   )}
-                 </div>
-                 <span className="text-sm text-gray-700">{option}</span>
-               </label>
-             ))}
-           </div>
-         </div>
-       </div>
-     </div>
-   </div>
- );
+          <div className="flex-1 flex flex-col gap-2" />
+        </div>
+      </div>
+
+      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
+          Driver Commission Payments
+        </h2>
+
+        <div className="h-px bg-gray-100 w-full" />
+
+        <div className="flex flex-col gap-6 w-full">
+          <div className="grid grid-cols-12 gap-5 w-full">
+            <div className="col-span-6 flex flex-col gap-2">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                On Hire Payment
+              </label>
+
+              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                <span className="text-gray-400 text-base font-light">£</span>
+
+                <input
+                  type="text"
+                  value={formik.values.driver_commission?.on_hire_amount || ""}
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "driver_commission.on_hire_amount",
+                      e.target.value,
+                    )
+                  }
+                  onBlur={(e) =>
+                    formatMoneyOnBlur(
+                      "driver_commission.on_hire_amount",
+                      e.target.value,
+                    )
+                  }
+                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                />
+              </div>
+            </div>
+
+            <div
+              className="col-span-6 flex flex-col gap-2 relative"
+              ref={onHireRef}
+            >
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                Paid On
+              </label>
+
+              <div
+                onClick={() => setShowOnHirePicker(!showOnHirePicker)}
+                className={`w-full h-[52px] px-5 bg-white rounded border flex items-center justify-between cursor-pointer transition-all ${
+                  showOnHirePicker
+                    ? "border-blue-500 ring-1 ring-blue-500"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <span
+                  className={`${
+                    formik.values.driver_commission?.on_hire_paid_on
+                      ? "text-gray-900"
+                      : "text-gray-400"
+                  } font-light`}
+                >
+                  {formik.values.driver_commission?.on_hire_paid_on || "Date"}
+                </span>
+
+                <img src={Vector6} alt="calendar" />
+              </div>
+
+              {showOnHirePicker && (
+                <div className="absolute bottom-[53px] left-0 z-[100]">
+                  <CustomDatePicker
+                    selectedDate={
+                      formik.values.driver_commission?.on_hire_paid_on
+                        ? new Date(
+                            formik.values.driver_commission.on_hire_paid_on,
+                          )
+                        : new Date()
+                    }
+                    onDateSelect={(date) => {
+                      formik.setFieldValue(
+                        "driver_commission.on_hire_paid_on",
+                        date.toLocaleDateString("sv-SE"),
+                      );
+                      setShowOnHirePicker(false);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-12 gap-5 w-full">
+            <div className="col-span-6 flex flex-col gap-2">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                Off Hire Payment
+              </label>
+
+              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                <span className="text-gray-400 text-base font-light">£</span>
+
+                <input
+                  type="text"
+                  value={formik.values.driver_commission?.off_hire_amount || ""}
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "driver_commission.off_hire_amount",
+                      e.target.value,
+                    )
+                  }
+                  onBlur={(e) =>
+                    formatMoneyOnBlur(
+                      "driver_commission.off_hire_amount",
+                      e.target.value,
+                    )
+                  }
+                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                />
+              </div>
+            </div>
+
+            <div
+              className="col-span-6 flex flex-col gap-2 relative"
+              ref={offHireRef}
+            >
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                Paid On
+              </label>
+
+              <div
+                onClick={() => setShowOffHirePicker(!showOffHirePicker)}
+                className={`w-full h-[52px] px-5 bg-white rounded border flex items-center justify-between cursor-pointer transition-all ${
+                  showOffHirePicker
+                    ? "border-blue-500 ring-1 ring-blue-500"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <span
+                  className={`${
+                    formik.values.driver_commission?.off_hire_paid_on
+                      ? "text-gray-900"
+                      : "text-gray-400"
+                  } font-light`}
+                >
+                  {formik.values.driver_commission?.off_hire_paid_on || "Date"}
+                </span>
+
+                <img src={Vector6} alt="calendar" />
+              </div>
+
+              {showOffHirePicker && (
+                <div className="absolute bottom-[53px] left-0 z-[100]">
+                  <CustomDatePicker
+                    selectedDate={
+                      formik.values.driver_commission?.off_hire_paid_on
+                        ? new Date(
+                            formik.values.driver_commission.off_hire_paid_on,
+                          )
+                        : new Date()
+                    }
+                    onDateSelect={(date) => {
+                      formik.setFieldValue(
+                        "driver_commission.off_hire_paid_on",
+                        date.toLocaleDateString("sv-SE"),
+                      );
+                      setShowOffHirePicker(false);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-12 gap-5 w-full">
+            <div className="col-span-6 flex flex-col gap-2">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                Congestion Charges
+              </label>
+
+              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                <span className="text-gray-400 text-base font-light">£</span>
+
+                <input
+                  type="text"
+                  value={
+                    formik.values.driver_commission?.congestion_charges || ""
+                  }
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "driver_commission.congestion_charges",
+                      e.target.value,
+                    )
+                  }
+                  onBlur={(e) =>
+                    formatMoneyOnBlur(
+                      "driver_commission.congestion_charges",
+                      e.target.value,
+                    )
+                  }
+                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                />
+              </div>
+            </div>
+
+            <div className="col-span-6 flex flex-col gap-2">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                Other Charges
+              </label>
+
+              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                <span className="text-gray-400 text-base font-light">£</span>
+
+                <input
+                  type="text"
+                  value={formik.values.driver_commission?.other_charges || ""}
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "driver_commission.other_charges",
+                      e.target.value,
+                    )
+                  }
+                  onBlur={(e) =>
+                    formatMoneyOnBlur(
+                      "driver_commission.other_charges",
+                      e.target.value,
+                    )
+                  }
+                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
+          Referrer Commission Payment
+        </h2>
+
+        <div className="h-px bg-gray-100 w-full" />
+
+        <div className="flex flex-col gap-6 w-full">
+          <div className="grid grid-cols-12 gap-5 w-full">
+            <div className="col-span-6 flex flex-col gap-2">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                On Hire Payment
+              </label>
+
+              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                <span className="text-gray-400 text-base font-light">£</span>
+
+                <input
+                  type="text"
+                  value={
+                    formik.values.referrer_commission?.on_hire_amount || ""
+                  }
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "referrer_commission.on_hire_amount",
+                      e.target.value,
+                    )
+                  }
+                  onBlur={(e) =>
+                    formatMoneyOnBlur(
+                      "referrer_commission.on_hire_amount",
+                      e.target.value,
+                    )
+                  }
+                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                />
+              </div>
+            </div>
+
+            <div
+              className="col-span-6 flex flex-col gap-2 relative"
+              ref={onHireRef2}
+            >
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                Paid On
+              </label>
+
+              <div
+                onClick={() => setShowOnHirePicker2(!showOnHirePicker2)}
+                className={`w-full h-[52px] px-5 bg-white rounded border flex items-center justify-between cursor-pointer transition-all ${
+                  showOnHirePicker2
+                    ? "border-blue-500 ring-1 ring-blue-500"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <span
+                  className={`${
+                    formik.values.referrer_commission?.on_hire_paid_on
+                      ? "text-gray-900"
+                      : "text-gray-400"
+                  } font-light`}
+                >
+                  {formik.values.referrer_commission?.on_hire_paid_on || "Date"}
+                </span>
+
+                <img src={Vector6} alt="calendar" />
+              </div>
+
+              {showOnHirePicker2 && (
+                <div className="absolute bottom-[53px] left-0 z-[100]">
+                  <CustomDatePicker
+                    selectedDate={
+                      formik.values.referrer_commission?.on_hire_paid_on
+                        ? new Date(
+                            formik.values.referrer_commission.on_hire_paid_on,
+                          )
+                        : new Date()
+                    }
+                    onDateSelect={(date) => {
+                      formik.setFieldValue(
+                        "referrer_commission.on_hire_paid_on",
+                        date.toLocaleDateString("sv-SE"),
+                      );
+                      setShowOnHirePicker2(false);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-12 gap-5 w-full">
+            <div className="col-span-6 flex flex-col gap-2">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                Off Hire Payment
+              </label>
+
+              <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                <span className="text-gray-400 text-base font-light">£</span>
+
+                <input
+                  type="text"
+                  value={
+                    formik.values.referrer_commission?.off_hire_amount || ""
+                  }
+                  onChange={(e) =>
+                    formik.setFieldValue(
+                      "referrer_commission.off_hire_amount",
+                      e.target.value,
+                    )
+                  }
+                  onBlur={(e) =>
+                    formatMoneyOnBlur(
+                      "referrer_commission.off_hire_amount",
+                      e.target.value,
+                    )
+                  }
+                  className="w-full bg-transparent outline-none text-gray-900 font-light"
+                />
+              </div>
+            </div>
+
+            <div
+              className="col-span-6 flex flex-col gap-2 relative"
+              ref={offHireRef2}
+            >
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                Paid On
+              </label>
+
+              <div
+                onClick={() => setShowOffHirePicker2(!showOffHirePicker2)}
+                className={`w-full h-[52px] px-5 bg-white rounded border flex items-center justify-between cursor-pointer transition-all ${
+                  showOffHirePicker2
+                    ? "border-blue-500 ring-1 ring-blue-500"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <span
+                  className={`${
+                    formik.values.referrer_commission?.off_hire_paid_on
+                      ? "text-gray-900"
+                      : "text-gray-400"
+                  } font-light`}
+                >
+                  {formik.values.referrer_commission?.off_hire_paid_on ||
+                    "Date"}
+                </span>
+
+                <img src={Vector6} alt="calendar" />
+              </div>
+
+              {showOffHirePicker2 && (
+                <div className="absolute bottom-[53px] left-0 z-[100]">
+                  <CustomDatePicker
+                    selectedDate={
+                      formik.values.referrer_commission?.off_hire_paid_on
+                        ? new Date(
+                            formik.values.referrer_commission.off_hire_paid_on,
+                          )
+                        : new Date()
+                    }
+                    onDateSelect={(date) => {
+                      formik.setFieldValue(
+                        "referrer_commission.off_hire_paid_on",
+                        date.toLocaleDateString("sv-SE"),
+                      );
+                      setShowOffHirePicker2(false);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
+          Referrers Nominated Solicitor (PI must go to)
+        </h2>
+
+        <div className="h-px bg-gray-100 w-full" />
+
+        <div className="grid grid-cols-12 gap-5 w-full items-start">
+          <div className="col-span-6 flex flex-col gap-2">
+            <label className="text-neutral-700 text-[14px] font-weight-500 h-[20px] flex items-center">
+              Solicitor
+            </label>
+
+            <input
+              type="text"
+              name="solicitor"
+              placeholder="Enter Solicitor Name"
+              value={formik.values.solicitor || ""}
+              onChange={(e) =>
+                formik.setFieldValue("solicitor", e.target.value)
+              }
+              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
+            />
+          </div>
+
+          <div className="col-span-6 flex flex-col gap-2">
+            <span className="text-neutral-700 text-[14px] font-weight-500 h-[20px] flex items-center">
+              Third Party Capture
+            </span>
+
+            <div className="h-[52px] flex items-center gap-8">
+              {["Allowed", "Not Allowed"].map((option) => (
+                <label
+                  key={option}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <div className="relative flex items-center justify-center">
+                    <input
+                      type="radio"
+                      name="third_party_capture"
+                      className="peer appearance-none transition-all"
+                      checked={formik.values.third_party_capture === option}
+                      onChange={() =>
+                        formik.setFieldValue("third_party_capture", option)
+                      }
+                    />
+
+                    {formik.values.third_party_capture === option ? (
+                      <img src={Yes} alt="yes" />
+                    ) : (
+                      <img src={No} alt="no" />
+                    )}
+                  </div>
+
+                  <span className="text-sm text-gray-700">{option}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };

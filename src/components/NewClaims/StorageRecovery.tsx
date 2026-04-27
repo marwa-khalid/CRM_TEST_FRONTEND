@@ -445,7 +445,7 @@ const StorageRecovery = forwardRef(
                       {/* Header & Add Button */}
                       <div className="border-b flex mt-4 justify-between items-start border-cloudGray mb-5">
                         <div>
-                          <h2 className="text-lg font-semibold  mb-2 sm:text-xl">
+                          <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">
                             Storage Provider Details
                           </h2>
                           <p className="pb-5 text-lightGray text-sm font-normal">
@@ -478,7 +478,7 @@ const StorageRecovery = forwardRef(
                         {values.storages.map((_, index) => (
                           <div key={index} className="flex items-center gap-2">
                             <p
-                              className={`text-sm font-semibold cursor-pointer ${
+                              className={`text-sm font-weight-600 cursor-pointer ${
                                 activeTab === index
                                   ? "text-custom underline decoration-2 decoration-custom underline-offset-[24px]"
                                   : "text-stormGray"
@@ -767,7 +767,7 @@ const StorageRecovery = forwardRef(
 
                               {/* Storage Billing Details */}
                               <div className="border-y col-span-3 border-cloudGray py-5">
-                                <h2 className="text-secondary text-lg font-semibold">
+                                <h2 className="text-secondary text-lg font-weight-600">
                                   Storage Billing Details
                                 </h2>
                                 <p className="text-lightGray text-sm font-normal">
@@ -1032,7 +1032,7 @@ const StorageRecovery = forwardRef(
                     <>
                       <div className="border-b flex justify-between items-start pt-5 border-cloudGray">
                         <div>
-                          <h2 className="text-secondary text-lg font-semibold">
+                          <h2 className="text-secondary text-lg font-weight-600">
                             Recovery Provider Details
                           </h2>
                           <p className="pb-5 text-lightGray text-sm font-normal">
@@ -1065,7 +1065,7 @@ const StorageRecovery = forwardRef(
                         {values.recoveries.map((_, index) => (
                           <div key={index} className="flex items-center gap-2">
                             <p
-                              className={`text-sm font-semibold cursor-pointer ${
+                              className={`text-sm font-weight-600 cursor-pointer ${
                                 activeRecoveryTab === index
                                   ? "text-custom underline decoration-2 decoration-custom underline-offset-[24px]"
                                   : "text-stormGray"
@@ -1364,7 +1364,7 @@ const StorageRecovery = forwardRef(
 
                               {/* Storage Billing Details  */}
                               <div className="border-y col-span-3 border-cloudGray py-5">
-                                <h2 className="text-secondary text-lg font-semibold">
+                                <h2 className="text-secondary text-lg font-weight-600">
                                   Recovery Billing Details
                                 </h2>
                                 <p className="text-lightGray text-sm font-normal">
@@ -1485,7 +1485,7 @@ const StorageRecovery = forwardRef(
                   }
                 >
                   <div className="p-4">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-3">
+                    <h2 className="text-lg font-weight-600 text-gray-800 mb-3">
                       Are you sure?
                     </h2>
                     <p className="text-sm text-gray-600 mb-6">

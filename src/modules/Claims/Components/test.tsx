@@ -20,7 +20,7 @@
       >
         <div
           data-layer="Client Vehicle"
-          className="ClientVehicle justify-start text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5"
+          className="ClientVehicle justify-start text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5"
         >
           Client Vehicle
         </div>
@@ -31,7 +31,7 @@
           <span class="text-Color-Neutral-700 text-sm font-normal font-['Stack_Sans_Headline']">
             Reg#{" "}
           </span>
-          <span class="text-Color-Neutral-700 text-sm font-semibold font-['Stack_Sans_Headline']">
+          <span class="text-Color-Neutral-700 text-sm font-weight-600 font-['Stack_Sans_Headline']">
             AB21 CDE, Toyota Camry-2022 , Black
           </span>
         </div>
@@ -47,7 +47,7 @@
       >
         <div
           data-layer="Third party Vehicle"
-          className="ThirdPartyVehicle justify-start text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5"
+          className="ThirdPartyVehicle justify-start text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5"
         >
           Third party Vehicle
         </div>
@@ -58,7 +58,7 @@
           <span class="text-Color-Neutral-700 text-sm font-normal font-['Stack_Sans_Headline']">
             Reg#{" "}
           </span>
-          <span class="text-Color-Neutral-700 text-sm font-semibold font-['Stack_Sans_Headline']">
+          <span class="text-Color-Neutral-700 text-sm font-weight-600 font-['Stack_Sans_Headline']">
             AB21 CDE, Honda Accord-2022 , White
           </span>
         </div>
@@ -79,43 +79,43 @@
       >
         <div
           data-layer="DAMAGE SIDE"
-          className="DamageSide w-36 justify-start text-Colors-Application-Text text-sm font-semibold font-['Stack_Sans_Headline']"
+          className="DamageSide w-36 justify-start text-Colors-Application-Text text-sm font-weight-600 font-['Stack_Sans_Headline']"
         >
           DAMAGE SIDE
         </div>
         <div
           data-layer="AREA OF DAMAGE"
-          className="AreaOfDamage w-40 justify-start text-Colors-Application-Text text-sm font-semibold font-['Stack_Sans_Headline']"
+          className="AreaOfDamage w-40 justify-start text-Colors-Application-Text text-sm font-weight-600 font-['Stack_Sans_Headline']"
         >
           AREA OF DAMAGE
         </div>
         <div
           data-layer="TYPE OF DAMAGE"
-          className="TypeOfDamage w-44 justify-start text-Colors-Application-Text text-sm font-semibold font-['Stack_Sans_Headline']"
+          className="TypeOfDamage w-44 justify-start text-Colors-Application-Text text-sm font-weight-600 font-['Stack_Sans_Headline']"
         >
           TYPE OF DAMAGE
         </div>
         <div
           data-layer="SEVERITY"
-          className="Severity w-32 justify-start text-Colors-Application-Text text-sm font-semibold font-['Stack_Sans_Headline']"
+          className="Severity w-32 justify-start text-Colors-Application-Text text-sm font-weight-600 font-['Stack_Sans_Headline']"
         >
           SEVERITY
         </div>
         <div
           data-layer="CONFIDENCE"
-          className="Confidence w-28 justify-start text-Colors-Application-Text text-sm font-semibold font-['Stack_Sans_Headline']"
+          className="Confidence w-28 justify-start text-Colors-Application-Text text-sm font-weight-600 font-['Stack_Sans_Headline']"
         >
           CONFIDENCE{" "}
         </div>
         <div
           data-layer="DAMAGED POINTS"
-          className="DamagedPoints w-40 justify-start text-Colors-Application-Text text-sm font-semibold font-['Stack_Sans_Headline']"
+          className="DamagedPoints w-40 justify-start text-Colors-Application-Text text-sm font-weight-600 font-['Stack_Sans_Headline']"
         >
           DAMAGED POINTS
         </div>
         <div
           data-layer="SUGGESTED REPAIR"
-          className="SuggestedRepair justify-start text-Colors-Application-Text text-sm font-semibold font-['Stack_Sans_Headline']"
+          className="SuggestedRepair justify-start text-Colors-Application-Text text-sm font-weight-600 font-['Stack_Sans_Headline']"
         >
           SUGGESTED REPAIR
         </div>
@@ -156,7 +156,7 @@
           >
             <div
               data-layer="High"
-              className="High justify-start text-Color-Red-700 text-xs font-semibold font-['Stack_Sans_Headline']"
+              className="High justify-start text-Color-Red-700 text-xs font-weight-600 font-['Stack_Sans_Headline']"
             >
               High
             </div>
@@ -217,7 +217,7 @@
           >
             <div
               data-layer="High"
-              className="High justify-start text-Color-Red-700 text-xs font-semibold font-['Stack_Sans_Headline']"
+              className="High justify-start text-Color-Red-700 text-xs font-weight-600 font-['Stack_Sans_Headline']"
             >
               High
             </div>
@@ -258,7 +258,7 @@
       >
         <div
           data-layer="Images with AI Detection"
-          className="ImagesWithAiDetection self-stretch justify-start text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5"
+          className="ImagesWithAiDetection self-stretch justify-start text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5"
         >
           Images with AI Detection
         </div>
@@ -346,7 +346,7 @@
     >
       <div
         data-layer="Manual Adjustments"
-        className="ManualAdjustments self-stretch justify-start text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5"
+        className="ManualAdjustments self-stretch justify-start text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5"
       >
         Manual Adjustments
       </div>
@@ -378,7 +378,7 @@
               >
                 <div
                   data-layer="Scratch"
-                  className="Scratch justify-start text-Color-Blue-300 text-xs font-semibold font-['Stack_Sans_Headline']"
+                  className="Scratch justify-start text-Color-Blue-300 text-xs font-weight-600 font-['Stack_Sans_Headline']"
                 >
                   Scratch
                 </div>
@@ -394,7 +394,7 @@
               >
                 <div
                   data-layer="Accept"
-                  className="Accept justify-start text-Color-Green-500 text-xs font-semibold font-['Stack_Sans_Headline']"
+                  className="Accept justify-start text-Color-Green-500 text-xs font-weight-600 font-['Stack_Sans_Headline']"
                 >
                   Accept
                 </div>
@@ -405,7 +405,7 @@
               >
                 <div
                   data-layer="Reject"
-                  className="Reject justify-start text-Color-Red-500 text-xs font-semibold font-['Stack_Sans_Headline']"
+                  className="Reject justify-start text-Color-Red-500 text-xs font-weight-600 font-['Stack_Sans_Headline']"
                 >
                   Reject
                 </div>
@@ -436,7 +436,7 @@
               >
                 <div
                   data-layer="Scratch"
-                  className="Scratch justify-start text-Color-Blue-300 text-xs font-semibold font-['Stack_Sans_Headline']"
+                  className="Scratch justify-start text-Color-Blue-300 text-xs font-weight-600 font-['Stack_Sans_Headline']"
                 >
                   Scratch
                 </div>
@@ -452,7 +452,7 @@
               >
                 <div
                   data-layer="Accept"
-                  className="Accept justify-start text-Color-Green-500 text-xs font-semibold font-['Stack_Sans_Headline']"
+                  className="Accept justify-start text-Color-Green-500 text-xs font-weight-600 font-['Stack_Sans_Headline']"
                 >
                   Accept
                 </div>
@@ -463,7 +463,7 @@
               >
                 <div
                   data-layer="Reject"
-                  className="Reject justify-start text-Color-Red-500 text-xs font-semibold font-['Stack_Sans_Headline']"
+                  className="Reject justify-start text-Color-Red-500 text-xs font-weight-600 font-['Stack_Sans_Headline']"
                 >
                   Reject
                 </div>
@@ -534,7 +534,7 @@
   >
     <div
       data-layer="Damage By Location"
-      className="DamageByLocation justify-start text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5"
+      className="DamageByLocation justify-start text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5"
     >
       Damage By Location
     </div>
@@ -548,7 +548,7 @@
       >
         <div
           data-layer="2"
-          className="justify-start text-Color-Neutral-900 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="justify-start text-Color-Neutral-900 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           {risks}
         </div>
@@ -566,7 +566,7 @@
       >
         <div
           data-layer="0"
-          className="justify-start text-Color-Neutral-900 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="justify-start text-Color-Neutral-900 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           0
         </div>
@@ -585,7 +585,7 @@
       >
         <div
           data-layer="0"
-          className="justify-start text-Color-Neutral-900 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="justify-start text-Color-Neutral-900 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           0
         </div>
@@ -609,7 +609,7 @@
       >
         <div
           data-layer="0"
-          className="justify-start text-Color-Neutral-900 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="justify-start text-Color-Neutral-900 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           0
         </div>
@@ -628,7 +628,7 @@
       >
         <div
           data-layer="0"
-          className="justify-start text-Color-Neutral-900 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="justify-start text-Color-Neutral-900 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           0
         </div>
@@ -647,7 +647,7 @@
       >
         <div
           data-layer="0"
-          className="justify-start text-Color-Neutral-900 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="justify-start text-Color-Neutral-900 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           0
         </div>
@@ -670,7 +670,7 @@
       >
         <div
           data-layer="0"
-          className="justify-start text-Color-Neutral-900 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="justify-start text-Color-Neutral-900 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           0
         </div>
@@ -689,7 +689,7 @@
       >
         <div
           data-layer="0"
-          className="justify-start text-Color-Neutral-900 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="justify-start text-Color-Neutral-900 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           0
         </div>
@@ -707,7 +707,7 @@
       >
         <div
           data-layer="0"
-          className="justify-start text-Color-Neutral-900 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="justify-start text-Color-Neutral-900 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           0
         </div>
@@ -727,7 +727,7 @@
   >
     <div
       data-layer="Damage By Severity"
-      className="DamageBySeverity justify-start text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5"
+      className="DamageBySeverity justify-start text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5"
     >
       Damage By Severity
     </div>
@@ -741,7 +741,7 @@
       >
         <div
           data-layer="2"
-          className="self-stretch justify-start text-Color-Neutral-700 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="self-stretch justify-start text-Color-Neutral-700 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           2
         </div>
@@ -758,7 +758,7 @@
       >
         <div
           data-layer="2"
-          className="self-stretch justify-start text-Color-Neutral-700 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="self-stretch justify-start text-Color-Neutral-700 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           2
         </div>
@@ -775,7 +775,7 @@
       >
         <div
           data-layer="0"
-          className="self-stretch justify-start text-Color-Neutral-700 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="self-stretch justify-start text-Color-Neutral-700 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           0
         </div>
@@ -792,7 +792,7 @@
       >
         <div
           data-layer="0"
-          className="self-stretch justify-start text-Color-Neutral-700 text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="self-stretch justify-start text-Color-Neutral-700 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           0
         </div>
@@ -811,7 +811,7 @@
   >
     <div
       data-layer="Audit Trail"
-      className="AuditTrail justify-start text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5"
+      className="AuditTrail justify-start text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5"
     >
       Audit Trail
     </div>
@@ -833,20 +833,20 @@
           >
             <div
               data-layer="DONE BY"
-              className="DoneBy w-64 justify-start text-Colors-Application-Text text-sm font-semibold font-['Stack_Sans_Headline']"
+              className="DoneBy w-64 justify-start text-Colors-Application-Text text-sm font-weight-600 font-['Stack_Sans_Headline']"
             >
               DONE BY
             </div>
             <div
               data-layer="ACTION"
-              className="Action w-80 justify-start text-Colors-Application-Text text-sm font-semibold font-['Stack_Sans_Headline']"
+              className="Action w-80 justify-start text-Colors-Application-Text text-sm font-weight-600 font-['Stack_Sans_Headline']"
             >
               ACTION
             </div>
           </div>
           <div
             data-layer="TIMESTAMP"
-            className="Timestamp justify-start text-Colors-Application-Text text-sm font-semibold font-['Stack_Sans_Headline']"
+            className="Timestamp justify-start text-Colors-Application-Text text-sm font-weight-600 font-['Stack_Sans_Headline']"
           >
             TIMESTAMP
           </div>
@@ -900,7 +900,7 @@
       >
         <div
           data-layer="Header Title"
-          className="HeaderTitle justify-start text-black text-2xl font-semibold font-['Stack_Sans_Headline'] leading-6"
+          className="HeaderTitle justify-start text-black text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6"
         >
           AI Vehicle Damage Full Report
         </div>
@@ -1027,7 +1027,7 @@
               <span class="text-Color-Neutral-700 text-sm font-normal font-['Stack_Sans_Headline']">
                 Claim ID:
               </span>
-              <span class="text-Color-Neutral-700 text-sm font-semibold font-['Stack_Sans_Headline']">
+              <span class="text-Color-Neutral-700 text-sm font-weight-600 font-['Stack_Sans_Headline']">
                 CLAIM-202508-0001
               </span>
               <span class="text-Color-Neutral-700 text-sm font-normal font-['Stack_Sans_Headline']">
@@ -1041,7 +1041,7 @@
               <span class="text-Color-Neutral-700 text-sm font-normal font-['Stack_Sans_Headline']">
                 Report ID:
               </span>
-              <span class="text-Color-Neutral-700 text-sm font-semibold font-['Stack_Sans_Headline']">
+              <span class="text-Color-Neutral-700 text-sm font-weight-600 font-['Stack_Sans_Headline']">
                 RPT-AI-00847-002
               </span>
             </div>
@@ -1052,7 +1052,7 @@
               <span class="text-Color-Neutral-700 text-sm font-normal font-['Stack_Sans_Headline']">
                 Generated:
               </span>
-              <span class="text-Color-Neutral-700 text-sm font-semibold font-['Stack_Sans_Headline']">
+              <span class="text-Color-Neutral-700 text-sm font-weight-600 font-['Stack_Sans_Headline']">
                 09 Mar 2026, 19:25
               </span>
             </div>
@@ -1070,7 +1070,7 @@
           <span class="text-Color-Neutral-700 text-xs font-normal font-['Stack_Sans_Headline']">
             Uploaded By:{" "}
           </span>
-          <span class="text-Color-Blue-500 text-xs font-semibold font-['Stack_Sans_Headline']">
+          <span class="text-Color-Blue-500 text-xs font-weight-600 font-['Stack_Sans_Headline']">
             James Smith
           </span>
           <span class="text-Color-Blue-500 text-xs font-normal font-['Stack_Sans_Headline']">
@@ -1080,14 +1080,14 @@
           <span class="text-Color-Neutral-700 text-xs font-normal font-['Stack_Sans_Headline']">
             File Name:{" "}
           </span>
-          <span class="text-Color-Neutral-700 text-xs font-semibold font-['Stack_Sans_Headline']">
+          <span class="text-Color-Neutral-700 text-xs font-weight-600 font-['Stack_Sans_Headline']">
             third_party_vehicle.jpg
           </span>
           <span class="text-Color-Neutral-700 text-xs font-normal font-['Stack_Sans_Headline']">
             {" "}
             - Source:{" "}
           </span>
-          <span class="text-Color-Neutral-700 text-xs font-semibold font-['Stack_Sans_Headline']">
+          <span class="text-Color-Neutral-700 text-xs font-weight-600 font-['Stack_Sans_Headline']">
             Claim Portal{" "}
           </span>
           <span class="text-Color-Neutral-700 text-xs font-normal font-['Stack_Sans_Headline']">

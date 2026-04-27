@@ -150,7 +150,7 @@ const AddPassengerModal = ({
             </div>
           </div>
 
-          <h2 className="text-xl font-semibold text-center mb-1">
+          <h2 className="text-[20px] font-weight-600 text-center mb-1">
             {editingPassengerId ? `${initialValues.first_name} ${initialValues.surname}` : 'Add Passenger Details'}
           </h2>
           <p className="text-sm text-gray-600 text-center mb-6">

@@ -172,12 +172,12 @@ const ResetPassword = () => {
             alt="Logo"
             src={group}
           />
-          <h1 className="relative w-fit text-white text-[40px] font-semibold leading-[40px] break-words font-sans">
+          <h1 className="relative w-fit text-white text-[40px] font-weight-600 leading-[40px] break-words font-sans">
             All Your Claims,
             <br />
             One Smart Platform
           </h1>
-          <p className="relative w-[431px] text-white text-[24px] font-semibold leading-[24px] break-words">
+          <p className="relative w-[431px] text-white text-[24px] font-weight-600 leading-[24px] break-words">
             Centralized CRM to track, process, and resolve claims smarter
           </p>
         </div>
@@ -231,14 +231,14 @@ const ResetPassword = () => {
         </button>
         {/* Main Form Section */}
         <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[197px] left-[678px]">
-          <h2 className="text-black text-[24px] font-semibold">
+          <h2 className="text-black text-[24px] font-weight-600">
             Reset Password
           </h2>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full">
             <div className="w-[440px] text-[#444444] text-[16px]">
               <span>Reset Password for Email </span>
-              <span className="font-semibold">{emailFromUrl}</span>
+              <span className="font-weight-600">{emailFromUrl}</span>
             </div>
 
             {/* New Password Input */}

@@ -6,7 +6,7 @@ const ABIBHRCharges= ({ paymentFormRef }:any) => {
     <div className="w-[788px] ms-[200px] mt-3 flex flex-col justify-start items-start gap-6 bg-white font-['Stack_Sans_Headline']">
       {/* Header Section */}
       <div className="self-stretch flex justify-between items-start">
-        <h1 className="text-black text-2xl font-weight-600 leading-6">
+        <h1 className="text-neutral-900 text-[24px] font-weight-600 leading-6">
           ABI & BHR Charges
         </h1>
         <button className="h-8 px-3 py-2 bg-blue-100 hover:bg-blue-100 rounded flex justify-center items-center gap-2.5 transition-colors group">
@@ -19,7 +19,7 @@ const ABIBHRCharges= ({ paymentFormRef }:any) => {
 
       {/* Section 1: Payment Pack Sent Detail */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">
-        <h2 className="text-black text-xl font-weight-600 leading-5">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
           Payment Pack Sent Detail
         </h2>
         <div className="self-stretch h-px bg-neutral-100" />
@@ -42,7 +42,7 @@ const ABIBHRCharges= ({ paymentFormRef }:any) => {
 
       {/* Section 2: Payment Pack Charges */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">
-        <h2 className="text-black text-xl font-weight-600 leading-5">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
           Payment Pack Charges
         </h2>
 
@@ -125,7 +125,7 @@ const ABIBHRCharges= ({ paymentFormRef }:any) => {
 
       {/* Section 3: Billed Breakdown */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">
-        <h2 className="text-black text-xl font-weight-600 leading-5">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
           Billed Breakdown Section (ABI 30 days Rate)
         </h2>
         <div className="self-stretch h-px bg-neutral-100" />

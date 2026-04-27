@@ -2,14 +2,14 @@ const EmailTemplates2 = () => {
     return (
       <div className="w-[640px] bg-white mx-auto my-10 shadow-lg rounded-lg overflow-hidden flex flex-col items-center p-12 font-['Stack_Sans_Headline'] text-center">
         {/* Greeting */}
-        <h2 className="text-black text-[20px] font-semibold leading-5 mb-4">
+        <h2 className="text-black text-[20px] font-weight-600 leading-5 mb-4">
           Hi, John Doe
         </h2>
 
         {/* Header Message */}
         <p className="text-[#444444] text-[14px] leading-relaxed mb-6">
           You have been added as a user to the <br />
-          <span className="font-semibold">Nationwide Assist CRM</span>
+          <span className="font-weight-600">Nationwide Assist CRM</span>
         </p>
 
         {/* Instruction & Link */}
@@ -45,18 +45,18 @@ const EmailTemplates2 = () => {
 
         {/* Sign-off */}
         <div className="mb-12">
-          <span className="text-black text-[12px] font-semibold">
+          <span className="text-black text-[12px] font-weight-600">
             Kind regards,
           </span>
           <br />
-          <span className="text-black text-[14px] font-semibold">
+          <span className="text-black text-[14px] font-weight-600">
             Nationwide Assist IT / Systems Team
           </span>
         </div>
 
         {/* Footer Security Notice */}
         <div className="w-[398px] p-4 bg-gray-50 rounded-md border border-gray-100">
-          <span className="text-[#888888] text-[14px] font-semibold uppercase tracking-wide">
+          <span className="text-[#888888] text-[14px] font-weight-600 uppercase tracking-wide">
             Security notice:
           </span>
           <br />

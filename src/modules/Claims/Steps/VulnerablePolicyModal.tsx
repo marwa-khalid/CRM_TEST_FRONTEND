@@ -22,7 +22,7 @@ export const VulnerablePolicyModal = ({ isOpen, onClose }) => {
               <img src={Vulnerable} alt="Back" />
             </button>
 
-            <div className="text-black text-xl md:text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-6">
+            <div className="text-neutral-900 text-[20px] md:text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-6">
               Vulnerable Persons Policy
             </div>
           </div>

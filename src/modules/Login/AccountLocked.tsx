@@ -94,13 +94,13 @@ const AccountLocked = () => {
             src={group}
           />
 
-          <h1 className="relative w-fit text-white text-[40px] font-semibold leading-[40px] break-words font-sans">
+          <h1 className="relative w-fit text-white text-[40px] font-weight-600 leading-[40px] break-words font-sans">
             All Your Claims,
             <br />
             One Smart Platform
           </h1>
 
-          <p className="relative w-[431px] text-white text-[24px] font-semibold leading-[24px] break-words">
+          <p className="relative w-[431px] text-white text-[24px] font-weight-600 leading-[24px] break-words">
             Centralized CRM to track, process, and resolve claims smarter
           </p>
         </div>
@@ -138,7 +138,7 @@ const AccountLocked = () => {
             src={subtract1}
           />
 
-          <div className="absolute top-2 left-[31px] [font-family:'Stack_Sans_Headline',Helvetica] font-semibold text-black text-xs tracking-[0] leading-[normal]">
+          <div className="absolute top-2 left-[31px] [font-family:'Stack_Sans_Headline',Helvetica] font-weight-600 text-black text-xs tracking-[0] leading-[normal]">
             AUTOCLAIM
           </div>
 
@@ -150,7 +150,7 @@ const AccountLocked = () => {
         </div>
 
         <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[197px] left-[810px]">
-          <h2 className="relative self-stretch text-black text-[24px] font-semibold leading-[24px] break-words">
+          <h2 className="relative self-stretch text-black text-[24px] font-weight-600 leading-[24px] break-words">
             Account Locked
           </h2>
 
@@ -185,7 +185,7 @@ const AccountLocked = () => {
                     <span className="text-sm font-normal">
                       Please wait for{" "}
                     </span>
-                    <span className="text-base font-semibold">{formatTime(countdown)}</span>
+                    <span className="text-base font-weight-600">{formatTime(countdown)}</span>
                     <span className="text-sm font-normal">
                       {" "}
                       mins and try Login again or reset your password if you’ve

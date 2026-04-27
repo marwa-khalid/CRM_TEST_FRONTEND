@@ -510,14 +510,14 @@ const ClaimsForm: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0">
           <div className="flex items-center gap-2 sm:gap-4">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-weight-600 text-gray-900">
               {(id || claimID) && referrence_no !== ""
                 ? `${referrence_no}`
                 : "Add New Claim"}
             </h1>
           </div>
           {!isClosed && (
-            <div className="flex gap-2 sm:gap-3 mr-[-5px] font-semibold text-xs sm:text-sm relative">
+            <div className="flex gap-2 sm:gap-3 mr-[-5px] font-weight-600 text-xs sm:text-sm relative">
               {/* 3-dots menu with click-outside detection */}
               <div className="relative" ref={menuRef}>
                 <button
@@ -614,7 +614,7 @@ const ClaimsForm: React.FC = () => {
         position="right"
       >
         <div className="p-6">
-          <h2 className="font-semibold text-xl mb-4">History Activity</h2>
+          <h2 className="font-weight-600 text-xl mb-4">History Activity</h2>
           <div className="space-y-4">
             <div className="border-l-2 border-blue-500 pl-4 py-2">
               <p className="text-sm text-gray-600">Today, 10:30 AM</p>

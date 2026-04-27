@@ -232,17 +232,26 @@ useEffect(() => {
         };
         console.log(payload);
         if (values.id) {
+        console.log(payload);
+          
           const response = await ClaimsApi.updateClaim(
             parseInt(claimId),
             payload,
+       
           );
+           console.log(payload);
           localStorage.setItem("claimId", response.id);
-          localStorage.setItem(
-            "claimType",
-            claimTypeOptions.find((opt) => opt.value === response.claim_type_id)
-              .label,
-          );
+          if (response.claim_type_id) {
+            localStorage.setItem(
+              "claimType",
+              claimTypeOptions.find((opt) => opt.value === response.claim_type_id)
+                .label,
+            );
+          }
+        console.log(payload);
+  
         } else {
+           console.log(payload);
           const response = await ClaimsApi.submitClaim(payload);
           localStorage.setItem("claimId", response.id);
           localStorage.setItem(
@@ -290,12 +299,12 @@ console.log(formik.values)
   };
   return (
    <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
-      <h1 className="text-black text-2xl font-weight-600">General Details</h1>
+      <h1 className="text-neutral-900 text-[24px] font-weight-600">General Details</h1>
 
       <div className="w-full flex flex-col gap-6">
         {/* --- CASE DETAILS SECTION --- */}
         <div className="CaseDetailsSection self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-          <h2 className="text-black text-xl font-weight-600 leading-5">
+          <h2 className="text-black text-[20px] font-weight-600 leading-5">
             Case Details
           </h2>
           <div className="h-px bg-gray-100 w-full" />
@@ -303,7 +312,7 @@ console.log(formik.values)
           <div className="grid grid-cols-2 gap-x-5 gap-y-4">
             {/* 1. Claim Type */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Claim type
               </label>
               <Select
@@ -326,7 +335,7 @@ console.log(formik.values)
 
             {/* 2. Handler */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Handler
               </label>
               <Select
@@ -348,7 +357,7 @@ console.log(formik.values)
 
             {/* 3. Target Debt */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Target Debt
               </label>
               <Select
@@ -376,7 +385,7 @@ console.log(formik.values)
 
             {/* 4. How Did Customer Find Us? */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 How did the customer find us?
               </label>
               <Select
@@ -396,7 +405,7 @@ console.log(formik.values)
             {/* CONDITIONAL: Staff Member Name (Appears when Staff Marketing selected) */}
             {formik.values.source_id === 3 && (
               <div className="col-span-2 flex flex-col gap-2 animate-in fade-in duration-300">
-                <label className="text-gray-700 text-sm font-weight-500 ">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Staff Member Name
                 </label>
                 <Select
@@ -420,7 +429,7 @@ console.log(formik.values)
 
             {/* 5. Case Status */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Case Status
               </label>
               <Select
@@ -452,7 +461,7 @@ console.log(formik.values)
 
             {/* 6. Credit Hire Accepted? (Radio) */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Credit Hire Accepted?
               </label>
               <div className="flex gap-6 items-center h-[52px]">
@@ -509,7 +518,7 @@ console.log(formik.values)
 
             {/* 7. Non-Fault Accident? */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Non-Fault Accident?
               </label>
               <Select
@@ -530,7 +539,7 @@ console.log(formik.values)
 
             {/* 8. Any Passengers? */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Any Passengers?
               </label>
               <Select
@@ -551,7 +560,7 @@ console.log(formik.values)
 
             {/* 9. Client Injured? */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Client Injured?
               </label>
               <Select
@@ -572,7 +581,7 @@ console.log(formik.values)
 
             {/* 10. Prospects of File */}
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Prospects of File
               </label>
               <Select
@@ -603,7 +612,7 @@ console.log(formik.values)
         {/* --- POSITION DETAILS --- */}
         <div className="PositionSection p-5 self-stretch rounded-lg border border-gray-100 flex flex-col gap-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-black text-xl font-weight-600">
+            <h2 className="text-neutral-900 text-[20px] font-weight-600">
               Position Details
             </h2>
             <button
@@ -617,7 +626,7 @@ console.log(formik.values)
           <div className="h-px bg-gray-100 w-full" />
           <div className="grid grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 File Opened On
               </label>
               <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center justify-between text-gray-500">
@@ -625,7 +634,7 @@ console.log(formik.values)
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Claim Entrants Username
               </label>
               <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center text-gray-500">
@@ -641,7 +650,7 @@ console.log(formik.values)
           </div>
           <div className="grid grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 File Closed On
               </label>
               <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center justify-between text-gray-500">
@@ -654,7 +663,7 @@ console.log(formik.values)
         {/* --- PRESENT POSITION --- */}
         <div className="PresentFilePositionSection p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mb-10">
           <div className="flex justify-between items-center">
-            <h2 className="text-black text-xl font-weight-600">
+            <h2 className="text-neutral-900 text-[20px] font-weight-600">
               Present File Position
             </h2>
             {formik.values.client_going_abroad==="Yes" && (
@@ -671,7 +680,7 @@ console.log(formik.values)
 
           <div className="grid grid-cols-2">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500 ">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Present File Position
               </label>
               <Select
@@ -696,7 +705,7 @@ console.log(formik.values)
           <div className="h-px bg-gray-100 w-full" />
           <div className="grid grid-cols-2 items-start justify-between">
             <div className="flex flex-col gap-2">
-              <span className="text-gray-700 text-sm font-weight-500 ">
+              <span className="text-neutral-700 text-[14px] font-weight-500">
                 Client going abroad soon?
               </span>
               <div className="flex gap-10 h-[52px] items-center">
@@ -729,7 +738,7 @@ console.log(formik.values)
 
             {formik.values.client_going_abroad === "Yes"  && (
               <div className="flex flex-col gap-2 relative" ref={datepickerRef}>
-                <label className="text-gray-700 text-sm font-weight-500 ">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Date
                 </label>
                 <div

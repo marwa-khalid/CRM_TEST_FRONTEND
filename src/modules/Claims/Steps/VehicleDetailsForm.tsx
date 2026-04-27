@@ -340,13 +340,13 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       />
       <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
         {/* Container matching left-[534px] and top-[157px] from source */}
-        <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
+        <h1 className="text-neutral-900 text-[24px] font-weight-600 font-['Stack_Sans_Headline']">
           Vehicle Details
         </h1>
         {/* Section 1: Personal Information Section */}
         <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
           <div className="flex justify-between items-center w-full">
-            <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+            <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
               Client's Vehicle Details
             </h2>
             <button
@@ -362,7 +362,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Make */}
             <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Make
               </label>
               <input
@@ -392,7 +392,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             {/* Model */}
             <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Model
               </label>
               <input
@@ -428,7 +428,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             {/* Body Type */}
             <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Body Type
               </label>
               <input
@@ -458,7 +458,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             {/* Vehicle Registration */}
             <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Vehicle Registration
               </label>
               <input
@@ -488,7 +488,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             {/* Color */}
             <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Color
               </label>
               <input
@@ -518,7 +518,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             {/* Fuel Type */}
             <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Fuel Type
               </label>
               <Select
@@ -555,7 +555,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             {/* Engine Size */}
             <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Engine Size
               </label>
               <input
@@ -586,7 +586,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             {/* Transmission */}
             <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Transmission
               </label>
               <Select
@@ -623,7 +623,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             {/* Number of Seats */}
             <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Number of Seats (Inc. Driver)
               </label>
               <div className="flex items-center justify-between px-4 py-3 bg-white rounded border border-gray-200 h-[52px]">
@@ -656,7 +656,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             {/* Category */}
             <div className="flex flex-col gap-2">
-              <label className="text-neutral-900 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Vehicle Category
               </label>
               <Select
@@ -696,7 +696,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           {/* Conditional Borough Section */}
           {/* {claimType !== "RTA - NA" && (
           <div className="mt-4 p-4 bg-blue-50/50 rounded-lg border border-blue-100 flex flex-col gap-2 animate-in fade-in duration-300">
-            <label className="text-neutral-900 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Borough
             </label>
             <input
@@ -712,7 +712,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         {claimType === "RTA - NA" && (
           <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6 animate-in fade-in duration-500">
             <div className="flex justify-between items-center w-full">
-              <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+              <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
                 Borough Details
               </h2>
             </div>
@@ -721,7 +721,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Borough Name - Mandatory */}
               <div className="flex flex-col gap-2">
-                <label className="text-neutral-900 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Borough
                 </label>
                 <input
@@ -738,7 +738,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
               {/* Taxi Type Dropdown */}
               <div className="flex flex-col gap-2">
-                <label className="text-neutral-900 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Taxi Type
                 </label>
                 <Select
@@ -760,7 +760,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
               {/* Client Badge Number */}
               <div className="flex flex-col gap-2">
-                <label className="text-neutral-900 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Client Badge Number
                 </label>
                 <input
@@ -779,7 +779,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
               {/* Badge Expiry Date */}
               <div className="flex flex-col gap-2">
-                <label className="text-neutral-900 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Badge Expiry Date
                 </label>
                 <div className="relative">
@@ -794,7 +794,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
               {/* Vehicle Badge Number */}
               <div className="flex flex-col gap-2">
-                <label className="text-neutral-900 text-sm font-weight-400">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Vehicle Badge Number
                 </label>
                 <input
@@ -877,7 +877,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         {/* SECTION: Third Party Vehicles */}
         <div className="self-stretch p-5 bg-neutral-100 rounded-lg border border-gray-100 flex flex-col gap-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-black text-xl font-weight-600">
+            <h2 className="text-neutral-900 text-[20px] font-weight-600">
               Third Party Vehicles
             </h2>
             <button
@@ -977,7 +977,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-xl w-[800px] flex flex-col gap-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-black text-xl font-weight-600">
+                <h2 className="text-neutral-900 text-[20px] font-weight-600">
                   Third Party Vehicle Details
                 </h2>
                 {/* <button onClick={() => setIsModalOpen(false)}>
@@ -990,7 +990,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               {/* Input Grid */}
               <div className="grid grid-cols-2 gap-5">
                 <div className="flex flex-col gap-2">
-                  <label className="text-neutral-900 text-sm font-weight-400">
+                  <label className="text-neutral-700 text-[14px] font-weight-500">
                     Make
                   </label>
                   <input
@@ -1007,7 +1007,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-neutral-900 text-sm font-weight-400">
+                  <label className="text-neutral-700 text-[14px] font-weight-500">
                     Model
                   </label>
                   <input
@@ -1024,7 +1024,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-neutral-900 text-sm font-weight-400">
+                  <label className="text-neutral-700 text-[14px] font-weight-500">
                     Registration
                   </label>
                   <input
@@ -1041,7 +1041,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-neutral-900 text-sm font-weight-400">
+                  <label className="text-neutral-700 text-[14px] font-weight-500">
                     Color
                   </label>
                   <input
@@ -1123,7 +1123,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
         {/* SECTION: Vehicle Checkpoint */}
         <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
             Vehicle Checkpoint
           </h2>
           <div className="h-px bg-gray-100 w-full" />

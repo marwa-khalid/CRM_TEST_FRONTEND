@@ -450,7 +450,7 @@ const TotalLossDetail = forwardRef(
                   {/* Total Loss Section */}
                   <div className="bg-white mb-6">
                     <div className="p-0 border-b border-gray-200">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                         Total Loss
                       </h2>
                       <p className="text-sm text-gray-600">
@@ -759,7 +759,7 @@ const TotalLossDetail = forwardRef(
                   {/* Salvage Retention Section */}
                   <div className="bg-white border-b border-gray-200 mb-6">
                     <div className="border-b border-gray-200">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                         Salvage Retention Details
                       </h2>
                       <p className="text-sm mb-2 text-gray-600">

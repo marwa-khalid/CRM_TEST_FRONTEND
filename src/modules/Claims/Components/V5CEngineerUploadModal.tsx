@@ -79,22 +79,47 @@ export const V5CEngineerUploadModal: React.FC<V5CModalProps> = ({
 
           // dispatch(setOcrEngineer(engineerDetail));
 setReportData(engineerDetail)
-          const inspectionDate = parseDateInspection(
-            engineerDetail.inspection_date,
-          );
-          const receivedDate = parseDateInspection(
-            engineerDetail.engineer_report_received_date,
-          );
-          const instructedDate = parseDateInspection(
-            engineerDetail.engineer_instructed,
-          );
+          const normalizeOcrDate = (dateStr?: string) => {
+            if (!dateStr) return "";
 
-          // FIX: Use setFieldValue to update Formik without resetting the form (avoiding setInitialValues)
+            // supports 27-04-2026
+            if (dateStr.includes("-")) {
+              const [day, month, year] = dateStr.split("-").map(Number);
+              if (day && month && year) {
+                return `${year}-${String(month).padStart(2, "0")}-${String(
+                  day,
+                ).padStart(2, "0")}`;
+              }
+            }
 
-          formik.setFieldValue("inspection_date", inspectionDate);
-          formik.setFieldValue("engineer_instructed", instructedDate);
-          formik.setFieldValue("engineer_report_received_date", receivedDate);
-          formik.setFieldValue("engineer_fee", engineerDetail.engineer_fee);
+            // supports 27 April 2026
+            const parsed = new Date(dateStr);
+            if (!Number.isNaN(parsed.getTime())) {
+              return parsed.toLocaleDateString("sv-SE");
+            }
+
+            return "";
+          };
+
+          setReportData(engineerDetail);
+
+          formik.setFieldValue(
+            "inspection_date",
+            normalizeOcrDate(engineerDetail.inspection_date),
+          );
+          formik.setFieldValue(
+            "engineer_instructed",
+            normalizeOcrDate(engineerDetail.engineer_instructed),
+          );
+          formik.setFieldValue(
+            "engineer_report_received_date",
+            normalizeOcrDate(engineerDetail.engineer_report_received_date),
+          );
+          formik.setFieldValue(
+            "engineer_fee",
+            engineerDetail.engineer_fee || "",
+          );
+          formik.setFieldValue("engineer_report_received", true);
         }
         setStep(1);
       }, 1500);
@@ -111,7 +136,7 @@ setReportData(engineerDetail)
       <div className="w-[600px] p-6 bg-white rounded-lg flex flex-col gap-6 animate-in zoom-in-95">
         {/* Header */}
         <div className="self-stretch flex justify-between items-center">
-          <div className="text-black text-xl font-semibold font-['Stack_Sans_Headline']">
+          <div className="text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline']">
             Upload V5C File
           </div>
           <button
@@ -149,7 +174,7 @@ setReportData(engineerDetail)
 
           {/* Text Content */}
           <div className="flex flex-col items-center gap-2">
-            <div className="text-black text-base font-semibold font-['Stack_Sans_Headline']">
+            <div className="text-black text-base font-weight-600 font-['Stack_Sans_Headline']">
               {step === 1 && "Choose a file or Drag & Drop here"}
               {step === 2 &&
                 `Uploaded - ${formatSize((file?.size || 0) * (progress / 100))} of ${formatSize(file?.size || 0)}`}

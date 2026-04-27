@@ -6,7 +6,7 @@ import { createPassenger, updatePassenger } from "../../../services/Accidents/Ca
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 
-export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
+export const PassengerDetailsModal = ({ onClose, claimId, initialData ,addNew}) => {
   // Initialize state with initialData if it exists
   const [passenger, setPassenger] = useState(
     initialData || {
@@ -20,7 +20,7 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData }) => {
     },
   );
 
-  const handleAction = async (addNext = false) => {
+  const handleAction = async (addNext :boolean) => {
     try {
       const cleanPhone = `+44${passenger.telephone.replace(/\s/g, "")}`;
       const payload = {
@@ -102,7 +102,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[60] p-4 font-['Stack_Sans_Headline']">
       <div className="PassengerDetails w-[800px] p-6 bg-white rounded-lg shadow-xl flex flex-col gap-6 animate-in zoom-in-95 duration-200">
         <div className="flex justify-between items-center">
-          <h2 className="text-black text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-5">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5">
             Passenger Details
           </h2>
           <button
@@ -119,7 +119,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           {/* Title Dropdown */}
           <div className="grid grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-500">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Title
               </label>
               <Select
@@ -141,7 +141,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           {/* Name Row */}
           <div className="grid grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 First Name
               </label>
               <input
@@ -155,7 +155,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Surname
               </label>
               <input
@@ -172,7 +172,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
           {/* Address Textarea */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Address
             </label>
             {/* <textarea
@@ -205,7 +205,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           {/* Postcode and Email */}
           <div className="grid grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Post Code
               </label>
               <input
@@ -219,7 +219,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Email Address
               </label>
               <input
@@ -237,7 +237,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           {/* Telephone */}
           <div className="grid grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Telephone
               </label>
               <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
@@ -270,12 +270,13 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           >
             Save
           </button>
-          <button
-            onClick={() => handleAction(true)}
-            className="px-6 py-4 bg-blue-600 text-white rounded font-weight-400 hover:bg-blue-700 transition-colors"
-          >
-            Save and Add Next Passenger
-          </button>
+          {addNew &&
+            <button
+              onClick={() => handleAction(true)}
+              className="px-6 py-4 bg-blue-600 text-white rounded font-weight-400 hover:bg-blue-700 transition-colors"
+            >
+              Save and Add Next Passenger
+            </button>}
         </div>
       </div>
     </div>

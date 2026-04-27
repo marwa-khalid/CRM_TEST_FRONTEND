@@ -714,7 +714,6 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     },
   ];
 
-  console.log(formik.values.thirdPartyVehicles.length);
   return (
     <>
       <FormikProvider value={formik}>
@@ -739,17 +738,17 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               data={onHireEmailData}
             />
           )}
-
-          <div className="flex justify-between">
-            <h1 className="text-black text-2xl font-weight-600">
+          <div className="flex items-center justify-between w-full">
+            <h1 className="text-neutral-900 text-[24px] font-weight-600">
               Hire Details
-              {/* <button onClick={testDeepLink}>Test</button> */}
             </h1>
+
             <button
-              className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center text-end gap-2.5 text-blue-600"
+              className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center gap-2 text-blue-600 whitespace-nowrap"
               onClick={() => setIsLogOpen(true)}
             >
-              <Clock size={16} /> <span className="text-sm">Provision Log</span>
+              <Clock size={16} />
+              <span className="text-sm">Provision Log</span>
             </button>
           </div>
           {/* Vehicle Tabs - Visible only when swap occurs [cite: 209] */}
@@ -763,7 +762,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   className={`flex-1 p-5 rounded-lg border cursor-pointer flex flex-col items-center gap-4 ${activeVehicleTab === i ? "bg-blue-100 border-blue-200" : "bg-white border-blue-200"}`}
                 >
                   <div className="text-center">
-                    <div className="text-black text-xl font-weight-600 leading-5">
+                    <div className="text-neutral-900 text-[20px] font-weight-600 leading-5">
                       Vehicle{i + 1}
                     </div>
                     <div className="text-slate-500 text-sm font-weight-400">
@@ -890,7 +889,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             // Single Record View
             <div className="w-full p-5 bg-blue-100 rounded-lg flex justify-between items-center">
               <div>
-                <div className="text-black text-xl font-weight-600 leading-5">
+                <div className="text-neutral-900 text-[20px] font-weight-600 leading-5">
                   Vehicle
                 </div>
                 <div className="text-slate-500 text-sm font-weight-400">
@@ -1190,7 +1189,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             <div className="grid grid-cols-2 gap-5">
               {/* Design match for Provision Start Date */}
               <div className="flex flex-col gap-2 relative" ref={provStartRef}>
-                <label className="text-gray-700 text-sm font-weight-500">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Hire Start Date
                 </label>
                 <div
@@ -1228,7 +1227,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
               {/* Design match for Provision End Date */}
               <div className="flex flex-col gap-2 relative" ref={provEndRef}>
-                <label className="text-gray-700 text-sm font-weight-500">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Hire End Date
                 </label>
                 <div
@@ -1270,7 +1269,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           <SectionWrapper title="Hire Period">
             <div className="grid grid-cols-2 gap-5 mb-5">
               <div className="flex flex-col gap-2 relative" ref={hireOutRef}>
-                <label className="text-gray-700 text-sm font-weight-500">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Hire Out Date & Time
                 </label>
                 <div
@@ -1304,7 +1303,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 )}
               </div>
               <div className="flex flex-col gap-2 relative" ref={hireBackRef}>
-                <label className="text-gray-700 text-sm font-weight-500">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
                   Hire Back Date & Time
                 </label>
                 <div
@@ -1514,7 +1513,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 const SectionWrapper: React.FC<{ title: string; children: React.ReactNode; actionIcon?: React.ReactNode }> = ({ title, children, actionIcon }) => (
   <div className="w-full p-5 rounded-lg border border-slate-100 flex flex-col gap-4">
     <div className="flex justify-between items-center w-full">
-      <h3 className="text-black text-xl font-weight-600 leading-5">{title}</h3>
+      <h3 className="text-neutral-900 text-[20px] font-weight-600 leading-5">{title}</h3>
       {actionIcon}
     </div>
     <div className="w-full h-px bg-slate-100" />
@@ -1543,7 +1542,7 @@ const InputField: React.FC<{
 
 const Dropdown: React.FC<{ label: string; options: any; value: any; onChange: any }> = ({ label, options, value, onChange }) => (
   <div className="flex flex-col gap-2 w-full">
-    <label className="text-gray-700 text-sm font-weight-400">{label}</label>
+    <label className="text-neutral-700 text-[14px] font-weight-500">{label}</label>
     <Select options={options} value={options.find((o: any) => o.value === value)} onChange={onChange} styles={customStyles} components={{ DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null }} />
   </div>
 );

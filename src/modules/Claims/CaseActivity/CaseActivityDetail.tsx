@@ -6,8 +6,12 @@ import {
   User,
   Edit3,
   Upload,
+  Reply,
+  Paperclip,
+  Eye,
 } from "lucide-react";
-import attachment from '../../../assets/AutoClaim_icon/attachment.svg'
+import attachmentt from "../../../assets/AutoClaim_icon/attachment.svg";
+
 interface ActivityDetailSliderProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,7 +19,38 @@ interface ActivityDetailSliderProps {
   onAddNote?: (payload: { activity: any; note: string }) => void;
   onViewInDocumentLibrary?: (activity: any) => void;
   onForwardToClient?: (activity: any) => void;
+  onReplyToEmail?: (activity: any) => void;
 }
+
+const staticAiTableRows = [
+  {
+    side: "Rear",
+    area: "Bumper",
+    type: "Broken",
+    severity: "High",
+    confidence: "90%",
+    points: "1",
+    repair: "Repair",
+  },
+  {
+    side: "Rear",
+    area: "Trunk",
+    type: "Dent",
+    severity: "Low",
+    confidence: "84%",
+    points: "1",
+    repair: "Repair",
+  },
+  {
+    side: "Rear",
+    area: "Taillight",
+    type: "Broken",
+    severity: "High",
+    confidence: "67%",
+    points: "1",
+    repair: "Repair",
+  },
+];
 
 const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
   isOpen,
@@ -24,6 +59,7 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
   onAddNote,
   onViewInDocumentLibrary,
   onForwardToClient,
+  onReplyToEmail,
 }) => {
   const [showNoteBox, setShowNoteBox] = useState(false);
   const [noteText, setNoteText] = useState("");
@@ -84,6 +120,37 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
     setNoteText("");
     setShowNoteBox(false);
   };
+
+const staticAiData = [
+  {
+    side: "Rear",
+    area: "Bumper",
+    type: "Broken",
+    severity: "High",
+    confidence: "90%",
+    points: "1",
+    repair: "Repair",
+  },
+  {
+    side: "Rear",
+    area: "Trunk",
+    type: "Dent",
+    severity: "Low",
+    confidence: "84%",
+    points: "1",
+    repair: "Repair",
+  },
+  {
+    side: "Rear",
+    area: "Taillight",
+    type: "Broken",
+    severity: "High",
+    confidence: "67%",
+    points: "1",
+    repair: "Repair",
+  },
+];
+
 
   const renderNotesSection = () => {
     if (notes.length === 0) return null;
@@ -148,6 +215,52 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
     );
   };
 
+  const renderAttachmentLink = (attachment: any, fallbackName?: string) => {
+    const fileUrl = attachment?.file_url || attachment || "#";
+    const fileName = attachment?.file_name || fallbackName || "Attachment";
+
+    return (
+      <a
+        href={fileUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-2 text-[#245BDB] hover:underline text-sm"
+      >
+        <Paperclip size={14} />
+        <span>{fileName}</span>
+      </a>
+    );
+  };
+
+  const aiAttachmentUrl =
+    data?.ai?.report_pdf_url || data?.attachments?.[0]?.file_url || "";
+  const aiAttachmentName =
+    data?.attachments?.[0]?.file_name || "AI Damage Report.pdf";
+
+  const getSeverityPill = (value: string) => {
+    if (value === "High") {
+      return (
+        <span className="px-2 py-1 rounded bg-red-50 text-red-600 text-xs font-weight-600">
+          High
+        </span>
+      );
+    }
+
+    if (value === "Low") {
+      return (
+        <span className="px-2 py-1 rounded bg-green-50 text-green-600 text-xs font-weight-600">
+          Low
+        </span>
+      );
+    }
+
+    return (
+      <span className="px-2 py-1 rounded bg-yellow-50 text-yellow-600 text-xs font-weight-600">
+        {value}
+      </span>
+    );
+  };
+
   return (
     <>
       <div
@@ -198,19 +311,31 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
 
                 <button
                   className="flex items-center gap-2 hover:text-blue-700"
-                  onClick={() => onViewInDocumentLibrary?.(data)}
-                >
-                  <FileText size={16} />
-                  View attachment in Document Library
-                </button>
-
-                <button
-                  className="flex items-center gap-2 hover:text-blue-700"
                   onClick={() => onForwardToClient?.(data)}
                 >
                   <FileText size={16} />
                   Forward to Client
                 </button>
+
+                <button
+                  className="flex items-center gap-2 hover:text-blue-700"
+                  onClick={() => onViewInDocumentLibrary?.(data)}
+                >
+                  <Eye size={16} />
+                  Open in Document Library
+                </button>
+
+                {/* {aiAttachmentUrl && aiAttachmentUrl !== "#" && (
+                  <a
+                    href={aiAttachmentUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 hover:text-blue-700"
+                  >
+                    <Paperclip size={16} />
+                    {aiAttachmentName}
+                  </a>
+                )} */}
               </div>
 
               <div className="space-y-1">
@@ -233,48 +358,69 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                   </span>
                 </p>
               </div>
+              <div className="mt-1 p-4 bg-neutral-100 rounded-lg text-sm text-neutral-700">
+                <div className="font-weight-600 mb-4">Damage Summary:</div>
 
-              <div className="bg-neutral-100 p-6 rounded-lg text-neutral-700 text-sm font-weight-300 leading-relaxed">
-                <div className="mb-3 font-weight-400">Analysis Summary:</div>
-                <div>· Vehicle Type: {data.ai?.vehicle_type || "-"}</div>
-                <div>· Damage Severity: {data.ai?.damage_severity || "-"}</div>
-                <div>
-                  · Estimated Repair Cost:{" "}
-                  {data.ai?.estimated_repair_cost || "-"}
-                </div>
-                <div>
-                  · Recommended Action: {data.ai?.recommended_action || "-"}
-                </div>
-                <div>
-                  · Fraud Risk Score: {data.ai?.fraud_risk_score || "-"}
-                </div>
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full border border-neutral-200 rounded-lg overflow-hidden">
+                    {/* HEADER */}
+                    <thead className=" text-neutral-600 text-xs uppercase">
+                      <tr>
+                        <th className="text-left px-3 py-2 border-b">Side</th>
+                        <th className="text-left px-3 py-2 border-b">Area</th>
+                        <th className="text-left px-3 py-2 border-b">Type</th>
+                        <th className="text-left px-3 py-2 border-b">
+                          Severity
+                        </th>
+                        <th className="text-left px-3 py-2 border-b">
+                          Confidence
+                        </th>
+                        <th className="text-left px-3 py-2 border-b">Points</th>
+                        <th className="text-left px-3 py-2 border-b">Repair</th>
+                      </tr>
+                    </thead>
 
-                {data.ai?.detail_summary && (
-                  <div className="mt-4 whitespace-pre-line">
-                    {data.ai.detail_summary}
-                  </div>
-                )}
+                    {/* BODY */}
+                    <tbody className=" text-sm">
+                      {staticAiData.map((item, i) => (
+                        <tr key={i} className="border-b last:border-b-0">
+                          <td className="px-3 py-2">{item.side}</td>
+                          <td className="px-3 py-2">{item.area}</td>
+                          <td className="px-3 py-2">{item.type}</td>
+
+                          {/* SEVERITY WITH COLOR */}
+                          <td className="px-3 py-2">
+                            <span
+                              className={
+                                item.severity === "High"
+                                  ? "text-red-600"
+                                  : item.severity === "Medium"
+                                    ? "text-yellow-600"
+                                    : "text-green-600"
+                              }
+                            >
+                              {item.severity}
+                            </span>
+                          </td>
+
+                          <td className="px-3 py-2">{item.confidence}</td>
+                          <td className="px-3 py-2">{item.points}</td>
+                          <td className="px-3 py-2">{item.repair}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              {data.attachments?.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  {data.attachments.map((attachment: any, index: number) => (
-                    <a
-                      key={index}
-                      href={attachment.file_url || "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-600 hover:bg-blue-50 transition-colors w-fit"
-                    >
-                      <img src={attachment} alt="" />
-
-                      <span className="text-sm font-weight-300">
-                        {attachment.file_name || "AI Damage Report.pdf"}
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              )}
+              {/* {aiAttachmentUrl && aiAttachmentUrl !== "#" && ( */}
+              <div className="flex flex-col gap-2">
+                {renderAttachmentLink(
+                  { file_url: aiAttachmentUrl, file_name: aiAttachmentName },
+                  aiAttachmentName,
+                )}
+              </div>
+              {/* )} */}
 
               {renderNotesSection()}
               {renderNoteBox()}
@@ -293,19 +439,34 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
 
                   <button
                     className="flex items-center gap-2 hover:text-blue-700"
-                    onClick={() => onViewInDocumentLibrary?.(data)}
-                  >
-                    <FileText size={16} />
-                    View attachment in Document Library
-                  </button>
-
-                  <button
-                    className="flex items-center gap-2 hover:text-blue-700"
                     onClick={() => onForwardToClient?.(data)}
                   >
                     <FileText size={16} />
                     Forward to Client
                   </button>
+
+                  {data.attachments?.length > 0 && (
+                    <button
+                      className="flex items-center gap-2 hover:text-blue-700"
+                      onClick={() => onViewInDocumentLibrary?.(data)}
+                    >
+                      <Eye size={16} />
+                      Open in Document Library
+                    </button>
+                  )}
+                  <button
+                    className="flex items-center gap-2 hover:text-blue-700"
+                    onClick={() => onReplyToEmail?.(data)}
+                  >
+                    <Reply size={16} />
+                    Reply to Email
+                  </button>
+
+                  {/* {data.attachments?.length > 0 &&
+                    renderAttachmentLink(
+                      data.attachments[0],
+                      data.attachments[0]?.file_name,
+                    )} */}
                 </div>
 
                 <p className="text-sm text-neutral-700">
@@ -346,8 +507,7 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                       rel="noreferrer"
                       className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-600 hover:bg-blue-50 transition-colors w-fit"
                     >
-                      <img src={attachment} alt="" />
-
+                      <img src={attachmentt} alt="" />
                       <span className="text-sm font-weight-300">
                         {attachment.file_name}
                       </span>
@@ -390,7 +550,7 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                       rel="noreferrer"
                       className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-600 hover:bg-blue-50 transition-colors w-fit"
                     >
-                      <img src={attachment} alt="" />
+                      <img src={attachmentt} alt="" />
                       <span className="text-sm font-weight-300">
                         {attachment.file_name}
                       </span>

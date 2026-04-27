@@ -24,13 +24,13 @@ const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep
 
   return (
     <div
-      className={`Sidebar ${isClaimsExpanded ? "w-72" : "w-72"} h-full flex flex-col justify-start items-start gap-4 overflow-y-auto scrollbar-hide transition-all duration-300`}
+      className={`Sidebar font-['Stack_Sans_Headline'] ${isClaimsExpanded ? "w-72" : "w-72"} h-full flex flex-col justify-start items-start gap-4 overflow-y-auto scrollbar-hide transition-all duration-300`}
     >
-      <div className="SidebarContainer self-stretch p-6 rounded-lg border border-gray-100 flex flex-col justify-start items-start gap-4">
+      <div className="SidebarContainer self-stretch p-6 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">
         <div className="SidebarItemContainer self-stretch inline-flex justify-between items-center">
           <div className="SidebarItem flex justify-start items-center gap-3">
             <img src={Vector8} alt="" />
-            <div className="SidebarItemText text-black text-base font-weight-600 font-['Stack_Sans_Headline']">
+            <div className="SidebarItemText text-neutral-900 text-[16px] font-weight-600 font-['Stack_Sans_Headline']">
               Claim Details
             </div>
           </div>
@@ -76,10 +76,10 @@ const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep
                     )}
 
                     <div
-                      className={`Label text-sm transition-colors ${
+                      className={`Label text-[12px] transition-colors font-weight-300 font-light ${
                         isActive
-                          ? "text-blue-500"
-                          : "text-gray-500 group-hover:text-gray-700"
+                          ? "text-primary"
+                          : "text-neutral-700 group-hover:text-gray-700"
                       }`}
                     >
                       {step.label}
@@ -96,7 +96,7 @@ const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep
         <div className="SidebarSectionItemContainer self-stretch inline-flex justify-between items-center">
           <div className="SidebarSectionItem flex justify-start items-center gap-3">
             <img src={Vector1} alt="" />
-            <div className="SidebarSectionItemText text-gray-500 text-base font-semibold font-['Stack_Sans_Headline']">
+            <div className="SidebarSectionItemText text-gray-500 text-base font-weight-600 font-['Stack_Sans_Headline']">
               Payment Details
             </div>
           </div>

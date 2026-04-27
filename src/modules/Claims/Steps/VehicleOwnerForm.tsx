@@ -155,13 +155,13 @@ return (
     />
     <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       {/* Container matching left-[534px] and top-[157px] from source */}
-      <h1 className="text-black text-2xl font-weight-600 font-['Stack_Sans_Headline']">
+      <h1 className="text-neutral-900 text-[24px] font-weight-600 font-['Stack_Sans_Headline']">
         Owner Details
       </h1>
       {/* Section 1: Personal Information Section */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
         <div className="flex justify-between items-center w-full">
-          <h2 className="text-black text-xl font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
             Vehicle Owner Details
           </h2>
           <button
@@ -177,7 +177,7 @@ return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* clientFirstName */}
           <div className="flex flex-col gap-2">
-            <label className="text-neutral-900 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               First Name
             </label>
             <input
@@ -192,7 +192,7 @@ return (
           </div>
           {/* Model */}
           <div className="flex flex-col gap-2">
-            <label className="text-neutral-900 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Last Name
             </label>
             <input
@@ -207,7 +207,7 @@ return (
           </div>
         </div>
         <div className="row flex flex-col gap-2">
-          <label className="text-neutral-900 text-sm font-weight-400">
+          <label className="text-neutral-700 text-[14px] font-weight-500">
             Address{" "}
           </label>
           <LeafletAutocompleteMap
@@ -226,7 +226,7 @@ return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Body Type */}
           <div className="flex flex-col gap-2">
-            <label className="text-neutral-900 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Post Code{" "}
             </label>
             <input
@@ -239,7 +239,7 @@ return (
           </div>
           {/* Vehicle Registration */}
           <div className="flex flex-col gap-2">
-            <label className="text-neutral-900 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Email
             </label>
             <input
@@ -254,24 +254,24 @@ return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Color */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Home Telephone
             </label>
             <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-              <span className="text-gray-400 text-base font-light">+44</span>
+              {/* <span className="text-gray-400 text-base font-light">+44</span> */}
               <input
-                name="homeTelephone"
-                type="tel"
+                name="contact_number"
+                type="text"
                 onChange={handlHomeTelephoneChange}
-                maxLength={11}
+                maxLength={15}
                 value={formik.values.homeTelephone}
-                className="w-full bg-transparent outline-none text-neutral-700 mb-0.5 font-light placeholder:text-gray-300"
+                className="w-full bg-transparent mb-0.5 outline-none text-gray-900 font-light placeholder:text-gray-300"
               />
             </div>
           </div>
           {/* Fuel Type */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Mobile Number
             </label>
             <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
@@ -290,7 +290,7 @@ return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Engine Size */}
           <div className="flex flex-col gap-2">
-            <label className="text-neutral-900 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Vehicle Payment Beneficiary
             </label>
             <input
@@ -311,7 +311,7 @@ return (
         {/* Conditional Borough Section */}
         {/* {claimType !== "RTA - NA" && (
           <div className="mt-4 p-4 bg-blue-50/50 rounded-lg border border-blue-100 flex flex-col gap-2 animate-in fade-in duration-300">
-            <label className="text-neutral-900 text-sm font-weight-400">
+            <label className="text-neutral-700 text-[14px] font-weight-500">
               Borough
             </label>
             <input

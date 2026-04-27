@@ -70,7 +70,7 @@ export const Calendar = ({ highlightedDates, className, ...props }: CalendarProp
             <AriaCalendar {...props} className={(state) => cx("flex bg-white flex-col gap-3", typeof className === "function" ? className(state) : className)}>
                 <header className="flex items-center justify-between bg-white outline-none ring-0 focus:outline-none">
                     <Button slot="previous" iconLeading={ChevronLeft} size="sm" color="tertiary" className="size-8" />
-                    <AriaHeading className="text-sm font-semibold text-fg-secondary" />
+                    <AriaHeading className="text-sm font-weight-600 text-fg-secondary" />
                     <Button slot="next" iconLeading={ChevronRight} size="sm" color="tertiary" className="size-8" />
                 </header>
 

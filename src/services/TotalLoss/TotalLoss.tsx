@@ -36,3 +36,26 @@ export const fetchCategories = async () => {
     const response = await axiosInstance.get(`total-loss/${claim_id}`)
     return response.data
   }
+
+  // TotalLoss.ts
+
+export const sendPAVToClient = (claimId: number, to_email?: string) =>
+  axiosInstance.post(`/total-loss/send-pav-client/${claimId}`, {
+    to_email,
+  });
+
+export const sendTotalLossEngReportToTPI = (
+  claimId: number,
+  to_email: string,
+) =>
+  axiosInstance.post(`/total-loss/send-eng-report-tpi/${claimId}`, {
+    to_email,
+  });
+
+export const instructFleetOffHireFromTotalLoss = (
+  claimId: number,
+  to_email?: string,
+) =>
+  axiosInstance.post(`/total-loss/instruct-fleet-off-hire/${claimId}`, {
+    to_email,
+  });

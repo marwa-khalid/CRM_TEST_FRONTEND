@@ -65,7 +65,7 @@ const SendQuestionnaireModal = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
       <div className="bg-white rounded-lg w-full max-w-sm mx-4 shadow-xl">
         <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4 text-center">
+          <h2 className="text-xl font-weight-600 mb-4 text-center">
             Send Questionnaire
           </h2>
           <p className="text-sm text-gray-600 mb-6 text-center">
@@ -373,7 +373,7 @@ const AddWitnessModal = ({
               </div>
             </div>
 
-            <h2 className="text-xl font-semibold mb-2 text-center">
+            <h2 className="text-xl font-weight-600 mb-2 text-center">
               {editingWitnessId
                 ? `${initialValues.firstName} ${initialValues.surname}`
                 : "Add Witness Details"}
@@ -704,7 +704,7 @@ const AddWitnessModal = ({
                             className="flex cursor-pointer"
                             onClick={handleSendQuestionnaire}
                           >
-                            <h2 className="text-sm cursor-pointer mb-4 font-semibold text-[#414651]">
+                            <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-[#414651]">
                               Send Questionnaire
                             </h2>
                             <MdArrowOutward className="text-[#414651] mt-[3px] ml-2" />

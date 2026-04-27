@@ -2,7 +2,7 @@ const EmailTemplates1 = () => {
     return (
       <div className="w-[640px] min-h-[600px] bg-white mx-auto my-10 shadow-lg rounded-lg overflow-hidden flex flex-col items-center p-12 font-['Stack_Sans_Headline']">
         {/* Greeting */}
-        <h2 className="text-black text-[20px] font-semibold leading-5 mb-4">
+        <h2 className="text-black text-[20px] font-weight-600 leading-5 mb-4">
           Hi, John Doe
         </h2>
 
@@ -13,7 +13,7 @@ const EmailTemplates1 = () => {
         </p>
 
         {/* OTP Code */}
-        <div className="text-[#0352FD] text-[40px] font-semibold tracking-[0.2em] mb-10">
+        <div className="text-[#0352FD] text-[40px] font-weight-600 tracking-[0.2em] mb-10">
           1 2 3 4 5 6
         </div>
 
@@ -35,14 +35,14 @@ const EmailTemplates1 = () => {
             Kind regards,
           </span>
           <br />
-          <span className="text-black text-[14px] font-semibold">
+          <span className="text-black text-[14px] font-weight-600">
             Nationwide Assist IT / Systems Team
           </span>
         </div>
 
         {/* Footer Security Notice */}
         <div className="w-[398px] p-4 bg-gray-50 rounded-md text-center">
-          <span className="text-[#888888] text-[14px] font-semibold uppercase tracking-wide">
+          <span className="text-[#888888] text-[14px] font-weight-600 uppercase tracking-wide">
             Security notice:
           </span>
           <br />

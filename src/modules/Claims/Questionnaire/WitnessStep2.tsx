@@ -1,4 +1,5 @@
 import React from "react";
+import { useQuestionnaireForm } from "./QuestionnaireLayout";
 
 const questions = [
   "Did you actually see the accident?",
@@ -22,9 +23,18 @@ const questions = [
 ];
 
 const Step2Questions = () => {
+  const { formData, updateStepData } = useQuestionnaireForm();
+
+  const handleChange = (index: number, value: string) => {
+    updateStepData("questionnaire", {
+      ...formData.questionnaire,
+      [index]: value,
+    });
+  };
+
   return (
-    <div className="flex flex-col gap-6 p-5 rounded-lg border border-gray-100 shadow-sm bg-white">
-      <div className="text-black text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-5">
+    <div className="flex flex-col gap-6 p-5 rounded-lg border border-gray-100 shadow-sm bg-white font-['Stack_Sans_Headline']">
+      <div className="text-neutral-900 text-[20px] font-weight-600 leading-5">
         Questionnaire
       </div>
 
@@ -33,12 +43,15 @@ const Step2Questions = () => {
       <div className="flex flex-col gap-6">
         {questions.map((q, index) => (
           <div key={index} className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-weight-400 font-['Stack_Sans_Headline'] leading-tight">
+            <label className="text-gray-700 text-sm font-weight-400 leading-tight">
               {q}
             </label>
+
             <textarea
+              value={formData.questionnaire?.[index] || ""}
+              onChange={(e) => handleChange(index, e.target.value)}
               placeholder="Enter Details"
-              className="w-full h-24 px-5 py-4 bg-white rounded border border-gray-200 text-base font-light font-['Stack_Sans_Headline'] outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300 resize-none"
+              className="w-full h-24 px-5 py-4 bg-white rounded border border-gray-200 text-base font-light outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300 resize-none"
             />
           </div>
         ))}

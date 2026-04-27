@@ -640,7 +640,7 @@ const EngineerDetails = forwardRef(
               <Form className="bg-white p-0 mt-10">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h1 className="text-lg font-semibold  mb-2 sm:text-xl">
+                    <h1 className="text-lg font-weight-600  mb-2 sm:text-xl">
                       Engineer Details
                     </h1>
                     <p className="text-sm text-gray-600 mb-4 sm:text-sm sm:mb-6">
@@ -896,7 +896,7 @@ const EngineerDetails = forwardRef(
 
                 <hr className="mb-4 sm:mb-6 mt-6" />
 
-                <h1 className="text-lg font-semibold text-gray-900 mb-2">
+                <h1 className="text-lg font-weight-600 text-gray-900 mb-2">
                   Vehicle Location
                 </h1>
                 <p className="text-sm text-gray-600 mb-4 sm:text-sm sm:mb-6">
@@ -973,7 +973,7 @@ const EngineerDetails = forwardRef(
 
                 <div className="w-[98%] bg-white border-b border-gray-200 mb-6">
                   <div className="border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                       Engineer Fees
                     </h2>
                     <p className="text-sm mb-2 text-gray-600">
@@ -1095,7 +1095,7 @@ const EngineerDetails = forwardRef(
 
                   <div className="flex justify-between w-full">
                     <div>
-                      <h1 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h1 className="text-lg font-weight-600 text-gray-900 mb-2">
                         Engineer Report & Instructions Details
                       </h1>
                       <p className="text-sm text-gray-600 mb-4 sm:text-sm sm:mb-6">
@@ -1156,7 +1156,7 @@ const EngineerDetails = forwardRef(
                           }
                         }}
                       >
-                        <h2 className="text-sm cursor-pointer mb-4 font-semibold text-[#414651]">
+                        <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-[#414651]">
                           Repair Costs & Route Details
                         </h2>
                         <MdArrowOutward className="text-[#414651] mt-[3px] ml-1" />
@@ -1171,7 +1171,7 @@ const EngineerDetails = forwardRef(
                           }
                         }}
                       >
-                        <h2 className="text-sm cursor-pointer mb-4 font-semibold text-[#414651]">
+                        <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-[#414651]">
                           Total Loss Details
                         </h2>
                         <MdArrowOutward className="text-[#414651] mt-[3px] ml-1" />

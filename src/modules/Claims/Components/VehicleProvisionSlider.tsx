@@ -44,7 +44,7 @@
 //           >
 //             {/* Header - Matches your "Header" layer */}
 //             <div className="w-full px-10 py-5 flex justify-between items-center bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)]">
-//               <h1 className="text-black text-2xl font-weight-600 leading-6">
+//               <h1 className="text-neutral-900 text-[24px] font-weight-600 leading-6">
 //                 Vehicle Provision Log
 //               </h1>
 //               <button
@@ -199,7 +199,7 @@ export const VehicleProvisionSlider = ({
           >
             {/* Header */}
             <div className="w-full px-10 py-5 flex justify-between items-center bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)]">
-              <h1 className="text-black text-2xl font-weight-600 leading-6">
+              <h1 className="text-neutral-900 text-[24px] font-weight-600 leading-6">
                 Vehicle Provision Log
               </h1>
               <button

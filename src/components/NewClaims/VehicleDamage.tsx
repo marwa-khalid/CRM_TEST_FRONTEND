@@ -471,7 +471,7 @@ const ImageUploader = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Image Section */}
               <div>
-  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+  <h3 className="text-lg font-weight-600 text-gray-900 border-b border-gray-200 pb-2 mb-4">
     Selected Image
   </h3>
   {/* Container for image and bounding boxes */}
@@ -530,7 +530,7 @@ const ImageUploader = ({
               {/* Analysis Results Section */}
               {singleImageAnalysisResponse && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+                  <h3 className="text-lg font-weight-600 text-gray-900 border-b border-gray-200 pb-2 mb-4">
                     Analysis Results
                   </h3>
                   <div className="grid grid-cols-1 gap-y-3 gap-x-6 text-sm">
@@ -568,7 +568,7 @@ const ImageUploader = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Image Section */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+                <h3 className="text-lg font-weight-600 text-gray-900 border-b border-gray-200 pb-2 mb-4">
                   Select Report to View {type}
                 </h3>
                 {/* <img src={selectedImage} alt="Full Size" className="w-full h-auto rounded" /> */}
@@ -579,9 +579,9 @@ const ImageUploader = ({
                 <table className="min-w-full table-auto border border-gray-200">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-4 py-2 border-b text-left text-sm font-semibold text-gray-700">Version</th>
-                      <th className="px-4 py-2 border-b text-left text-sm font-semibold text-gray-700">Title</th>
-                      <th className="px-4 py-2 border-b text-left text-sm font-semibold text-gray-700"></th>
+                      <th className="px-4 py-2 border-b text-left text-sm font-weight-600 text-gray-700">Version</th>
+                      <th className="px-4 py-2 border-b text-left text-sm font-weight-600 text-gray-700">Title</th>
+                      <th className="px-4 py-2 border-b text-left text-sm font-weight-600 text-gray-700"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -609,7 +609,7 @@ const ImageUploader = ({
         </Modal>
       </div>
       {(damageDetailsClient && type === 'Client') || (vehicleData !== null && id && type === 'Client' && damageDetailsClient) ? <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+        <h3 className="text-lg font-weight-600 text-gray-900 border-b border-gray-200 pb-2 mb-4">
           Damage Details
         </h3>
 
@@ -649,7 +649,7 @@ const ImageUploader = ({
           View Report
         </button>
       </div> : (damageDetailsThird && type !== 'Client') || (vehicleData !== null && id && type !== 'Client' && damageDetailsThird) ? <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+        <h3 className="text-lg font-weight-600 text-gray-900 border-b border-gray-200 pb-2 mb-4">
           Damage Details
         </h3>
 
@@ -795,7 +795,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
   return (
     <div className={`max-w-5xl mx-auto pt-6 space-y-10 ${className}`}>
       <section>
-        <h2 className="text-lg font-semibold mb-1">{type} Vehicle Details</h2>
+        <h2 className="text-lg font-weight-600 mb-1">{type} Vehicle Details</h2>
         <p className="text-gray-500 mb-4">{type} {subTitle}</p>
         <ImageUploader
           clientVehicleId={clientVehicleId}
@@ -829,7 +829,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           {type === 'Client' ? <div ref={reportRefClient}>
-            <h2 className="text-lg font-semibold mb-4">{type} Vehicle Damage Report</h2>
+            <h2 className="text-lg font-weight-600 mb-4">{type} Vehicle Damage Report</h2>
             <div className="text-sm mb-6 space-y-1">
               <div className="grid grid-cols-2 gap-2">
                 <span>Claim ID</span>
@@ -849,7 +849,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
             </div>
             <hr className="mb-4" />
             <div className="mb-6">
-              <h3 className="font-semibold mb-2">Upload Details</h3>
+              <h3 className="font-weight-600 mb-2">Upload Details</h3>
               <div className="text-sm space-y-1">
                 <div className="grid grid-cols-2 gap-2">
                   <span>Uploaded by</span>
@@ -871,7 +871,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
             </div>
             <hr className="mb-4" />
             <div className="mb-6">
-              <h3 className="font-semibold mb-2">Vehicle Details</h3>
+              <h3 className="font-weight-600 mb-2">Vehicle Details</h3>
               <div className="text-sm space-y-1">
                 <div className="grid grid-cols-2 gap-2">
                   <span>Vehicle Reg. No.</span>
@@ -931,7 +931,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
             </div>
             <hr className="mb-4" />
             <div className="mb-6">
-              <h3 className="font-semibold mb-2">Detected Damages</h3>
+              <h3 className="font-weight-600 mb-2">Detected Damages</h3>
               <div className="overflow-hidden rounded-lg border border-gray-300">
                 <table className="table-fixed rounded w-full text-sm border-collapse border border-gray-300">
                   <tbody>
@@ -969,7 +969,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
             </div>
             <hr className="mb-4" />
             <div className="mb-6">
-              <h3 className="font-semibold mb-2">Uploaded Images</h3>
+              <h3 className="font-weight-600 mb-2">Uploaded Images</h3>
               <div className="grid grid-cols-3 gap-2">
   {images?.length > 0 &&
     images.map((src, idx) => {
@@ -1043,7 +1043,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
               {/* <p className="text-xs text-gray-500 mt-2">{clientReport?.confirmation?.confirmed_by} confirmed at {clientReport?.confirmation?.confirmed_at}</p> */}
             </div>
             <div className="mb-6 border-t pt-4">
-              <h3 className="font-semibold mb-2">Summary</h3>
+              <h3 className="font-weight-600 mb-2">Summary</h3>
               <div className="text-sm space-y-1">
                 <div className="grid grid-cols-2 gap-2">
                   <span>Total by Severity</span>
@@ -1061,7 +1061,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
             </div>
           </div> : <div ref={reportRefThirdParty}>
 
-            <h2 className="text-lg font-semibold mb-4">{type} Vehicle Damage Report</h2>
+            <h2 className="text-lg font-weight-600 mb-4">{type} Vehicle Damage Report</h2>
             <div className="text-sm mb-6 space-y-1">
               <div className="grid grid-cols-2 gap-2">
                 <span>Claim ID</span>
@@ -1078,7 +1078,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
             </div>
             <hr className="mb-4" />
             <div className="mb-6">
-              <h3 className="font-semibold mb-2">Upload Details</h3>
+              <h3 className="font-weight-600 mb-2">Upload Details</h3>
               <div className="text-sm space-y-1">
                 <div className="grid grid-cols-2 gap-2">
                   <span>Uploaded by</span>
@@ -1100,7 +1100,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
             </div>
             <hr className="mb-4" />
             <div className="mb-6">
-              <h3 className="font-semibold mb-2">Vehicle Details</h3>
+              <h3 className="font-weight-600 mb-2">Vehicle Details</h3>
               <div className="text-sm space-y-1">
                 <div className="grid grid-cols-2 gap-2">
                   <span>Vehicle Reg. No.</span>
@@ -1159,7 +1159,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
               />
             </div>
             <div className="mb-6">
-              <h3 className="font-semibold mb-2">Detected Damages</h3>
+              <h3 className="font-weight-600 mb-2">Detected Damages</h3>
               <table className="table-fixed w-full rounded-lg text-sm border-collapse border border-gray-300">
                 <tbody>
                   <tr className="border-b border-gray-300">
@@ -1195,7 +1195,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
             </div>
             <hr className="mb-4" />
             <div className="mb-6">
-              <h3 className="font-semibold mb-2">Uploaded Images</h3>
+              <h3 className="font-weight-600 mb-2">Uploaded Images</h3>
               <div className="grid grid-cols-1 gap-4">
       {images?.length > 0 &&
         images.map((src, idx) => {
@@ -1270,7 +1270,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
             </div>
             <hr className="mb-4" />
             <div className="mb-6 border-t pt-4">
-              <h3 className="font-semibold mb-2">Summary</h3>
+              <h3 className="font-weight-600 mb-2">Summary</h3>
               <div className="text-sm space-y-1">
                 <div className="grid grid-cols-2 gap-2">
                   <span>Total by Severity</span>
@@ -1358,7 +1358,7 @@ const VehicleAISection: React.FC<VehicleAISectionProps> = ({
     className="bg-white rounded-lg  overflow-auto p-6 relative"
     onClick={(e) => e.stopPropagation()}
   >
-    <h2 className="text-lg font-semibold mb-4">Send Email</h2>
+    <h2 className="text-lg font-weight-600 mb-4">Send Email</h2>
 
     {/* Email Input */}
     <div className="mb-4">
@@ -1495,7 +1495,7 @@ const VehicleSection: React.FC<VehicleSectionProps> = ({ vehicleStatus, title, s
 
   return (
     <div className="border-t pt-6">
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+      <h3 className="text-lg font-weight-600 mb-2">{title}</h3>
       <p className="text-gray-500 text-sm mb-4">{subTitle}</p>
       <p className="flex justify-center font-bold mb-4">Offside</p>
       <div className="relative w-full max-w-md mx-auto">
@@ -1848,7 +1848,7 @@ const VehicleDamageForm = forwardRef(({ onSuccess, handleNext, skipNext }: Vehic
             <Form>
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h2 className="text-xl font-semibold">Vehicle Damage Details</h2>
+                  <h2 className="text-xl font-weight-600">Vehicle Damage Details</h2>
                   <p className="text-gray-500 text-sm">Enter Vehicle Damage Details below</p>
                 </div>
                 <ButtonGroup selectedKeys={selectedKeys} onSelectionChange={handleSelectionChange} type="single">

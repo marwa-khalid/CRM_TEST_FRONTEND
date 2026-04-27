@@ -72,7 +72,7 @@ const InviteUser = () => {
         <button
           onClick={handleInvite}
           disabled={loading || !email}
-          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-semibold text-white transition-all ${
+          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-weight-600 text-white transition-all ${
             loading || !email
               ? "bg-gray-300 cursor-not-allowed"
               : "bg-[#0352FD] hover:bg-[#0244d4] active:scale-[0.98]"

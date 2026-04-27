@@ -683,7 +683,7 @@ const UploadClaimFileModal: React.FC<UploadClaimFileModalProps> = ({
 
           {/* Heading */}
           <div className="text-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-800">
+            <h2 className="text-xl font-weight-600 text-gray-800">
               Claim Documents {/*{claimId && `- Claim #${claimId}`} */}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
@@ -711,7 +711,7 @@ const UploadClaimFileModal: React.FC<UploadClaimFileModalProps> = ({
           {/* Uploaded Files List - Only show if user uploaded something */}
           {uploadedFiles.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-base font-semibold text-gray-800 mb-3">
+              <h3 className="text-base font-weight-600 text-gray-800 mb-3">
                 Files to Upload
               </h3>
 
@@ -901,7 +901,7 @@ const UploadClaimFileModal: React.FC<UploadClaimFileModalProps> = ({
 
           {/* Existing Documents Section */}
           <div className="mb-6">
-            <h3 className="text-base font-semibold text-gray-800 mb-3">
+            <h3 className="text-base font-weight-600 text-gray-800 mb-3">
               Existing Documents
             </h3>
 
@@ -1020,7 +1020,7 @@ const UploadClaimFileModal: React.FC<UploadClaimFileModalProps> = ({
         }
       >
         <div className="p-4">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">
+          <h2 className="text-lg font-weight-600 text-gray-800 mb-3">
             Are you sure?
           </h2>
 

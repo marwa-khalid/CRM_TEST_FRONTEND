@@ -99,7 +99,7 @@ const executeActualUpload = async (selectedFile: File) => {
       <div className="w-[600px] p-6 bg-white rounded-lg flex flex-col gap-6 animate-in zoom-in-95">
         {/* Header */}
         <div className="self-stretch flex justify-between items-center">
-          <div className="text-black text-xl font-semibold font-['Stack_Sans_Headline']">
+          <div className="text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline']">
             Upload V5C File
           </div>
           <button
@@ -137,7 +137,7 @@ const executeActualUpload = async (selectedFile: File) => {
 
           {/* Text Content */}
           <div className="flex flex-col items-center gap-2">
-            <div className="text-black text-base font-semibold font-['Stack_Sans_Headline']">
+            <div className="text-black text-base font-weight-600 font-['Stack_Sans_Headline']">
               {step === 1 && "Choose a file or Drag & Drop here"}
               {step === 2 &&
                 `Uploaded - ${formatSize((file?.size || 0) * (progress / 100))} of ${formatSize(file?.size || 0)}`}

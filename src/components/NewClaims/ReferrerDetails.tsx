@@ -468,7 +468,7 @@ const ReferrerDetails = forwardRef(
                   {/* Referrer & Reporting Details Section */}
                   <div className="bg-white mb-6">
                     <div className="pb-6">
-                      <h2 className="text-lg font-semibold  mb-2 sm:text-xl">
+                      <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">
                         Referrer & Reporting Details
                       </h2>
                       <p className="text-sm text-gray-600">
@@ -707,7 +707,7 @@ const ReferrerDetails = forwardRef(
                   {/* Driver Commission Payments Section */}
                   <div className="bg-white border-b border-gray-200 mb-6">
                     <div className="border-b border-gray-200">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                         Driver Commission Payments
                       </h2>
                       <p className="text-sm mb-2 text-gray-600">
@@ -903,7 +903,7 @@ const ReferrerDetails = forwardRef(
                   {/* Referrer Commission Review Section */}
                   <div className="bg-white w-[126%]">
                     <div className="pb-6 border-b border-gray-200">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                         Referrer Commission Review
                       </h2>
                       <p className="text-sm text-gray-600">
@@ -1021,7 +1021,7 @@ const ReferrerDetails = forwardRef(
                   {/* Referrers Nominated Solicitor Section */}
                   <div className="bg-white border-b border-gray-200 mb-6 w-[102%]">
                     <div className="pb-6 border-b border-gray-200">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                         Referrers Nominated Solicitor (PI must go to)
                       </h2>
                       <p className="text-sm text-gray-600"></p>

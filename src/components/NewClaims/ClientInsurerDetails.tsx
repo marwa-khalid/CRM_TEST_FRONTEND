@@ -341,7 +341,7 @@ const ClientInsurerDetails = forwardRef(
                   <div className="bg-white mb-6">
                     <div className="p-0 border-b border-gray-200 flex justify-between">
                       <div>
-                        <h2 className="text-lg font-semibold  mb-2 sm:text-xl">
+                        <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">
                           Client Insurer Details
                         </h2>
                         <p className="text-sm text-gray-600">
@@ -603,7 +603,7 @@ const ClientInsurerDetails = forwardRef(
                   {/* Driver Commission Payments Section */}
                   <div className="bg-white border-b border-gray-200 mb-6">
                     <div className="border-b border-gray-200">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h2 className="text-lg font-weight-600 text-gray-900 mb-2">
                         Cover Details
                       </h2>
                       <p className="text-sm mb-2 text-gray-600">

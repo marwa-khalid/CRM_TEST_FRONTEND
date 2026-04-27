@@ -348,7 +348,7 @@ const AccidentDetails = forwardRef<AccidentDetailsHandle, AccidentDetailsProps>(
               <Form>
                 <div className="mt-4">
                   <div className="bg-white rounded-xl p-0 mt-10 ">
-                    <h2 className="text-lg font-semibold  mb-2 sm:text-xl">Location & Condition Details</h2>
+                    <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">Location & Condition Details</h2>
                     <p className="text-xs  mb-4 sm:text-sm sm:mb-6">Enter the Location and Condition of accident.</p>
                     <hr className="mb-4 sm:mb-6 " />
                     <div className="flex flex-col sm:flex-row sm:items-center mb-4 sm:mb-6 w-full">
@@ -544,7 +544,7 @@ const AccidentDetails = forwardRef<AccidentDetailsHandle, AccidentDetailsProps>(
                   </div>
 
                   <div className="bg-white py-6">
-                    <h2 className="text-lg font-semibold  mb-2 sm:text-xl">Attendees</h2>
+                    <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">Attendees</h2>
                     <p className="text-xs text-gray-500  mb-4 sm:text-sm sm:mb-6">Enter attendees details below</p>
                     <hr className="mb-4 sm:mb-6 " />
 
@@ -602,7 +602,7 @@ const AccidentDetails = forwardRef<AccidentDetailsHandle, AccidentDetailsProps>(
                           </div>
                         </div>
                         <div className='flex cursor-pointer' onClick={handleOpenPassengersModal}>
-                          <h2 className="text-sm cursor-pointer mb-4 font-semibold text-[#414651]">Complete Passengers Details
+                          <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-[#414651]">Complete Passengers Details
                           </h2>
                           <MdArrowOutward className='text-[#414651] mt-[3px] ml-2' />
                         </div></>
@@ -645,7 +645,7 @@ const AccidentDetails = forwardRef<AccidentDetailsHandle, AccidentDetailsProps>(
                       </div>
                     </div>
                     {values.witnesses !== "No" && <div className='flex cursor-pointer' onClick={handleOpenWitnessesModal}>
-                      <h2 className="text-sm cursor-pointer mb-4 font-semibold text-[#414651]">Complete Witness Details
+                      <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-[#414651]">Complete Witness Details
                       </h2>
                       <MdArrowOutward className='text-[#414651] mt-[3px] ml-2' />
                     </div>}
@@ -685,7 +685,7 @@ const AccidentDetails = forwardRef<AccidentDetailsHandle, AccidentDetailsProps>(
                       </div>
                     </div>
                     {values.police !== "No" && <div className='flex cursor-pointer' onClick={handleOpenPoliceModal}>
-                      <h2 className="text-sm cursor-pointer mb-4 font-semibold text-[#414651]">Complete Police Details
+                      <h2 className="text-sm cursor-pointer mb-4 font-weight-600 text-[#414651]">Complete Police Details
                       </h2>
                       <MdArrowOutward className='text-[#414651] mt-[3px] ml-2' />
                     </div>}

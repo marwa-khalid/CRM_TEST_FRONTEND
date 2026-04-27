@@ -125,7 +125,7 @@ export const SystemConfigurations: React.FC = () => {
           {/* Header */}
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">System Values</h2>
+              <h2 className="text-xl font-weight-600 text-gray-900 mb-2">System Values</h2>
               <p className="text-gray-600 text-sm">Add, edit and delete the values of the following setups</p>
             </div>
             <div className="flex gap-3">

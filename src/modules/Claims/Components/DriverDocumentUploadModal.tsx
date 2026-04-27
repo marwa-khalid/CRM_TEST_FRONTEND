@@ -74,7 +74,7 @@ export const DriverDocumentUploadModal: React.FC<
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[200] p-4">
       <div className="w-[600px] p-6 bg-white rounded-lg flex flex-col gap-6 animate-in zoom-in-95">
         <div className="self-stretch flex justify-between items-center">
-          <div className="text-black text-xl font-semibold font-['Stack_Sans_Headline']">
+          <div className="text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline']">
             {title}
           </div>
           <button
@@ -117,7 +117,7 @@ export const DriverDocumentUploadModal: React.FC<
           )}
 
           <div className="flex flex-col items-center gap-2 text-center">
-            <div className="text-black text-base font-semibold font-['Stack_Sans_Headline']">
+            <div className="text-black text-base font-weight-600 font-['Stack_Sans_Headline']">
               {step === 1 && "Choose a file or Drag & Drop here"}
               {step === 2 && "Uploading document..."}
               {step === 3 && "Upload complete"}

@@ -11,7 +11,7 @@ export default {
         cloudGray: "#E9EAEB",
         charcoal: "#414651",
         primary: "#0352FD",
-        white: "#fff",
+        white: "#ffffff",
         neutral: {
           900: "#000000",
           700: "#444444",

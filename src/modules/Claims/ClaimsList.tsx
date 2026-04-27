@@ -240,7 +240,7 @@ function Claims() {
   };
 
   return (
-    <div className="min-h-screen font-semibold bg-white justify-center px-14 py-10">
+    <div className="min-h-screen font-weight-600 bg-white justify-center px-14 py-10">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
         <div>
@@ -328,7 +328,7 @@ function Claims() {
 
           {/* {showFilterDropdown && (
             <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border z-10 p-4">
-              <h4 className="text-sm font-semibold mb-2 text-gray-800">
+              <h4 className="text-sm font-weight-600 mb-2 text-gray-800">
                 Filter by Incident Date
               </h4> */}
           {/* <DateRangePicker
@@ -545,7 +545,7 @@ function Claims() {
                           style={{
                             backgroundColor: getStatusColor(claim.case_status),
                           }}
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold`}
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-weight-600`}
                         >
                           <span className="w-1.5 h-1.5 bg-black rounded-full mr-2"></span>
                           {claim.case_status}
@@ -604,7 +604,7 @@ function Claims() {
         }
       >
         <div className="p-4">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">
+          <h2 className="text-lg font-weight-600 text-gray-800 mb-3">
             Are you sure?
           </h2>
           <p className="text-sm text-gray-600 mb-6">

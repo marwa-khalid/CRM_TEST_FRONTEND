@@ -21,7 +21,7 @@
 //   incidentDate: string;
 //   assignedTo: string;
 //   status: 'Processing' | 'Closed' | 'Approved';
-//   priority: 'High' | 'Medium' | 'Low';
+//   priority: 'High' | 'weight-400' | 'Low';
 //   avatar: string;
 // }
 
@@ -59,7 +59,7 @@
 //     incidentDate: 'Jan 13, 2025',
 //     assignedTo: 'John Smith',
 //     status: 'Closed',
-//     priority: 'Medium',
+//     priority: 'weight-400',
 //     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face'
 //   },
 //   {
@@ -95,7 +95,7 @@
 //     incidentDate: 'Jan 12, 2025',
 //     assignedTo: 'John Smith',
 //     status: 'Processing',
-//     priority: 'Medium',
+//     priority: 'weight-400',
 //     avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=32&h=32&fit=crop&crop=face'
 //   }
 // ];
@@ -163,7 +163,7 @@
 
 //   const filterOptions = {
 //     status: ['Processing', 'Closed', 'Approved'],
-//     priority: ['High', 'Medium', 'Low'],
+//     priority: ['High', 'weight-400', 'Low'],
 //     type: ['Vehicle damage', 'Theft', 'Property damage', 'Personal injury']
 //   };
 
@@ -239,7 +239,7 @@
 //     switch (priority) {
 //       case 'High':
 //         return 'bg-red-500';
-//       case 'Medium':
+//       case 'weight-400':
 //         return 'bg-yellow-500';
 //       case 'Low':
 //         return 'bg-green-500';
@@ -252,7 +252,7 @@
 //     switch (priority) {
 //       case 'High':
 //         return 'text-red-600 bg-red-100';
-//       case 'Medium':
+//       case 'weight-400':
 //         return 'text-yellow-600 bg-yellow-100';
 //       case 'Low':
 //         return 'text-green-600 bg-green-100';
@@ -268,7 +268,7 @@
 //         {/* Welcome Section */}
 //         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
 //           <div>
-//             <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mb-1 sm:mb-2">Welcome back, Olivia</h1>
+//             <h1 className="text-2xl sm:text-3xl font-weight-600 text-gray-900 mb-1 sm:mb-2">Welcome back, Olivia</h1>
 //             <p className="text-gray-600 font-normal text-sm sm:text-base">Here's what's happening with your claims</p>
 //           </div>
 //           <div className="flex items-center gap-2 sm:space-x-3 w-full sm:w-auto">
@@ -296,17 +296,17 @@
 //           ].map((stat, index) => (
 //             <div key={index} className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200">
 //               <div className="flex items-center justify-between">
-//                 <h3 className="text-sm sm:text-base font-semibold text-gray-900">{stat.title}</h3>
+//                 <h3 className="text-sm sm:text-base font-weight-600 text-gray-900">{stat.title}</h3>
 //                 <MoreVertical className="h-5 w-5 text-gray-400"/>
 //               </div>
-//               <div className="text-2xl sm:text-[36px] font-semibold text-gray-900 leading-tight sm:leading-[44px] mb-1 sm:mb-2">
+//               <div className="text-2xl sm:text-[36px] font-weight-600 text-gray-900 leading-tight sm:leading-[44px] mb-1 sm:mb-2">
 //                 {stat.value}
 //               </div>
 //               <div className="flex items-center text-xs sm:text-sm">
-//                 <span className={`font-medium ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+//                 <span className={`font-weight-400 ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
 //                   {stat.change}
 //                 </span>
-//                 <span className="ml-1 text-gray-500 font-medium">
+//                 <span className="ml-1 text-gray-500 font-weight-400">
 //                   vs last month
 //                 </span>
 //               </div>
@@ -319,7 +319,7 @@
 //           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
 //             {activeFilters.map((filter) => (
 //               <div key={filter} className="flex items-center bg-white border border-gray-500/50 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2">
-//                 <span className="text-xs sm:text-sm font-medium text-gray-700">{filter}</span>
+//                 <span className="text-xs sm:text-sm font-weight-400 text-gray-700">{filter}</span>
 //                 <button 
 //                   onClick={() => removeActiveFilter(filter)}
 //                   className="ml-1.5 sm:ml-2 text-gray-700 hover:text-gray-600"
@@ -333,7 +333,7 @@
 //             <div className="relative">
 //               <button 
 //                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-//                 className="flex items-center text-xs sm:text-sm px-2.5 py-1.5 sm:px-3 sm:py-2 bg-white border border-gray-500/50 rounded-lg font-medium text-gray-700 hover:text-gray-900"
+//                 className="flex items-center text-xs sm:text-sm px-2.5 py-1.5 sm:px-3 sm:py-2 bg-white border border-gray-500/50 rounded-lg font-weight-400 text-gray-700 hover:text-gray-900"
 //               >
 //                 <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" />
 //                 More filters
@@ -343,7 +343,7 @@
 //                 <div className="absolute top-full left-0 mt-1 sm:mt-2 w-48 sm:w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
 //                   <div className="p-3 sm:p-4">
 //                     <div className="flex items-center justify-between mb-2 sm:mb-3">
-//                       <h3 className="text-xs sm:text-sm font-semibold text-gray-900">Filters</h3>
+//                       <h3 className="text-xs sm:text-sm font-weight-600 text-gray-900">Filters</h3>
 //                       <button 
 //                         onClick={clearAllFilters}
 //                         className="text-xs text-custom hover:text-purple-800"
@@ -354,7 +354,7 @@
                     
 //                     {/* Status Filter */}
 //                     <div className="mb-3 sm:mb-4">
-//                       <label className="block text-xs font-medium text-gray-700 mb-1 sm:mb-2">Status</label>
+//                       <label className="block text-xs font-weight-400 text-gray-700 mb-1 sm:mb-2">Status</label>
 //                       <div className="space-y-1">
 //                         {filterOptions.status.map((status) => (
 //                           <button
@@ -370,7 +370,7 @@
                     
 //                     {/* Priority Filter */}
 //                     <div className="mb-3 sm:mb-4">
-//                       <label className="block text-xs font-medium text-gray-700 mb-1 sm:mb-2">Priority</label>
+//                       <label className="block text-xs font-weight-400 text-gray-700 mb-1 sm:mb-2">Priority</label>
 //                       <div className="space-y-1">
 //                         {filterOptions.priority.map((priority) => (
 //                           <button
@@ -386,7 +386,7 @@
                     
 //                     {/* Type Filter */}
 //                     <div>
-//                       <label className="block text-xs font-medium text-gray-700 mb-1 sm:mb-2">Type</label>
+//                       <label className="block text-xs font-weight-400 text-gray-700 mb-1 sm:mb-2">Type</label>
 //                       <div className="space-y-1">
 //                         {filterOptions.type.map((type) => (
 //                           <button
@@ -422,7 +422,7 @@
 //           {/* Table Header */}
 //           <div className="px-4 sm:px-6 py-3 border-b border-gray-200">
 //             <div className="flex items-center justify-between">
-//               <h2 className="text-base sm:text-lg font-semibold text-gray-900">Recent claims</h2>
+//               <h2 className="text-base sm:text-lg font-weight-600 text-gray-900">Recent claims</h2>
 //               <MoreHorizontal className="h-5 w-5 text-gray-400" />
 //             </div>
 //           </div>
@@ -459,32 +459,32 @@
 //                       </span>
 //                     </label>
 //                   </th>
-//                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">
+//                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-weight-400 text-gray-600 whitespace-nowrap">
 //                     Client↓
 //                   </th>
-//                   <th className="px-2 sm:px-4 py-3 text-xs font-medium text-gray-600 whitespace-nowrap">
+//                   <th className="px-2 sm:px-4 py-3 text-xs font-weight-400 text-gray-600 whitespace-nowrap">
 //                     Claim number
 //                   </th>
-//                   <th className="px-2 sm:px-4 py-3 text-xs font-medium text-gray-600 whitespace-nowrap">
+//                   <th className="px-2 sm:px-4 py-3 text-xs font-weight-400 text-gray-600 whitespace-nowrap">
 //                     Type
 //                   </th>
-//                   <th className="px-2 sm:px-4 py-3 text-xs font-medium text-gray-600 whitespace-nowrap">
+//                   <th className="px-2 sm:px-4 py-3 text-xs font-weight-400 text-gray-600 whitespace-nowrap">
 //                     Incident date↓
 //                   </th>
 //                   {!isMobile && (
 //                     <>
-//                       <th className="px-2 sm:px-4 py-3 text-center text-xs font-medium text-gray-600 whitespace-nowrap">
+//                       <th className="px-2 sm:px-4 py-3 text-center text-xs font-weight-400 text-gray-600 whitespace-nowrap">
 //                         Assigned to
 //                       </th>
-//                       <th className="px-2 sm:px-4 py-3 text-center text-xs font-medium text-gray-600 whitespace-nowrap">
+//                       <th className="px-2 sm:px-4 py-3 text-center text-xs font-weight-400 text-gray-600 whitespace-nowrap">
 //                         Status
 //                       </th>
-//                       <th className="px-2 sm:px-4 py-3 text-center text-xs font-medium text-gray-600 whitespace-nowrap">
+//                       <th className="px-2 sm:px-4 py-3 text-center text-xs font-weight-400 text-gray-600 whitespace-nowrap">
 //                         Priority
 //                       </th>
 //                     </>
 //                   )}
-//                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-600 whitespace-nowrap">
+//                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-weight-400 text-gray-600 whitespace-nowrap">
 //                     {isMobile ? 'Actions' : ''}
 //                   </th>
 //                 </tr>
@@ -521,14 +521,14 @@
 //                             className="w-8 h-8 rounded-full mr-2 sm:mr-3"
 //                           />
 //                           <div>
-//                             <div className="text-sm font-medium text-gray-900">{claim.clientName}</div>
+//                             <div className="text-sm font-weight-400 text-gray-900">{claim.clientName}</div>
 //                             {!isMobile && (
 //                               <div className="text-xs sm:text-sm text-gray-500">{claim.clientEmail}</div>
 //                             )}
 //                           </div>
 //                         </div>
 //                       </td>
-//                       <td className="px-2 sm:px-4 py-4 text-xs sm:text-sm font-medium text-black whitespace-nowrap">
+//                       <td className="px-2 sm:px-4 py-4 text-xs sm:text-sm font-weight-400 text-black whitespace-nowrap">
 //                         {claim.claimNumber}
 //                       </td>
 //                       <td className="px-2 sm:px-4 py-4 text-xs sm:text-sm text-gray-600 whitespace-nowrap">
@@ -543,7 +543,7 @@
 //                             {claim.assignedTo}
 //                           </td>
 //                           <td className="px-2 sm:px-4 py-4 text-center">  
-//                             <span className={`inline-flex px-1.5 py-1 text-xs font-medium rounded-full ${getStatusColor(claim.status)}`}>
+//                             <span className={`inline-flex px-1.5 py-1 text-xs font-weight-400 rounded-full ${getStatusColor(claim.status)}`}>
 //                               {!isMobile && (
 //                                 <span className={`w-1.5 h-1.5 rounded-full mt-1 mr-1 sm:mr-2 ${getStatusDotColor(claim.status)}`}></span>
 //                               )}
@@ -551,7 +551,7 @@
 //                             </span>
 //                           </td>
 //                           <td className="px-2 sm:px-4 py-4 text-center">
-//                             <span className={`inline-flex px-1.5 py-1 text-xs font-medium rounded-full ${getPriorityColor(claim.priority)}`}>
+//                             <span className={`inline-flex px-1.5 py-1 text-xs font-weight-400 rounded-full ${getPriorityColor(claim.priority)}`}>
 //                               {!isMobile && (
 //                                 <span className={`w-1.5 h-1.5 rounded-full mt-1 mr-1 sm:mr-2 ${getPriorityDotColor(claim.priority)}`}></span>
 //                               )}
@@ -572,7 +572,7 @@
 //                     <td colSpan={isMobile ? 6 : 9} className="px-4 sm:px-6 py-12 text-center">
 //                       <div className="text-gray-500">
 //                         <Search className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-gray-300" />
-//                         <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-1 sm:mb-2">No claims found</h3>
+//                         <h3 className="text-base sm:text-lg font-weight-400 text-gray-900 mb-1 sm:mb-2">No claims found</h3>
 //                         <p className="text-xs sm:text-sm">Try adjusting your search or filter criteria</p>
 //                       </div>
 //                     </td>
@@ -586,12 +586,12 @@
 //           <div className="px-4 sm:px-6 border-t border-gray-200">
 //             <div className="flex justify-end p-3 sm:p-4">
 //               <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden">
-//                 <button className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-100">
+//                 <button className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-weight-400 text-gray-700 hover:bg-gray-100">
 //                   <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
 //                   {!isMobile && 'Previous'}
 //                 </button>
 
-//                 <button className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-900 border-l border-gray-200 bg-gray-100">
+//                 <button className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-weight-400 text-gray-900 border-l border-gray-200 bg-gray-100">
 //                   1
 //                 </button>
 //                 <button className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 border-l border-gray-200">
@@ -611,7 +611,7 @@
 //                   10
 //                 </button>
 
-//                 <button className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-100 border-l border-gray-200">
+//                 <button className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-weight-400 text-gray-700 hover:bg-gray-100 border-l border-gray-200">
 //                   {!isMobile && 'Next'}
 //                   <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
 //                 </button>
@@ -625,6 +625,7 @@
 // }
 
 // export default Dashboard;
+import AccountSettingsContent from "./AccountSettings";
 import React, { useEffect, useState } from 'react';
 import { 
   LayoutDashboard, 
@@ -647,7 +648,7 @@ import { getClaims } from '../../services/Claims/Claims';
 const Dashboard: React.FC = () => {
   const sidebarItems = [
     { name: "Dashboard", icon: LayoutDashboard, active: false },
-    { name: "Claims", icon: FileText, active: true },
+    { name: "Claims", icon: FileText, active: false },
     { name: "Cases", icon: Briefcase, active: false },
     { name: "Calendar", icon: Calendar, active: false },
     { name: "Tasks", icon: CheckSquare, active: false },
@@ -674,7 +675,7 @@ const Dashboard: React.FC = () => {
     };
     fetchClaims();
   }, []);
-  
+  const [activePage, setActivePage] = useState<"claims" | "settings">("claims");
 const navigate = useNavigate()
   return (
     <div className="flex min-h-screen bg-white font-sans">
@@ -682,8 +683,8 @@ const navigate = useNavigate()
       <aside className="w-64 border-r border-gray-100 flex flex-col shadow-lg z-10 shrink-0">
         <div className="p-6 mb-4">
           <div className="w-8 h-8 bg-blue-600 rounded-md">
-            <img src={Logo} alt="" className='p-1' />
-            </div>
+            <img src={Logo} alt="" className="p-1" />
+          </div>
           {/* Logo Placeholder */}
         </div>
 
@@ -692,13 +693,13 @@ const navigate = useNavigate()
             <div
               key={item.name}
               className={`flex items-center gap-3 px-8 py-3 cursor-pointer transition-colors ${
-                item.active
+                activePage === item.name
                   ? "bg-blue-50 border-l-4 border-blue-600 text-blue-600"
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
               <item.icon size={18} />
-              <span className="text-sm font-medium">{item.name}</span>
+              <span className="text-sm font-weight-400">{item.name}</span>
             </div>
           ))}
 
@@ -708,145 +709,165 @@ const navigate = useNavigate()
             </span>
           </div>
 
-          <div className="flex items-center gap-3 px-8 py-3 text-gray-600 hover:bg-gray-50 cursor-pointer">
+          <div
+            className="flex items-center gap-3 px-8 py-3 text-gray-600 hover:bg-gray-50 cursor-pointer bg-blue-50 border-l-4 border-blue-600 text-blue-600"
+            onClick={() => setActivePage("settings")}
+          >
             <Settings size={18} />
-            <span className="text-sm font-medium">Settings</span>
+            <span className="text-sm font-weight-400">Settings</span>
           </div>
           <div className="flex items-center gap-3 px-8 py-3 text-gray-600 hover:bg-gray-50 cursor-pointer">
             <HelpCircle size={18} />
-            <span className="text-sm font-medium">Help</span>
+            <span className="text-sm font-weight-400">Help</span>
           </div>
         </nav>
       </aside>
 
       {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* HEADER SECTION */}
-        <header className="p-10 pb-4">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-6">Claims</h1>
+        {activePage === "claims" && (
+          <>
+            <header className="p-10 pb-4">
+              <h1 className="text-2xl font-weight-600 text-gray-900 mb-6">
+                Claims
+              </h1>
 
-          <div className="flex justify-between items-center gap-4">
-            <div className="flex items-center gap-3 flex-1">
-              {/* SEARCH */}
-              <div className="relative w-64">
-                <Search
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={16}
-                />
-                <input
-                  type="text"
-                  placeholder="Search Claims"
-                  className="w-full pl-11 pr-4 py-3 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none"
-                />
-              </div>
-
-              {/* FILTERS */}
-              <button className="flex items-center gap-2 px-4 py-3 border border-blue-200 rounded-lg text-blue-600 text-sm font-semibold hover:bg-blue-50 transition-colors">
-                <Filter size={16} />
-                Filter
-              </button>
-              <button className="flex items-center gap-2 px-4 py-3 border border-blue-200 rounded-lg text-blue-600 text-sm font-semibold hover:bg-blue-50 transition-colors">
-                <ArrowUpDown size={16} />
-                Sort
-              </button>
-            </div>
-
-            {/* ACTION BUTTON */}
-            <button className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold text-sm hover:bg-blue-700 transition-all shadow-md active:scale-95" onClick={()=>navigate("/add-claim")}>
-              <Plus size={18} />
-              Add New Claim
-            </button>
-          </div>
-        </header>
-
-        {/* TABLE SECTION */}
-        <section className="px-10 flex-1 overflow-auto pb-10">
-          <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="p-4 w-10">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300"
+              <div className="flex justify-between items-center gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="relative w-64">
+                    <Search
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                      size={16}
                     />
-                  </th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Client
-                  </th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Claim No.
-                  </th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Incident Date
-                  </th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Assigned To
-                  </th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
-                    Status
-                  </th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
-                    Priority
-                  </th>
-                  <th className="p-4"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {claimsData.map((claim, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300"
-                      />
-                    </td>
-                    <td className="p-4">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-900">
-                          {claim.client}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {claim.email}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="p-4 text-xs text-gray-600">
-                      {claim.claimNo}
-                    </td>
-                    <td className="p-4 text-xs text-gray-600">{claim.type}</td>
-                    <td className="p-4 text-xs text-gray-600">{claim.date}</td>
-                    <td className="p-4 text-xs text-gray-600">
-                      {claim.assigned}
-                    </td>
-                    <td className="p-4">
-                      <div className="flex justify-center">
-                        <span className="px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded">
-                          PENDING
-                        </span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex justify-center">
-                        <span className="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-bold rounded">
-                          HIGH
-                        </span>
-                      </div>
-                    </td>
-                    <td className="p-4 text-right">
-                      <button className="text-gray-400 hover:text-gray-600">
-                        <MoreVertical size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                    <input
+                      type="text"
+                      placeholder="Search Claims"
+                      className="w-full pl-11 pr-4 py-3 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                    />
+                  </div>
+
+                  <button className="flex items-center gap-2 px-4 py-3 border border-blue-200 rounded-lg text-blue-600 text-sm font-weight-600 hover:bg-blue-50 transition-colors">
+                    <Filter size={16} />
+                    Filter
+                  </button>
+                  <button className="flex items-center gap-2 px-4 py-3 border border-blue-200 rounded-lg text-blue-600 text-sm font-weight-600 hover:bg-blue-50 transition-colors">
+                    <ArrowUpDown size={16} />
+                    Sort
+                  </button>
+                </div>
+
+                <button
+                  className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-lg font-weight-600 text-sm hover:bg-blue-700 transition-all shadow-md active:scale-95"
+                  onClick={() => navigate("/add-claim")}
+                >
+                  <Plus size={18} />
+                  Add New Claim
+                </button>
+              </div>
+            </header>
+
+            <section className="px-10 flex-1 overflow-auto pb-10">
+              <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="p-4 w-10">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300"
+                        />
+                      </th>
+                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Client
+                      </th>
+                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Claim No.
+                      </th>
+                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Incident Date
+                      </th>
+                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Assigned To
+                      </th>
+                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
+                        Status
+                      </th>
+                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
+                        Priority
+                      </th>
+                      <th className="p-4"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {claimsData.map((claim, idx) => (
+                      <tr
+                        key={idx}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="p-4">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300"
+                          />
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-weight-400 text-gray-900">
+                              {claim.client}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {claim.email}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-xs text-gray-600">
+                          {claim.claimNo}
+                        </td>
+                        <td className="p-4 text-xs text-gray-600">
+                          {claim.type}
+                        </td>
+                        <td className="p-4 text-xs text-gray-600">
+                          {claim.date}
+                        </td>
+                        <td className="p-4 text-xs text-gray-600">
+                          {claim.assigned}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex justify-center">
+                            <span className="px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded">
+                              PENDING
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex justify-center">
+                            <span className="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-bold rounded">
+                              HIGH
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-right">
+                          <button className="text-gray-400 hover:text-gray-600">
+                            <MoreVertical size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        )}
+
+        {activePage === "settings" && (
+          <section className="flex-1 overflow-auto">
+            <AccountSettingsContent onClose={() => setActivePage("claims")} />
+          </section>
+        )}
       </main>
     </div>
   );

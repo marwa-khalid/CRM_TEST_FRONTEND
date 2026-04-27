@@ -687,13 +687,13 @@ const [scale, setScale] = useState(1);
             src={group}
           />
 
-          <h1 className="relative w-fit text-white text-[40px] font-semibold leading-[40px] break-words font-sans">
+          <h1 className="relative w-fit text-white text-[40px] font-weight-600 leading-[40px] break-words font-sans">
             All Your Claims,
             <br />
             One Smart Platform
           </h1>
 
-          <p className="relative w-[431px] text-white text-[24px] font-semibold leading-[24px] break-words">
+          <p className="relative w-[431px] text-white text-[24px] font-weight-600 leading-[24px] break-words">
             Centralized CRM to track, process, and resolve claims smarter
           </p>
         </div>
@@ -731,7 +731,7 @@ const [scale, setScale] = useState(1);
             src={subtract1}
           />
 
-          <div className="absolute top-2 left-[31px] [font-family:'Stack_Sans_Headline',Helvetica] font-semibold text-black text-xs tracking-[0] leading-[normal]">
+          <div className="absolute top-2 left-[31px] [font-family:'Stack_Sans_Headline',Helvetica] font-weight-600 text-black text-xs tracking-[0] leading-[normal]">
             AUTOCLAIM
           </div>
 
@@ -743,7 +743,7 @@ const [scale, setScale] = useState(1);
         </div>
 
         <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[197px] left-[810px]">
-          <h2 className="relative self-stretch text-black text-[24px] font-semibold leading-[24px] break-words">
+          <h2 className="relative self-stretch text-black text-[24px] font-weight-600 leading-[24px] break-words">
             Sign in
           </h2>
 

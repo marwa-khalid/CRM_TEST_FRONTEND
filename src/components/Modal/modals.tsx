@@ -57,7 +57,7 @@ const Modal: React.FC<ModalProps> = ({
           </div>
 
           {/* Title */}
-          <h3 className={`text-lg font-semibold ${titleColor} mb-2`}>
+          <h3 className={`text-lg font-weight-600 ${titleColor} mb-2`}>
             {title}
           </h3>
 

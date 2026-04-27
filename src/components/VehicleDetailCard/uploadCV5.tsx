@@ -156,14 +156,14 @@ const UploadCSV5Modal: React.FC<UploadCSV5ModalProps> = ({
           </div>
 
           {/* Heading
-          <h2 className="text-xl font-semibold mb-2 text-center text-gray-800">
+          <h2 className="text-xl font-weight-600 mb-2 text-center text-gray-800">
             Upload V5C files
           </h2>
           <p className="text-sm text-gray-600 mb-6 text-center">
             Upload and attach files to this project
           </p> */}
           {/* Heading - Use the title prop */}
-          <h2 className="text-xl font-semibold mb-2 text-center text-gray-800">
+          <h2 className="text-xl font-weight-600 mb-2 text-center text-gray-800">
             {title}
           </h2>
           <p className="text-sm text-gray-600 mb-6 text-center">

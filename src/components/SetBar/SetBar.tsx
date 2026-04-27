@@ -16,7 +16,7 @@ const Setting: React.FC = () => {
         onClick={() => navigate('/settings/profile')}
         className={`px-4 py-2 text-sm font-medium transition-colors ${
           Tab === 'profile'
-            ? 'bg-white text-gray-900 font-semibold'
+            ? 'bg-white text-gray-900 font-weight-600'
             : 'bg-gray-50 text-gray-600 hover:text-gray-900'
         }`}
       >
@@ -26,7 +26,7 @@ const Setting: React.FC = () => {
         onClick={() => navigate('/settings/system')}
         className={`px-4 py-2 text-sm font-medium transition-colors border-l border-gray-300 ${
           Tab === 'crm'
-            ? 'bg-white text-gray-900 font-semibold'
+            ? 'bg-white text-gray-900 font-weight-600'
             : 'bg-gray-50 text-gray-600 hover:text-gray-900'
         }`}
       >

@@ -256,7 +256,7 @@ const Questionnaire = () => {
             <div className="flex flex-wrap items-center justify-between mb-6">
                 {/* Left (Center-aligned Title and Subtext) */}
                 <div className={`flex-1 text-center ${claim_questionnaire_id ? 'ml-[270px]' : ''}`}>
-                    <h1 className="text-2xl font-semibold">Witness Statement of Truth</h1>
+                    <h1 className="text-2xl font-weight-600">Witness Statement of Truth</h1>
                     <p className="text-sm text-gray-600">Enter the details below</p>
                 </div>
 
@@ -740,7 +740,7 @@ const Questionnaire = () => {
 
                             <div className="w-full my-10 space-y-6">
                                 {/* Signature Section */}
-                                <label className="font-semibold block">E-Signature</label>
+                                <label className="font-weight-600 block">E-Signature</label>
                                 <div className="border border-gray-300 rounded-md p-4">
                                     <SignaturePad
                                         ref={witnessSigRef} // Use appropriate ref here
@@ -754,7 +754,7 @@ const Questionnaire = () => {
                                 <div className="flex flex-wrap justify-between gap-4">
                                     {/* Print Name */}
                                     <div className="w-full md:w-[48%]">
-                                        <label className="font-semibold block mb-1">Print Name</label>
+                                        <label className="font-weight-600 block mb-1">Print Name</label>
                                         <input
                                             type="text"
                                             name="printedNameWitness"
@@ -768,7 +768,7 @@ const Questionnaire = () => {
 
                                     {/* Date */}
                                     <div className="w-full md:w-[48%]">
-                                        <label className="font-semibold block mb-1">Dated</label>
+                                        <label className="font-weight-600 block mb-1">Dated</label>
                                         <DatePicker
                                             aria-label="Date picker"
                                             value={witnessSigned}

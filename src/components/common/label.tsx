@@ -10,7 +10,7 @@ const Label: React.FC<LabelProps> = ({ children, htmlFor, className }) => {
   return (
     <label
       htmlFor={htmlFor}
-      className={`block text-sm font-semibold text-charcoal ${className || ""}`}
+      className={`block text-sm font-weight-600 text-charcoal ${className || ""}`}
     >
       {children}
     </label>

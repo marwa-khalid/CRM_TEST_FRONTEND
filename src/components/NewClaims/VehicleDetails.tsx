@@ -513,7 +513,7 @@ const VehicleDetailsForm = forwardRef<any, VehicleDetailsFormProps>(
             <Form className="bg-white p-0 mt-10">
               <div className="flex justify-between items-center">
                 <div>
-                  <h1 className="text-lg font-semibold  mb-2 sm:text-xl">
+                  <h1 className="text-lg font-weight-600  mb-2 sm:text-xl">
                     Client's Vehicle Details
                   </h1>
                   <p className="text-sm text-gray-600  mb-4 sm:text-sm sm:mb-6">
@@ -1137,7 +1137,7 @@ const VehicleDetailsForm = forwardRef<any, VehicleDetailsFormProps>(
               {/* Borough Section */}
               {claimType === 1 && (
                 <>
-                  <h1 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h1 className="text-lg font-weight-600 text-gray-900 mb-2">
                     Borough Details
                   </h1>
                   <p className="text-sm text-gray-600  mb-4 sm:text-sm sm:mb-6">
@@ -1324,7 +1324,7 @@ const VehicleDetailsForm = forwardRef<any, VehicleDetailsFormProps>(
               {/* Third Party Vehicles */}
               <div className="flex justify-between">
                 <div>
-                  <h1 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h1 className="text-lg font-weight-600 text-gray-900 mb-2">
                     Third Party Vehicles
                   </h1>
                   <p className="text-sm text-gray-600  mb-4 sm:text-sm sm:mb-6">
@@ -1396,7 +1396,7 @@ const VehicleDetailsForm = forwardRef<any, VehicleDetailsFormProps>(
                           }
                         >
                           <div className="p-4">
-                            <h2 className="text-lg font-semibold text-gray-800 mb-3">
+                            <h2 className="text-lg font-weight-600 text-gray-800 mb-3">
                               Are you sure?
                             </h2>
                             <p className="text-sm text-gray-600 mb-6">

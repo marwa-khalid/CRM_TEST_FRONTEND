@@ -80,7 +80,7 @@ const Header: React.FC = () => {
                   {navItems.map((item) =>
                     item.subItems ? (
                       <div key={item.label} className="relative group z-9999">
-                        <div className="flex font-semibold items-center text-gray-500 hover:text-gray-900 cursor-pointer">
+                        <div className="flex font-weight-600 items-center text-gray-500 hover:text-gray-900 cursor-pointer">
                           <span>{item.label}</span>
                           <ChevronDown className="ml-1 h-4 w-4" />
                         </div>
@@ -89,7 +89,7 @@ const Header: React.FC = () => {
                             <p
                               key={subItem.label}
                               onClick={() => navigate(subItem.path)}
-                              className="block px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 cursor-pointer"
+                              className="block px-4 py-2 text-sm font-weight-600 text-gray-600 hover:bg-gray-100 cursor-pointer"
                             >
                               {subItem.label}
                             </p>
@@ -100,7 +100,7 @@ const Header: React.FC = () => {
                       <p
                         key={item.label}
                         onClick={() => navigate(item.path)}
-                        className="text-gray-500 font-semibold hover:text-gray-600 cursor-pointer"
+                        className="text-gray-500 font-weight-600 hover:text-gray-600 cursor-pointer"
                       >
                         {item.label}
                       </p>
@@ -156,7 +156,7 @@ const Header: React.FC = () => {
                     <div className="absolute right-0 top-12 bg-white border border-gray-200 shadow-lg rounded-md min-w-[150px] z-50">
                       <p
                         onClick={handleLogout}
-                        className="flex items-center px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 cursor-pointer"
+                        className="flex items-center px-4 py-2 text-sm font-weight-600 text-gray-600 hover:bg-gray-100 cursor-pointer"
                       >
                         <LogOut className="mr-2 h-4 w-4" /> Logout
                       </p>
@@ -174,7 +174,7 @@ const Header: React.FC = () => {
                     item.subItems ? (
                       <div key={item.label} className="flex flex-col">
                         <div
-                          className="flex items-center justify-between py-2 font-semibold text-gray-700 cursor-pointer"
+                          className="flex items-center justify-between py-2 font-weight-600 text-gray-700 cursor-pointer"
                           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
                           <span>{item.label}</span>
@@ -188,7 +188,7 @@ const Header: React.FC = () => {
                                 navigate(subItem.path);
                                 setIsMobileMenuOpen(false);
                               }}
-                              className="block py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 cursor-pointer"
+                              className="block py-2 text-sm font-weight-600 text-gray-600 hover:bg-gray-100 cursor-pointer"
                             >
                               {subItem.label}
                             </p>
@@ -202,7 +202,7 @@ const Header: React.FC = () => {
                           navigate(item.path);
                           setIsMobileMenuOpen(false);
                         }}
-                        className="py-2 font-semibold text-gray-700 cursor-pointer"
+                        className="py-2 font-weight-600 text-gray-700 cursor-pointer"
                       >
                         {item.label}
                       </p>

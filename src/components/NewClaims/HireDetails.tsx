@@ -916,7 +916,7 @@ const HireDetails = forwardRef(
             return (
               <>
                 <div className="mt-4">
-                  <h2 className="text-lg font-semibold  mb-2 sm:text-xl">
+                  <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">
                     Hire Details
                   </h2>
                   <p className="pb-5 text-lightGray text-sm font-normal">
@@ -940,7 +940,7 @@ const HireDetails = forwardRef(
                       >
                         <>
                           Vehicle{" "}
-                          <span className="font-semibold">
+                          <span className="font-weight-600">
                             {values.thirdPartyVehicles?.[idx]
                               ?.registration_number ||
                               (values.thirdPartyVehicles.length === 1
@@ -988,7 +988,7 @@ const HireDetails = forwardRef(
 
                               {/* Hire Period */}
                               <div className="border-b border-cloudGray my-5">
-                                <h2 className="text-secondary text-lg font-semibold">
+                                <h2 className="text-secondary text-lg font-weight-600">
                                   Hire Period
                                 </h2>
                                 <p className="pb-5 text-lightGray text-sm font-normal">
@@ -1350,7 +1350,7 @@ const HireDetails = forwardRef(
                               {/* Hire Vehicle Provided  */}
 
                               {/* <div className="border-b border-cloudGray my-5">
-                                <h2 className="text-secondary text-lg font-semibold">
+                                <h2 className="text-secondary text-lg font-weight-600">
                                   Hire Vehicle Provided
                                 </h2>
                                 <p className="pb-5 text-lightGray text-sm font-normal">
@@ -1453,7 +1453,7 @@ const HireDetails = forwardRef(
                               </form> */}
 
                               <div className="border-b border-cloudGray my-5">
-                                <h2 className="text-secondary text-lg font-semibold">
+                                <h2 className="text-secondary text-lg font-weight-600">
                                   ABI Hire Charges & Administration Fee Details
                                 </h2>
                                 <p className="pb-5 text-lightGray text-sm font-normal">
@@ -1975,7 +1975,7 @@ const HireDetails = forwardRef(
 
                               {/* ABI hire  */}
                               <div className="border-b border-cloudGray my-5">
-                                <h2 className="text-secondary text-lg font-semibold">
+                                <h2 className="text-secondary text-lg font-weight-600">
                                   Total BHR Hire Charges & Administration Fee
                                   Details
                                 </h2>

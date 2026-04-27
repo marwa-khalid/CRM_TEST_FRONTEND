@@ -137,7 +137,7 @@ const AddPoliceModal = ({
             </div>
           </div>
 
-          <h2 className="text-xl font-semibold mb-2 text-center">
+          <h2 className="text-xl font-weight-600 mb-2 text-center">
             {editingPoliceId
               ? `${initialValues?.name} Police Details`
               : "Add Police Details"}

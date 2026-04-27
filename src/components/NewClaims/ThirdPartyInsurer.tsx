@@ -529,7 +529,7 @@ const ThirdPartyInsurer = forwardRef(
                 <>
                   {/* Third Party Details */}
                   <div className="border-b border-cloudGray mb-5 mt-4">
-                    <h2 className="text-lg font-semibold  mb-2 sm:text-xl">
+                    <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">
                       Third Party Details
                     </h2>
                     <p className="pb-5 text-lightGray text-sm font-normal">
@@ -753,7 +753,7 @@ const ThirdPartyInsurer = forwardRef(
 
                   {/* Third Party Insurance Details */}
                   <div className="border-b border-cloudGray my-5">
-                    <h2 className="text-secondary text-lg font-semibold">
+                    <h2 className="text-secondary text-lg font-weight-600">
                       Third Party Insurer Details
                     </h2>
                     <p className="pb-5 text-lightGray text-sm font-normal">
@@ -1046,7 +1046,7 @@ const ThirdPartyInsurer = forwardRef(
 
                   {/* Third Party Handling Agent */}
                   <div className="border-b border-cloudGray my-5">
-                    <h2 className="text-secondary text-lg font-semibold">
+                    <h2 className="text-secondary text-lg font-weight-600">
                       Third Party Handling Agent
                     </h2>
                     <p className="pb-5 text-lightGray text-sm font-normal">
@@ -1294,7 +1294,7 @@ const ThirdPartyInsurer = forwardRef(
                   {showMidSearchLog && (
                     <div className="py-5 px-6 bg-error-rose">
                       <div className="border-b border-cloudGray my-5">
-                        <h2 className="text-secondary text-lg font-semibold">
+                        <h2 className="text-secondary text-lg font-weight-600">
                           Incorrect MID Search Log
                         </h2>
                         <p className="pb-5 text-lightGray text-sm font-normal">
@@ -1576,7 +1576,7 @@ const ThirdPartyInsurer = forwardRef(
 
                   {/* Notification Details */}
                   <div className="border-b border-cloudGray my-5">
-                    <h2 className="text-secondary text-lg font-semibold">
+                    <h2 className="text-secondary text-lg font-weight-600">
                       Notification Details
                     </h2>
                     <p className="pb-5 text-lightGray text-sm font-normal">
@@ -1637,7 +1637,7 @@ const ThirdPartyInsurer = forwardRef(
                   {/* Liability Details */}
                   <div>
                     <div className="border-b border-cloudGray my-5">
-                      <h2 className="text-secondary text-lg font-semibold">
+                      <h2 className="text-secondary text-lg font-weight-600">
                         Liability Details
                       </h2>
                       <p className="pb-5 text-lightGray text-sm font-normal">

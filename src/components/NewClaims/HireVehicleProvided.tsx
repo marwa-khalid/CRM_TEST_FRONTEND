@@ -1506,7 +1506,7 @@ const HireVehicleProvided = forwardRef(
                 <div className="border-b border-cloudGray mb-5 mt-4">
                   <div className="flex justify-between">
                     <div>
-                      <h2 className="text-lg font-semibold  mb-2 sm:text-xl">
+                      <h2 className="text-lg font-weight-600  mb-2 sm:text-xl">
                         Credit Hire Documentation & Instructions
                       </h2>
                       <p className="pb-5 text-lightGray text-sm font-normal"></p>
@@ -1540,7 +1540,7 @@ const HireVehicleProvided = forwardRef(
                               {values.hireVehicle.length === 1 ? (
                                 <>
                                   Vehicle{" "}
-                                  <span className="font-semibold">
+                                  <span className="font-weight-600">
                                     {values.hireVehicle?.[index]
                                       ?.hire_vehicle_registration || ""}
                                   </span>
@@ -1548,7 +1548,7 @@ const HireVehicleProvided = forwardRef(
                               ) : (
                                 <>
                                   Vehicle{" "}
-                                  <span className="font-semibold">
+                                  <span className="font-weight-600">
                                     {values.hireVehicle?.[index]
                                       ?.hire_vehicle_registration || index + 1}
                                   </span>
@@ -1578,7 +1578,7 @@ const HireVehicleProvided = forwardRef(
                         <div>
                           <div className="flex justify-between border-b border-cloudGray mb-5">
                             <div>
-                              <h2 className="text-secondary text-lg font-semibold">
+                              <h2 className="text-secondary text-lg font-weight-600">
                                 Vehicle Category
                               </h2>
                               <p className="pb-5 text-lightGray text-sm font-normal">
@@ -1759,7 +1759,7 @@ const HireVehicleProvided = forwardRef(
 
                       <div className="border-b border-cloudGray mb-5 flex justify-between">
                         <div>
-                          <h2 className="text-secondary text-lg font-semibold">
+                          <h2 className="text-secondary text-lg font-weight-600">
                             Hire Vehicle Provision
                           </h2>
                           <p className="pb-5 text-lightGray text-sm font-normal">
@@ -2310,7 +2310,7 @@ const HireVehicleProvided = forwardRef(
                 </FieldArray>
 
                 <div className="mt-8">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  <h3 className="text-lg font-weight-600 text-gray-900 mb-4">
                     Hire Vehicle Provision Log
                   </h3>
                   <TableCard.Root
@@ -2380,7 +2380,7 @@ const HireVehicleProvided = forwardRef(
                   }
                 >
                   <div className="p-4">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-3">
+                    <h2 className="text-lg font-weight-600 text-gray-800 mb-3">
                       Are you sure?
                     </h2>
                     <p className="text-sm text-gray-600 mb-6">
@@ -2423,13 +2423,13 @@ const HireVehicleProvided = forwardRef(
         >
           <div className="flex flex-col h-full max-h-[90vh]">
             <div className="flex-shrink-0 border-b border-cloudGray py-5 mb-5">
-              <p className="text-xl font-semibold">Vehicle Checkout</p>
+              <p className="text-xl font-weight-600">Vehicle Checkout</p>
             </div>
 
             <div className="flex-grow overflow-y-auto pr-2">
               <form className="space-y-4" onSubmit={handleCheckoutSubmit}>
                 <div className="space-y-4">
-                  <p className="text-lg font-semibold">Interior (Inside)</p>
+                  <p className="text-lg font-weight-600">Interior (Inside)</p>
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="col-span-3 lg:col-span-1">
@@ -2574,7 +2574,7 @@ const HireVehicleProvided = forwardRef(
                 <hr className="mt-4" />
 
                 <div className="space-y-4">
-                  <p className="text-lg font-semibold">Exterior (Outside)</p>
+                  <p className="text-lg font-weight-600">Exterior (Outside)</p>
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="col-span-3 lg:col-span-1">
@@ -2720,7 +2720,7 @@ const HireVehicleProvided = forwardRef(
                 <hr className="mt-4" />
 
                 <div className="space-y-4">
-                  <p className="text-lg font-semibold">Charges</p>
+                  <p className="text-lg font-weight-600">Charges</p>
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="col-span-3 lg:col-span-1">

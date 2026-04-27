@@ -16,12 +16,14 @@ interface PoliceDetailsModalProps {
   onClose: () => void;
   claimId: string | number;
   initialData?: any;
+  addNew:boolean
 }
 
 export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
   onClose,
   claimId,
   initialData,
+  addNew,
 }) => {
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const formik = useFormik({
@@ -66,14 +68,14 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[70] p-4">
+    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[70] p-4 font-['Stack_Sans_Headline']">
       <form
         onSubmit={formik.handleSubmit}
         className="w-[788px] p-6 bg-white rounded-lg shadow-xl flex flex-col gap-6 animate-in zoom-in-95 duration-200"
       >
         {/* Header */}
         <div className="flex justify-between items-center w-full">
-          <h2 className="text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5">
             Police Details
           </h2>
           <button
@@ -90,7 +92,7 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
         <div className="flex flex-col gap-4">
           {/* Constable Name */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">
+            <label className="text-gray-700 text-sm font-weight-400">
               Police Constable Name
             </label>
             <input
@@ -105,7 +107,7 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
           {/* Ref & Station Name */}
           <div className="grid grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Reference No.
               </label>
               <input
@@ -117,7 +119,7 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-gray-700 text-sm font-medium">
+              <label className="text-gray-700 text-sm font-weight-400">
                 Police Station Name
               </label>
               <input
@@ -132,7 +134,7 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
 
           {/* Station Address */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">
+            <label className="text-gray-700 text-sm font-weight-400">
               Police Station Address
             </label>
             {/* <textarea
@@ -158,7 +160,7 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
           <div className="grid grid-cols-2 gap-5 items-start">
             {/* Custom Radio Group */}
             <div className="flex flex-col gap-4">
-              <label className="text-black text-sm font-medium">
+              <label className="text-black text-sm font-weight-400">
                 Incident Report Taken?
               </label>
               <div className="flex items-center gap-5">
@@ -192,7 +194,7 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
             {/* Date Input */}
 
             <div className="flex flex-col gap-2 relative">
-              <label className="text-gray-700 text-sm font-weight-400">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
                 Report Received Date
               </label>
               <div
@@ -239,7 +241,7 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
 
           {/* Notes */}
           <div className="flex flex-col gap-2">
-            <label className="text-gray-700 text-sm font-medium">Notes</label>
+            <label className="text-gray-700 text-sm font-weight-400">Notes</label>
             <textarea
               name="notes"
               placeholder="Add Notes"
@@ -256,25 +258,27 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-4 border border-blue-600 text-blue-600 rounded font-medium hover:bg-blue-50 transition-colors"
+            className="px-6 py-4 border border-blue-600 text-blue-600 rounded font-weight-400 hover:bg-blue-50 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-6 py-4 bg-blue-500 text-white rounded font-medium hover:bg-blue-600 transition-colors"
+            className="px-6 py-4 bg-blue-500 text-white rounded font-weight-400 hover:bg-blue-600 transition-colors"
           >
             Save
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              formik.submitForm().then(() => formik.resetForm());
-            }}
-            className="px-6 py-4 bg-blue-500 text-white rounded font-medium hover:bg-blue-600 transition-colors"
-          >
-            Save and Add Next Police Detail
-          </button>
+          {addNew && (
+            <button
+              type="button"
+              onClick={() => {
+                formik.submitForm().then(() => formik.resetForm());
+              }}
+              className="px-6 py-4 bg-blue-500 text-white rounded font-weight-400 hover:bg-blue-600 transition-colors"
+            >
+              Save and Add Next Police Detail
+            </button>
+          )}
         </div>
       </form>
     </div>

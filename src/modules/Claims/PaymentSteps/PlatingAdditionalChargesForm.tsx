@@ -10,7 +10,7 @@ const PlatingChargesSection= ({ paymentFormRef }:any) => {
 
       {/* Hire Vehicle Plating Charges Section */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">
-        <h2 className="self-stretch text-black text-xl font-weight-600 leading-5">
+        <h2 className="self-stretch text-neutral-900 text-[20px] font-weight-600 leading-5">
           Hire Vehicle Plating Charges
         </h2>
         <div className="self-stretch h-px bg-neutral-100" />
@@ -28,7 +28,7 @@ const PlatingChargesSection= ({ paymentFormRef }:any) => {
 
       {/* Additional Chargeable Items Section */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">
-        <h2 className="self-stretch text-black text-xl font-weight-600 leading-5">
+        <h2 className="self-stretch text-neutral-900 text-[20px] font-weight-600 leading-5">
           Additional Chargeable Items
         </h2>
         <div className="self-stretch h-px bg-neutral-100" />

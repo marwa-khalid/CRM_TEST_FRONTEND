@@ -263,7 +263,7 @@ export const ReferrerConfigurations: React.FC = () => {
           </div>
       
           {/* Title */}
-          <h3 className="text-xl font-semibold text-center mt-4">Add New Referrer</h3>
+          <h3 className="text-xl font-weight-600 text-center mt-4">Add New Referrer</h3>
           <p className="text-sm text-gray-500 text-center mt-1">
             Enter the referrer details below
           </p>

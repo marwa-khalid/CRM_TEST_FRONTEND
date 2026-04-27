@@ -125,7 +125,7 @@ const GoogleMapAutocomplete: React.FC<GoogleMapAutocompleteProps> = ({
           //   border: "1px solid #ccc",
           //   borderRadius: "6px",
           // }}
-          className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors"
+          className={`w-full h-[52px] {${showMap} && "mb-5"} px-5 bg-white rounded border border-gray-200 text-neutral-700 hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`}
         />
       </Autocomplete>
 

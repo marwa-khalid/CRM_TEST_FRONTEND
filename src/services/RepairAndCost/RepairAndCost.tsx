@@ -32,14 +32,33 @@ export const getRepairData = async (id: any) => {
   return response.data;
 };
 
-export const sendCILAgreement = (id: any) => {
-  return axiosInstance.get(`/clients/download-cil-agreement-letter/${id}`, {
-    responseType: "arraybuffer",
-  })
-} 
 
 export const sendCILAgreementClient = (id: any) => {
   return axiosInstance.get(`/clients/download-send-cil-to-client/${id}`, {
     responseType: "arraybuffer",
   })
 } 
+
+
+export const sendCILAgreement = (claimId: number, to_email?: string) =>
+  axiosInstance.post(`/route-repairs/send-cil-agreement/${claimId}`, {
+    to_email,
+  });
+
+export const sendCILToClient = (claimId: number, to_email?: string) =>
+  axiosInstance.post(`/route-repairs/send-cil-client/${claimId}`, {
+    to_email,
+  });
+
+export const sendEngReportToTPI = (claimId: number, to_email: string) =>
+  axiosInstance.post(`/route-repairs/send-eng-report-tpi/${claimId}`, {
+    to_email,
+  });
+
+export const instructFleetOffHireFromRepair = (
+  claimId: number,
+  to_email?: string,
+) =>
+  axiosInstance.post(`/route-repairs/instruct-fleet-off-hire/${claimId}`, {
+    to_email,
+  });

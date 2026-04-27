@@ -20,7 +20,20 @@ export const getPassengers = async (accidentId?: number): Promise<Passenger[]> =
   const response = await axiosInstance.get(url);
   return response.data;
 };
-
+export const getQuestionnaireStatus = async (
+  claimId: number,
+  witnessId: number,
+) => {
+  try {
+    const response = await axiosInstance.get(
+      `/email/questionnaire-status/${claimId}/${witnessId}`,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch questionnaire status", error);
+    return null;
+  }
+};
 export const getPassengerById = async (id: number): Promise<Passenger> => {
   const response = await axiosInstance.get(`/accident-details/passenger/${id}`);
   return response.data;

@@ -12,7 +12,7 @@ import { ToastContainer } from 'react-toastify';
 // import Questionnaire from './modules/Questionnaire/Questionnaire';
 // import CarDamageOverlay from './components/NewClaims/AIDamageDetection';
 import OTPPage from './modules/Login/OTPPage';
-import AccountSettings from "./modules/dashboard/AccountSettings";
+import AccountSettings from "./modules/Dashboard/AccountSettings";
 import ForgotPassword from './modules/Login/ForgotPassword';
 import AccountLocked from './modules/Login/AccountLocked';
 import ForgotPassword2 from './modules/Login/ForgotPassword2';

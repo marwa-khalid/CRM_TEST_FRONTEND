@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import Select from "react-select";
@@ -72,9 +72,7 @@ const VehicleManualForm = ({formRef}:any) => {
     },
 
     validationSchema: Yup.object({
-      client: Yup.object({
-        status: Yup.object().required("Client vehicle status required"),
-      }),
+     
     }),
 
     validate: (values) => {
@@ -204,90 +202,74 @@ const loadData = async () => {
       formik.setFieldValue(`${section}.areaDamage`, [...current, zone]);
     }
   };
-const RightPanel = ({
-  section,
-  title,
-}: {
-  section: DamageSection;
-  title: string;
-}) => {
-  const zones = formik.values[section].areaDamage;
+const RightPanel = useCallback(
+  ({ section, title }: { section: DamageSection; title: string }) => {
+    const selectedZones = formik.values[section].areaDamage;
 
-  return (
-    <div className="flex-1 min-w-0 flex flex-col gap-4 font-['Stack_Sans_Headline']">
-      {/* AREA OF DAMAGE */}
-      <div className="flex flex-col gap-2 w-full">
-        <div className="text-neutral-700 text-sm font-weight-400">
-          {title} Area of Damage
+    return (
+      <div className="flex-1 min-w-0 flex flex-col gap-4 font-['Stack_Sans_Headline']">
+        <div className="flex flex-col gap-2 w-full">
+          <div className="text-neutral-700 text-sm font-weight-400">
+            {title} Area of Damage
+          </div>
+
+          <div className="min-h-12 p-2.5 rounded border border-neutral-200 flex items-center flex-wrap gap-2">
+            {selectedZones.length === 0 && (
+              <span className="text-neutral-400 text-sm">No area selected</span>
+            )}
+
+            {selectedZones.map((z) => (
+              <div
+                key={z}
+                className="px-3 py-1 bg-blue-100 rounded flex items-center gap-2"
+              >
+                <span className="text-sm font-weight-400 text-black">{z}</span>
+                <img
+                  src={CrossIcon}
+                  className="cursor-pointer"
+                  alt=""
+                  onClick={() => toggleZone(section, z)}
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="min-h-12  p-2.5 rounded border border-neutral-200 flex items-center flex-wrap gap-2">
-          {zones.length === 0 && (
-            <span className="text-neutral-400 text-sm">No area selected</span>
-          )}
+        <div className="flex flex-col gap-2 w-full">
+          <label className="text-neutral-700 text-sm font-weight-400">
+            {title} Unrelated Damage
+          </label>
 
-          {zones.map((z) => (
-            <div
-              key={z}
-              className="px-3 py-1 bg-blue-100 rounded flex items-center gap-2"
-            >
-              <span className="text-sm font-weight-400 text-black">{z}</span>
-              <img
-                src={CrossIcon}
-                className="cursor-pointer"
-                alt=""
-                onClick={() => toggleZone(section, z)}
-              />
-            </div>
-          ))}
+          <textarea
+            name={`${section}.unrelatedDamage`}
+            value={formik.values[section].unrelatedDamage}
+            onChange={formik.handleChange}
+            placeholder="Enter Description"
+            className="h-24 px-5 py-4 border border-neutral-200 rounded resize-none text-base"
+          />
+        </div>
+
+        <div className="flex flex-col gap-2 w-full">
+          <label className="text-neutral-700 text-sm font-weight-400">
+            {title} Vehicle Status
+          </label>
+
+          <Select
+            options={statusOptions}
+            styles={customStyles}
+            components={{
+              DropdownIndicator: BlueDropdownIndicator,
+              IndicatorSeparator: () => null,
+            }}
+            value={formik.values[section].status}
+            onChange={(val) => formik.setFieldValue(`${section}.status`, val)}
+          />
         </div>
       </div>
-
-      {/* UNRELATED DAMAGE */}
-      <div className="flex flex-col gap-2 w-full">
-        <label className="text-neutral-700 text-sm font-weight-400">
-          {title} Unrelated Damage
-        </label>
-
-        <textarea
-          name={`${section}.unrelatedDamage`}
-          value={formik.values[section].unrelatedDamage}
-          onChange={(e) =>
-            formik.setFieldValue(`${section}.unrelatedDamage`, e.target.value)
-          }
-          placeholder="Enter Description"
-          className="h-24 px-5 py-4 border border-neutral-200 rounded resize-none text-base"
-        />
-      </div>
-
-      {/* STATUS ONLY FOR CLIENT */}
-      {/* {section === "client" && ( */}
-      <div className="flex flex-col gap-2 w-full">
-        <label className="text-neutral-700 text-sm font-weight-400">
-          {title} Vehicle Status
-        </label>
-
-        <Select
-          options={statusOptions}
-          styles={customStyles}
-          components={{
-            DropdownIndicator: BlueDropdownIndicator,
-            IndicatorSeparator: () => null,
-          }}
-          value={formik.values[section].status}
-          onChange={(val) => formik.setFieldValue(`${section}.status`, val)}
-        />
-
-        {formik.errors[section]?.status && (
-          <p className="text-red-500 text-sm">
-            {formik.errors[section].status as string}
-          </p>
-        )}
-      </div>
-      {/* )} */}
-    </div>
-  );
-};
+    );
+  },
+  [formik.values],
+);
   const renderZones = (section: DamageSection) => {
     return zones.map((zone) => {
       const selected = formik.values[section].areaDamage.includes(zone.label);

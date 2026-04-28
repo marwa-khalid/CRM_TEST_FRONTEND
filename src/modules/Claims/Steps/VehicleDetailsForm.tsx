@@ -40,9 +40,31 @@ export const VehicleDetailsForm = ({ formRef }: any) => {
   ];
 
   const removeTPVehicle = (id: number) => {
-    if (formik.values.thirdPartyVehicles.length > 1) {
-      formik.setFieldValue("thirdPartyVehicles",formik.values.thirdPartyVehicles.filter((v) => v.id !== id));
+    if (formik.values.thirdPartyVehicles.length <= 1) {
+      toast.error("At least one third party vehicle is mandatory.");
+      return;
     }
+
+    setDeleteConfirm({
+      open: true,
+      id,
+    });
+  };const confirmDeleteTPVehicle = () => {
+    if (!deleteConfirm.id) return;
+
+    formik.setFieldValue(
+      "thirdPartyVehicles",
+      formik.values.thirdPartyVehicles.filter(
+        (v: any) => v.id !== deleteConfirm.id,
+      ),
+    );
+
+    setDeleteConfirm({
+      open: false,
+      id: null,
+    });
+
+    toast.success("Third party vehicle deleted successfully");
   };
   const handleEdit = (vehicle: any) => {
     setCurrentVehicle(vehicle);
@@ -65,10 +87,10 @@ export const VehicleDetailsForm = ({ formRef }: any) => {
     currentVehicle.make && currentVehicle.model && currentVehicle.registration;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const handleSave = (addNext = false) => {
-    if (!isVehicleValid) {
-      alert("Please fill in mandatory fields: Make, Model, and Registration.");
-      return;
-    }
+    // if (!isVehicleValid) {
+    //   alert("Please fill in mandatory fields: Make, Model, and Registration.");
+    //   return;
+    // }
 
     let updatedVehicles;
 
@@ -144,7 +166,13 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const vehicleId = localStorage.getItem("vehicleId");
-
+const [deleteConfirm, setDeleteConfirm] = useState<{
+  open: boolean;
+  id: number | null;
+}>({
+  open: false,
+  id: null,
+});
   const formik = useFormik({
     initialValues: {
       vehicle: {
@@ -338,6 +366,43 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         onClose={() => setShowUploadModal(false)}
         onUploadSuccess={(jobId) => pollJobStatus(jobId)}
       />
+      {deleteConfirm.open && (
+        <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center font-['Stack_Sans_Headline']">
+          <div className="w-[420px] bg-white rounded shadow-xl p-6 flex flex-col gap-4">
+            <h3 className="text-neutral-900 text-[20px] font-weight-600">
+              Delete Third Party Vehicle
+            </h3>
+
+            <p className="text-neutral-600 text-sm">
+              Are you sure you want to delete this third party vehicle? This
+              action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setDeleteConfirm({
+                    open: false,
+                    id: null,
+                  })
+                }
+                className="px-6 py-3 rounded border border-gray-200 text-gray-700 text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmDeleteTPVehicle}
+                className="px-6 py-3 rounded bg-red-600 text-white text-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
         {/* Container matching left-[534px] and top-[157px] from source */}
         <h1 className="text-neutral-900 text-[24px] font-weight-600 font-['Stack_Sans_Headline']">
@@ -572,7 +637,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                     formik.setFieldError("vehicle.engineSize", undefined);
                   }
                 }}
-                type="number"
+                type="text"
                 placeholder="Enter Size (cc)"
                 className={`w-full h-[52px] px-5 bg-white rounded border ${fieldError["vehicle.engineSize"] ? "border-red-500" : "border-gray-200"}  text-neutral-700 ${inputStyles}`}
               />

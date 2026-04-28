@@ -17,7 +17,7 @@ import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/Go
 import { deletePassenger, deletePoliceDetail, deleteWitness, getPassengerById, getPoliceDetails, getWitnesses } from "../../../services/Accidents/Cards/cards";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import { PoliceDetailsModal } from "./PoliceDetailsModal";
-
+import CreatableSelect from "react-select/creatable";
 export const AccidentDetailsForm = ({ formRef }: any) => {
   const weatherOptions = [
     { value: 1, label: "Dry" },
@@ -55,6 +55,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
   };
   const accidentId = localStorage.getItem("accidentId");
   const claimId = localStorage.getItem("claimId");
+  const witnessCountKey = `numWitnesses_${claimId}`;
   const cleanPayload = (obj: any) => {
     if (obj === "") return null;
 
@@ -83,6 +84,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
       passengers: "No",
       numPassengers: 0,
       hasWitnesses: "No",
+      numWitnesses: 0,
       policeAttended: "No",
       dashcamFootage: "No",
     },
@@ -138,9 +140,9 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
         // Extract time string (HH:mm)
         time: accidentData.date_time
           ? new Date(accidentData.date_time).toLocaleTimeString("en-GB", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
+              hour: "2-digit",
+              minute: "2-digit",
+            })
           : "",
 
         servicesDate: accidentData.service_date_time
@@ -148,9 +150,9 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
           : "",
         servicesTime: accidentData.service_date_time
           ? new Date(accidentData.service_date_time).toLocaleTimeString(
-            "en-GB",
-            { hour: "2-digit", minute: "2-digit" },
-          )
+              "en-GB",
+              { hour: "2-digit", minute: "2-digit" },
+            )
           : "",
         weather: accidentData.condition || null,
         location: accidentData.location || "",
@@ -158,6 +160,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
 
         passengers: accidentData.any_passenger ? "Yes" : "No",
         numPassengers: accidentData.passenger_no || 0,
+        numWitnesses: Number(localStorage.getItem(witnessCountKey)) || 0,
         hasWitnesses: accidentData.witness ? "Yes" : "No",
         policeAttended: accidentData.police_attend ? "Yes" : "No",
         dashcamFootage: accidentData.dash_footage ? "Yes" : "No",
@@ -175,6 +178,14 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
       formRef.current = formik;
     }
   }, [formRef, formik]);
+  useEffect(() => {
+    if (claimId) {
+      localStorage.setItem(
+        witnessCountKey,
+        String(formik.values.numWitnesses || 0),
+      );
+    }
+  }, [formik.values.numWitnesses, claimId]);
   useEffect(() => {
     if (formik.values.passengers === "No") {
       formik.setFieldValue("numPassengers", passengersList.length);
@@ -374,7 +385,35 @@ const generateTimeOptions = () => {
 
   return times;
 };
+const [deleteConfirm, setDeleteConfirm] = useState<{
+  open: boolean;
+  type: "passenger" | "witness" | "police" | null;
+  id: number | null;
+}>({
+  open: false,
+  type: null,
+  id: null,
+});const confirmDelete = async () => {
+  if (!deleteConfirm.id || !deleteConfirm.type) return;
 
+  if (deleteConfirm.type === "passenger") {
+    await handleDeletePassenger(deleteConfirm.id);
+  }
+
+  if (deleteConfirm.type === "witness") {
+    await handleDeleteWitness(deleteConfirm.id);
+  }
+
+  if (deleteConfirm.type === "police") {
+    await handleDeletePolice(deleteConfirm.id);
+  }
+
+  setDeleteConfirm({
+    open: false,
+    type: null,
+    id: null,
+  });
+};
 const timeOptions = generateTimeOptions();
   const formatWitnessDate = (isoString: string) => {
     const date = new Date(isoString);
@@ -399,6 +438,19 @@ const timeOptions = generateTimeOptions();
     }
   }, [witnessesList.length]);
   console.log(formik.values.passengers);
+  const normalizeTime = (value: string) => {
+    if (!value) return "";
+
+    const [hour, minute] = value.split(":");
+    const h = Math.min(Math.max(Number(hour || 0), 0), 23);
+    const m = Math.min(Math.max(Number(minute || 0), 0), 59);
+
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+
+  const isValidTime = (value: string) => {
+    return /^([01]?\d|2[0-3]):[0-5]\d$/.test(value);
+  };
   return (
     <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       {passengerModal && (
@@ -411,6 +463,44 @@ const timeOptions = generateTimeOptions();
           initialData={editingPassenger}
           addNew={formik.values.passengers === "Yes"}
         />
+      )}
+      {deleteConfirm.open && (
+        <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center">
+          <div className="w-[420px] bg-white rounded-xl shadow-xl p-6 flex flex-col gap-4">
+            <h3 className="text-neutral-900 text-lg font-weight-600">
+              Delete {deleteConfirm.type}
+            </h3>
+
+            <p className="text-neutral-600 text-sm">
+              Are you sure you want to delete this entry? This action cannot be
+              undone.
+            </p>
+
+            <div className="flex justify-end gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setDeleteConfirm({
+                    open: false,
+                    type: null,
+                    id: null,
+                  })
+                }
+                className="px-6 py-3 rounded border border-gray-200 text-gray-700 text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="px-6 py-3 rounded bg-red-600 text-white text-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {isWitnessModalOpen && (
         <WitnessDetailsModal
@@ -493,20 +583,30 @@ const timeOptions = generateTimeOptions();
               <label className="text-neutral-700 text-[14px] font-weight-500">
                 Time
               </label>
-              <Select
+              <CreatableSelect
                 options={timeOptions}
-                value={timeOptions.find(
-                  (option) => option.value === formik.values.time,
-                )}
-                onChange={(e) => formik.setFieldValue("time", e.value)}
-                placeholder="Select Time"
-                styles={customStyles} // Using your predefined styles
-                components={{
-                  DropdownIndicator: BlueDropdownIndicator, // Using your custom blue arrow
-                  IndicatorSeparator: () => null, // Removes the vertical line for a cleaner look
+                value={
+                  formik.values.time
+                    ? { label: formik.values.time, value: formik.values.time }
+                    : null
+                }
+                onChange={(option) => {
+                  formik.setFieldValue("time", option?.value || "");
                 }}
-                isSearchable={true}
-                classNamePrefix="react-select"
+                onCreateOption={(inputValue) => {
+                  if (isValidTime(inputValue)) {
+                    formik.setFieldValue("time", normalizeTime(inputValue));
+                  } else {
+                    toast.error("Please enter time in HH:mm format");
+                  }
+                }}
+                placeholder="Select or type time"
+                styles={customStyles}
+                components={{
+                  DropdownIndicator: BlueDropdownIndicator,
+                  IndicatorSeparator: () => null,
+                }}
+                isSearchable
               />
               {/* <div className="relative">
                 <input
@@ -626,20 +726,36 @@ const timeOptions = generateTimeOptions();
                   className="h-[53px] w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-weight-300 font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300"
                 />
                 </div> */}
-              <Select
+              <CreatableSelect
                 options={timeOptions}
-                value={timeOptions.find(
-                  (option) => option.value === formik.values.servicesTime,
-                )}
-                onChange={(e) => formik.setFieldValue("servicesTime", e.value)}
-                placeholder="Select Time"
-                styles={customStyles} // Using your predefined styles
-                components={{
-                  DropdownIndicator: BlueDropdownIndicator, // Using your custom blue arrow
-                  IndicatorSeparator: () => null, // Removes the vertical line for a cleaner look
+                value={
+                  formik.values.servicesTime
+                    ? {
+                        label: formik.values.servicesTime,
+                        value: formik.values.servicesTime,
+                      }
+                    : null
+                }
+                onChange={(option) => {
+                  formik.setFieldValue("servicesTime", option?.value || "");
                 }}
-                isSearchable={true}
-                classNamePrefix="react-select"
+                onCreateOption={(inputValue) => {
+                  if (isValidTime(inputValue)) {
+                    formik.setFieldValue(
+                      "servicesTime",
+                      normalizeTime(inputValue),
+                    );
+                  } else {
+                    toast.error("Please enter time in HH:mm format");
+                  }
+                }}
+                placeholder="Select or type time"
+                styles={customStyles}
+                components={{
+                  DropdownIndicator: BlueDropdownIndicator,
+                  IndicatorSeparator: () => null,
+                }}
+                isSearchable
               />
             </div>
           </div>
@@ -651,7 +767,6 @@ const timeOptions = generateTimeOptions();
           Attendees
         </h2>
         <div className="h-px bg-gray-100 w-full" />
-
         {/* Passengers Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-end ">
           {/* Radio Group */}
@@ -724,7 +839,6 @@ const timeOptions = generateTimeOptions();
             </div>
           )}
         </div>
-
         {/* Passenger Details Info Box */}
         {/* <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
           <div className="flex justify-between items-center">
@@ -743,6 +857,7 @@ const timeOptions = generateTimeOptions();
             Add passengers details by clicking on “Add Passenger Details”.
           </p>
         </div> */}
+        {formik.values.passengers === "Yes" &&
         <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
           {/* Header */}
           <div className="flex justify-between items-center">
@@ -791,7 +906,13 @@ const timeOptions = generateTimeOptions();
 
                     <button
                       className="p-1 hover:bg-red-50 rounded text-red-400"
-                      onClick={() => handleDeletePassenger(p.id)}
+                      onClick={() =>
+                        setDeleteConfirm({
+                          open: true,
+                          type: "passenger",
+                          id: p.id,
+                        })
+                      }
                     >
                       <img src={trash} className="w-4 h-4" alt="delete" />
                     </button>
@@ -805,12 +926,9 @@ const timeOptions = generateTimeOptions();
               Add passengers details by clicking on “Add Passenger Details”.
             </p>
           )}
-        </div>
-
+        </div>}
         {/* Your Modal Component */}
-
         <div className="h-px bg-gray-100 w-full my-2" />
-
         {/* Witnesses Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="flex flex-col gap-5">
@@ -845,80 +963,123 @@ const timeOptions = generateTimeOptions();
               ))}
             </div>
           </div>
-        </div>
+          {formik.values.hasWitnesses === "Yes" && (
+            <div className="flex flex-col gap-2">
+              <label className="text-neutral-700 text-[14px] font-weight-500">
+                Number of Witnesses
+              </label>
 
-        {/* Witnesses Details Box */}
-        <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-700 text-base font-weight-600">
-              Witnesses Details
-            </span>
-            <button
-              className="flex items-center gap-2 px-3 py-1.5 rounded text-blue-500 text-sm font-weight-400 hover:bg-blue-50"
-              onClick={() => {
-                setEditingWitness(null);
-                setIsWitnessModalOpen(true);
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              Add Witness Details
-            </button>
-          </div>
+              <div className="flex items-center justify-between px-4 py-3 bg-white rounded border border-gray-200">
+                <button
+                  type="button"
+                  onClick={() =>
+                    formik.setFieldValue(
+                      "numWitnesses",
+                      Math.max(0, formik.values.numWitnesses - 1),
+                    )
+                  }
+                  className="text-blue-500 hover:bg-blue-50 p-1 rounded transition-colors"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
 
-          {formik.values.hasWitnesses === "Yes" && witnessesList.length > 0 ? (
-            witnessesList.map((w) => (
-              <div
-                key={w.id}
-                className="bg-white p-4 rounded-lg border border-gray-100 flex flex-col shadow-sm"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex flex-col gap-1">
-                    <h4 className="text-gray-900  text-sm">
-                      {w.first_name} {w.surname}
-                      {/* <span className="ml-2 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
-                        {w.is_independent ? "Independent" : "Known"}
-                      </span> */}
-                    </h4>
-                    <div className="flex items-center gap-2 text-gray-500 text-xs">
-                      <span>{w.address?.email}</span>
-                      <span>{w.address?.mobile_tel}</span>
-                    </div>
-                    <p className="text-gray-500 text-xs">
-                      {w.address?.address}
-                    </p>
-                  </div>
+                <span className="text-black text-base font-weight-300 font-light">
+                  {formik.values.numWitnesses}
+                </span>
 
-                  <div className="flex gap-2">
-                    <button
-                      className="p-1 hover:bg-gray-100 rounded text-gray-400"
-                      onClick={() => handleEditWitness(w)}
-                    >
-                      <img src={pencil} className="w-4 h-4" alt="edit" />
-                    </button>
-                    <button
-                      className="p-1 hover:bg-red-50 rounded text-red-400"
-                      onClick={() => handleDeleteWitness(w.id)}
-                    >
-                      <img src={trash} className="w-4 h-4" alt="delete" />
-                    </button>
-                  </div>
-                </div>
-                <div className="h-px bg-gray-100 w-full my-2" />
-                <div className="flex justify-start items-center text-gray-700 text-xs font-normal font-['Stack_Sans_Headline']">
-                  {/* {console.log(w.created_at)!} */}
-                  Questionnaire Link Sent : {formatWitnessDate(w.created_at)}
-                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    formik.setFieldValue(
+                      "numWitnesses",
+                      formik.values.numWitnesses + 1,
+                    )
+                  }
+                  className="text-blue-500 hover:bg-blue-50 p-1 rounded transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
               </div>
-            ))
-          ) : (
-            <p className="text-gray-600 text-sm">
-              Add witnesses details by clicking on “Add Witness Details”.
-            </p>
+            </div>
           )}
         </div>
+        {/* Witnesses Details Box */}
+        {formik.values.hasWitnesses === "Yes" && (
+          <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700 text-base font-weight-600">
+                Witnesses Details
+              </span>
+              <button
+                className="flex items-center gap-2 px-3 py-1.5 rounded text-blue-500 text-sm font-weight-400 hover:bg-blue-50"
+                onClick={() => {
+                  setEditingWitness(null);
+                  setIsWitnessModalOpen(true);
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                Add Witness Details
+              </button>
+            </div>
 
+            {formik.values.hasWitnesses === "Yes" && witnessesList.length > 0 ? (
+              witnessesList.map((w) => (
+                <div
+                  key={w.id}
+                  className="bg-white p-4 rounded-lg border border-gray-100 flex flex-col shadow-sm"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col gap-1">
+                      <h4 className="text-gray-900  text-sm">
+                        {w.first_name} {w.surname}
+                        {/* <span className="ml-2 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
+                        {w.is_independent ? "Independent" : "Known"}
+                      </span> */}
+                      </h4>
+                      <div className="flex items-center gap-2 text-gray-500 text-xs">
+                        <span>{w.address?.email}</span>
+                        <span>{w.address?.mobile_tel}</span>
+                      </div>
+                      <p className="text-gray-500 text-xs">
+                        {w.address?.address}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        className="p-1 hover:bg-gray-100 rounded text-gray-400"
+                        onClick={() => handleEditWitness(w)}
+                      >
+                        <img src={pencil} className="w-4 h-4" alt="edit" />
+                      </button>
+                      <button
+                        className="p-1 hover:bg-red-50 rounded text-red-400"
+                        onClick={() =>
+                          setDeleteConfirm({
+                            open: true,
+                            type: "witness",
+                            id: w.id,
+                          })
+                        }
+                      >
+                        <img src={trash} className="w-4 h-4" alt="delete" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="h-px bg-gray-100 w-full my-2" />
+                  <div className="flex justify-start items-center text-gray-700 text-xs font-normal font-['Stack_Sans_Headline']">
+                    {/* {console.log(w.created_at)!} */}
+                    Questionnaire Link Sent : {formatWitnessDate(w.created_at)}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-600 text-sm">
+                Add witnesses details by clicking on “Add Witness Details”.
+              </p>
+            )}
+          </div>)}
         <div className="h-px bg-gray-100 w-full my-2" />
-
         {/* Police Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="flex flex-col gap-5">
@@ -953,99 +1114,105 @@ const timeOptions = generateTimeOptions();
             </div>
           </div>
         </div>
-
         {/* Police Details Box */}
-        <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-700 text-base font-weight-600">
-              Police Details
-            </span>
-            <button
-              onClick={handleAddPolice}
-              className="flex items-center gap-2 px-3 py-1.5 rounded text-blue-500 text-sm font-weight-400 hover:bg-blue-50"
-            >
-              <Plus className="w-4 h-4" />
-              Add Police Details
-            </button>
-          </div>
-          <div className="grid gap-3">
-            {formik.values.policeAttended === "Yes" && policeList.length > 0 ? (
-              policeList.map((record: any) => (
-                <div
-                  key={record.id}
-                  className="self-stretch px-4 py-3 bg-white border border-gray-100 rounded-lg inline-flex justify-between items-start transition-shadow hover:shadow-sm"
-                >
-                  {/* Left Section: Details */}
+        {formik.values.policeAttended === "Yes" &&
+          <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700 text-base font-weight-600">
+                Police Details
+              </span>
+              <button
+                onClick={handleAddPolice}
+                className="flex items-center gap-2 px-3 py-1.5 rounded text-blue-500 text-sm font-weight-400 hover:bg-blue-50"
+              >
+                <Plus className="w-4 h-4" />
+                Add Police Details
+              </button>
+            </div>
+            <div className="grid gap-3">
+              {formik.values.policeAttended === "Yes" && policeList.length > 0 ? (
+                policeList.map((record: any) => (
                   <div
-                    data-layer="Frame 1171277556"
-                    className="inline-flex flex-col justify-start items-start gap-1"
+                    key={record.id}
+                    className="self-stretch px-4 py-3 bg-white border border-gray-100 rounded-lg inline-flex justify-between items-start transition-shadow hover:shadow-sm"
                   >
-                    {/* Name and Reference */}
+                    {/* Left Section: Details */}
                     <div
-                      data-layer="Frame 1171277555"
-                      className="inline-flex justify-start items-center gap-2"
+                      data-layer="Frame 1171277556"
+                      className="inline-flex flex-col justify-start items-start gap-1"
                     >
-                      <div className="text-gray-700 text-sm font-weight-600 font-['Stack_Sans_Headline']">
-                        {record.name}
+                      {/* Name and Reference */}
+                      <div
+                        data-layer="Frame 1171277555"
+                        className="inline-flex justify-start items-center gap-2"
+                      >
+                        <div className="text-gray-700 text-sm font-weight-600 font-['Stack_Sans_Headline']">
+                          {record.name}
+                        </div>
+                        <div className="flex justify-center items-center gap-1 text-xs">
+                          <span className="text-gray-700 font-weight-600 font-['Stack_Sans_Headline']">
+                            Ref. no:{" "}
+                          </span>
+                          <span className="text-gray-700 font-normal font-['Stack_Sans_Headline']">
+                            {record.reference_no}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex justify-center items-center gap-1 text-xs">
+
+                      {/* Station Address */}
+                      <div className="text-gray-700 text-xs font-normal font-['Stack_Sans_Headline'] max-w-[500px]">
+                        {record.station_name}
+                        {record.station_address
+                          ? `, ${record.station_address}`
+                          : ""}
+                      </div>
+
+                      {/* Received Date */}
+                      <div className="text-xs">
                         <span className="text-gray-700 font-weight-600 font-['Stack_Sans_Headline']">
-                          Ref. no:{" "}
+                          Incident Report Received on:{" "}
                         </span>
                         <span className="text-gray-700 font-normal font-['Stack_Sans_Headline']">
-                          {record.reference_no}
+                          {formatWitnessDate(record.report_received_date)}
                         </span>
                       </div>
                     </div>
 
-                    {/* Station Address */}
-                    <div className="text-gray-700 text-xs font-normal font-['Stack_Sans_Headline'] max-w-[500px]">
-                      {record.station_name}
-                      {record.station_address
-                        ? `, ${record.station_address}`
-                        : ""}
-                    </div>
-
-                    {/* Received Date */}
-                    <div className="text-xs">
-                      <span className="text-gray-700 font-weight-600 font-['Stack_Sans_Headline']">
-                        Incident Report Received on:{" "}
-                      </span>
-                      <span className="text-gray-700 font-normal font-['Stack_Sans_Headline']">
-                        {formatWitnessDate(record.report_received_date)}
-                      </span>
+                    {/* Right Section: Actions */}
+                    <div
+                      data-layer="Frame 1171277557"
+                      className="flex justify-start items-center gap-4 pt-1"
+                    >
+                      <button
+                        onClick={() => handleEditPolice(record)}
+                        className="hover:opacity-70 transition-opacity"
+                        title="Edit"
+                      >
+                        <img src={pencil} className="w-4 h-4" alt="edit" />
+                      </button>
+                      <button
+                        onClick={() =>
+                          setDeleteConfirm({
+                            open: true,
+                            type: "police",
+                            id: record.id,
+                          })
+                        }
+                        className="hover:opacity-70 transition-opacity"
+                        title="Delete"
+                      >
+                        <img src={trash} className="w-4 h-4" alt="delete" />
+                      </button>
                     </div>
                   </div>
-
-                  {/* Right Section: Actions */}
-                  <div
-                    data-layer="Frame 1171277557"
-                    className="flex justify-start items-center gap-4 pt-1"
-                  >
-                    <button
-                      onClick={() => handleEditPolice(record)}
-                      className="hover:opacity-70 transition-opacity"
-                      title="Edit"
-                    >
-                      <img src={pencil} className="w-4 h-4" alt="edit" />
-                    </button>
-                    <button
-                      onClick={() => handleDeletePolice(record.id)}
-                      className="hover:opacity-70 transition-opacity"
-                      title="Delete"
-                    >
-                      <img src={trash} className="w-4 h-4" alt="delete" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-600 text-sm">
-                Add Police details by clicking on “Add Police Details”.
-              </p>
-            )}
-          </div>
-        </div>
+                ))
+              ) : (
+                <p className="text-gray-600 text-sm">
+                  Add Police details by clicking on “Add Police Details”.
+                </p>
+              )}
+            </div>
+          </div>}
       </div>
 
       <div className="h-px bg-gray-100 w-full my-2" />

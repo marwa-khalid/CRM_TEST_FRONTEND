@@ -100,7 +100,7 @@ const GoogleMapAutocomplete: React.FC<GoogleMapAutocompleteProps> = ({
     east: 1.7578,
   };
 
-
+console.log(showMap)
   return (
     <div>
       <Autocomplete
@@ -125,26 +125,30 @@ const GoogleMapAutocomplete: React.FC<GoogleMapAutocompleteProps> = ({
           //   border: "1px solid #ccc",
           //   borderRadius: "6px",
           // }}
-          className={`w-full h-[52px] {${showMap} && "mb-5"} px-5 bg-white rounded border border-gray-200 text-neutral-700 hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`}
+          className={`w-full h-[52px] ${showMap && "mb-5"} px-5 bg-white rounded border border-gray-200 text-neutral-700 hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`}
         />
       </Autocomplete>
 
       {showMap && inputValue !== "" && (
-        <GoogleMap
-          mapContainerStyle={containerStyle}
-          center={position || defaultCenter}
-          zoom={position ? 19 : 10}
-          options={{
-            restriction: {
-              latLngBounds: ukBounds,
-              strictBounds: true,
-            },
-          }}
-        >
-          {/* This will overlay the green/yellow/red traffic lines */}
-          <TrafficLayer />
-          {position && <Marker position={position} />}
-        </GoogleMap>
+        <div className="rounded-lg overflow-hidden border border-gray-200">
+          <GoogleMap
+            mapContainerStyle={{
+              width: "100%",
+              height: "400px",
+            }}
+            center={position || defaultCenter}
+            zoom={position ? 19 : 10}
+            options={{
+              restriction: {
+                latLngBounds: ukBounds,
+                strictBounds: true,
+              },
+            }}
+          >
+            <TrafficLayer />
+            {position && <Marker position={position} />}
+          </GoogleMap>
+        </div>
       )}
     </div>
   );

@@ -28,7 +28,7 @@ export const V5CEngineerUploadModal: React.FC<V5CModalProps> = ({
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+const [isUploading, setIsUploading] = useState(false);
   if (!isOpen) return null;
   const parseDateInspection = (dateStr?: string) => {
     if (!dateStr) return undefined;
@@ -45,17 +45,20 @@ export const V5CEngineerUploadModal: React.FC<V5CModalProps> = ({
   };
 
   // This simulates the UI progress bar before calling your actual handleUpload logic
-  const simulateUpload = async (selectedFile: File) => {
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += 10;
-      setProgress(currentProgress);
-      if (currentProgress >= 100) {
-        clearInterval(interval);
-        executeActualUpload(selectedFile);
-      }
-    }, 150);
-  };
+ const simulateUpload = async (selectedFile: File) => {
+   let currentProgress = 0;
+   setIsUploading(true);
+
+   const interval = setInterval(() => {
+     currentProgress += 5;
+     setProgress(currentProgress);
+
+     if (currentProgress >= 90) {
+       clearInterval(interval);
+       executeActualUpload(selectedFile);
+     }
+   }, 120);
+ };
 
   // const dispatch = useDispatch()
   const executeActualUpload = async (selectedFile: File) => {
@@ -63,9 +66,10 @@ export const V5CEngineerUploadModal: React.FC<V5CModalProps> = ({
       // Calling your actual API function
       const response = await uploadVCEngineer([selectedFile], claimId);
       const jobId = response?.job_id;
-
-      setStep(3);
-      toast.success("File uploaded successfully");
+setProgress(100);
+setStep(3);
+setIsUploading(false);
+toast.success("File uploaded successfully");
 
       // Delay slightly so user sees the "Green" success state before closing/polling
       setTimeout(() => {
@@ -122,9 +126,15 @@ setReportData(engineerDetail)
           formik.setFieldValue("engineer_report_received", true);
         }
         setStep(1);
-      }, 1500);
+        setProgress(0);
+        setFile(null);
+        setIsUploading(false);
+      }, 2000);
     } catch (error) {
       setStep(1);
+      setProgress(0);
+      setFile(null);
+      setIsUploading(false);
       toast.error("Upload failed");
     }
   };
@@ -167,11 +177,13 @@ setReportData(engineerDetail)
           {step === 3 ? (
             <img src={Complete} />
           ) : step === 2 ? (
-            <img src={Processing} />
+            <img
+              src={Processing}
+              className="animate-[spin_2s_linear_infinite]"
+            />
           ) : (
             <img src={Upload} />
           )}
-
           {/* Text Content */}
           <div className="flex flex-col items-center gap-2">
             <div className="text-black text-base font-weight-600 font-['Stack_Sans_Headline']">

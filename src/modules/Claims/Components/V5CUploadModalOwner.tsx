@@ -26,6 +26,7 @@ export const V5CUploadModalOwner: React.FC<V5CModalProps> = ({
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   if (!isOpen) return null;
 
@@ -39,23 +40,28 @@ export const V5CUploadModalOwner: React.FC<V5CModalProps> = ({
   };
 
   // This simulates the UI progress bar before calling your actual handleUpload logic
-  const simulateUpload = async (selectedFile: File) => {
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += 10;
-      setProgress(currentProgress);
-      if (currentProgress >= 100) {
-        clearInterval(interval);
-        executeActualUpload(selectedFile);
-      }
-    }, 150);
-  };
+const simulateUpload = async (selectedFile: File) => {
+  let currentProgress = 0;
+  setIsUploading(true);
+
+  const interval = setInterval(() => {
+    currentProgress += 5;
+    setProgress(currentProgress);
+
+    if (currentProgress >= 90) {
+      clearInterval(interval);
+      executeActualUpload(selectedFile);
+    }
+  }, 120);
+};
 const executeActualUpload = async (selectedFile: File) => {
   try {
     const response = await uploadVCDocs([selectedFile], parseInt(claimId));
 
-    setStep(3);
-    toast.success("File uploaded successfully");
+setProgress(100);
+setStep(3);
+setIsUploading(false);
+toast.success("File uploaded successfully");
 
     setTimeout(() => {
       // 1. Safe access to the nested owner data
@@ -83,12 +89,19 @@ const executeActualUpload = async (selectedFile: File) => {
         });
       }
 
-      onUploadSuccess(response?.job_id || "mock-job-id");
-      onClose();
-    }, 1500);
+   onUploadSuccess(response?.job_id || "mock-job-id");
+onClose();
+
+setStep(1);
+setProgress(0);
+setFile(null);
+setIsUploading(false);
+}, 2000);
   } catch (error) {
-    setStep(1);
-    toast.error("Upload failed");
+   setIsUploading(false);
+   setStep(1);
+   setProgress(0);
+   toast.error("Upload failed");
     console.error("OCR Upload Error:", error);
   }
 };
@@ -130,7 +143,10 @@ const executeActualUpload = async (selectedFile: File) => {
           {step === 3 ? (
             <img src={Complete} />
           ) : step === 2 ? (
-            <img src={Processing} />
+            <img
+              src={Processing}
+              className="animate-[spin_2s_linear_infinite]"
+            />
           ) : (
             <img src={Upload} />
           )}

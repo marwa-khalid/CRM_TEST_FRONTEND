@@ -38,7 +38,7 @@ const caseReference= localStorage.getItem("CaseReference")
         {/* Discard Click -> Dashboard */}
         <button
           onClick={goToDashboard}
-          className="px-10 py-4 bg-white rounded outline outline-1 outline-primary text-blue-600 text-base font-weight-400 font-['Stack_Sans_Headline'] hover:bg-gray-50 transition"
+          className="px-10 py-4 bg-white rounded outline outline-1 outline-primary text-blue-600 text-base font-weight-400 font-['Stack_Sans_Headline'] c transition"
         >
           Discard
         </button>

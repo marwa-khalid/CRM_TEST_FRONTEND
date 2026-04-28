@@ -24,7 +24,7 @@ export const V5CUploadModal: React.FC<V5CModalProps> = ({
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+const [isUploading, setIsUploading] = useState(false);
   if (!isOpen) return null;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,66 +37,67 @@ export const V5CUploadModal: React.FC<V5CModalProps> = ({
   };
 
   // This simulates the UI progress bar before calling your actual handleUpload logic
-  const simulateUpload = async (selectedFile: File) => {
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += 10;
-      setProgress(currentProgress);
-      if (currentProgress >= 100) {
-        clearInterval(interval);
-        executeActualUpload(selectedFile);
-      }
-    }, 150);
-  };
+ const simulateUpload = async (selectedFile: File) => {
+   let currentProgress = 0;
 
-  const executeActualUpload = async (selectedFile: File) => {
-    try {
-      // Calling your actual API function
-      const response = await uploadVCDoc([selectedFile], claimId);
-      const jobId = response?.job_id;
+   setIsUploading(true);
 
-      setStep(3);
-      toast.success("File uploaded successfully");
+   const interval = setInterval(() => {
+     currentProgress += 5;
+     setProgress(currentProgress);
 
-      // Delay slightly so user sees the "Green" success state before closing/polling
+     if (currentProgress >= 90) {
+       clearInterval(interval);
+       executeActualUpload(selectedFile);
+     }
+   }, 120);
+ };
+ const executeActualUpload = async (selectedFile: File) => {
+   try {
+     const response = await uploadVCDoc([selectedFile], claimId);
+
+     setProgress(100); // force complete
+     setStep(3); // green state
+     setIsUploading(false);
+
+     toast.success("File uploaded successfully");
+
+     const vehicleData = response.client_vehicle_detail?.[0]?.[0];
+
+     if (vehicleData) {
+       const fieldMapping = {
+         "vehicle.make": vehicleData.make,
+         "vehicle.model": vehicleData.model,
+         "vehicle.bodyType": vehicleData.body_type,
+         "vehicle.registration": vehicleData.registration,
+         "vehicle.color": vehicleData.color,
+         "vehicle.engineSize": vehicleData.engine_size,
+         "vehicle.fuelType": vehicleData.fuel_type_id,
+         "vehicle.transmission": vehicleData.transmission_id,
+         "vehicle.seats": vehicleData.number_of_seat,
+         "vehicle.category": vehicleData.vehicle_category,
+       };
+
+       Object.entries(fieldMapping).forEach(([key, value]) => {
+         formik.setFieldValue(key, value);
+       });
+     }
+
+     // ✅ SHOW SUCCESS FOR 2 SECONDS
      setTimeout(() => {
        onUploadSuccess(response.client_vehicle_detail?.[0]?.[0]);
        onClose();
-
-       const vehicleData = response.client_vehicle_detail?.[0]?.[0];
-console.log(vehicleData);
-       if (vehicleData) {
-         // Map Formik field names to the API response keys
-         const fieldMapping = {
-           "vehicle.make": vehicleData.make,
-           "vehicle.model": vehicleData.model,
-           "vehicle.bodyType": vehicleData.body_type,
-           "vehicle.registration": vehicleData.registration,
-           "vehicle.color": vehicleData.color,
-           "vehicle.engineSize": vehicleData.engine_size,
-           "vehicle.fuelType": vehicleData.fuel_type_id,
-           "vehicle.transmission": vehicleData.transmission_id, // Added this back in based on your snippet
-           "vehicle.seats": vehicleData.number_of_seat,
-           "vehicle.category": vehicleData.vehicle_category,
-         };
-
-         // Only update Formik if the value from the response is NOT null/undefined
-         Object.entries(fieldMapping).forEach(([formikKey, apiValue]) => {
-          //  if (
-          //    apiValue === null &&
-          //    apiValue === undefined &&
-          //    apiValue === "") {
-             formik.setFieldValue(formikKey, apiValue);
-          //  }
-         });
-         setStep(1)
-       }
-     }, 1500);
-    } catch (error) {
-      setStep(1);
-      toast.error("Upload failed");
-    }
-  };
+       setStep(1);
+       setProgress(0);
+       setFile(null);
+     }, 2000);
+   } catch (error) {
+     setIsUploading(false);
+     setStep(1);
+     setProgress(0);
+     toast.error("Upload failed");
+   }
+ };
 
   const formatSize = (bytes: number) => (bytes / 1024).toFixed(0) + "KB";
 
@@ -136,17 +137,21 @@ console.log(vehicleData);
           {step === 3 ? (
             <img src={Complete} />
           ) : step === 2 ? (
-            <img src={Processing} />
+            <img
+              src={Processing}
+              className="animate-[spin_2s_linear_infinite]"
+            />
           ) : (
             <img src={Upload} />
           )}
-
           {/* Text Content */}
           <div className="flex flex-col items-center gap-2">
             <div className="text-black text-base font-weight-600 font-['Stack_Sans_Headline']">
               {step === 1 && "Choose a file or Drag & Drop here"}
               {step === 2 &&
-                `Uploaded - ${formatSize((file?.size || 0) * (progress / 100))} of ${formatSize(file?.size || 0)}`}
+                (isUploading
+                  ? "Processing file..."
+                  : `Uploading - ${Math.min(progress, 100)}%`)}
               {step === 3 &&
                 `Uploaded - ${formatSize(file?.size || 0)} of ${formatSize(file?.size || 0)}`}
             </div>

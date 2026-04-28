@@ -13,6 +13,7 @@ import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
+import type2 from "../../../assets/AutoClaim_icon/analyzing.svg";
 
 export const ReferrerDetailsForm = ({ formRef }: any) => {
   const claimId = localStorage.getItem("claimId");
@@ -56,6 +57,7 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
     if (Number.isNaN(num)) return "";
     return num.toFixed(2);
   };
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const formatMoneyOnBlur = (fieldName: string, value: any) => {
     formik.setFieldValue(fieldName, formatMoney(value));
@@ -93,6 +95,8 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
     validationSchema: Yup.object().shape({}),
     onSubmit: async (values: any) => {
       try {
+    setIsAnalyzing(true);
+        
         const payload = {
           ...values,
           claim_id: claimId ? Number(claimId) : null,
@@ -145,6 +149,9 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
       } catch (error) {
         toast.error("Error saving referrer details");
         throw error;
+      }finally{
+    setIsAnalyzing(false);
+
       }
     },
   });
@@ -168,7 +175,9 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
 
   useEffect(() => {
     const fetchData = async () => {
+      
       if (!claimId) return;
+    setIsAnalyzing(true);
 
       const res = await getReferrer(Number(claimId));
 
@@ -214,6 +223,8 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
       });
 
       setSearchTerm(res.data?.company_name || "");
+    setIsAnalyzing(false);
+
     };
 
     if (claimId && referrerId) {
@@ -289,7 +300,21 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
       <h1 className="text-neutral-900 text-[24px] font-weight-600">
         Referrer Details
       </h1>
-
+{isAnalyzing && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-transparent p-6 rounded-xl flex flex-col items-center gap-4 ">
+            {/* Spinner */}
+            <img
+              src={type2}
+              className="w-16 h-16 animate-spin"
+              style={{ animationDuration: "2s" }}
+            />
+            {/* <div className="text-white text-sm font-weight-400">
+              Analyzing images...
+            </div> */}
+          </div>
+        </div>
+      )}
       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
         <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
           Referrer & Reporting Details

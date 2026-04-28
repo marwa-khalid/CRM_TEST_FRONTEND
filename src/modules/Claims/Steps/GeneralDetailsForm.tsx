@@ -12,6 +12,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
+import type2 from "../../../assets/AutoClaim_icon/analyzing.svg";
 
 // Assets & Icons
 import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
@@ -125,6 +126,7 @@ const GeneralDetailsForm = ({ formRef }: any) => {
   const [closureReason, setClosureReason] = useState("");
   const [showPicker, setShowPicker] = useState(false);
      const datepickerRef = useRef<HTMLDivElement>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
   
 useEffect(() => {
   const handleClickOutside = (event: MouseEvent) => {
@@ -188,6 +190,8 @@ useEffect(() => {
   const claimId = localStorage.getItem("claimId");
    useEffect(() => {
      const fetchData = async () => {
+    setIsAnalyzing(true);
+       
        const res = await getClaimById(parseInt(claimId))
        const formData= {
           ...res,
@@ -195,6 +199,8 @@ useEffect(() => {
           client_going_abroad: res.client_going_abroad ? "Yes" :"No"
         };
        formik.setValues(formData);
+    setIsAnalyzing(false);
+
      }
      if (claimId) {
        fetchData();
@@ -224,6 +230,8 @@ useEffect(() => {
     validationSchema: Yup.object().shape({}),
     onSubmit: async (values: any) => {
       try {
+    setIsAnalyzing(true);
+
         const payload: ClaimFormPayload = {
           ...values,
           file_opened_on: new Date().toLocaleDateString("sv-SE"),
@@ -264,6 +272,11 @@ useEffect(() => {
       } catch (error) {
         toast.error("Error saving details");
         throw error; // 🔥 important so step doesn't move
+      }finally{
+
+
+    setIsAnalyzing(false);
+
       }
     },
   });
@@ -300,7 +313,21 @@ console.log(formik.values)
   return (
    <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       <h1 className="text-neutral-900 text-[24px] font-weight-600">General Details</h1>
-
+ {isAnalyzing && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-transparent p-6 rounded-xl flex flex-col items-center gap-4 ">
+            {/* Spinner */}
+            <img
+              src={type2}
+              className="w-16 h-16 animate-spin"
+              style={{ animationDuration: "2s" }}
+            />
+            {/* <div className="text-white text-sm font-weight-400">
+              Analyzing images...
+            </div> */}
+          </div>
+        </div>
+      )}
       <div className="w-full flex flex-col gap-6">
         {/* --- CASE DETAILS SECTION --- */}
         <div className="CaseDetailsSection self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">

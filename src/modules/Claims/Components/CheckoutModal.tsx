@@ -790,7 +790,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   if (!isOpen) return null;
+const formatMoneyOnBlur = (field: string) => {
+  const value = parseFloat(formData[field] || "0");
 
+  setFormData((prev: any) => ({
+    ...prev,
+    [field]: Number.isNaN(value) ? "0.00" : value.toFixed(2),
+  }));
+};
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 font-['Stack_Sans_Headline']">
       <div className="w-[640px] bg-white rounded-lg p-6 flex flex-col gap-4 shadow-xl">
@@ -953,6 +960,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         petrolChargeAmount: e.target.value,
                       }))
                     }
+                    onBlur={() => formatMoneyOnBlur("petrolChargeAmount")}
                   />
                 </div>
               </div>
@@ -984,7 +992,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 setFormData((prev: any) => ({ ...prev, applyDamageCharges: v }))
               }
             />
-            
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
@@ -1002,6 +1009,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         damageCharges: e.target.value,
                       }))
                     }
+                    onBlur={() => formatMoneyOnBlur("damageCharges")}
                   />
                 </div>
               </div>

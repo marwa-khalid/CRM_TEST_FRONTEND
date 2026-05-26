@@ -12,7 +12,8 @@ import * as Yup from 'yup'
 import { useFormik } from "formik";
 import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";
 import { cleanPayload } from "./ClientDetailsForm";
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import { getVehicleOwner, updateVehicleOwner, VehicleOwnersApi } from "../../../services/VehicleOwner/vehicleOwner";
 
 export const VehicleOwnerForm = ({ formRef }: any) => {
@@ -210,17 +211,14 @@ return (
           <label className="text-neutral-700 text-[14px] font-weight-500">
             Address{" "}
           </label>
-          <LeafletAutocompleteMap
-            showMap={false}
-            apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-            address={formik.values.address}
+          <AddressAutocomplete
+            address={formik.values.address || ""}
+            onChange={(v) => formik.setFieldValue("address", v)}
             onPlaceSelected={(place) => {
-              if (place.name) {
-                formik.setFieldValue("address", place.address);
-                formik.setFieldValue("postcode", place?.postalCode);
-              }
+              formik.setFieldValue("address", place.address);
+              formik.setFieldValue("postcode", place.postcode);
             }}
-            disabled={false}
+            inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -229,12 +227,14 @@ return (
             <label className="text-neutral-700 text-[14px] font-weight-500">
               Post Code{" "}
             </label>
-            <input
-              type="text"
-              value={formik.values.postcode}
-              onChange={(e) => formik.setFieldValue("postcode", e.target.value)}
-              placeholder="Enter Post Code"
-              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+            <PostcodeLookup
+              postcode={formik.values.postcode}
+              onChange={(v) => formik.setFieldValue("postcode", v)}
+              onAddressSelect={(addr) => {
+                formik.setFieldValue("postcode", addr.postcode);
+                formik.setFieldValue("address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+              }}
+              inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
             />
           </div>
           {/* Vehicle Registration */}

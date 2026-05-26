@@ -1,4 +1,5 @@
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "react-toastify";
@@ -500,21 +501,14 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
             <label className="text-neutral-700 text-[14px] font-weight-500">
               Address
             </label>
-            <LeafletAutocompleteMap
-              showMap={false}
-              disabled={false}
-              apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
+            <AddressAutocomplete
               address={formik.values.engineer_address.address}
+              onChange={(v) => formik.setFieldValue("engineer_address.address", v)}
               onPlaceSelected={(place) => {
-                formik.setFieldValue(
-                  "engineer_address.address",
-                  place.address || "",
-                );
-                formik.setFieldValue(
-                  "engineer_address.postcode",
-                  place.postalCode || "",
-                );
+                formik.setFieldValue("engineer_address.address", place.address);
+                formik.setFieldValue("engineer_address.postcode", place.postcode);
               }}
+              inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
             />
           </div>
 
@@ -523,17 +517,14 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
               <label className="text-neutral-700 text-[14px] font-weight-500">
                 Postcode
               </label>
-              <input
-                type="text"
-                value={formik.values.engineer_address.postcode}
-                onChange={(e) =>
-                  formik.setFieldValue(
-                    "engineer_address.postcode",
-                    e.target.value,
-                  )
-                }
-                placeholder="Enter Postcode"
-                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+              <PostcodeLookup
+                postcode={formik.values.engineer_address.postcode}
+                onChange={(v) => formik.setFieldValue("engineer_address.postcode", v)}
+                onAddressSelect={(addr) => {
+                  formik.setFieldValue("engineer_address.postcode", addr.postcode);
+                  formik.setFieldValue("engineer_address.address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+                }}
+                inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
               />
             </div>
 
@@ -613,21 +604,14 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
             <label className="text-neutral-700 text-[14px] font-weight-500">
               Address
             </label>
-            <LeafletAutocompleteMap
-              showMap={false}
-              disabled={false}
-              apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
+            <AddressAutocomplete
               address={formik.values.vehicle_address.address}
+              onChange={(v) => formik.setFieldValue("vehicle_address.address", v)}
               onPlaceSelected={(place) => {
-                formik.setFieldValue(
-                  "vehicle_address.address",
-                  place.address || "",
-                );
-                formik.setFieldValue(
-                  "vehicle_address.postcode",
-                  place.postalCode || "",
-                );
+                formik.setFieldValue("vehicle_address.address", place.address);
+                formik.setFieldValue("vehicle_address.postcode", place.postcode);
               }}
+              inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
             />
           </div>
 
@@ -636,17 +620,14 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
               <label className="text-neutral-700 text-[14px] font-weight-500">
                 Postcode
               </label>
-              <input
-                type="text"
-                value={formik.values.vehicle_address.postcode}
-                onChange={(e) =>
-                  formik.setFieldValue(
-                    "vehicle_address.postcode",
-                    e.target.value,
-                  )
-                }
-                placeholder="Enter Postcode"
-                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+              <PostcodeLookup
+                postcode={formik.values.vehicle_address.postcode}
+                onChange={(v) => formik.setFieldValue("vehicle_address.postcode", v)}
+                onAddressSelect={(addr) => {
+                  formik.setFieldValue("vehicle_address.postcode", addr.postcode);
+                  formik.setFieldValue("vehicle_address.address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+                }}
+                inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
               />
             </div>
           </div>

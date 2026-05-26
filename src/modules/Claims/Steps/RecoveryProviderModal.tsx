@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, ChevronLeft } from "lucide-react";
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { getRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { CustomDatePicker } from "../Components/DatePicker";
@@ -143,21 +144,11 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-neutral-700 text-sm">Address</label>
-              <LeafletAutocompleteMap
-                apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-                showMap={false}
-                disabled={false}
+              <AddressAutocomplete
                 address={localData.address.address}
-                onPlaceSelected={(p) =>
-                  setLocalData({
-                    ...localData,
-                    address: {
-                      ...localData.address,
-                      address: p.address,
-                      postcode: p.postalCode || "",
-                    },
-                  })
-                }
+                onChange={(v) => setLocalData({ ...localData, address: { ...localData.address, address: v } })}
+                onPlaceSelected={(place) => setLocalData({ ...localData, address: { ...localData.address, address: place.address, postcode: place.postcode } })}
+                inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
               />
             </div>
             <div className="grid grid-cols-2 gap-5">
@@ -166,20 +157,11 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   Post Code
                 </label>
 
-                <input
-                  type="text"
-                  placeholder="Enter Post Code"
-                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
-                  value={localData.address.postcode}
-                  onChange={(e) =>
-                    setLocalData({
-                      ...localData,
-                      address: {
-                        ...localData.address,
-                        postcode: e.target.value,
-                      },
-                    })
-                  }
+                <PostcodeLookup
+                  postcode={localData.address.postcode}
+                  onChange={(v) => setLocalData({ ...localData, address: { ...localData.address, postcode: v } })}
+                  onAddressSelect={(addr) => setLocalData({ ...localData, address: { ...localData.address, postcode: addr.postcode, address: [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", ") } })}
+                  inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
                 />
               </div>
 

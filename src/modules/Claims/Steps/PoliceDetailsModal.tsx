@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import Vector6 from '../../../assets/AutoClaim_icon/Vector-6.svg';
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import { toast } from "react-toastify";
 import { createPoliceDetail, updatePoliceDetail } from "../../../services/Accidents/Cards/cards";
 import { CustomDatePicker } from "../Components/DatePicker";
@@ -143,16 +143,11 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
               className="px-5 py-4 h-24 border border-gray-200 rounded text-base outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
               {...formik.getFieldProps("station_address")}
             /> */}
-            <LeafletAutocompleteMap
-              showMap={false}
-              apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-              address={formik.values.station_address}
-              onPlaceSelected={(place) => {
-                if (place.name) {
-                  formik.setFieldValue("station_address", place?.address);
-                }
-              }}
-              disabled={false}
+            <AddressAutocomplete
+              address={formik.values.station_address || ""}
+              onChange={(v) => formik.setFieldValue("station_address", v)}
+              onPlaceSelected={(place) => formik.setFieldValue("station_address", place.address)}
+              inputClassName="w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light"
             />
           </div>
 

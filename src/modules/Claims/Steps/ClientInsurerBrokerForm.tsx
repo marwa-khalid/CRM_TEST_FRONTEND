@@ -4,7 +4,8 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import {
   getClientInsurer,
   updateClientInsurer,
@@ -235,15 +236,14 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
             Address
           </label>
-          <LeafletAutocompleteMap
-            disabled={false}
-            showMap={false}
-            apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-            address={formik.values.address}
+          <AddressAutocomplete
+            address={formik.values.address || ""}
+            onChange={(v) => formik.setFieldValue("address", v)}
             onPlaceSelected={(place) => {
               formik.setFieldValue("address", place.address);
-              formik.setFieldValue("postcode", place.postalCode);
+              formik.setFieldValue("postcode", place.postcode);
             }}
+            inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
           />
         </div>
 
@@ -252,12 +252,14 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             <label className="text-neutral-700 text-[14px] font-weight-500">
               Post Code
             </label>
-            <input
-              name="postcode"
-              value={formik.values.postcode}
-              onChange={(e) => formik.setFieldValue("postcode", e.target.value)}
-              placeholder="Enter Postcode"
-              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+            <PostcodeLookup
+              postcode={formik.values.postcode}
+              onChange={(v) => formik.setFieldValue("postcode", v)}
+              onAddressSelect={(addr) => {
+                formik.setFieldValue("postcode", addr.postcode);
+                formik.setFieldValue("address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+              }}
+              inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
             />
           </div>
 

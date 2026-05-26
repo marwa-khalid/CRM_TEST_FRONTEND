@@ -7,7 +7,8 @@ import {
   getReferrer,
   updateReferrer,
 } from "../../../services/Referrer/Referrer";
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import * as Yup from "yup";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
@@ -367,17 +368,14 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
             Company Address
           </label>
 
-          <LeafletAutocompleteMap
-            showMap={false}
-            apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
+          <AddressAutocomplete
             address={formik.values.address || ""}
+            onChange={(v) => formik.setFieldValue("address", v)}
             onPlaceSelected={(place) => {
-              if (place?.name || place?.address) {
-                formik.setFieldValue("address", place.address || "");
-                formik.setFieldValue("postcode", place?.postalCode || "");
-              }
+              formik.setFieldValue("address", place.address);
+              formik.setFieldValue("postcode", place.postcode);
             }}
-            disabled={false}
+            inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
           />
         </div>
 
@@ -405,12 +403,14 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
               Post Code
             </label>
 
-            <input
-              name="postcode"
-              value={formik.values.postcode || ""}
-              onChange={(e) => formik.setFieldValue("postcode", e.target.value)}
-              placeholder="Enter Postcode"
-              className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+            <PostcodeLookup
+              postcode={formik.values.postcode || ""}
+              onChange={(v) => formik.setFieldValue("postcode", v)}
+              onAddressSelect={(addr) => {
+                formik.setFieldValue("postcode", addr.postcode);
+                formik.setFieldValue("address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+              }}
+              inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
             />
           </div>
 

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import Select from "react-select";
 import { X, ChevronLeft } from "lucide-react";
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import {
   createWitness,
   getQuestionnaireStatus,
@@ -399,20 +400,11 @@ export const WitnessDetailsModal = ({
                 Address
               </label>
 
-              <LeafletAutocompleteMap
-                showMap={false}
-                disabled={false}
-                apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-                address={witness.address}
-                onPlaceSelected={(place) => {
-                  if (place.address) {
-                    setWitness({
-                      ...witness,
-                      address: place.address,
-                      postCode: place.postalCode || "",
-                    });
-                  }
-                }}
+              <AddressAutocomplete
+                address={witness.address || ""}
+                onChange={(v) => setWitness({ ...witness, address: v })}
+                onPlaceSelected={(place) => setWitness({ ...witness, address: place.address, postCode: place.postcode })}
+                inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
               />
             </div>
 
@@ -422,14 +414,11 @@ export const WitnessDetailsModal = ({
                   Post Code
                 </label>
 
-                <input
-                  type="text"
-                  placeholder="Enter Post Code"
-                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
-                  value={witness.postCode}
-                  onChange={(e) =>
-                    setWitness({ ...witness, postCode: e.target.value })
-                  }
+                <PostcodeLookup
+                  postcode={witness.postCode}
+                  onChange={(v) => setWitness({ ...witness, postCode: v })}
+                  onAddressSelect={(addr) => setWitness({ ...witness, postCode: addr.postcode, address: [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", ") })}
+                  inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
                 />
               </div>
 

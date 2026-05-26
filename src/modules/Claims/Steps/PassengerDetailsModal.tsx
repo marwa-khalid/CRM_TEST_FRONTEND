@@ -3,7 +3,8 @@ import Select from "react-select";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
 import { createPassenger, updatePassenger } from "../../../services/Accidents/Cards/cards";
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 
 export const PassengerDetailsModal = ({ onClose, claimId, initialData ,addNew}) => {
@@ -183,22 +184,11 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 setPassenger({ ...passenger, address: e.target.value })
               }
             /> */}
-            <LeafletAutocompleteMap
-              showMap={false}
-              apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-              address={passenger.address}
-              onPlaceSelected={(place) => {
-                if (place.name) {
-                  setPassenger({
-                    ...passenger,
-                    address: place.address,
-                    postCode: place.postalCode,
-                  });
-
-                  // formik.setFieldValue("postcode", place?.postalCode);
-                }
-              }}
-              disabled={false}
+            <AddressAutocomplete
+              address={passenger.address || ""}
+              onChange={(v) => setPassenger({ ...passenger, address: v })}
+              onPlaceSelected={(place) => setPassenger({ ...passenger, address: place.address, postCode: place.postcode })}
+              inputClassName={`w-full h-[52px] px-5 bg-white rounded text-neutral-700 border border-gray-200 ${inputStyles}`}
             />
           </div>
 
@@ -208,14 +198,11 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               <label className="text-neutral-700 text-[14px] font-weight-500">
                 Post Code
               </label>
-              <input
-                type="text"
-                placeholder="Enter Post Code"
-                className={`w-full h-[52px] px-5 bg-white rounded text-neutral-700 border border-gray-200 ${inputStyles}`}
-                value={passenger.postCode}
-                onChange={(e) =>
-                  setPassenger({ ...passenger, postCode: e.target.value })
-                }
+              <PostcodeLookup
+                postcode={passenger.postCode}
+                onChange={(v) => setPassenger({ ...passenger, postCode: v })}
+                onAddressSelect={(addr) => setPassenger({ ...passenger, postCode: addr.postcode, address: [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", ") })}
+                inputClassName={`w-full h-[52px] px-5 bg-white rounded text-neutral-700 border border-gray-200 ${inputStyles}`}
               />
             </div>
             <div className="flex flex-col gap-2">

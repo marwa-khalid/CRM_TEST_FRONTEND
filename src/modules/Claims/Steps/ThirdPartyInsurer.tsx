@@ -924,7 +924,8 @@ import No from "../../../assets/AutoClaim_icon/No.svg";
 import TopRightIcon from "../../../assets/AutoClaim_icon/Vulnerable.svg";
 import { ABIInsurerModal } from "./ABIInsurerModal";
 import { CustomDatePicker } from "../Components/DatePicker";
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import {
   getHandlers,
   getLiabilityStances,
@@ -1307,18 +1308,29 @@ const ThirdPartyInsurer = ({ formRef }: any) => {
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-neutral-700 text-sm font-light">Address</label>
-          <LeafletAutocompleteMap
-            disabled={false} showMap={false}
-            apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-            address={formik.values.third_party.address.address}
-            onPlaceSelected={(p) => {
-              formik.setFieldValue("third_party.address.address", p.address);
-              formik.setFieldValue("third_party.address.postcode", p.postalCode);
+          <AddressAutocomplete
+            address={formik.values.third_party.address.address || ""}
+            onChange={(v) => formik.setFieldValue("third_party.address.address", v)}
+            onPlaceSelected={(place) => {
+              formik.setFieldValue("third_party.address.address", place.address);
+              formik.setFieldValue("third_party.address.postcode", place.postcode);
             }}
+            inputClassName="px-5 h-[52px] bg-white rounded border border-neutral-200 text-base font-light outline-none focus:border-blue-500 transition-colors w-full"
           />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          {renderInput("Postcode", "third_party.address.postcode", "Postcode")}
+          <div className="flex flex-col gap-2 w-full">
+            <label className="text-neutral-700 text-sm font-light">Postcode</label>
+            <PostcodeLookup
+              postcode={getNestedValue("third_party.address.postcode")}
+              onChange={(v) => formik.setFieldValue("third_party.address.postcode", v)}
+              onAddressSelect={(addr) => {
+                formik.setFieldValue("third_party.address.postcode", addr.postcode);
+                formik.setFieldValue("third_party.address.address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+              }}
+              inputClassName="px-5 h-[52px] bg-white rounded border border-neutral-200 text-base font-light outline-none focus:border-blue-500 transition-colors w-full"
+            />
+          </div>
           {renderInput("Email Address", "third_party.address.email", "Email")}
         </div>
         <div className="grid grid-cols-2 gap-5">
@@ -1353,18 +1365,29 @@ const ThirdPartyInsurer = ({ formRef }: any) => {
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-neutral-700 text-sm font-light">Address</label>
-          <LeafletAutocompleteMap
-            disabled={false} showMap={false}
-            apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-            address={formik.values.third_party_insurer.address.address}
-            onPlaceSelected={(p) => {
-              formik.setFieldValue("third_party_insurer.address.address", p.address);
-              formik.setFieldValue("third_party_insurer.address.postcode", p.postalCode);
+          <AddressAutocomplete
+            address={formik.values.third_party_insurer.address.address || ""}
+            onChange={(v) => formik.setFieldValue("third_party_insurer.address.address", v)}
+            onPlaceSelected={(place) => {
+              formik.setFieldValue("third_party_insurer.address.address", place.address);
+              formik.setFieldValue("third_party_insurer.address.postcode", place.postcode);
             }}
+            inputClassName="px-5 h-[52px] bg-white rounded border border-neutral-200 text-base font-light outline-none focus:border-blue-500 transition-colors w-full"
           />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          {renderInput("Postcode", "third_party_insurer.address.postcode", "Postcode")}
+          <div className="flex flex-col gap-2 w-full">
+            <label className="text-neutral-700 text-sm font-light">Postcode</label>
+            <PostcodeLookup
+              postcode={getNestedValue("third_party_insurer.address.postcode")}
+              onChange={(v) => formik.setFieldValue("third_party_insurer.address.postcode", v)}
+              onAddressSelect={(addr) => {
+                formik.setFieldValue("third_party_insurer.address.postcode", addr.postcode);
+                formik.setFieldValue("third_party_insurer.address.address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+              }}
+              inputClassName="px-5 h-[52px] bg-white rounded border border-neutral-200 text-base font-light outline-none focus:border-blue-500 transition-colors w-full"
+            />
+          </div>
           {renderInput("Main Tel.", "third_party_insurer.address.mobile_tel", "+44")}
         </div>
         <div className="grid grid-cols-2 gap-5">
@@ -1401,18 +1424,29 @@ const ThirdPartyInsurer = ({ formRef }: any) => {
         {renderInput("Name", "third_party_handling.first_name", "Enter Name")}
         <div className="flex flex-col gap-2">
           <label className="text-neutral-700 text-sm font-light">Address</label>
-          <LeafletAutocompleteMap
-            showMap={false} disabled={false}
-            apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-            address={formik.values.third_party_handling.address.address}
-            onPlaceSelected={(p) => {
-              formik.setFieldValue("third_party_handling.address.address", p.address);
-              formik.setFieldValue("third_party_handling.address.postcode", p.postalCode);
+          <AddressAutocomplete
+            address={formik.values.third_party_handling.address.address || ""}
+            onChange={(v) => formik.setFieldValue("third_party_handling.address.address", v)}
+            onPlaceSelected={(place) => {
+              formik.setFieldValue("third_party_handling.address.address", place.address);
+              formik.setFieldValue("third_party_handling.address.postcode", place.postcode);
             }}
+            inputClassName="px-5 h-[52px] bg-white rounded border border-neutral-200 text-base font-light outline-none focus:border-blue-500 transition-colors w-full"
           />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          {renderInput("Postcode", "third_party_handling.address.postcode", "Postcode")}
+          <div className="flex flex-col gap-2 w-full">
+            <label className="text-neutral-700 text-sm font-light">Postcode</label>
+            <PostcodeLookup
+              postcode={getNestedValue("third_party_handling.address.postcode")}
+              onChange={(v) => formik.setFieldValue("third_party_handling.address.postcode", v)}
+              onAddressSelect={(addr) => {
+                formik.setFieldValue("third_party_handling.address.postcode", addr.postcode);
+                formik.setFieldValue("third_party_handling.address.address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+              }}
+              inputClassName="px-5 h-[52px] bg-white rounded border border-neutral-200 text-base font-light outline-none focus:border-blue-500 transition-colors w-full"
+            />
+          </div>
           {renderInput("Tel. Main", "third_party_handling.address.mobile_tel", "+44")}
         </div>
         <div className="grid grid-cols-2 gap-5">

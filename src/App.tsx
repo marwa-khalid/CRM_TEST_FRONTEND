@@ -30,9 +30,10 @@ import QuestionnaireLayout from "./modules/Claims/Questionnaire/QuestionnaireLay
 import Step1Witness from './modules/Claims/Questionnaire/WitnessStep1';
 import Step2Questions from './modules/Claims/Questionnaire/WitnessStep2';
 import Step3SketchPreview from './modules/Claims/Questionnaire/WitnessStep3';
-import Step4Canvas from './modules/Claims/Questionnaire/WitnessStep4';
+import Step4Canvas from './modules/Claims/Questionnaire/CanvasScreen';
 import CaseActivityStream from './modules/Claims/CaseActivity/CaseActivityStream';
 import DocumentLibrary from './modules/Claims/DocumentsLibrary/DocumentsLibrary';
+import Step4Signature from './modules/Claims/Questionnaire/WitnessStep4';
 const App: React.FC = () => {
 
   return (
@@ -67,7 +68,7 @@ const App: React.FC = () => {
             <Route path="step-1" element={<Step1Witness />} />
             <Route path="step-2" element={<Step2Questions />} />
             <Route path="step-3" element={<Step3SketchPreview />} />
-            <Route path="step-4" element={<Step4Canvas />} />
+            <Route path="step-4" element={<Step4Signature />} />
           </Route>
 
           <Route
@@ -77,7 +78,7 @@ const App: React.FC = () => {
             <Route path="step-1" element={<Step1Witness />} />
             <Route path="step-2" element={<Step2Questions />} />
             <Route path="step-3" element={<Step3SketchPreview />} />
-            <Route path="step-4" element={<Step4Canvas />} />
+            <Route path="step-4" element={<Step4Signature />} />
           </Route>
           {/* Redirect to login if no route matches */}
           {/* Protected Routes with Layout */}

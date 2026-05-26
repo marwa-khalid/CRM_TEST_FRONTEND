@@ -33,7 +33,15 @@ export const getDocumentLibrary = async (claimId: number | string) => {
   );
   return response.data;
 };
+export const getAllDocumentLibrary = async () => {
+  const response = await axiosInstance.get("/document-library", {
+    params: {
+      scope: "all",
+    },
+  });
 
+  return response.data;
+};
 export const getDocumentDetail = async (documentId: number | string) => {
   const response = await axiosInstance.get(`/document-library/${documentId}`);
   return response.data;
@@ -72,4 +80,20 @@ export const registerDocumentPreview = async (documentId: number | string) => {
 
 export const registerDocumentDownload = async (documentId: number | string) => {
   return axiosInstance.post(`/document-library/${documentId}/download`);
+};
+
+export const getClaimPhotos = async (claimId: string | number) => {
+  const response = await axiosInstance.get(
+    `/document-library/claim/${claimId}/photos`,
+  );
+
+  return response.data;
+};
+
+export const getDocumentPreviewPages = async (documentId: number | string) => {
+  const response = await axiosInstance.get(
+    `/document-library/${documentId}/preview-pages`,
+  );
+
+  return response.data;
 };

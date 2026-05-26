@@ -50,9 +50,9 @@ export const sendCILToClient = (claimId: number, to_email?: string) =>
     to_email,
   });
 
-export const sendEngReportToTPI = (claimId: number, to_email: string) =>
+export const sendEngReportToTPI = (claimId: number, to_email?: string) =>
   axiosInstance.post(`/route-repairs/send-eng-report-tpi/${claimId}`, {
-    to_email,
+    to_email: to_email ?? null,
   });
 
 export const instructFleetOffHireFromRepair = (

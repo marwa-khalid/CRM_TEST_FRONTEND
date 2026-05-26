@@ -217,7 +217,7 @@ export const WitnessDetailsModal = ({
         if (method.id === "link" && res?.deep_link) {
           setDeepLink(res.deep_link);
           navigator.clipboard.writeText(res.deep_link);
-          toast.success("Secure questionnaire link sent and copied");
+          // toast.success("Secure questionnaire link sent and copied");
         }
 
         if (res?.claim_questionnaire_id) {

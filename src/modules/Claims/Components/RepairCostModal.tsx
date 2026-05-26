@@ -76,9 +76,9 @@ const toText = (value: unknown) =>
   value === null || value === undefined ? "" : String(value);
 
 const toNumber = (value: string) => {
-  if (value === "" || value === null || value === undefined) return 0;
+  if (value === "" || value === null || value === undefined) return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 const toCalendarDate = (value: unknown): NullableDate => {
@@ -294,10 +294,18 @@ const handleSendEngToTPI = async () => {
 
   setTpiLoading(true);
   try {
-    await sendEngReportToTPI(claimId, JSON.parse(localStorage.getItem("activeUser")).email); // later dynamic
+    await sendEngReportToTPI(claimId);
     toast.success("Engineer report sent to TPI");
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Failed");
+    const detail = e?.response?.data?.detail || "";
+    if (detail.toLowerCase().includes("recipient email is missing")) {
+      toast.error(
+        "TPI Direct Email is not set. Go to the Third Party Insurer section, enter the Direct Email, and save before sending.",
+        { autoClose: 6000 }
+      );
+    } else {
+      toast.error(detail || "Failed to send engineer report");
+    }
   } finally {
     setTpiLoading(false);
   }
@@ -319,14 +327,14 @@ const handleFleetOffHire = async () => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[100] p-10">
+    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[100] p-10 font-['Stack_Sans_Headline']">
       <div className="card bg-white w-[1070px] h-full flex flex-col overflow-auto">
         <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center sticky top-0 z-20">
-          <h1 className="font-weight-600 text-xl">Repair Cost & Route</h1>
+          <h1 className="font-weight-600 text-[20px]">Repair Cost & Route</h1>
           <div className="flex gap-5">
             <button
               type="button"
-              className="px-10 py-4 bg-white rounded border border-blue-600 text-blue-600 text-base font-medium hover:bg-blue-50 transition-colors"
+              className="px-10 py-4 bg-white rounded border border-blue-600 text-blue-600 text-base font-weight-500 hover:bg-blue-50 transition-colors"
               onClick={onClose}
             >
               Cancel
@@ -334,14 +342,14 @@ const handleFleetOffHire = async () => {
             <button
               type="button"
               disabled={formik.isSubmitting}
-              className="px-10 py-4 bg-blue-500 rounded text-white text-base font-medium hover:bg-blue-600 disabled:opacity-60 transition-colors"
+              className="px-10 py-4 bg-blue-500 rounded text-white text-base font-weight-500 hover:bg-blue-600 disabled:opacity-60 transition-colors"
               onClick={() => formik.handleSubmit()}
             >
               {formik.isSubmitting
                 ? "Saving..."
                 : repairRecordId
                   ? "Update"
-                  : "Create"}
+                  : "Update"}
             </button>
           </div>
         </div>
@@ -431,7 +439,7 @@ const handleFleetOffHire = async () => {
                 type="button"
                 onClick={handleSendCILAgreement}
                 disabled={cilLoading || clientCilLoading}
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-medium hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
+                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
               >
                 {cilLoading ? "Generating..." : "CIL Agreement Letter"}
               </button>
@@ -440,7 +448,7 @@ const handleFleetOffHire = async () => {
                 type="button"
                 onClick={handleSendEngToTPI}
                 disabled={tpiLoading}
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-medium hover:bg-blue-50 uppercase text-xs tracking-wide"
+                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide"
               >
                 {tpiLoading ? "Sending..." : "Eng Rep to TPI for Auth"}
               </button>
@@ -448,16 +456,16 @@ const handleFleetOffHire = async () => {
                 type="button"
                 onClick={handleSendCILClient}
                 disabled={cilLoading || clientCilLoading}
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-medium hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
+                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
               >
                 {clientCilLoading ? "Generating..." : "Send CIL to Client"}
               </button>
-     
+
               <button
                 type="button"
                 onClick={handleFleetOffHire}
                 disabled={fleetLoading}
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-medium hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
+                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
               >
                 {fleetLoading ? "Sending..." : "Instruct Fleet to Off Hire"}
               </button>
@@ -471,13 +479,13 @@ const handleFleetOffHire = async () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-2">
               <button
                 type="button"
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-medium hover:bg-blue-50 text-sm"
+                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 text-sm"
               >
                 Instruct Roadworthy to Arrange Hire
               </button>
               <button
                 type="button"
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-medium hover:bg-blue-50 text-sm"
+                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 text-sm"
               >
                 Eng. Rep to TPI for Auth
               </button>
@@ -529,6 +537,13 @@ const Section = ({
   </div>
 );
 
+const formatTwoDecimals = (value: any) => {
+  if (value === "" || value === null || value === undefined) return "";
+  const num = Number(value);
+  if (Number.isNaN(num)) return value;
+  return num.toFixed(2);
+};
+
 const CurrencyField = ({
   label,
   name,
@@ -539,16 +554,19 @@ const CurrencyField = ({
   formik: any;
 }) => (
   <div className="flex flex-col gap-2">
-    <label className="text-gray-700 text-sm font-medium">{label}</label>
+    <label className="text-gray-700 text-sm font-weight-500">{label}</label>
     <div className="relative">
       <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400">
         £
       </span>
       <input
         type="number"
+        step="0.01"
+        min="0"
         name={name}
         value={formik.values[name] ?? ""}
         onChange={formik.handleChange}
+        onBlur={(e) => formik.setFieldValue(name, formatTwoDecimals(e.target.value))}
         className="w-full pl-10 pr-4 py-4 rounded border border-gray-200 outline-none transition-all focus:border-blue-500 hover:border-gray-300"
         placeholder="0.00"
       />
@@ -629,7 +647,7 @@ const RadioGroup = ({
   formik: any;
 }) => (
   <div className="flex flex-col gap-4">
-    <span className="text-gray-900 text-sm font-medium">{label}</span>
+    <span className="text-gray-900 text-sm font-weight-500">{label}</span>
     <div className="flex gap-10">
       {[true, false].map((val) => (
         <button
@@ -649,7 +667,7 @@ const RadioGroup = ({
               <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
             )}
           </div>
-          <span className="text-sm text-gray-700 font-medium">
+          <span className="text-sm text-gray-700 font-weight-500">
             {val ? "Yes" : "No"}
           </span>
         </button>

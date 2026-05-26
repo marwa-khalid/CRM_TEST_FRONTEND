@@ -149,9 +149,7 @@ const [isUploading, setIsUploading] = useState(false);
             <div className="text-black text-base font-weight-600 font-['Stack_Sans_Headline']">
               {step === 1 && "Choose a file or Drag & Drop here"}
               {step === 2 &&
-                (isUploading
-                  ? "Processing file..."
-                  : `Uploading - ${Math.min(progress, 100)}%`)}
+                `Uploading - ${formatSize((file?.size || 0) * (progress / 100))} of ${formatSize(file?.size || 0)}`}
               {step === 3 &&
                 `Uploaded - ${formatSize(file?.size || 0)} of ${formatSize(file?.size || 0)}`}
             </div>

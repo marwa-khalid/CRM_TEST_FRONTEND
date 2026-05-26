@@ -13,7 +13,6 @@ import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
-import type2 from "../../../assets/AutoClaim_icon/analyzing.svg";
 
 export const ReferrerDetailsForm = ({ formRef }: any) => {
   const claimId = localStorage.getItem("claimId");
@@ -300,18 +299,19 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
       <h1 className="text-neutral-900 text-[24px] font-weight-600">
         Referrer Details
       </h1>
-{isAnalyzing && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-transparent p-6 rounded-xl flex flex-col items-center gap-4 ">
-            {/* Spinner */}
-            <img
-              src={type2}
-              className="w-16 h-16 animate-spin"
-              style={{ animationDuration: "2s" }}
-            />
-            {/* <div className="text-white text-sm font-weight-400">
-              Analyzing images...
-            </div> */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-[9999] bg-[#e8e6df]/80 flex items-center justify-center font-['Stack_Sans_Headline']">
+          <div className="relative w-[73px] h-[73px]">
+            {Array.from({ length: 12 }).map((_, index) => (
+              <span
+                key={index}
+                className="absolute left-1/2 top-1/2 w-[6px] h-[16px] rounded-full bg-[#9b9b9b] animate-loaderFade"
+                style={{
+                  transform: `translate(-50%, -50%) rotate(${index * 30}deg) translateY(-25px)`,
+                  animationDelay: `${index * 0.08}s`,
+                }}
+              />
+            ))}
           </div>
         </div>
       )}

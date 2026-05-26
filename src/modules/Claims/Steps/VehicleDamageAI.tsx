@@ -12,7 +12,6 @@ import AI from "../../../assets/AutoClaim_icon/AI.svg";
 import medium from "../../../assets/AutoClaim_icon/medium.svg";
 import high from "../../../assets/AutoClaim_icon/high.svg";
 import low from "../../../assets/AutoClaim_icon/low.svg";
-import type2 from "../../../assets/AutoClaim_icon/analyzing.svg";
 import VehicleManualForm from "./VehicleManualForm";
 import AIDamageReportSlider from "../Components/AIReportSlider";
 
@@ -131,7 +130,120 @@ useEffect(() => {
   };
   const [entryMode, setEntryMode] = useState<string>("Manual");
      const reportRef = useRef<HTMLDivElement>(null);
-     
+    const getAllDamageRows = () => {
+      const rowsFromImages =
+        aiResult?.images?.flatMap((image: any, imageIndex: number) =>
+          (image.predictions || []).map((prediction: any) => ({
+            ...prediction,
+            image_index: prediction.image_index ?? imageIndex,
+          })),
+        ) || [];
+
+      if (rowsFromImages.length > 0) return rowsFromImages;
+
+      return aiResult?.predictions || [];
+    };
+
+    const getAllDetectionImages = () => {
+      if (aiResult?.images?.length > 0) {
+        return aiResult.images.map((image: any, index: number) => ({
+          id: image.id || index,
+          src:
+            image.annotated_image_url ||
+            image.original_image_url ||
+            previews[index],
+        }));
+      }
+
+      return previews.map((src, index) => ({
+        id: index,
+        src,
+      }));
+    };
+
+    const getSeverityCount = (severity: string) => {
+      return getAllDamageRows().filter(
+        (item: any) =>
+          String(item.severity || "").toLowerCase() === severity.toLowerCase(),
+      ).length;
+    };
+
+    const getSuggestedRepair = (damageType?: string) => {
+      const type = String(damageType || "").toLowerCase();
+
+      if (type === "dent") return "Repair";
+      if (type === "broken") return "Replace part";
+      if (type === "crash") return "Major repair";
+      if (type === "scratch") return "Paint / polish";
+      if (type === "shattered") return "Replace glass";
+
+      return "Inspect";
+    };
+
+    const formatConfidence = (confidence: any) => {
+      if (confidence === undefined || confidence === null) return "-";
+
+      if (String(confidence).includes("%")) return confidence;
+
+      const value = Number(confidence);
+
+      if (Number.isNaN(value)) return "-";
+
+      if (value <= 1) return `${(value * 100).toFixed(0)}%`;
+
+      return `${value.toFixed(0)}%`;
+    }; 
+    const getReportId = () => {
+      if (aiResult?.report_id) return aiResult.report_id;
+      if (aiResult?.reportId) return aiResult.reportId;
+
+      const claimRef = localStorage.getItem("CaseReference") || "CLAIM";
+      return `RPT-${claimRef.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-${Date.now()
+        .toString()
+        .slice(-6)}`;
+    };
+
+    const getCollectivePdfUrl = () => {
+      return (
+        aiResult?.report_pdf_url ||
+        aiResult?.pdf_report_url ||
+        aiResult?.pdf_url ||
+        aiResult?.images?.[0]?.report_pdf_url ||
+        ""
+      );
+    };
+
+    const buildCollectiveReport = () => {
+      const user = JSON.parse(localStorage.getItem("activeUser") || "{}");
+
+      return {
+        report_id: getReportId(),
+        report_pdf_url: getCollectivePdfUrl(),
+        generated_at:
+          aiResult?.generated_at ||
+          aiResult?.images?.[0]?.generated_at ||
+          new Date().toISOString(),
+
+        claim_reference: localStorage.getItem("CaseReference") || "",
+        uploaded_by: user?.email || "Claim Handler",
+        source_name: "Claim Portal",
+        assessment_type: assessmentType,
+
+        images: aiResult?.images || [],
+        predictions: getAllDamageRows(),
+
+        audit_trail: [
+          {
+            doneBy: user?.email || "Claim Handler",
+            action: "Generated Collective AI Report",
+            timestamp:
+              aiResult?.generated_at ||
+              aiResult?.images?.[0]?.generated_at ||
+              new Date().toISOString(),
+          },
+        ],
+      };
+    };
   return (
     <div className="MainContent w-full flex flex-col items-stretch gap-6 py-6 font-['Stack_Sans_Headline']">
       {" "}
@@ -139,39 +251,71 @@ useEffect(() => {
       {open && (
         <AIDamageReportSlider
           isOpen={open}
-          currentImage={{
-            ...aiResult?.images?.[selectedImageIndex],
-            uploaded_by: JSON.parse(localStorage.getItem("activeUser")).email,
+          reportData={{
+            report_id:
+              aiResult?.report_id ||
+              aiResult?.reportId ||
+              aiResult?.images?.[0]?.report_id ||
+              undefined,
+
+            report_pdf_url:
+              aiResult?.report_pdf_url ||
+              aiResult?.pdf_report_url ||
+              aiResult?.images?.[0]?.report_pdf_url ||
+              "",
+
+            generated_at:
+              aiResult?.generated_at ||
+              aiResult?.images?.[0]?.generated_at ||
+              new Date().toISOString(),
+
+            images: aiResult?.images || [],
+
+            predictions: getAllDamageRows(),
+
+            uploaded_by:
+              JSON.parse(localStorage.getItem("activeUser") || "{}")?.email ||
+              "Claim Handler",
+
             source_name: "Claim Portal",
+
             assessment_type: assessmentType,
+
             audit_trail: [
               {
-                doneBy: JSON.parse(localStorage.getItem("activeUser")).email,
-                action: "Generated Report",
-                timestamp: aiResult?.images?.[selectedImageIndex]?.generated_at,
+                doneBy:
+                  JSON.parse(localStorage.getItem("activeUser") || "{}")
+                    ?.email || "Claim Handler",
+                action: "Generated Collective AI Report",
+                timestamp:
+                  aiResult?.generated_at ||
+                  aiResult?.images?.[0]?.generated_at ||
+                  new Date().toISOString(),
               },
             ],
           }}
           onClose={() => setOpen(false)}
           selectedType={assessmentType}
           claimReference={localStorage.getItem("CaseReference") || ""}
-          clientName={JSON.parse(localStorage.getItem("activeUser")).email}
+          clientName={
+            JSON.parse(localStorage.getItem("activeUser") || "{}")?.email || ""
+          }
           sourceName="Claim Portal"
-          // onSaveToClaim={handleSaveToClaim}
         />
       )}
       {isAnalyzing && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-transparent p-6 rounded-xl flex flex-col items-center gap-4 ">
-            {/* Spinner */}
-            <img
-              src={type2}
-              className="w-16 h-16 animate-spin"
-              style={{ animationDuration: "2s" }}
-            />
-            <div className="text-white text-sm font-weight-400">
-              Analyzing images...
-            </div>
+        <div className="fixed inset-0 z-[9999] bg-[#e8e6df]/80 flex items-center justify-center font-['Stack_Sans_Headline']">
+          <div className="relative w-[73px] h-[73px]">
+            {Array.from({ length: 12 }).map((_, index) => (
+              <span
+                key={index}
+                className="absolute left-1/2 top-1/2 w-[6px] h-[16px] rounded-full bg-[#9b9b9b] animate-loaderFade"
+                style={{
+                  transform: `translate(-50%, -50%) rotate(${index * 30}deg) translateY(-25px)`,
+                  animationDelay: `${index * 0.08}s`,
+                }}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -206,7 +350,10 @@ useEffect(() => {
             className="bg-blue-100 text-primary px-4 py-2 rounded text-sm"
             onClick={() => {
               const pdfUrl =
-                aiResult?.images?.[selectedImageIndex]?.report_pdf_url;
+                aiResult?.report_pdf_url ||
+                aiResult?.pdf_report_url ||
+                aiResult?.images?.[0]?.report_pdf_url;
+
               if (pdfUrl) window.open(pdfUrl, "_blank");
             }}
           >
@@ -346,152 +493,165 @@ useEffect(() => {
               <div className="flex gap-4">
                 <DamageSummaryRow
                   label="Total Damages Identified"
-                  value={aiResult?.count || 0}
+                  value={aiResult?.count || getAllDamageRows().length || 0}
                 />
+
                 <DamageSummaryRow
                   label="High Severity Issues"
-                  value={aiResult?.high_severity_count || 0}
+                  value={
+                    aiResult?.high_severity_count ||
+                    getSeverityCount("High") ||
+                    0
+                  }
                 />
               </div>
-              {/* Image Display Card */}
+
               <div className="w-full p-4 rounded-lg outline outline-1 outline-gray-100 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="text-xl font-weight-600">
                       Images with AI Detection
                     </h3>
+
                     <p className="text-gray-500 text-sm">
-                      {previews.length} image • Uploaded
+                      {getAllDetectionImages().length} image
+                      {getAllDetectionImages().length !== 1 ? "s" : ""} •
+                      Uploaded
                     </p>
                   </div>
+
                   <button
-                    onClick={() => setAiResult(null)}
+                    onClick={() => {
+                      setAiResult(null);
+                      setSelectedImageIndex(0);
+                      setCurrentPredictions([]);
+                    }}
                     className="h-8 px-3 py-2 bg-white rounded outline outline-1 outline-blue-600 text-blue-600 text-sm flex items-center gap-2"
                   >
-                    <img src={Plus} alt="" /> Add More Images
+                    <img src={Plus} alt="" />
+                    Add More Images
                   </button>
                 </div>
 
-                <div className="flex bg-neutral-50  justify-between items-center mb-4">
-                  {aiResult.images?.length > 1 && (
-                    <button
-                      onClick={() =>
-                        setSelectedImageIndex((prev) => Math.max(prev - 1, 0))
-                      }
-                      disabled={selectedImageIndex === 0}
-                      className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
-                    >
-                      ◀
-                    </button>
-                  )}
-                  <div className="w-full bg-neutral-50 rounded-lg flex justify-center items-center">
-                    <img
-                      src={
-                        aiResult?.images?.[selectedImageIndex]
-                          ?.annotated_image_url ||
-                        aiResult?.images?.[selectedImageIndex]
-                          ?.original_image_url ||
-                        previews[selectedImageIndex]
-                      }
-                      className="max-h-[350px] object-cover"
-                    />
+                <div className="w-full bg-neutral-100 rounded-lg p-3">
+                  <div className="grid grid-cols-6 gap-2">
+                    {getAllDetectionImages().map(
+                      (image: any, index: number) => (
+                        <button
+                          key={image.id}
+                          type="button"
+                          onClick={() => setSelectedImageIndex(index)}
+                          className="w-full h-[150px] rounded overflow-hidden bg-white border border-neutral-200"
+                        >
+                          <img
+                            src={image.src}
+                            alt={`AI Detection ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </button>
+                      ),
+                    )}
                   </div>
-                  {aiResult?.images?.length > 1 && (
-                    <button
-                      onClick={() =>
-                        setSelectedImageIndex((prev) =>
-                          Math.min(
-                            prev + 1,
-                            (aiResult?.images?.length || 1) - 1,
-                          ),
-                        )
-                      }
-                      disabled={
-                        selectedImageIndex ===
-                        (aiResult?.images?.length || 1) - 1
-                      }
-                      className="px-2 py-1 bg-gray-200 rounded disabled:opacity-50"
-                    >
-                      ▶
-                    </button>
-                  )}
                 </div>
 
                 <div className="relative w-full flex items-center gap-3 text-left text-sm text-darkslategray">
                   <div className="flex items-center gap-1.5">
                     <img src={high} alt="" />
-                    <div className="relative">High Severity</div>
+                    <div className="relative">
+                      High Severity ({getSeverityCount("High")})
+                    </div>
                   </div>
+
                   <div className="flex items-center gap-1.5">
                     <img src={medium} alt="" />
-
-                    <div className="relative">Medium Severity</div>
+                    <div className="relative">
+                      Medium Severity ({getSeverityCount("Medium")})
+                    </div>
                   </div>
+
                   <div className="flex items-center gap-1.5">
                     <img src={low} alt="" />
-
-                    <div className="relative">Low Severity</div>
+                    <div className="relative">
+                      Low Severity ({getSeverityCount("Low")})
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Damage Summary Table */}
               <div className="w-full p-4 rounded-lg outline outline-1 outline-gray-100 flex flex-col gap-4">
                 <h3 className="text-xl font-weight-600">Damage Summary</h3>
-                <div className="border-t border-b border-whitesmoke">
-                  <div className="flex p-4 font-weight-600 text-sm border-b text-neutral-900">
+
+                <div className="border border-gray-100 rounded-lg overflow-hidden">
+                  <div className="flex p-4 font-weight-600 text-sm border-b text-neutral-900 bg-white">
                     <div className="w-36">DAMAGE SIDE</div>
                     <div className="w-40">AREA OF DAMAGE</div>
                     <div className="w-44">TYPE OF DAMAGE</div>
                     <div className="w-32">SEVERITY</div>
                     <div className="w-28">CONFIDENCE</div>
                     <div className="w-28">POINTS</div>
-                    <div>SUGGESTED REPAIR</div>
+                    <div className="flex-1">SUGGESTED REPAIR</div>
                   </div>
 
-                  {currentPredictions.map((item: any, index: number) => (
-                    <div
-                      key={index}
-                      className="flex p-4 text-sm items-start border-b font-weight-400 font-light text-neutral-700"
-                    >
-                      <div className="w-36 capitalize">{item.side}</div>
-                      <div className="w-40 capitalize">{item.part}</div>
-                      <div className="w-44 capitalize">{item.damage_type}</div>
-                      <div className="w-32">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-bold ${
-                            item.severity === "High"
-                              ? "bg-red-100 text-red-700"
-                              : item.severity === "Medium"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-green-100 text-green-700"
-                          }`}
+                  {getAllDamageRows().length > 0 ? (
+                    getAllDamageRows().map((item: any, index: number) => {
+                      const severity = item.severity || "-";
+                      const damageType =
+                        item.damage_type ||
+                        item.type_of_damage ||
+                        item.type ||
+                        "-";
+
+                      return (
+                        <div
+                          key={index}
+                          className="flex p-4 text-sm items-start border-b last:border-b-0 font-weight-400 font-light text-neutral-700"
                         >
-                          {item.severity}
-                        </span>
-                      </div>
-                      <div className="w-28">
-                        {(item.confidence * 100).toFixed(0)}%
-                      </div>
-                      <div className="w-28">{item.points || 1}</div>
-                      <div>
-                        <div>
-                          {item.damage_type?.toLowerCase() === "dent"
-                            ? "Repair & paint"
-                            : item.damage_type?.toLowerCase() === "broken"
-                              ? "Replace part"
-                              : item.damage_type?.toLowerCase() === "crash"
-                                ? "Replace or major repair"
-                                : item.damage_type?.toLowerCase() === "scratch"
-                                  ? "Paint / polish"
-                                  : item.damage_type?.toLowerCase() ===
-                                      "shattered"
-                                    ? "Replace glass"
-                                    : "Inspect"}
+                          <div className="w-36 capitalize">
+                            {item.damage_side || item.side || "-"}
+                          </div>
+
+                          <div className="w-40 capitalize">
+                            {item.area_of_damage ||
+                              item.area ||
+                              item.part ||
+                              "-"}
+                          </div>
+
+                          <div className="w-44 capitalize">{damageType}</div>
+
+                          <div className="w-32">
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-weight-600 ${
+                                severity === "High"
+                                  ? "bg-red-100 text-red-500"
+                                  : severity === "Medium"
+                                    ? "bg-orange-100 text-orange-500"
+                                    : "bg-green-100 text-green-500"
+                              }`}
+                            >
+                              {severity}
+                            </span>
+                          </div>
+
+                          <div className="w-28">
+                            {formatConfidence(item.confidence)}
+                          </div>
+
+                          <div className="w-28">{item.points || 1}</div>
+
+                          <div className="flex-1">
+                            {item.suggested_repair ||
+                              item.repair ||
+                              getSuggestedRepair(damageType)}
+                          </div>
                         </div>
-                      </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-4 text-sm text-neutral-400">
+                      No damage summary available.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>

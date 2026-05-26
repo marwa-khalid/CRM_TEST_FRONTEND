@@ -2,10 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { X, ChevronLeft } from "lucide-react";
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
-import { debounce } from "lodash";
 import { getStorageProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { CustomDatePicker } from "../Components/DatePicker";
-import { getCompanySuggestions } from "../../../services/Referrer/Referrer";
 
 export const StorageProviderModal = ({
   onClose,
@@ -14,9 +12,6 @@ export const StorageProviderModal = ({
   formik,
 }: any) => {
   const [step, setStep] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [storageSuggestions, setStorageSuggestions] = useState<any[]>([]);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const startDateRef = useRef<HTMLDivElement>(null);
@@ -44,11 +39,12 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         setShowEndDatePicker(false);
      
     };
+    document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
   // LOCAL STATE (Buffer): Only push to Parent Formik on "Save"
   const [localData, setLocalData] = useState({
-    id: initialData?.id || 0, // Temporary ID if new
+    id: initialData?.id || Date.now(),
     storage_provider: initialData?.storage_provider || "",
     name: initialData?.name || "",
     claim_id: parseInt(claimId),
@@ -90,47 +86,6 @@ useEffect(() => {
     }));
   }
 }, [localData.start_date, localData.end_date, localData.charge_per_day]);
-
-  // --- HANDLERS ---
- const fetchCompanies = async () => {
-   try {
-     const response = await getCompanySuggestions(searchTerm); // Replace with your API endpoint
-
-     console.log(response);
-     // Normalize empty strings to null
-     //  const normalized = response.data.map((r) => ({
-     //    company_name: r.company_name,
-     //    address: r.address?.trim() || null,
-     //    post_code: r.postcode?.trim() || null,
-     //  }));
-
-     setStorageSuggestions(response.data);
-   } catch (err) {
-     console.error(err);
-   }
- };
-  // --- HANDLERS ---
- useEffect(() => {
-    
-     if (searchTerm) {
-       fetchCompanies();
-     }
-   }, [searchTerm]);
-
-
-  const handleCompanySelect = (selected: any) => {
-    setSearchTerm(selected.company_name);
-    setShowDropdown(false);
-    setLocalData((prev) => ({
-      ...prev,
-      storage_provider: selected.company_name,
-      address: {
-        ...prev.address,
-        address: selected.address || "",
-        postcode: selected.postcode || "",
-      },
-    }));
-  };
 
   const allowDecimalInput = (value: string) => {
     return value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
@@ -199,35 +154,19 @@ useEffect(() => {
 
         {step === 1 ? (
           <div className="flex flex-col gap-4">
-            {/* Network Provider Search */}
-            <div className="flex flex-col gap-2 relative">
+            <div className="flex flex-col gap-2">
               <label className="text-neutral-700 text-sm">
                 Network Storage Provider
               </label>
               <input
                 type="text"
-                value={searchTerm || localData.storage_provider}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setShowDropdown(true);
-                  fetchCompanies();
-                }}
+                value={localData.storage_provider}
+                onChange={(e) =>
+                  setLocalData({ ...localData, storage_provider: e.target.value })
+                }
                 placeholder="Enter Company Name"
-                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
               />
-              {showDropdown && storageSuggestions.length > 0 && (
-                <div className="absolute top-[80px] w-full bg-white border shadow-lg z-50 max-h-40 overflow-auto">
-                  {storageSuggestions.map((s, i) => (
-                    <div
-                      key={i}
-                      onClick={() => handleCompanySelect(s)}
-                      className="p-3 hover:bg-gray-50 cursor-pointer border-b"
-                    >
-                      {s.company_name}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-neutral-700 text-sm">Name</label>
@@ -339,7 +278,7 @@ useEffect(() => {
           <div className="flex flex-col gap-6 ">
             <div className="grid grid-cols-2 gap-5">
               {/* Start Date */}
-              <div className="relative flex flex-col gap-2">
+              <div ref={startDateRef} className="relative flex flex-col gap-2">
                 <label className="text-neutral-700  text-sm font-weight-400">
                   Start Date
                 </label>
@@ -369,7 +308,7 @@ useEffect(() => {
               </div>
 
               {/* End Date */}
-              <div className="relative flex flex-col gap-2">
+              <div ref={endDateRef} className="relative flex flex-col gap-2">
                 <label className="text-neutral-700 text-sm">End Date</label>
                 <div
                   onClick={() => setShowEndDatePicker(!showEndDatePicker)}

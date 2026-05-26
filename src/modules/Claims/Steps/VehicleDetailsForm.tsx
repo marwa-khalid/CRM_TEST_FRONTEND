@@ -11,7 +11,7 @@ import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
 import trash from "../../../assets/AutoClaim_icon/trash.svg";
 import { toast } from "react-toastify";
-import { V5CUploadModal } from "../Components/V5CUploadModal";
+import { V5CUploadModal } from "../UploadModalPopups/V5CUploadModal";
 import * as Yup from 'yup'
 import { ErrorMessage, useFormik } from "formik";
 import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";
@@ -40,10 +40,10 @@ export const VehicleDetailsForm = ({ formRef }: any) => {
   ];
 
   const removeTPVehicle = (id: number) => {
-    if (formik.values.thirdPartyVehicles.length <= 1) {
-      toast.error("At least one third party vehicle is mandatory.");
-      return;
-    }
+    // if (formik.values.thirdPartyVehicles.length <= 1) {
+    //   toast.error("At least one third party vehicle is mandatory.");
+    //   return;
+    // }
 
     setDeleteConfirm({
       open: true,

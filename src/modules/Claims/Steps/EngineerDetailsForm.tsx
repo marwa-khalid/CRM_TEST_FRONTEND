@@ -14,12 +14,13 @@ import {
   instructEngineer,
   udpateEnginerDetails,
 } from "../../../services/EngineeringDetails/engineeringDetails";
-import { V5CEngineerUploadModal } from "../Components/V5CEngineerUploadModal";
+import { V5CEngineerUploadModal } from "../UploadModalPopups/V5CEngineerUploadModal";
 import { CustomDatePicker } from "../Components/DatePicker";
 
 export const EngineerDetailsForm = ({ formRef }: any) => {
   const claimId = localStorage.getItem("claimId");
 
+  const [loading, setLoading] = useState(true);
   const [lossModal, openModal1] = useState<boolean>(false);
   const [repairModal, openModal2] = useState<boolean>(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -47,6 +48,13 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
     if (value === "" || value === null || value === undefined) return null;
     const parsed = Number(value);
     return Number.isNaN(parsed) ? null : parsed;
+  };
+
+  const formatTwoDecimals = (value: any) => {
+    if (value === "" || value === null || value === undefined) return "";
+    const num = Number(value);
+    if (Number.isNaN(num)) return value;
+    return num.toFixed(2);
   };
 
   const formatDateLabel = (value: any) => {
@@ -218,7 +226,7 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!claimId) return;
+      if (!claimId) { setLoading(false); return; }
 
       try {
         const res = await gettingEnginerDetails(Number(claimId));
@@ -270,6 +278,8 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
           console.error(err);
           toast.error("Unable to load engineer details");
         }
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -387,7 +397,7 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
       {isOpen && (
         <div
           className={`absolute ${
-            openUpwards ? "bottom-[423px]" : "top-[23px]"
+            openUpwards ? "bottom-[383px]" : "top-[25px]"
           } left-0 z-[100] shadow-xl rounded-lg bg-white`}
         >
           <CustomDatePicker
@@ -432,7 +442,23 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
         />
       )}
 
-      <div className="MainContent w-full flex flex-col items-start gap-6 py-1 pb-10 font-['Stack_Sans_Headline']">
+      <div className="MainContent relative w-full flex flex-col items-start gap-6 py-1 pb-10 font-['Stack_Sans_Headline']">
+        {loading && (
+          <div className="fixed inset-0 z-[9999] bg-[#e8e6df]/80 flex items-center justify-center font-['Stack_Sans_Headline']">
+            <div className="relative w-[73px] h-[73px]">
+              {Array.from({ length: 12 }).map((_, index) => (
+                <span
+                  key={index}
+                  className="absolute left-1/2 top-1/2 w-[6px] h-[16px] rounded-full bg-[#9b9b9b] animate-loaderFade"
+                  style={{
+                    transform: `translate(-50%, -50%) rotate(${index * 30}deg) translateY(-25px)`,
+                    animationDelay: `${index * 0.08}s`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         <h1 className="text-neutral-900 text-[24px] font-weight-600">
           Engineer Details
         </h1>
@@ -646,9 +672,14 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
                 </span>
                 <input
                   type="number"
+                  step="0.01"
+                  min="0"
                   value={formik.values.actual_fee}
                   onChange={(e) =>
                     formik.setFieldValue("actual_fee", e.target.value)
+                  }
+                  onBlur={(e) =>
+                    formik.setFieldValue("actual_fee", formatTwoDecimals(e.target.value))
                   }
                   placeholder="0.00"
                   className="w-full pl-10 pr-5 py-4 bg-white rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-base font-light"
@@ -700,12 +731,17 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
                   </span>
                   <input
                     type="number"
+                    step="0.01"
+                    min="0"
                     value={formik.values.invoice_settled_amount}
                     onChange={(e) =>
                       formik.setFieldValue(
                         "invoice_settled_amount",
                         e.target.value,
                       )
+                    }
+                    onBlur={(e) =>
+                      formik.setFieldValue("invoice_settled_amount", formatTwoDecimals(e.target.value))
                     }
                     placeholder="0.00"
                     className={`w-full h-[52px] pl-10 pr-5 bg-white rounded border border-gray-200 ${inputStyles}`}
@@ -836,9 +872,14 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
                     </span>
                     <input
                       type="number"
+                      step="0.01"
+                      min="0"
                       value={formik.values.engineer_fee}
                       onChange={(e) =>
                         formik.setFieldValue("engineer_fee", e.target.value)
+                      }
+                      onBlur={(e) =>
+                        formik.setFieldValue("engineer_fee", formatTwoDecimals(e.target.value))
                       }
                       placeholder="0.00"
                       className={`w-full h-[52px] pl-10 pr-5 bg-white rounded border border-gray-200 ${inputStyles}`}

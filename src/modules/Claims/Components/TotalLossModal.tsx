@@ -82,9 +82,9 @@ const toText = (value: unknown) =>
   value === null || value === undefined ? "" : String(value);
 
 const toNumber = (value: string) => {
-  if (value === "" || value === null || value === undefined) return 0;
+  if (value === "" || value === null || value === undefined) return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? parsed : null;
 };
 
 const toCalendarDate = (value: unknown): NullableDate => {
@@ -196,10 +196,7 @@ const handleCTA = async (type: string) => {
   setLoading(type);
   try {
     if (type === "eng") {
-      await sendTotalLossEngReportToTPI(
-        claimId,
-        JSON.parse(localStorage.getItem("activeUser")).email,
-      );
+      await sendTotalLossEngReportToTPI(claimId);
       toast.success("Engineer report sent to TPI");
     }
 
@@ -213,7 +210,15 @@ const handleCTA = async (type: string) => {
       toast.success("Fleet instructed for off hire");
     }
   } catch (e: any) {
-    toast.error(e?.response?.data?.detail || "Failed");
+    const detail = e?.response?.data?.detail || "";
+    if (type === "eng" && detail.toLowerCase().includes("recipient email is missing")) {
+      toast.error(
+        "TPI Direct Email is not set. Go to the Third Party Insurer section, enter the Direct Email, and save before sending.",
+        { autoClose: 6000 }
+      );
+    } else {
+      toast.error(detail || "Failed to send");
+    }
   } finally {
     setLoading(null);
   }
@@ -295,14 +300,14 @@ const handleCTA = async (type: string) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[100] p-10">
+    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[100] p-10 font-['Stack_Sans_Headline']">
       <div className="card bg-white h-full flex flex-col overflow-auto w-[1070px]">
         <div className="w-full px-10 py-5 bg-white shadow-md flex justify-between items-center sticky top-0 z-20">
-          <h1 className="font-weight-600 text-xl">Total Loss</h1>
+          <h1 className="font-weight-600 text-[20px]">Total Loss</h1>
           <div className="flex gap-5">
             <button
               type="button"
-              className="px-10 py-4 border border-blue-600 text-blue-600 rounded"
+              className="px-10 py-4 border border-primary text-primary rounded"
               onClick={onClose}
             >
               Cancel
@@ -317,7 +322,7 @@ const handleCTA = async (type: string) => {
                 ? "Saving..."
                 : totalLossRecordId
                   ? "Update"
-                  : "Create"}
+                  : "Update"}
             </button>
           </div>
         </div>
@@ -497,6 +502,13 @@ const handleCTA = async (type: string) => {
   );
 };
 
+const formatTwoDecimals = (value: any) => {
+  if (value === "" || value === null || value === undefined) return "";
+  const num = Number(value);
+  if (Number.isNaN(num)) return value;
+  return num.toFixed(2);
+};
+
 const InputGroup = ({
   label,
   type,
@@ -518,9 +530,16 @@ const InputGroup = ({
       )}
       <input
         type={type === "currency" ? "number" : "text"}
+        step={type === "currency" ? "0.01" : undefined}
+        min={type === "currency" ? "0" : undefined}
         name={name}
         value={formik.values[name] ?? ""}
         onChange={formik.handleChange}
+        onBlur={
+          type === "currency"
+            ? (e) => formik.setFieldValue(name, formatTwoDecimals(e.target.value))
+            : undefined
+        }
         placeholder={type === "currency" ? "0.00" : ""}
         className={`w-full px-5 py-4 bg-white rounded border border-gray-200 focus:border-blue-500 outline-none transition-all ${
           type === "currency" ? "pl-10" : ""
@@ -605,7 +624,7 @@ const SelectGroup = ({
   formik: any;
 }) => (
   <div className="flex flex-col gap-2">
-    <label className="text-gray-700 text-sm font-medium">{label}</label>
+    <label className="text-gray-700 text-[14px] font-weight-500">{label}</label>
     <Select
       options={options}
       styles={customStyles}

@@ -366,13 +366,15 @@ input.w-auto.p-2.border.border-gray-300.rounded-lg.focus\:outline-none.focus\:ri
 .modal-overlay {
   background: rgba(0, 0, 0, 0.4); /* Optional: dim background */
 }
+@keyframes loaderFade {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.18;
+  }
+}
 
-/* Optional slide-in effect */
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+.animate-loaderFade {
+  animation: loaderFade 1s linear infinite;
 }

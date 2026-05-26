@@ -81,6 +81,11 @@ export const ClientDetailsForm = ({ formRef }: any) => {
       driverBase: "",
       vulnerablePerson: "No",
       vulnerablePersonWhy: "",
+      dependents: "",
+      partner: "No",
+      children: "",
+      caringForElderly: "No",
+      dependentsDetails: "",
     },
     validationSchema: Yup.object().shape({}),
     onSubmit: async (values: any) => {
@@ -103,6 +108,7 @@ export const ClientDetailsForm = ({ formRef }: any) => {
           sort_code: values.sortCode,
           account_number: values.accountNumber,
           bank_details_note: values.payDriverNotes,
+          pay_notification_date: values.payDriverNotificationDate ? values.payDriverNotificationDate?.toLocaleDateString("sv-SE") : null,
           ci_vat_registered: values.vatRegistered === "Yes",
           is_vulnerable: values.vulnerablePerson === "Yes",
           vulnerable_note: values.vulnerablePersonWhy,
@@ -111,6 +117,11 @@ export const ClientDetailsForm = ({ formRef }: any) => {
           contact_via_alternative_person: values.alternativeContact === "Yes",
           alter_person: values.contactName,
           alter_number: values.contactTelephone,
+          dependents: values.dependents || null,
+          partner: values.partner === "Yes",
+          children: values.children || null,
+          caring_for_elderly: values.caringForElderly === "Yes",
+          dependents_details: values.dependentsDetails || null,
           claim_id: parseInt(claimId) || 0,
           address: {
             address: values.address,
@@ -118,8 +129,6 @@ export const ClientDetailsForm = ({ formRef }: any) => {
             home_tel: values.homeTelephone,
             mobile_tel: values.mobileTelephone,
             email: values.email,
-            latitude: values.latitude,
-            longitude: values.longitude,
           },
         };
         const payloadToSend = cleanPayload(payload);
@@ -190,7 +199,7 @@ export const ClientDetailsForm = ({ formRef }: any) => {
             contactTelephone: clientData.alter_number || "",
             sortCode: clientData.sort_code || "",
             accountNumber: clientData.account_number || "",
-            payDriverNotificationDate: "", // Adjust based on your data
+            payDriverNotificationDate: clientData.pay_notification_date ? new Date(clientData.pay_notification_date) : "",
             payDriverNotes: clientData.bank_details_note || "",
             niNumber: clientData.ni_number || "",
             occupation:
@@ -207,6 +216,11 @@ export const ClientDetailsForm = ({ formRef }: any) => {
             driverBase: clientData.driver_base || "",
             vulnerablePerson: clientData.is_vulnerable ? "Yes" : "No",
             vulnerablePersonWhy: clientData.vulnerable_note || "",
+            dependents: clientData.dependents || "",
+            partner: clientData.partner ? "Yes" : "No",
+            children: clientData.children || "",
+            caringForElderly: clientData.caring_for_elderly ? "Yes" : "No",
+            dependentsDetails: clientData.dependents_details || "",
           };
       formik.setValues(mappedValues);
     };
@@ -298,8 +312,8 @@ export const ClientDetailsForm = ({ formRef }: any) => {
     if (!formik.values.dateOfBirth) return undefined;
     const birthDate = new Date(
       formik.values.dateOfBirth.getFullYear(),
-      formik.values.dateOfBirth.getMonth() - 1,
-      formik.values.dateOfBirth.getDay(),
+      formik.values.dateOfBirth.getMonth(),
+      formik.values.dateOfBirth.getDate(),
     );
     const today = new Date();
 
@@ -568,6 +582,110 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   onChange={(e) =>
                     formik.setFieldValue("driverBase", e.target.value)
                   }
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Section 1b: Dependents & Caring Responsibilities */}
+        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+            Dependents &amp; Caring Responsibilities
+          </h2>
+          <div className="h-px bg-gray-100 w-full" />
+
+          <div className="flex flex-col gap-6">
+            {/* Row 1: Dependents & Partner */}
+            <div className="grid grid-cols-12 gap-5 w-full items-end">
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Dependents
+                </label>
+                <input
+                  placeholder="Enter number of dependents"
+                  value={formik.values.dependents}
+                  onChange={(e) => formik.setFieldValue("dependents", e.target.value)}
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
+                />
+              </div>
+              <div className="col-span-6 flex flex-col gap-3 pb-2">
+                <span className="text-black text-sm font-weight-400">Partner</span>
+                <div className="flex gap-8">
+                  {["Yes", "No"].map((option) => (
+                    <label key={option} className="flex items-center gap-2 cursor-pointer">
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="radio"
+                          name="partner"
+                          className="peer appearance-none transition-all"
+                          checked={formik.values.partner === option}
+                          onChange={() => formik.setFieldValue("partner", option)}
+                        />
+                        {formik.values.partner === option ? (
+                          <img src={Yes} />
+                        ) : (
+                          <img src={No} />
+                        )}
+                      </div>
+                      <span className="text-sm text-gray-700">{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Row 2: Children & Caring for elderly */}
+            <div className="grid grid-cols-12 gap-5 w-full items-end">
+              <div className="col-span-6 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Children
+                </label>
+                <input
+                  placeholder="Enter Name"
+                  value={formik.values.children}
+                  onChange={(e) => formik.setFieldValue("children", e.target.value)}
+                  className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
+                />
+              </div>
+              <div className="col-span-6 flex flex-col gap-3 pb-2">
+                <span className="text-black text-sm font-weight-400">
+                  Caring for elderly/vulnerable persons?
+                </span>
+                <div className="flex gap-8">
+                  {["Yes", "No"].map((option) => (
+                    <label key={option} className="flex items-center gap-2 cursor-pointer">
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="radio"
+                          name="caringForElderly"
+                          className="peer appearance-none transition-all"
+                          checked={formik.values.caringForElderly === option}
+                          onChange={() => formik.setFieldValue("caringForElderly", option)}
+                        />
+                        {formik.values.caringForElderly === option ? (
+                          <img src={Yes} />
+                        ) : (
+                          <img src={No} />
+                        )}
+                      </div>
+                      <span className="text-sm text-gray-700">{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Row 3: Provide details */}
+            <div className="grid grid-cols-12 gap-5 w-full">
+              <div className="col-span-12 flex flex-col gap-2">
+                <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
+                  Provide details
+                </label>
+                <textarea
+                  placeholder="Enter details..."
+                  value={formik.values.dependentsDetails}
+                  onChange={(e) => formik.setFieldValue("dependentsDetails", e.target.value)}
+                  className={`w-full bg-white border border-gray-200 rounded outline-none text-neutral-700 font-light min-h-[52px] resize-none px-5 py-4 ${inputStyles}`}
                 />
               </div>
             </div>

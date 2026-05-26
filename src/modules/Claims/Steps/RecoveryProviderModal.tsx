@@ -2,10 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { X, ChevronLeft } from "lucide-react";
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
-import { debounce } from "lodash";
 import { getRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { CustomDatePicker } from "../Components/DatePicker";
-import { getCompanySuggestions } from "../../../services/Referrer/Referrer";
 
 export const RecoveryProviderModal = ({
   onClose,
@@ -14,9 +12,6 @@ export const RecoveryProviderModal = ({
   formik,
 }: any) => {
   const [step, setStep] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [recoverySuggestions, setRecoverySuggestions] = useState<any[]>([]);
   const [showRecoveryDatePicker, setShowRecoveryDatePicker] = useState(false);
    const datepickerRef = useRef<HTMLDivElement>(null);
    const allowDecimalInput = (value: string) => {
@@ -43,7 +38,7 @@ export const RecoveryProviderModal = ({
    }, []);
   // LOCAL STATE (Buffer): Only push to Parent Formik on "Save"
   const [localData, setLocalData] = useState({
-    id: initialData?.id || 0, // Temporary ID if new
+    id: initialData?.id || Date.now(),
     recovery_provider: initialData?.recovery_provider || "",
     name: initialData?.name || "",
     claim_id: parseInt(claimId),
@@ -59,46 +54,7 @@ export const RecoveryProviderModal = ({
       email: initialData?.address?.email || "",
     },
   });
- const fetchCompanies = async () => {
-   try {
-     const response = await getCompanySuggestions(searchTerm); // Replace with your API endpoint
-
-     console.log(response);
-     // Normalize empty strings to null
-     //  const normalized = response.data.map((r) => ({
-     //    company_name: r.company_name,
-     //    address: r.address?.trim() || null,
-     //    post_code: r.postcode?.trim() || null,
-     //  }));
-
-     setRecoverySuggestions(response.data);
-   } catch (err) {
-     console.error(err);
-   }
- };
 const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
-  
-  // --- HANDLERS ---
- useEffect(() => {
-    
-     if (searchTerm) {
-       fetchCompanies();
-     }
-   }, [searchTerm]);
-
-  const handleCompanySelect = (selected: any) => {
-    setSearchTerm(selected.company_name);
-    setShowDropdown(false);
-    setLocalData((prev) => ({
-      ...prev,
-      recovery_provider: selected.company_name,
-      address: {
-        ...prev.address,
-        address: selected.address || "",
-        postcode: selected.postcode || "",
-      },
-    }));
-  };
 
   const handleSave = () => {
     // This is where you pass the local buffer back to the parent's Formik
@@ -160,35 +116,19 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
         {step === 1 ? (
           <div className="flex flex-col gap-4">
-            {/* Network Provider Search */}
-            <div className="flex flex-col gap-2 relative">
+            <div className="flex flex-col gap-2">
               <label className="text-neutral-700 text-sm">
                 Network Recovery Provider
               </label>
               <input
                 type="text"
-                value={searchTerm || localData.recovery_provider}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setShowDropdown(true);
-                  fetchCompanies();
-                }}
+                value={localData.recovery_provider}
+                onChange={(e) =>
+                  setLocalData({ ...localData, recovery_provider: e.target.value })
+                }
                 placeholder="Enter Company Name"
-                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
+                className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
               />
-              {showDropdown && recoverySuggestions.length > 0 && (
-                <div className="absolute top-[80px] w-full bg-white border shadow-lg z-50 max-h-40 overflow-auto">
-                  {recoverySuggestions.map((s, i) => (
-                    <div
-                      key={i}
-                      onClick={() => handleCompanySelect(s)}
-                      className="p-3 hover:bg-gray-50 cursor-pointer border-b"
-                    >
-                      {s.company_name}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-neutral-700 text-sm">Name</label>

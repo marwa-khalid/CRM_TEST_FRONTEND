@@ -7,7 +7,7 @@ import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
 import trash from "../../../assets/AutoClaim_icon/trash.svg";
 import { toast } from "react-toastify";
-import { V5CUploadModalOwner } from "../Components/V5CUploadModalOwner";
+import { V5CUploadModalOwner } from "../UploadModalPopups/V5CUploadModalOwner";
 import * as Yup from 'yup'
 import { useFormik } from "formik";
 import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";

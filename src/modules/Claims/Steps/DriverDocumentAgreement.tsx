@@ -452,7 +452,7 @@ const DocumentRow: React.FC<{
         />
       </div>
 
-      <div className="p-5 rounded-lg border border-neutral-100 flex flex-col gap-4 shadow-sm">
+      <div className="w-full p-5 rounded-lg border border-neutral-100 flex flex-col gap-4 shadow-sm">
         <div className="text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5">
           Agreements & Statements Check List Section
         </div>

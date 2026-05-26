@@ -14,7 +14,7 @@ import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from 'yup'
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
-import { deletePassenger, deletePoliceDetail, deleteWitness, getPassengerById, getPoliceDetails, getWitnesses } from "../../../services/Accidents/Cards/cards";
+import { deletePassenger, deletePoliceDetail, deleteWitness, getLatestWitnessQuestionnaire, getPassengerById, getPoliceDetails, getWitnesses } from "../../../services/Accidents/Cards/cards";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import { PoliceDetailsModal } from "./PoliceDetailsModal";
 import CreatableSelect from "react-select/creatable";
@@ -71,7 +71,31 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
 
     return obj;
   };
+const getLatestWitnessPdfUrl = (w: any) => {
+  return (
+    w.latest_questionnaire_pdf_url ||
+    w.questionnaire_pdf_url ||
+    w.questionnaire_file_url ||
+    w.pdf_url ||
+    w.view_link ||
+    w.questionnaire?.pdf_url ||
+    w.questionnaire?.file_url ||
+    w.latest_questionnaire?.pdf_url ||
+    w.latest_questionnaire?.file_url ||
+    ""
+  );
+};
 
+const openLatestWitnessPdf = (w: any) => {
+  const pdfUrl = getLatestWitnessPdfUrl(w);
+
+  if (!pdfUrl) {
+    toast.info("Questionnaire PDF is not available yet");
+    return;
+  }
+
+  window.open(pdfUrl, "_blank", "noopener,noreferrer");
+};
   const formik = useFormik({
     initialValues: {
       date: "",
@@ -324,7 +348,20 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
       console.error("Failed to fetch witnesses", err);
     }
   }, [claimId]);
+const handleViewWitnessQuestionnaire = async (witnessId: number) => {
+  try {
+    const result = await getLatestWitnessQuestionnaire(witnessId);
 
+    if (!result?.received || !result?.file_url) {
+      toast.info("Questionnaire PDF is not available yet");
+      return;
+    }
+
+    window.open(result.file_url, "_blank", "noopener,noreferrer");
+  } catch (error) {
+    toast.error("Failed to open witness questionnaire");
+  }
+};
   useEffect(() => {
     refreshWitnesses();
   }, [refreshWitnesses]);
@@ -857,76 +894,77 @@ const timeOptions = generateTimeOptions();
             Add passengers details by clicking on “Add Passenger Details”.
           </p>
         </div> */}
-        {formik.values.passengers === "Yes" &&
-        <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
-          {/* Header */}
-          <div className="flex justify-between items-center">
-            <span className="text-gray-700 text-base font-weight-600">
-              Passenger Details
-            </span>
-            <button
-              className="flex items-center gap-2 px-3 py-1.5 rounded text-blue-500 text-sm font-weight-400 hover:bg-blue-50 transition-colors"
-              onClick={handleAddClick}
-            >
-              <Plus className="w-4 h-4" />
-              Add Passenger Details
-            </button>
-          </div>
-
-          {/* Passenger List Rendering */}
-          {formik.values.passengers === "Yes" && passengersList.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              {passengersList.map((p) => (
-                <div
-                  key={p.id}
-                  className="bg-white p-4 rounded-lg border border-gray-100 flex justify-between items-start shadow-sm"
-                >
-                  <div className="flex flex-col gap-1">
-                    <h4 className="text-gray-900 font-weight-600 text-sm">
-                      {p.first_name} {p.surname}
-                    </h4>
-                    <div className="flex items-center gap-2 text-gray-500 text-xs">
-                      {p.address?.email && <span>{p.address?.email}</span>}
-                      {p.address?.email && " "}
-                      <span>{p.address?.mobile_tel}</span>
-                    </div>
-                    <p className="text-gray-500 text-xs">
-                      {p.address?.address} {p.address?.address && "-"}{" "}
-                      {p.address?.postcode}
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      className="p-1 hover:bg-gray-100 rounded text-gray-400"
-                      onClick={() => handleEditClick(p)} // Pass the whole passenger object
-                    >
-                      <img src={pencil} className="w-4 h-4" alt="edit" />
-                    </button>
-
-                    <button
-                      className="p-1 hover:bg-red-50 rounded text-red-400"
-                      onClick={() =>
-                        setDeleteConfirm({
-                          open: true,
-                          type: "passenger",
-                          id: p.id,
-                        })
-                      }
-                    >
-                      <img src={trash} className="w-4 h-4" alt="delete" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+        {formik.values.passengers === "Yes" && (
+          <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
+            {/* Header */}
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700 text-base font-weight-600">
+                Passenger Details
+              </span>
+              <button
+                className="flex items-center gap-2 px-3 py-1.5 rounded text-blue-500 text-sm font-weight-400 hover:bg-blue-50 transition-colors"
+                onClick={handleAddClick}
+              >
+                <Plus className="w-4 h-4" />
+                Add Passenger Details
+              </button>
             </div>
-          ) : (
-            /* Placeholder if empty */
-            <p className="text-gray-600 text-sm">
-              Add passengers details by clicking on “Add Passenger Details”.
-            </p>
-          )}
-        </div>}
+
+            {/* Passenger List Rendering */}
+            {formik.values.passengers === "Yes" && passengersList.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {passengersList.map((p) => (
+                  <div
+                    key={p.id}
+                    className="bg-white p-4 rounded-lg border border-gray-100 flex justify-between items-start shadow-sm"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <h4 className="text-gray-900 font-weight-600 text-sm">
+                        {p.first_name} {p.surname}
+                      </h4>
+                      <div className="flex items-center gap-2 text-gray-500 text-xs">
+                        {p.address?.email && <span>{p.address?.email}</span>}
+                        {p.address?.email && " "}
+                        <span>{p.address?.mobile_tel}</span>
+                      </div>
+                      <p className="text-gray-500 text-xs">
+                        {p.address?.address} {p.address?.address && "-"}{" "}
+                        {p.address?.postcode}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        className="p-1 hover:bg-gray-100 rounded text-gray-400"
+                        onClick={() => handleEditClick(p)} // Pass the whole passenger object
+                      >
+                        <img src={pencil} className="w-4 h-4" alt="edit" />
+                      </button>
+
+                      <button
+                        className="p-1 hover:bg-red-50 rounded text-red-400"
+                        onClick={() =>
+                          setDeleteConfirm({
+                            open: true,
+                            type: "passenger",
+                            id: p.id,
+                          })
+                        }
+                      >
+                        <img src={trash} className="w-4 h-4" alt="delete" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Placeholder if empty */
+              <p className="text-gray-600 text-sm">
+                Add passengers details by clicking on “Add Passenger Details”.
+              </p>
+            )}
+          </div>
+        )}
         {/* Your Modal Component */}
         <div className="h-px bg-gray-100 w-full my-2" />
         {/* Witnesses Row */}
@@ -1022,7 +1060,8 @@ const timeOptions = generateTimeOptions();
               </button>
             </div>
 
-            {formik.values.hasWitnesses === "Yes" && witnessesList.length > 0 ? (
+            {formik.values.hasWitnesses === "Yes" &&
+            witnessesList.length > 0 ? (
               witnessesList.map((w) => (
                 <div
                   key={w.id}
@@ -1067,9 +1106,25 @@ const timeOptions = generateTimeOptions();
                     </div>
                   </div>
                   <div className="h-px bg-gray-100 w-full my-2" />
-                  <div className="flex justify-start items-center text-gray-700 text-xs font-normal font-['Stack_Sans_Headline']">
-                    {/* {console.log(w.created_at)!} */}
-                    Questionnaire Link Sent : {formatWitnessDate(w.created_at)}
+                  <div className="flex justify-between items-center text-gray-700 text-xs font-normal font-['Stack_Sans_Headline']">
+                    <div>
+                      Questionnaire Link Sent :{" "}
+                      {formatWitnessDate(w.created_at)}
+                    </div>
+
+                    {!getLatestWitnessPdfUrl(w) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleViewWitnessQuestionnaire(w.id)}
+                        className="px-3 py-1.5 rounded bg-blue-100 text-blue-600 text-xs font-weight-600 hover:bg-blue-200"
+                      >
+                        Received - View Details
+                      </button>
+                    ) : (
+                      <span className="px-3 py-1.5 rounded bg-neutral-100 text-neutral-600 text-xs font-weight-600">
+                        Sent
+                      </span>
+                    )}
                   </div>
                 </div>
               ))
@@ -1078,7 +1133,8 @@ const timeOptions = generateTimeOptions();
                 Add witnesses details by clicking on “Add Witness Details”.
               </p>
             )}
-          </div>)}
+          </div>
+        )}
         <div className="h-px bg-gray-100 w-full my-2" />
         {/* Police Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1115,7 +1171,7 @@ const timeOptions = generateTimeOptions();
           </div>
         </div>
         {/* Police Details Box */}
-        {formik.values.policeAttended === "Yes" &&
+        {formik.values.policeAttended === "Yes" && (
           <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-700 text-base font-weight-600">
@@ -1130,7 +1186,8 @@ const timeOptions = generateTimeOptions();
               </button>
             </div>
             <div className="grid gap-3">
-              {formik.values.policeAttended === "Yes" && policeList.length > 0 ? (
+              {formik.values.policeAttended === "Yes" &&
+              policeList.length > 0 ? (
                 policeList.map((record: any) => (
                   <div
                     key={record.id}
@@ -1212,7 +1269,8 @@ const timeOptions = generateTimeOptions();
                 </p>
               )}
             </div>
-          </div>}
+          </div>
+        )}
       </div>
 
       <div className="h-px bg-gray-100 w-full my-2" />

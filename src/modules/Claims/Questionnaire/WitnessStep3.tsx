@@ -2,14 +2,16 @@ import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Canvas from "../../../assets/AutoClaim_icon/canvas.svg";
 import { useQuestionnaireForm } from "./QuestionnaireLayout";
-
+import Delete from "../../../assets/AutoClaim_icon/trashBlue.svg";
+import { useState } from "react";
+import CanvasScreen from "./CanvasScreen";
 const Step3SketchPreview = () => {
   const navigate = useNavigate();
   const { token } = useParams();
   const { formData, updateStepData } = useQuestionnaireForm();
 
   const basePath = token ? `/questionnaire/${token}` : "/questionnaire";
-
+const [showSketchCanvas, setShowSketchCanvas] = useState(false);
   const isTruthConfirmed = formData.incidentSketch?.isTruthConfirmed || false;
 
   const handleDescriptionChange = (value: string) => {
@@ -55,22 +57,55 @@ const Step3SketchPreview = () => {
 
         <div className="h-px bg-gray-100 w-full" />
 
-        <div
-          onClick={() => navigate(`${basePath}/step-4`)}
-          className="group w-full p-10 rounded-lg border border-gray-200 bg-white flex flex-col justify-center items-center gap-6 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
-        >
-          <img src={Canvas} alt="" />
+        {formData.signature?.sketchImage ? (
+          <div className="w-full rounded-lg border border-gray-300 bg-white flex flex-col items-center gap-4 p-6">
+            <div className="w-[220px] h-[160px] rounded border border-gray-300 bg-white flex items-center justify-center overflow-hidden">
+              <img
+                src={formData.signature.sketchImage}
+                alt="Incident Sketch"
+                className="w-full h-full object-contain"
+              />
+            </div>
 
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-black text-base font-weight-600">
-              Start Drawing Sketch
-            </span>
+            <p className="text-neutral-900 text-[14px] font-weight-400">
+              Sketch added successfully
+            </p>
 
-            <span className="text-black text-sm font-normal opacity-60">
-              Click here to open Canvas
-            </span>
+            <div className="h-px w-full bg-gray-100" />
+
+            <button
+              type="button"
+              onClick={() => {
+                updateStepData("signature", {
+                  sketchImage: "",
+                  placedObjects: [],
+                });
+                setShowSketchCanvas(true);
+              }}
+              className="flex gap-1 text-blue-600 text-sm font-weight-500"
+            >
+              <img src={Delete} alt="" />
+              Remove and Redraw
+            </button>
           </div>
-        </div>
+        ) : (
+          <div
+            onClick={() => setShowSketchCanvas(true)}
+            className="group w-full p-10 rounded-lg border border-gray-200 bg-white flex flex-col justify-center items-center gap-6 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
+          >
+            <img src={Canvas} alt="" />
+
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-black text-base font-weight-600">
+                Start Drawing Sketch
+              </span>
+
+              <span className="text-black text-sm font-normal opacity-60">
+                Click here to open Canvas
+              </span>
+            </div>
+          </div>
+        )}
       </section>
 
       <div
@@ -87,6 +122,13 @@ const Step3SketchPreview = () => {
           I believe that the facts stated in this witness statement are true.
         </p>
       </div>
+      {showSketchCanvas && (
+        <CanvasScreen
+          mode="overlay"
+          onClose={() => setShowSketchCanvas(false)}
+          onSaved={() => setShowSketchCanvas(false)}
+        />
+      )}
     </div>
   );
 };

@@ -1,10 +1,13 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import calander from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { useQuestionnaireForm } from "./QuestionnaireLayout";
+import { CustomDatePicker } from "../Components/DatePicker";
+import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
 
 const Step1Witness = () => {
   const { formData, updateStepData } = useQuestionnaireForm();
-
+const [showDobPicker, setShowDobPicker] = useState(false);
+const dobPickerRef = useRef<HTMLDivElement>(null);
   const activeUser = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("activeUser") || "{}");
@@ -56,14 +59,24 @@ const Step1Witness = () => {
 
       <div className="flex flex-col gap-2">
         <label className="text-gray-700 text-sm font-weight-400">Address</label>
-
-        <input
+  <LeafletAutocompleteMap
+            showMap={false}
+            apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
+            address={formData.witnessDetails.address || ""}
+            onPlaceSelected={(place) => {
+              if (place?.name || place?.address) {
+               handleChange("address", place.address || "");
+              }
+            }}
+            disabled={false}
+          />
+        {/* <input
           type="text"
           value={formData.witnessDetails.address || ""}
           onChange={(e) => handleChange("address", e.target.value)}
           placeholder="Enter Address"
           className="w-full px-5 py-4 h-[52px] bg-white rounded border border-gray-200 text-base font-light outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300"
-        />
+        /> */}
       </div>
 
       <div className="grid grid-cols-2 gap-5">
@@ -73,18 +86,39 @@ const Step1Witness = () => {
           </label>
 
           <div className="relative">
-            <input
-              type="date"
-              value={formData.witnessDetails.dob || ""}
-              onChange={(e) => handleChange("dob", e.target.value)}
-              className="w-full px-5 py-4 h-[52px] bg-white rounded border border-gray-200 text-base font-light outline-none focus:border-blue-500 transition-colors"
-            />
+            <button
+              type="button"
+              onClick={() => setShowDobPicker((prev) => !prev)}
+              className="w-full px-5 py-4 h-[52px] bg-white rounded border border-gray-200 text-base font-light outline-none focus:border-blue-500 transition-colors text-left flex items-center justify-between"
+            >
+              <span
+                className={
+                  formData.witnessDetails.dob
+                    ? "text-gray-700"
+                    : "text-gray-300"
+                }
+              >
+                {formData.witnessDetails.dob || "Select Date of Birth"}
+              </span>
 
-            <img
-              src={calander}
-              alt=""
-              className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none"
-            />
+              <img src={calander} alt="" />
+            </button>
+
+            {showDobPicker && (
+              <div className="absolute bottom-[53px] left-0 z-[100]">
+                <CustomDatePicker
+                  selectedDate={
+                    formData.witnessDetails.dob
+                      ? new Date(formData.witnessDetails.dob)
+                      : new Date()
+                  }
+                  onDateSelect={(date: Date) => {
+                    handleChange("dob", date.toLocaleDateString("sv-SE"));
+                    setShowDobPicker(false);
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
 

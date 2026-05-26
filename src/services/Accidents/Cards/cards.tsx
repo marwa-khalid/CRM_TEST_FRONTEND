@@ -38,6 +38,12 @@ export const getPassengerById = async (id: number): Promise<Passenger> => {
   const response = await axiosInstance.get(`/accident-details/passenger/${id}`);
   return response.data;
 };
+export const getLatestWitnessQuestionnaire = async (witnessId: number) => {
+  const { data } = await axiosInstance.get(
+    `/accident-details/witness/${witnessId}/latest-questionnaire`,
+  );
+  return data; // { status, received, file_url, file_name, s3_key, last_modified }
+};
 
 export const getPassengerByPassengerId = async (id: number): Promise<Passenger> => {
   const response = await axiosInstance.get(`/accident-details/passenger/by-id/${id}`);
@@ -152,11 +158,17 @@ export const sendEmail = async (email: any, claimID: any, firstName: any, referr
   return response.data;
 }
 
-export const formSubmitquestionaire = async (data:any, jwt:any) => {
-  const response = await axiosInstance.post(`/witnesses/save?token=${jwt}`, data);
-  return response.data;
-}
 
+export const formSubmitquestionaire = async (
+  payload: FormData,
+  token: string,
+) => {
+  return axiosInstance.post(`/witnesses/save?token=${token}`, payload, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
 export const getQuestionnaireFromId = async (id: any) => {
   const response = await axiosInstance.get(`/witnesses/get/${id}`);
   return response.data;

@@ -1,863 +1,506 @@
-// import { useState, useRef, useEffect } from 'react';
-// import { 
-//   Search, 
-//   Plus, 
-//   Import, 
-//   X,
-//   Filter,
-//   ChevronLeft,
-//   ChevronRight,
-//   MoreHorizontal,
-//   MoreVertical
-// } from 'lucide-react';
-// import { useNavigate } from "react-router-dom";
-
-// interface Claim {
-//   id: string;
-//   claimNumber: string;
-//   clientName: string;
-//   clientEmail: string;
-//   type: string;
-//   incidentDate: string;
-//   assignedTo: string;
-//   status: 'Processing' | 'Closed' | 'Approved';
-//   priority: 'High' | 'weight-400' | 'Low';
-//   avatar: string;
-// }
-
-// const mockClaims: Claim[] = [
-//   {
-//     id: '1',
-//     claimNumber: 'ACC-2024-001',
-//     clientName: 'Olivia Rhye',
-//     clientEmail: 'olivia@untitledui.com',
-//     type: 'Vehicle damage',
-//     incidentDate: 'Jan 13, 2025',
-//     assignedTo: 'John Smith',
-//     status: 'Processing',
-//     priority: 'High',
-//     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face'
-//   },
-//   {
-//     id: '2',
-//     claimNumber: 'ACC-2024-002',
-//     clientName: 'Phoenix Baker',
-//     clientEmail: 'phoenix@untitledui.com',
-//     type: 'Theft',
-//     incidentDate: 'Jan 13, 2025',
-//     assignedTo: 'John Smith',
-//     status: 'Processing',
-//     priority: 'High',
-//     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-//   },
-//   {
-//     id: '3',
-//     claimNumber: 'ACC-2024-003',
-//     clientName: 'Lana Steiner',
-//     clientEmail: 'lana@untitledui.com',
-//     type: 'Vehicle damage',
-//     incidentDate: 'Jan 13, 2025',
-//     assignedTo: 'John Smith',
-//     status: 'Closed',
-//     priority: 'weight-400',
-//     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face'
-//   },
-//   {
-//     id: '4',
-//     claimNumber: 'ACC-2024-004',
-//     clientName: 'Demi Wilkinson',
-//     clientEmail: 'demi@untitledui.com',
-//     type: 'Vehicle damage',
-//     incidentDate: 'Jan 13, 2025',
-//     assignedTo: 'John Smith',
-//     status: 'Approved',
-//     priority: 'Low',
-//     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face'
-//   },
-//   {
-//     id: '5',
-//     claimNumber: 'ACC-2024-005',
-//     clientName: 'Candice Wu',
-//     clientEmail: 'candice@untitledui.com',
-//     type: 'Vehicle damage',
-//     incidentDate: 'Jan 12, 2025',
-//     assignedTo: 'John Smith',
-//     status: 'Processing',
-//     priority: 'High',
-//     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=32&h=32&fit=crop&crop=face'
-//   },
-//   {
-//     id: '6',
-//     claimNumber: 'ACC-2024-006',
-//     clientName: 'Natali Craig',
-//     clientEmail: 'natali@untitledui.com',
-//     type: 'Vehicle damage',
-//     incidentDate: 'Jan 12, 2025',
-//     assignedTo: 'John Smith',
-//     status: 'Processing',
-//     priority: 'weight-400',
-//     avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=32&h=32&fit=crop&crop=face'
-//   }
-// ];
-
-// function Dashboard() {
-//   const [selectedClaims, setSelectedClaims] = useState<Claim[]>([]);
-//   const [searchQuery, setSearchQuery] = useState('');
-//   const [activeFilters, setActiveFilters] = useState<string[]>(['All time', 'US, AU, +4']);
-//   const [statusFilter, setStatusFilter] = useState<string>('');
-//   const [priorityFilter, setPriorityFilter] = useState<string>('');
-//   const [typeFilter, setTypeFilter] = useState<string>('');
-//   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-//   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-//   const navigate = useNavigate();
-//   const selectAllCheckboxRef = useRef<HTMLInputElement>(null); 
-
-//   useEffect(() => {
-//     const handleResize = () => {
-//       setIsMobile(window.innerWidth < 768);
-//     };
-//     window.addEventListener('resize', handleResize);
-//     return () => window.removeEventListener('resize', handleResize);
-//   }, []);
-
-//   const filteredClaims = mockClaims.filter(claim => {
-//     const matchesSearch = searchQuery === '' || 
-//       claim.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-//       claim.clientEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-//       claim.claimNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-//       claim.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-//       claim.assignedTo.toLowerCase().includes(searchQuery.toLowerCase());
-    
-//     const matchesStatus = !statusFilter || claim.status === statusFilter;
-//     const matchesPriority = !priorityFilter || claim.priority === priorityFilter;
-//     const matchesType = !typeFilter || claim.type === typeFilter;
-      
-//     return matchesSearch && matchesStatus && matchesPriority && matchesType;
-//   });
-
-//   useEffect(() => {
-//     if (selectAllCheckboxRef.current) {
-//       selectAllCheckboxRef.current.indeterminate = 
-//         selectedClaims.length > 0 && selectedClaims.length < filteredClaims.length;
-//     }
-//   }, [selectedClaims, filteredClaims]);
-  
-//   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-//     if (e.target.checked) {
-//       setSelectedClaims([...filteredClaims]);
-//     } else {
-//       setSelectedClaims([]);
-//     }
-//   };
-    
-//   const handleSelectClaim = (claim: Claim) => {
-//     setSelectedClaims(prev => {
-//       if (prev.some(c => c.id === claim.id)) {
-//         return prev.filter(c => c.id !== claim.id);
-//       } else {
-//         return [...prev, claim];
-//       }
-//     });
-//   };
-
-//   const filterOptions = {
-//     status: ['Processing', 'Closed', 'Approved'],
-//     priority: ['High', 'weight-400', 'Low'],
-//     type: ['Vehicle damage', 'Theft', 'Property damage', 'Personal injury']
-//   };
-
-//   const removeActiveFilter = (filter: string) => {
-//     setActiveFilters(prev => prev.filter(f => f !== filter));
-    
-//     // Clear the corresponding filter if it matches
-//     if (filter.includes('Status:')) {
-//       setStatusFilter('');
-//     } else if (filter.includes('Priority:')) {
-//       setPriorityFilter('');
-//     } else if (filter.includes('Type:')) {
-//       setTypeFilter('');
-//     }
-//   };
-
-//   const addFilter = (type: string, value: string) => {
-//     const filterLabel = `${type}: ${value}`;
-//     if (!activeFilters.includes(filterLabel)) {
-//       setActiveFilters(prev => [...prev, filterLabel]);
-//     }
-    
-//     switch (type) {
-//       case 'Status':
-//         setStatusFilter(value);
-//         break;
-//       case 'Priority':
-//         setPriorityFilter(value);
-//         break;
-//       case 'Type':
-//         setTypeFilter(value);
-//         break;
-//     }
-    
-//     setShowFilterDropdown(false);
-//   };
-
-//   const clearAllFilters = () => {
-//     setActiveFilters(['All time', 'US, AU, +4']);
-//     setStatusFilter('');
-//     setPriorityFilter('');
-//     setTypeFilter('');
-//     setSearchQuery('');
-//   };
-
-//   const getStatusColor = (status: string) => {
-//     switch (status) {
-//       case 'Processing':
-//         return 'bg-blue-100 text-blue-800';
-//       case 'Closed':
-//         return 'bg-gray-100 text-gray-800';
-//       case 'Approved':
-//         return 'bg-green-100 text-green-800';
-//       default:
-//         return 'bg-gray-100 text-gray-800';
-//     }
-//   };
-
-//   const getStatusDotColor = (status: string) => {
-//     switch (status) {
-//       case 'Processing':
-//         return 'bg-blue-500';
-//       case 'Approved':
-//         return 'bg-green-500';
-//       case 'Closed':
-//         return 'bg-gray-400';
-//       default:
-//         return 'bg-gray-500';
-//     }
-//   };
-
-//   const getPriorityDotColor = (priority: string) => {
-//     switch (priority) {
-//       case 'High':
-//         return 'bg-red-500';
-//       case 'weight-400':
-//         return 'bg-yellow-500';
-//       case 'Low':
-//         return 'bg-green-500';
-//       default:
-//         return 'bg-gray-500';
-//     }
-//   };
-
-//   const getPriorityColor = (priority: string) => {
-//     switch (priority) {
-//       case 'High':
-//         return 'text-red-600 bg-red-100';
-//       case 'weight-400':
-//         return 'text-yellow-600 bg-yellow-100';
-//       case 'Low':
-//         return 'text-green-600 bg-green-100';
-//       default:
-//         return 'text-gray-600 bg-gray-100'; 
-//     }
-//   };
-
-//   return (
-//     <div className="min-h-screen bg-white px-4 sm:px-6 lg:pl-28 lg:pr-10">
-//       {/* Main Content */}
-//       <main className="py-6 sm:py-10">
-//         {/* Welcome Section */}
-//         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
-//           <div>
-//             <h1 className="text-2xl sm:text-3xl font-weight-600 text-gray-900 mb-1 sm:mb-2">Welcome back, Olivia</h1>
-//             <p className="text-gray-600 font-normal text-sm sm:text-base">Here's what's happening with your claims</p>
-//           </div>
-//           <div className="flex items-center gap-2 sm:space-x-3 w-full sm:w-auto">
-//             <button className="flex items-center px-3 py-1.5 sm:px-4 sm:py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm sm:text-base">
-//               <Import className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-//               Import
-//             </button>
-//             <button 
-//               onClick={() => navigate('/new-claim')} 
-//               className="flex items-center px-3 py-1.5 sm:px-4 sm:py-2 bg-custom text-white rounded-lg hover:bg-[#252B37] text-sm sm:text-base"
-//             >
-//               <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-//               Add New Claim
-//             </button>
-//           </div>
-//         </div>
-
-//         {/* Stats Cards */}
-//         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-//           {[
-//             { title: 'Total claims', value: '247', change: '↑ 40%', trend: 'up' },
-//             { title: 'Open cases', value: '34', change: '↑ 3%', trend: 'up' },
-//             { title: 'Pending tasks', value: '18', change: '↓ 8%', trend: 'down' },
-//             { title: 'Urgent claims', value: '7', change: '↑ 20%', trend: 'up' }
-//           ].map((stat, index) => (
-//             <div key={index} className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200">
-//               <div className="flex items-center justify-between">
-//                 <h3 className="text-sm sm:text-base font-weight-600 text-gray-900">{stat.title}</h3>
-//                 <MoreVertical className="h-5 w-5 text-gray-400"/>
-//               </div>
-//               <div className="text-2xl sm:text-[36px] font-weight-600 text-gray-900 leading-tight sm:leading-[44px] mb-1 sm:mb-2">
-//                 {stat.value}
-//               </div>
-//               <div className="flex items-center text-xs sm:text-sm">
-//                 <span className={`font-weight-400 ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-//                   {stat.change}
-//                 </span>
-//                 <span className="ml-1 text-gray-500 font-weight-400">
-//                   vs last month
-//                 </span>
-//               </div>
-//             </div>
-//           ))}
-//         </div>
-
-//         {/* Filters and Search */}
-//         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-10 gap-4">
-//           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-//             {activeFilters.map((filter) => (
-//               <div key={filter} className="flex items-center bg-white border border-gray-500/50 rounded-lg px-2 py-1.5 sm:px-3 sm:py-2">
-//                 <span className="text-xs sm:text-sm font-weight-400 text-gray-700">{filter}</span>
-//                 <button 
-//                   onClick={() => removeActiveFilter(filter)}
-//                   className="ml-1.5 sm:ml-2 text-gray-700 hover:text-gray-600"
-//                 >
-//                   <X className="h-3 w-3 sm:h-4 sm:w-4 text-custom" />
-//                 </button>
-//               </div>
-//             ))}
-            
-//             {/* Filter Dropdown */}
-//             <div className="relative">
-//               <button 
-//                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-//                 className="flex items-center text-xs sm:text-sm px-2.5 py-1.5 sm:px-3 sm:py-2 bg-white border border-gray-500/50 rounded-lg font-weight-400 text-gray-700 hover:text-gray-900"
-//               >
-//                 <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" />
-//                 More filters
-//               </button>
-              
-//               {showFilterDropdown && (
-//                 <div className="absolute top-full left-0 mt-1 sm:mt-2 w-48 sm:w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-//                   <div className="p-3 sm:p-4">
-//                     <div className="flex items-center justify-between mb-2 sm:mb-3">
-//                       <h3 className="text-xs sm:text-sm font-weight-600 text-gray-900">Filters</h3>
-//                       <button 
-//                         onClick={clearAllFilters}
-//                         className="text-xs text-custom hover:text-purple-800"
-//                       >
-//                         Clear all
-//                       </button>
-//                     </div>
-                    
-//                     {/* Status Filter */}
-//                     <div className="mb-3 sm:mb-4">
-//                       <label className="block text-xs font-weight-400 text-gray-700 mb-1 sm:mb-2">Status</label>
-//                       <div className="space-y-1">
-//                         {filterOptions.status.map((status) => (
-//                           <button
-//                             key={status}
-//                             onClick={() => addFilter('Status', status)}
-//                             className="block w-full text-left px-2 py-1 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded"
-//                           >
-//                             {status}
-//                           </button>
-//                         ))}
-//                       </div>
-//                     </div>
-                    
-//                     {/* Priority Filter */}
-//                     <div className="mb-3 sm:mb-4">
-//                       <label className="block text-xs font-weight-400 text-gray-700 mb-1 sm:mb-2">Priority</label>
-//                       <div className="space-y-1">
-//                         {filterOptions.priority.map((priority) => (
-//                           <button
-//                             key={priority}
-//                             onClick={() => addFilter('Priority', priority)}
-//                             className="block w-full text-left px-2 py-1 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded"
-//                           >
-//                             {priority}
-//                           </button>
-//                         ))}
-//                       </div>
-//                     </div>
-                    
-//                     {/* Type Filter */}
-//                     <div>
-//                       <label className="block text-xs font-weight-400 text-gray-700 mb-1 sm:mb-2">Type</label>
-//                       <div className="space-y-1">
-//                         {filterOptions.type.map((type) => (
-//                           <button
-//                             key={type}
-//                             onClick={() => addFilter('Type', type)}
-//                             className="block w-full text-left px-2 py-1 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded"
-//                           >
-//                             {type}
-//                           </button>
-//                         ))}
-//                       </div>
-//                     </div>
-//                   </div>
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-
-//           <div className="relative w-full sm:w-auto">
-//             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-//             <input
-//               type="text"
-//               placeholder="Search"
-//               value={searchQuery}
-//               onChange={(e) => setSearchQuery(e.target.value)}
-//               className="w-full sm:w-64 md:w-80 h-10 sm:h-11 pl-9 pr-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-custom focus:border-custom-800"
-//             />
-//           </div>
-//         </div>
-
-//         {/* Claims Table */}
-//         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-//           {/* Table Header */}
-//           <div className="px-4 sm:px-6 py-3 border-b border-gray-200">
-//             <div className="flex items-center justify-between">
-//               <h2 className="text-base sm:text-lg font-weight-600 text-gray-900">Recent claims</h2>
-//               <MoreHorizontal className="h-5 w-5 text-gray-400" />
-//             </div>
-//           </div>
-
-//           {/* Table */}
-//           <div className="overflow-x-auto">
-//             <table className="w-full">
-//               <thead className="bg-zinc-50 border-b border-gray-200">
-//                 <tr>
-//                   <th className="px-4 sm:px-6 py-3 text-left">
-//                     <label className="inline-flex items-center">
-//                       <input
-//                         type="checkbox"
-//                         ref={selectAllCheckboxRef}
-//                         checked={selectedClaims.length === filteredClaims.length && filteredClaims.length > 0}
-//                         onChange={handleSelectAll}
-//                         className="hidden"
-//                       />
-//                       <span className={`w-4 h-4 sm:w-5 sm:h-5 border rounded flex items-center justify-center 
-//                         ${selectedClaims.length === filteredClaims.length && filteredClaims.length > 0 
-//                           ? 'bg-purple-500/30 border-custom' 
-//                           : selectedClaims.length > 0
-//                           ? 'bg-purple-500/30 border-custom'
-//                           : 'border-gray-300'}`}>
-//                         {selectedClaims.length === filteredClaims.length && filteredClaims.length > 0 ? (
-//                           <svg className="w-2.5 h-2.5 text-custom" viewBox="0 0 20 20" fill="currentColor">
-//                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-//                           </svg>
-//                         ) : selectedClaims.length > 0 ? (
-//                           <svg className="w-2.5 h-2.5 text-custom" viewBox="0 0 20 20" fill="currentColor">
-//                             <path fillRule="evenodd" d="M4 10a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1z" clipRule="evenodd" />
-//                           </svg>
-//                         ) : null}
-//                       </span>
-//                     </label>
-//                   </th>
-//                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-weight-400 text-gray-600 whitespace-nowrap">
-//                     Client↓
-//                   </th>
-//                   <th className="px-2 sm:px-4 py-3 text-xs font-weight-400 text-gray-600 whitespace-nowrap">
-//                     Claim number
-//                   </th>
-//                   <th className="px-2 sm:px-4 py-3 text-xs font-weight-400 text-gray-600 whitespace-nowrap">
-//                     Type
-//                   </th>
-//                   <th className="px-2 sm:px-4 py-3 text-xs font-weight-400 text-gray-600 whitespace-nowrap">
-//                     Incident date↓
-//                   </th>
-//                   {!isMobile && (
-//                     <>
-//                       <th className="px-2 sm:px-4 py-3 text-center text-xs font-weight-400 text-gray-600 whitespace-nowrap">
-//                         Assigned to
-//                       </th>
-//                       <th className="px-2 sm:px-4 py-3 text-center text-xs font-weight-400 text-gray-600 whitespace-nowrap">
-//                         Status
-//                       </th>
-//                       <th className="px-2 sm:px-4 py-3 text-center text-xs font-weight-400 text-gray-600 whitespace-nowrap">
-//                         Priority
-//                       </th>
-//                     </>
-//                   )}
-//                   <th className="px-2 sm:px-4 py-3 text-left text-xs font-weight-400 text-gray-600 whitespace-nowrap">
-//                     {isMobile ? 'Actions' : ''}
-//                   </th>
-//                 </tr>
-//               </thead>
-//               <tbody className="bg-white divide-y divide-gray-200">
-//                 {filteredClaims.length > 0 ? (
-//                   filteredClaims.map((claim) => (
-//                     <tr key={claim.id} className="hover:bg-gray-50">
-//                       <td className="px-4 sm:px-6 py-4">
-//                         <label className="inline-flex items-center">
-//                           <input
-//                             type="checkbox"
-//                             checked={selectedClaims.some(c => c.id === claim.id)}
-//                             onChange={() => handleSelectClaim(claim)}
-//                             className="hidden"
-//                           />
-//                           <span className={`w-4 h-4 sm:w-5 sm:h-5 border rounded flex items-center justify-center 
-//                             ${selectedClaims.some(c => c.id === claim.id)
-//                               ? 'bg-purple-500/30 border-custom' 
-//                               : 'border-gray-300'}`}>
-//                             {selectedClaims.some(c => c.id === claim.id) && (
-//                               <svg className="w-2.5 h-2.5 text-custom" viewBox="0 0 20 20" fill="currentColor">
-//                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-//                               </svg>
-//                             )}
-//                           </span>
-//                         </label>
-//                       </td>
-//                       <td className="px-2 sm:px-4 py-4">
-//                         <div className="flex items-start">
-//                           <img 
-//                             src={claim.avatar} 
-//                             alt={claim.clientName}
-//                             className="w-8 h-8 rounded-full mr-2 sm:mr-3"
-//                           />
-//                           <div>
-//                             <div className="text-sm font-weight-400 text-gray-900">{claim.clientName}</div>
-//                             {!isMobile && (
-//                               <div className="text-xs sm:text-sm text-gray-500">{claim.clientEmail}</div>
-//                             )}
-//                           </div>
-//                         </div>
-//                       </td>
-//                       <td className="px-2 sm:px-4 py-4 text-xs sm:text-sm font-weight-400 text-black whitespace-nowrap">
-//                         {claim.claimNumber}
-//                       </td>
-//                       <td className="px-2 sm:px-4 py-4 text-xs sm:text-sm text-gray-600 whitespace-nowrap">
-//                         {claim.type}
-//                       </td>
-//                       <td className="px-2 sm:px-4 py-4 text-xs sm:text-sm text-gray-600 whitespace-nowrap">
-//                         {claim.incidentDate}
-//                       </td>
-//                       {!isMobile && (
-//                         <>
-//                           <td className="px-2 sm:px-4 py-4 text-xs sm:text-sm text-gray-600 text-center whitespace-nowrap">
-//                             {claim.assignedTo}
-//                           </td>
-//                           <td className="px-2 sm:px-4 py-4 text-center">  
-//                             <span className={`inline-flex px-1.5 py-1 text-xs font-weight-400 rounded-full ${getStatusColor(claim.status)}`}>
-//                               {!isMobile && (
-//                                 <span className={`w-1.5 h-1.5 rounded-full mt-1 mr-1 sm:mr-2 ${getStatusDotColor(claim.status)}`}></span>
-//                               )}
-//                               {claim.status}
-//                             </span>
-//                           </td>
-//                           <td className="px-2 sm:px-4 py-4 text-center">
-//                             <span className={`inline-flex px-1.5 py-1 text-xs font-weight-400 rounded-full ${getPriorityColor(claim.priority)}`}>
-//                               {!isMobile && (
-//                                 <span className={`w-1.5 h-1.5 rounded-full mt-1 mr-1 sm:mr-2 ${getPriorityDotColor(claim.priority)}`}></span>
-//                               )}
-//                               {claim.priority}
-//                             </span>
-//                           </td>
-//                         </>
-//                       )}
-//                       <td className="px-2 sm:px-4 py-4">
-//                         <button className="text-gray-400 hover:text-gray-600">
-//                           <MoreVertical className="h-4 w-4" />
-//                         </button>
-//                       </td>
-//                     </tr>
-//                   ))
-//                 ) : (
-//                   <tr>
-//                     <td colSpan={isMobile ? 6 : 9} className="px-4 sm:px-6 py-12 text-center">
-//                       <div className="text-gray-500">
-//                         <Search className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-gray-300" />
-//                         <h3 className="text-base sm:text-lg font-weight-400 text-gray-900 mb-1 sm:mb-2">No claims found</h3>
-//                         <p className="text-xs sm:text-sm">Try adjusting your search or filter criteria</p>
-//                       </div>
-//                     </td>
-//                   </tr>
-//                 )}
-//               </tbody>
-//             </table>
-//           </div>
-
-//           {/* Pagination */}
-//           <div className="px-4 sm:px-6 border-t border-gray-200">
-//             <div className="flex justify-end p-3 sm:p-4">
-//               <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden">
-//                 <button className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-weight-400 text-gray-700 hover:bg-gray-100">
-//                   <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-//                   {!isMobile && 'Previous'}
-//                 </button>
-
-//                 <button className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-weight-400 text-gray-900 border-l border-gray-200 bg-gray-100">
-//                   1
-//                 </button>
-//                 <button className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 border-l border-gray-200">
-//                   2
-//                 </button>
-//                 <button className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 border-l border-gray-200">
-//                   3
-//                 </button>
-//                 <span className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm text-gray-400 border-l border-gray-200">...</span>
-//                 <button className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 border-l border-gray-200">
-//                   8
-//                 </button>
-//                 <button className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 border-l border-gray-200">
-//                   9
-//                 </button>
-//                 <button className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 border-l border-gray-200">
-//                   10
-//                 </button>
-
-//                 <button className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-weight-400 text-gray-700 hover:bg-gray-100 border-l border-gray-200">
-//                   {!isMobile && 'Next'}
-//                   <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-//                 </button>
-//               </div>
-//             </div>
-//           </div>
-//         </div>
-//       </main>
-//     </div>
-//   );
-// }
-
-// export default Dashboard;
 import AccountSettingsContent from "./AccountSettings";
-import React, { useEffect, useState } from 'react';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Briefcase, 
-  Calendar, 
-  CheckSquare, 
-  BarChart3, 
-  Settings, 
-  HelpCircle, 
-  Search, 
-  Filter, 
-  ArrowUpDown, 
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  LayoutDashboard,
+  FileText,
+  Briefcase,
+  Calendar,
+  CheckSquare,
+  BarChart3,
+  Settings,
+  HelpCircle,
+  Search,
   Plus,
-  MoreVertical
-} from 'lucide-react';
-import Logo from "../../assets/images/Group 2608219.svg";
-import { useNavigate } from 'react-router-dom';
-import { getClaims } from '../../services/Claims/Claims';
+  MoreVertical,
+  Bell,
+  Clock3,
+  Hourglass,
+  CheckCircle2,
+  AlertCircle,
+  TrendingUp,
+  TrendingDown,
+  Upload,
+  ChevronDown,
+  ClipboardList,
+} from "lucide-react";
+import Logo from "../../assets/AutoClaim_icon/logo.svg";
+import logout from "../../assets/AutoClaim_icon/logout.svg";
+import Vector4 from "../../assets/AutoClaim_icon/Vector-4.svg";
+import FileIcon from '../../assets/case_activity/file.svg'
+
+import { Link, useNavigate } from "react-router-dom";
+import { getClaims } from "../../services/Claims/Claims";
+
+type ActivePage = "claims" | "settings";
+
+const CASE_ACTIVITY_ROUTE = "/case-activity";
+const DOCUMENT_LIBRARY_ROUTE = "/document-library";
+
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
+
+  const [activePage, setActivePage] = useState<ActivePage>("claims");
+  const [claims, setClaims] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
   const sidebarItems = [
-    { name: "Dashboard", icon: LayoutDashboard, active: false },
-    { name: "Claims", icon: FileText, active: false },
-    { name: "Cases", icon: Briefcase, active: false },
-    { name: "Calendar", icon: Calendar, active: false },
-    { name: "Tasks", icon: CheckSquare, active: false },
-    { name: "Reports", icon: BarChart3, active: false },
+    { name: "Dashboard", icon: LayoutDashboard },
+    { name: "Claims", icon: FileText },
+    { name: "Cases", icon: Briefcase },
+    { name: "Tasks", icon: CheckSquare },
+    { name: "Calendar", icon: Calendar },
+    { name: "Reports", icon: BarChart3 },
   ];
 
+  const fallbackClaims = [
+    {
+      client: "Olivia Rhye",
+      claimNo: "ACC-2024-001",
+      type: "Vehicle damage",
+      date: "Jan 13, 2025",
+      assigned: "John Smith",
+      status: "PENDING",
+      priority: "HIGH",
+    },
+    {
+      client: "Olivia Rhye",
+      claimNo: "ACC-2024-001",
+      type: "Vehicle damage",
+      date: "Jan 13, 2025",
+      assigned: "John Smith",
+      status: "PENDING",
+      priority: "HIGH",
+    },
+    {
+      client: "Liam Johnson",
+      claimNo: "ACC-2024-002",
+      type: "Property damage",
+      date: "Jan 15, 2025",
+      assigned: "Emily Davis",
+      status: "APPROVED",
+      priority: "HIGH",
+    },
+    {
+      client: "Sophia Lee",
+      claimNo: "ACC-2024-003",
+      type: "Injury claim",
+      date: "Jan 20, 2025",
+      assigned: "Michael Brown",
+      status: "PROCESSING",
+      priority: "HIGH",
+    },
+  ];
 
-  const claimsData = Array(6).fill({
-    client: "Olivia Rhye",
-    email: "olivia@gmail.com",
-    claimNo: "ACC-2024-001",
-    type: "Vehicle damage",
-    date: "Jan 13, 2025",
-    assigned: "John Smith",
-    status: "PENDING",
-    priority: "HIGH",
-  });
-  const [claims, setClaims] = useState<any>()
-  
   useEffect(() => {
     const fetchClaims = async () => {
-      const res = await getClaims();
-      setClaims(res);
+      try {
+        const res = await getClaims();
+
+        if (Array.isArray(res)) {
+          setClaims(res);
+          return;
+        }
+
+        if (Array.isArray(res?.data)) {
+          setClaims(res.data);
+          return;
+        }
+
+        if (Array.isArray(res?.items)) {
+          setClaims(res.items);
+          return;
+        }
+
+        setClaims([]);
+      } catch (error) {
+        console.error("Failed to fetch claims:", error);
+        setClaims([]);
+      }
     };
+
     fetchClaims();
   }, []);
-  const [activePage, setActivePage] = useState<"claims" | "settings">("claims");
-const navigate = useNavigate()
+
+  const normalizeClaim = (claim: any, index: number) => {
+    const clientName =
+      claim.client_name ||
+      claim.client ||
+      claim.claimant_name ||
+      claim.name ||
+      fallbackClaims[index % fallbackClaims.length].client;
+
+    const claimNo =
+      claim.claim_no ||
+      claim.claim_number ||
+      claim.case_reference ||
+      claim.reference ||
+      fallbackClaims[index % fallbackClaims.length].claimNo;
+
+    const type =
+      claim.claim_type ||
+      claim.type ||
+      claim.accident_type ||
+      fallbackClaims[index % fallbackClaims.length].type;
+
+    const incidentDate =
+      claim.incident_date ||
+      claim.accident_date ||
+      claim.date ||
+      fallbackClaims[index % fallbackClaims.length].date;
+
+    const assignedTo =
+      claim.assigned_to ||
+      claim.assigned ||
+      claim.handler_name ||
+      fallbackClaims[index % fallbackClaims.length].assigned;
+
+    const status =
+      claim.status ||
+      claim.claim_status ||
+      fallbackClaims[index % fallbackClaims.length].status;
+
+    const priority =
+      claim.priority ||
+      claim.claim_priority ||
+      fallbackClaims[index % fallbackClaims.length].priority;
+
+    return {
+      ...claim,
+      client: clientName,
+      claimNo,
+      type,
+      date: formatDate(incidentDate),
+      assigned: assignedTo,
+      status: String(status).toUpperCase(),
+      priority: String(priority).toUpperCase(),
+    };
+  };
+
+  const tableRows = useMemo(() => {
+    const source = claims.length > 0 ? claims : fallbackClaims;
+
+    return source.map((claim, index) => normalizeClaim(claim, index));
+  }, [claims]);
+
+  const filteredRows = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+
+    if (!query) return tableRows;
+
+    return tableRows.filter((claim) =>
+      [claim.client, claim.claimNo, claim.type, claim.assigned, claim.status]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query)),
+    );
+  }, [tableRows, searchQuery]);
+
+  const totalClaims = claims.length || 1256;
+
+  const stats = [
+    {
+      title: "Total Claims",
+      value: totalClaims,
+      change: "+8.2%",
+      trend: "up",
+      icon: ClipboardList,
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-700",
+    },
+    {
+      title: "Pending",
+      value: 48,
+      change: "+12.4%",
+      trend: "up",
+      icon: Clock3,
+      iconBg: "bg-red-100",
+      iconColor: "text-red-500",
+    },
+    {
+      title: "Processing",
+      value: 31,
+      change: "-2.2%",
+      trend: "down",
+      icon: Hourglass,
+      iconBg: "bg-yellow-100",
+      iconColor: "text-yellow-500",
+    },
+    {
+      title: "Approved",
+      value: 42,
+      change: "-2.2%",
+      trend: "down",
+      icon: CheckCircle2,
+      iconBg: "bg-green-100",
+      iconColor: "text-green-500",
+    },
+    {
+      title: "High Priority",
+      value: 42,
+      change: "-2.2%",
+      trend: "down",
+      icon: AlertCircle,
+      iconBg: "bg-red-100",
+      iconColor: "text-red-500",
+    },
+  ];
+
+  const handleSidebarClick = (name: string) => {
+    if (name === "Claims") {
+      setActivePage("claims");
+    }
+  };
+
   return (
-    <div className="flex min-h-screen bg-white font-sans">
-      {/* SIDEBAR */}
-      <aside className="w-64 border-r border-gray-100 flex flex-col shadow-lg z-10 shrink-0">
-        <div className="p-6 mb-4">
-          <div className="w-8 h-8 bg-blue-600 rounded-md">
-            <img src={Logo} alt="" className="p-1" />
-          </div>
-          {/* Logo Placeholder */}
+    <div className="flex min-h-screen bg-white font-['Stack_Sans_Headline']">
+      <aside className="w-60 border-r border-neutral-100 flex flex-col shrink-0 bg-white">
+        <div className="h-16 px-5 py-6 flex justify-between items-center border-b border-neutral-100">
+          <img src={Logo} alt="Logo" className="w-8 h-8 object-contain" />
+          <img src={logout} alt="" />
         </div>
 
-        <nav className="flex-1">
-          {sidebarItems.map((item) => (
-            <div
-              key={item.name}
-              className={`flex items-center gap-3 px-8 py-3 cursor-pointer transition-colors ${
-                activePage === item.name
-                  ? "bg-blue-50 border-l-4 border-blue-600 text-blue-600"
-                  : "text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <item.icon size={18} />
-              <span className="text-sm font-weight-400">{item.name}</span>
-            </div>
-          ))}
+        <nav className="flex-1 py-6">
+          {sidebarItems.map((item) => {
+            const isSelected =
+              item.name === "Claims" && activePage === "claims";
 
-          <div className="mt-8 px-8 mb-2">
-            <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">
-              Platform
+            return (
+              <button
+                key={item.name}
+                type="button"
+                onClick={() => handleSidebarClick(item.name)}
+                className={`w-full px-5 py-3 flex items-center gap-3 text-sm transition-colors ${
+                  isSelected
+                    ? "bg-blue-100 border-l-4 border-blue-300 text-blue-700"
+                    : "border-l-4 border-transparent text-neutral-700 hover:bg-neutral-50"
+                }`}
+              >
+                <item.icon size={20} />
+                <span className="font-weight-400">{item.name}</span>
+              </button>
+            );
+          })}
+
+          <div className="px-4 pt-4 pb-1">
+            <span className="text-neutral-500 text-xs font-weight-600">
+              PLATFORM
             </span>
           </div>
 
-          <div
-            className="flex items-center gap-3 px-8 py-3 text-gray-600 hover:bg-gray-50 cursor-pointer bg-blue-50 border-l-4 border-blue-600 text-blue-600"
+          <button
+            type="button"
             onClick={() => setActivePage("settings")}
+            className={`w-full px-5 py-3 flex items-center gap-3 text-sm transition-colors ${
+              activePage === "settings"
+                ? "bg-blue-100 border-l-4 border-blue-300 text-blue-700"
+                : "border-l-4 border-transparent text-neutral-700 hover:bg-neutral-50"
+            }`}
           >
-            <Settings size={18} />
-            <span className="text-sm font-weight-400">Settings</span>
-          </div>
-          <div className="flex items-center gap-3 px-8 py-3 text-gray-600 hover:bg-gray-50 cursor-pointer">
-            <HelpCircle size={18} />
-            <span className="text-sm font-weight-400">Help</span>
-          </div>
+            <Settings size={20} />
+            <span className="font-weight-400">Settings</span>
+          </button>
+
+          <button
+            type="button"
+            className="w-full px-5 py-3 flex items-center gap-3 text-sm border-l-4 border-transparent text-neutral-700 hover:bg-neutral-50"
+          >
+            <HelpCircle size={20} />
+            <span className="font-weight-400">Help</span>
+          </button>
         </nav>
+
+        <div className="border-t border-neutral-100 p-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-weight-600">
+              MK
+            </div>
+            <span className="text-black text-base font-weight-500">
+              Marwa Khalid{" "}
+            </span>
+          </div>
+          <div className="text-neutral-300 text-sm">↕</div>
+        </div>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {activePage === "claims" && (
           <>
-            <header className="p-10 pb-4">
-              <h1 className="text-2xl font-weight-600 text-gray-900 mb-6">
-                Claims
-              </h1>
+            <div className="h-20 px-10 py-4 border-b border-neutral-100 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <h1 className="text-neutral-900 text-2xl font-weight-600 leading-6">
+                  Claims
+                </h1>
 
-              <div className="flex justify-between items-center gap-4">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="relative w-64">
-                    <Search
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={16}
-                    />
+                <div
+                  className="ActivityLogContainer flex justify-start items-center gap-1 cursor-pointer group"
+                  onClick={() => navigate("/case-activity?scope=all")}
+                >
+                  <img src={Vector4} alt="" />
+                  <div className="ActivityLogText text-blue-300 text-xs font-weight-600 font-['Stack_Sans_Headline'] group-hover:underline">
+                    View Activity Log
+                  </div>
+                </div>
+                <div
+                  className="ActivityLogContainer flex justify-start items-center gap-1 cursor-pointer group"
+                  onClick={() => navigate("/document-library?scope=all")}
+                >
+                  <img src={FileIcon} alt="" />
+                  <div className="ActivityLogText text-blue-300 text-xs font-weight-600 font-['Stack_Sans_Headline'] group-hover:underline">
+                    Documents Library
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6 text-neutral-500">
+                <Search size={20} />
+                <Bell size={20} />
+              </div>
+            </div>
+
+            <section className="px-10 py-6 flex-1 overflow-auto">
+              <div className="grid grid-cols-5 gap-4 mb-10">
+                {stats.map((stat) => (
+                  <StatCard key={stat.title} {...stat} />
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                  <div className="w-[491px] px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 flex items-center">
                     <input
                       type="text"
-                      placeholder="Search Claims"
-                      className="w-full pl-11 pr-4 py-3 bg-gray-100 border-none rounded-lg text-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Claim number / Client / Assigned to"
+                      className="w-full outline-none text-base font-light text-neutral-700 placeholder:text-neutral-300"
                     />
                   </div>
 
-                  <button className="flex items-center gap-2 px-4 py-3 border border-blue-200 rounded-lg text-blue-600 text-sm font-weight-600 hover:bg-blue-50 transition-colors">
-                    <Filter size={16} />
-                    Filter
-                  </button>
-                  <button className="flex items-center gap-2 px-4 py-3 border border-blue-200 rounded-lg text-blue-600 text-sm font-weight-600 hover:bg-blue-50 transition-colors">
-                    <ArrowUpDown size={16} />
-                    Sort
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate("/add-claim")}
+                      className="px-10 py-4 bg-blue-500 rounded flex justify-center items-center gap-2.5 text-white text-base font-weight-500 leading-4 hover:bg-blue-600 transition"
+                    >
+                      Add Claim
+                    </button>
+
+                    <button
+                      type="button"
+                      className="px-6 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-blue-500 flex justify-center items-center gap-2.5 text-blue-500 text-base font-weight-500 leading-4 hover:bg-blue-50 transition"
+                    >
+                      <Upload size={16} />
+                      Export
+                    </button>
+                  </div>
                 </div>
 
-                <button
-                  className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-lg font-weight-600 text-sm hover:bg-blue-700 transition-all shadow-md active:scale-95"
-                  onClick={() => navigate("/add-claim")}
-                >
-                  <Plus size={18} />
-                  Add New Claim
-                </button>
-              </div>
-            </header>
-
-            <section className="px-10 flex-1 overflow-auto pb-10">
-              <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      <th className="p-4 w-10">
-                        <input
-                          type="checkbox"
-                          className="rounded border-gray-300"
-                        />
-                      </th>
-                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Client
-                      </th>
-                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Claim No.
-                      </th>
-                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Incident Date
-                      </th>
-                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Assigned To
-                      </th>
-                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
-                        Status
-                      </th>
-                      <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
-                        Priority
-                      </th>
-                      <th className="p-4"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {claimsData.map((claim, idx) => (
-                      <tr
-                        key={idx}
-                        className="hover:bg-gray-50 transition-colors"
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4">
+                    {["Claim Type", "Status", "Priority"].map((filter) => (
+                      <button
+                        key={filter}
+                        type="button"
+                        className="h-11 p-4 rounded flex items-center gap-3 text-blue-500 text-sm font-weight-400 leading-4 hover:bg-blue-50 transition"
                       >
-                        <td className="p-4">
-                          <input
-                            type="checkbox"
-                            className="rounded border-gray-300"
-                          />
-                        </td>
-                        <td className="p-4">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-weight-400 text-gray-900">
-                              {claim.client}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {claim.email}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-xs text-gray-600">
-                          {claim.claimNo}
-                        </td>
-                        <td className="p-4 text-xs text-gray-600">
-                          {claim.type}
-                        </td>
-                        <td className="p-4 text-xs text-gray-600">
-                          {claim.date}
-                        </td>
-                        <td className="p-4 text-xs text-gray-600">
-                          {claim.assigned}
-                        </td>
-                        <td className="p-4">
-                          <div className="flex justify-center">
-                            <span className="px-2 py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded">
-                              PENDING
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex justify-center">
-                            <span className="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-bold rounded">
-                              HIGH
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-right">
-                          <button className="text-gray-400 hover:text-gray-600">
-                            <MoreVertical size={16} />
-                          </button>
-                        </td>
-                      </tr>
+                        {filter}
+                        <ChevronDown size={14} />
+                      </button>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-neutral-700 text-sm font-weight-400">
+                      Date Range
+                    </span>
+
+                    <DateBox label="From" />
+                    <DateBox label="To" />
+                  </div>
+                </div>
+
+                <div className="rounded-lg outline outline-1 outline-neutral-100 overflow-hidden">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="h-12 bg-neutral-100">
+                        <TableHeader className="w-10">
+                          <div className="w-5 h-5 bg-neutral-300 rounded" />
+                        </TableHeader>
+                        <TableHeader>CLIENT</TableHeader>
+                        <TableHeader>CLAIM NO.</TableHeader>
+                        <TableHeader>TYPE</TableHeader>
+                        <TableHeader>INCIDENT DATE</TableHeader>
+                        <TableHeader>ASSIGNED TO</TableHeader>
+                        <TableHeader>STATUS</TableHeader>
+                        <TableHeader>PRIORITY</TableHeader>
+                        <TableHeader className="w-10" />
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {filteredRows.slice(0, 10).map((claim, index) => (
+                        <tr
+                          key={`${claim.claimNo}-${index}`}
+                          className="border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50 transition"
+                        >
+                          <TableCell className="w-10">
+                            <div className="w-5 h-5 bg-neutral-300 rounded" />
+                          </TableCell>
+
+                          <TableCell>{claim.client}</TableCell>
+                          <TableCell>{claim.claimNo}</TableCell>
+                          <TableCell>{claim.type}</TableCell>
+                          <TableCell>{claim.date}</TableCell>
+                          <TableCell>{claim.assigned}</TableCell>
+
+                          <TableCell>
+                            <StatusBadge status={claim.status} />
+                          </TableCell>
+
+                          <TableCell>
+                            <PriorityBadge priority={claim.priority} />
+                          </TableCell>
+
+                          <TableCell className="w-10 text-right">
+                            <button className="px-2 py-1 text-neutral-300 hover:text-neutral-500">
+                              <MoreVertical size={16} />
+                            </button>
+                          </TableCell>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-6 w-full inline-flex justify-between items-center">
+                  <div className="text-center">
+                    <span className="text-neutral-600 text-xs font-weight-400">
+                      Showing{" "}
+                    </span>
+                    <span className="text-black text-xs font-weight-600">
+                      1
+                    </span>
+                    <span className="text-neutral-600 text-xs font-weight-400">
+                      {" "}
+                      to{" "}
+                    </span>
+                    <span className="text-black text-xs font-weight-600">
+                      {Math.min(10, filteredRows.length)}
+                    </span>
+                    <span className="text-neutral-600 text-xs font-weight-400">
+                      {" "}
+                      of{" "}
+                    </span>
+                    <span className="text-black text-xs font-weight-600">
+                      {filteredRows.length || 100}
+                    </span>
+                    <span className="text-neutral-600 text-xs font-weight-400">
+                      {" "}
+                      Entries
+                    </span>
+                  </div>
+
+                  <Pagination />
+                </div>
               </div>
             </section>
           </>
@@ -871,6 +514,185 @@ const navigate = useNavigate()
       </main>
     </div>
   );
+};
+
+const StatCard = ({
+  title,
+  value,
+  change,
+  trend,
+  icon: Icon,
+  iconBg,
+  iconColor,
+}: any) => {
+  const isUp = trend === "up";
+
+  return (
+    <div className="p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col gap-3">
+      <div className="flex items-center gap-4">
+        <div className={`p-3 ${iconBg} rounded flex items-center`}>
+          <Icon size={20} className={iconColor} />
+        </div>
+
+        {isUp ? (
+          <TrendingUp size={48} className="text-green-500" />
+        ) : (
+          <TrendingDown size={48} className="text-red-500" />
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <div className="text-black text-4xl font-weight-600 leading-10">
+          {value}
+        </div>
+        <div className="text-neutral-500 text-sm font-weight-500">{title}</div>
+      </div>
+
+      <div className="h-px bg-neutral-200" />
+
+      <div className="flex items-center gap-2">
+        <div
+          className={`p-1 rounded text-xs font-weight-600 ${
+            isUp ? "bg-green-100 text-green-700" : "bg-red-100 text-red-500"
+          }`}
+        >
+          {change}
+        </div>
+        <span className="text-neutral-500 text-sm font-weight-400">
+          vs last month
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const DateBox = ({ label }: { label: string }) => (
+  <button
+    type="button"
+    className="w-36 px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-between items-center"
+  >
+    <span className="text-neutral-300 text-base font-light leading-4">
+      {label}
+    </span>
+    <Calendar size={16} className="text-blue-300" />
+  </button>
+);
+
+const TableHeader = ({
+  children,
+  className = "",
+}: {
+  children?: React.ReactNode;
+  className?: string;
+}) => (
+  <th
+    className={`px-4 py-3 text-left text-neutral-900 text-sm font-weight-600 ${className}`}
+  >
+    {children}
+  </th>
+);
+
+const TableCell = ({
+  children,
+  className = "",
+}: {
+  children?: React.ReactNode;
+  className?: string;
+}) => (
+  <td
+    className={`px-4 py-3 text-neutral-700 text-sm font-weight-400 ${className}`}
+  >
+    {children}
+  </td>
+);
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const normalized = status?.toUpperCase();
+
+  if (normalized === "APPROVED") {
+    return (
+      <span className="px-2 py-1 bg-green-100 rounded text-lime-700 text-[10px] font-weight-500 font-['Outfit']">
+        APPROVED
+      </span>
+    );
+  }
+
+  if (normalized === "PROCESSING") {
+    return (
+      <span className="px-2 py-1 bg-yellow-100 rounded text-amber-500 text-[10px] font-weight-500 font-['Outfit']">
+        PROCESSING
+      </span>
+    );
+  }
+
+  return (
+    <span className="px-2 py-1 bg-red-100 rounded text-red-700 text-[10px] font-weight-500 font-['Outfit']">
+      PENDING
+    </span>
+  );
+};
+
+const PriorityBadge = ({ priority }: { priority: string }) => (
+  <span className="px-2 py-1 bg-red-100 rounded text-red-700 text-[10px] font-weight-500 font-['Outfit']">
+    {priority || "HIGH"}
+  </span>
+);
+
+const Pagination = () => {
+  const pages = [1, 2, 3, 4, 5, 6, 7, 8, "...", 99];
+
+  return (
+    <div className="flex justify-start items-center shadow-[0px_1px_0.5px_0.05px_rgba(29,41,61,0.02)] font-['Inter'] text-sm">
+      <button className="h-9 px-3 py-2 bg-white rounded-tl rounded-bl outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-center items-center">
+        <span className="text-neutral-600 text-sm font-weight-500 leading-5">
+          Previous
+        </span>
+      </button>
+
+      {pages.map((page, index) => {
+        const isActive = page === 3;
+
+        return (
+          <button
+            key={`${page}-${index}`}
+            className={`w-9 h-9 px-3 py-2 outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-center items-center ${
+              isActive ? "bg-blue-100" : "bg-white"
+            }`}
+          >
+            <span
+              className={`text-sm font-weight-500 leading-5 ${
+                isActive ? "text-black" : "text-neutral-600"
+              }`}
+            >
+              {page}
+            </span>
+          </button>
+        );
+      })}
+
+      <button className="h-9 px-3 py-2 bg-white rounded-tr rounded-br outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-center items-center">
+        <span className="text-blue-500 text-sm font-weight-500 leading-5">
+          Next
+        </span>
+      </button>
+    </div>
+  );
+};
+
+const formatDate = (value: any) => {
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
 };
 
 export default Dashboard;

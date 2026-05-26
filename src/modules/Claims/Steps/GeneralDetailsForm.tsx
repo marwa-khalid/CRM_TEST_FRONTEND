@@ -12,7 +12,6 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
-import type2 from "../../../assets/AutoClaim_icon/analyzing.svg";
 
 // Assets & Icons
 import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
@@ -120,7 +119,6 @@ export const customStyles: StylesConfig<any, false> = {
 // --- COMPONENT ---
 const GeneralDetailsForm = ({ formRef }: any) => {
   const { id } = useParams();
-  const navigate= useNavigate()
   const [fileClosedOn, setFileClosedOn] = useState<any>(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closureReason, setClosureReason] = useState("");
@@ -313,18 +311,19 @@ console.log(formik.values)
   return (
    <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       <h1 className="text-neutral-900 text-[24px] font-weight-600">General Details</h1>
- {isAnalyzing && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-transparent p-6 rounded-xl flex flex-col items-center gap-4 ">
-            {/* Spinner */}
-            <img
-              src={type2}
-              className="w-16 h-16 animate-spin"
-              style={{ animationDuration: "2s" }}
-            />
-            {/* <div className="text-white text-sm font-weight-400">
-              Analyzing images...
-            </div> */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-[9999] bg-[#e8e6df]/80 flex items-center justify-center font-['Stack_Sans_Headline']">
+          <div className="relative w-[73px] h-[73px]">
+            {Array.from({ length: 12 }).map((_, index) => (
+              <span
+                key={index}
+                className="absolute left-1/2 top-1/2 w-[6px] h-[16px] rounded-full bg-[#9b9b9b] animate-loaderFade"
+                style={{
+                  transform: `translate(-50%, -50%) rotate(${index * 30}deg) translateY(-25px)`,
+                  animationDelay: `${index * 0.08}s`,
+                }}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -812,7 +811,6 @@ console.log(formik.values)
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex justify-center items-center z-50">
           <div className="ModalInput p-6 bg-white rounded-lg shadow-xl inline-flex flex-col gap-5">
             <div className="d-flex flex-col gap-2">
-              {" "}
               <h2 className="text-xl font-weight-600">Close File</h2>
               <small className="text-neutral-700 font-weight-400">
                 Please provide a reason below for closing this case

@@ -1,25 +1,44 @@
 import React, { useState } from "react";
-import {
-  Mail,
-  FileText,
-  History,
-  User,
-  Edit3,
-  Upload,
-  Reply,
-  Paperclip,
-  Eye,
-} from "lucide-react";
 import attachmentt from "../../../assets/AutoClaim_icon/attachment.svg";
+import Option1 from "../../../assets/RichTextOptions/Option1.svg";
+import Option2 from "../../../assets/RichTextOptions/Option2.svg";
+import Option3 from "../../../assets/RichTextOptions/Option3.svg";
+import Option4 from "../../../assets/RichTextOptions/Option4.svg";
+import Option5 from "../../../assets/RichTextOptions/Option5.svg";
+import deletee from "../../../assets/case_activity/delete.svg";
+import reply from "../../../assets/case_activity/reply.svg";
+import ForwardIcon from "../../../assets/case_activity/forward.svg";
+import ViewIcon from "../../../assets/case_activity/view.svg";
+import NotesIcon from "../../../assets/case_activity/note.svg";
+import UpdateIcon from "../../../assets/case_activity/update.svg";
+import UploadIcon from "../../../assets/case_activity/upload.svg";
+import EmailIcon from "../../../assets/case_activity/email.svg";
+import AIReportIcon from "../../../assets/case_activity/ai_report.svg";
+import WitnessIcon from "../../../assets/case_activity/witness.svg";
+
+import {
+  getEmailAttachmentBlob,
+  replyToEmailGraph,
+} from "../../../services/HistoryActivities/HistoryActivities";
+import { toast } from "react-toastify";
+import axiosInstance from "../../../services/axiosConfig";
 
 interface ActivityDetailSliderProps {
   isOpen: boolean;
   onClose: () => void;
   data: any;
-  onAddNote?: (payload: { activity: any; note: string }) => void;
+  notes?: ActivityNote[];
+  currentUser?: any;
+  openWitnessPdf: any;
+  onAddNote?: (payload: NotePayload) => void;
+  onDeleteNote?: (payload: {
+    activity: any;
+    noteId: number | string;
+    parentNoteId?: number | string;
+  }) => void;
   onViewInDocumentLibrary?: (activity: any) => void;
-  onForwardToClient?: (activity: any) => void;
-  onReplyToEmail?: (activity: any) => void;
+  // onForwardToClient?: (activity: any) => void;
+  // onReplyToEmail?: (activity: any) => void;
 }
 
 const staticAiTableRows = [
@@ -51,41 +70,347 @@ const staticAiTableRows = [
     repair: "Repair",
   },
 ];
+type NoteAttachment = {
+  file_name?: string;
+  file_url?: string;
+  file_size?: string;
+  case_document_id?: number | string | null;
+  s3_key?: string;
+};
 
+type ActivityNoteReply = {
+  id: number | string;
+  noteId: number | string;
+  text: string;
+  createdAt: string;
+  createdById?: number | string;
+  createdByName: string;
+  createdByRole: string;
+  attachments?: NoteAttachment[];
+};
+
+type ActivityNote = {
+  id: number | string;
+  activityId: number | string;
+  text: string;
+  createdAt: string;
+  createdById?: number | string;
+  createdByName: string;
+  createdByRole: string;
+  attachments?: NoteAttachment[];
+  replies?: ActivityNoteReply[];
+};
+
+type NotePayload = {
+  activity: any;
+  note?: string;
+  reply?: string;
+  parentNoteId?: number | string;
+  noteId?: number | string;
+  files?: File[];
+  isEdit?: boolean;
+};
 const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
   isOpen,
   onClose,
   data,
+  notes: activityNotes = [],
+  currentUser: currentUserProp,
   onAddNote,
   onViewInDocumentLibrary,
-  onForwardToClient,
-  onReplyToEmail,
+  // onForwardToClient,
+  // onReplyToEmail,
+  onDeleteNote,
+  openWitnessPdf,
 }) => {
   const [showNoteBox, setShowNoteBox] = useState(false);
   const [noteText, setNoteText] = useState("");
-  const [notes, setNotes] = useState<
-    { id: number; text: string; createdAt: string }[]
-  >([]);
+  const [replyingToId, setReplyingToId] = useState<number | string | null>(
+    null,
+  );
+  const [replyText, setReplyText] = useState("");
+  const [deleteModal, setDeleteModal] = useState<{
+    open: boolean;
+    noteId?: number | string;
+    parentNoteId?: number | string;
+  } | null>(null);
+  const [selectedEmailFiles, setSelectedEmailFiles] = useState<File[]>([]);
+  const currentUser =
+    currentUserProp || JSON.parse(localStorage.getItem("activeUser") || "{}");
+  const [emailActionModal, setEmailActionModal] = useState<{
+    open: boolean;
+    type: "reply" | "forward";
+  } | null>(null);
+  const openEmailAttachment = async (
+    fileUrl: string,
+    fileName = "attachment",
+  ) => {
+    try {
+      const response = await getEmailAttachmentBlob(fileUrl);
+
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"] || "application/octet-stream",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error("Failed to open attachment:", error);
+      toast.error("Failed to open attachment.");
+    }
+  };
+  const [emailComment, setEmailComment] = useState("");
+  const [forwardToEmail, setForwardToEmail] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [noteFiles, setNoteFiles] = useState<File[]>([]);
+  const [replyFiles, setReplyFiles] = useState<File[]>([]);
+
+  const [editingNoteId, setEditingNoteId] = useState<number | string | null>(
+    null,
+  );
+  const [editingParentNoteId, setEditingParentNoteId] = useState<
+    number | string | null
+  >(null);
+  const [editText, setEditText] = useState("");
+  const [editFiles, setEditFiles] = useState<File[]>([]);
+  const [noteFormatting, setNoteFormatting] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    list: false,
+  });
+  const [emailFormatting, setEmailFormatting] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    list: false,
+  });
+  const parsedDetail = (() => {
+    try {
+      return typeof data?.detail_text === "string"
+        ? JSON.parse(data.detail_text)
+        : data?.detail_text || {};
+    } catch {
+      return {
+        note: data?.detail_text || "",
+      };
+    }
+  })();
 
   if (!isOpen || !data) return null;
 
   const getIcon = () => {
     switch (data.type) {
       case "Email":
-        return <Mail className="text-blue-500" size={24} />;
+        return EmailIcon;
       case "Upload":
-        return <Upload className="text-blue-500" size={24} />;
+        return UploadIcon;
       case "Note":
-        return <Edit3 className="text-blue-500" size={24} />;
+        return NotesIcon;
       case "Witness":
-        return <User className="text-blue-500" size={24} />;
+        return WitnessIcon;
       case "AI Report":
-        return <FileText className="text-blue-500" size={24} />;
+        return AIReportIcon;
       default:
-        return <History className="text-blue-500" size={24} />;
+        return UpdateIcon;
     }
   };
+  const userName =
+    currentUser?.first_name && currentUser?.last_name
+      ? `${currentUser.first_name} ${currentUser.last_name}`
+      : currentUser?.name || currentUser?.email || "John Doe";
 
+  const userRole = currentUser?.role || "Claim Handler";
+
+  const getInitials = (name = "") =>
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase() || "JD";
+
+  const canDelete = (createdById?: number | string) => {
+    if (!createdById || !currentUser?.id) return true; // demo fallback
+    return String(createdById) === String(currentUser.id);
+  };
+  const handleSubmitNote = () => {
+    if (!noteText.trim() && noteFiles.length === 0) return;
+
+    const formattedNote = applyNoteFormatting(noteText.trim());
+
+    onAddNote?.({
+      activity: data,
+      note: formattedNote,
+      files: noteFiles,
+    });
+
+    setNoteText("");
+    setNoteFiles([]);
+    setNoteFormatting({
+      bold: false,
+      italic: false,
+      underline: false,
+      list: false,
+    });
+  };
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const hasHtmlTags = (value = "") => /<\/?[a-z][\s\S]*>/i.test(value);
+
+  const sanitizeNoteHtml = (html = "") => {
+    if (!html) return "";
+
+    const doc = new DOMParser().parseFromString(html, "text/html");
+
+    doc
+      .querySelectorAll("script, style, iframe, object, embed")
+      .forEach((el) => el.remove());
+
+    doc.body.querySelectorAll("*").forEach((el) => {
+      [...el.attributes].forEach((attr) => {
+        const name = attr.name.toLowerCase();
+        const value = attr.value.toLowerCase();
+
+        if (name.startsWith("on") || value.includes("javascript:")) {
+          el.removeAttribute(attr.name);
+        }
+      });
+    });
+
+    return doc.body.innerHTML;
+  };
+
+  const applyNoteFormatting = (value: string) => {
+    let output = escapeHtml(value).replace(/\n/g, "<br />");
+
+    if (noteFormatting.list) {
+      const lines = value
+        .split("\n")
+        .map((line) => line.replace(/^•\s*/, "").trim())
+        .filter(Boolean);
+
+      output = `<ul>${lines
+        .map((line) => `<li>${escapeHtml(line)}</li>`)
+        .join("")}</ul>`;
+    }
+
+    if (noteFormatting.bold) output = `<strong>${output}</strong>`;
+    if (noteFormatting.italic) output = `<em>${output}</em>`;
+    if (noteFormatting.underline) output = `<u>${output}</u>`;
+
+    return output;
+  };
+
+  const stripHtmlToText = (html = "") => {
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return div.textContent || div.innerText || "";
+  };
+
+  const renderNoteHtml = (value = "") => {
+    const html = hasHtmlTags(value)
+      ? sanitizeNoteHtml(value)
+      : escapeHtml(value).replace(/\n/g, "<br />");
+
+    return { __html: html };
+  };
+
+  const getNoteAttachments = (item: any): NoteAttachment[] => {
+    if (!item) return [];
+
+    if (Array.isArray(item.attachments)) return item.attachments;
+    if (Array.isArray(item.files)) return item.files;
+    if (Array.isArray(item.note_attachments)) return item.note_attachments;
+
+    return [];
+  };
+
+  const openNoteAttachment = (attachment: NoteAttachment) => {
+    const fileUrl = attachment?.file_url || "";
+
+    if (!fileUrl || fileUrl === "#") {
+      toast.error("Attachment URL not found");
+      return;
+    }
+
+    window.open(fileUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const renderNoteAttachments = (attachments: NoteAttachment[] = []) => {
+    if (!attachments.length) return null;
+
+    return (
+      <div className="self-stretch flex flex-wrap gap-2 pt-1">
+        {attachments.map((attachment, index) => (
+          <button
+            key={`${attachment.file_name || "attachment"}-${index}`}
+            type="button"
+            onClick={() => openNoteAttachment(attachment)}
+            className="inline-flex items-center gap-2 px-2 py-1 rounded bg-blue-50 text-blue-500 text-xs hover:underline"
+          >
+            <img src={attachmentt} alt="" className="w-3 h-3" />
+            <span>{attachment.file_name || "Attachment"}</span>
+          </button>
+        ))}
+      </div>
+    );
+  };
+  const handleSubmitReply = (parentNoteId: number | string) => {
+    if (!replyText.trim() && replyFiles.length === 0) return;
+
+    const formattedReply = applyNoteFormatting(replyText.trim());
+
+    onAddNote?.({
+      activity: data,
+      parentNoteId,
+      reply: formattedReply,
+      files: replyFiles,
+    });
+
+    setReplyText("");
+    setReplyFiles([]);
+    setReplyingToId(null);
+    setNoteFormatting({
+      bold: false,
+      italic: false,
+      underline: false,
+      list: false,
+    });
+  };
+  const handleSubmitEdit = () => {
+    if (!editingNoteId || !editText.trim()) return;
+
+    const formattedEdit = applyNoteFormatting(editText.trim());
+
+    onAddNote?.({
+      activity: data,
+      noteId: editingNoteId,
+      parentNoteId: editingParentNoteId || undefined,
+      note: editingParentNoteId ? undefined : formattedEdit,
+      reply: editingParentNoteId ? formattedEdit : undefined,
+      files: editFiles,
+      isEdit: true,
+    });
+
+    setEditingNoteId(null);
+    setEditingParentNoteId(null);
+    setEditText("");
+    setEditFiles([]);
+    setNoteFormatting({
+      bold: false,
+      italic: false,
+      underline: false,
+      list: false,
+    });
+  };
   const formatDateTime = (dateStr?: string) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
@@ -105,112 +430,510 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
     setShowNoteBox(true);
   };
 
-  const handleSaveNote = () => {
-    if (!noteText.trim()) return;
-
-    const newNote = {
-      id: Date.now(),
-      text: noteText.trim(),
-      createdAt: new Date().toISOString(),
-    };
-
-    setNotes((prev) => [newNote, ...prev]);
-    onAddNote?.({ activity: data, note: noteText.trim() });
-
-    setNoteText("");
-    setShowNoteBox(false);
-  };
-
-const staticAiData = [
-  {
-    side: "Rear",
-    area: "Bumper",
-    type: "Broken",
-    severity: "High",
-    confidence: "90%",
-    points: "1",
-    repair: "Repair",
-  },
-  {
-    side: "Rear",
-    area: "Trunk",
-    type: "Dent",
-    severity: "Low",
-    confidence: "84%",
-    points: "1",
-    repair: "Repair",
-  },
-  {
-    side: "Rear",
-    area: "Taillight",
-    type: "Broken",
-    severity: "High",
-    confidence: "67%",
-    points: "1",
-    repair: "Repair",
-  },
-];
-
-
   const renderNotesSection = () => {
-    if (notes.length === 0) return null;
+    if (!activityNotes || activityNotes.length === 0) return null;
 
     return (
-      <div className="flex flex-col gap-3">
-        <h3 className="text-base font-weight-600 text-black">Notes</h3>
+      <div className="w-[700px] max-w-full flex flex-col items-start gap-6">
+        {activityNotes.map((note) => (
+          <div
+            key={note.id}
+            className="self-stretch flex flex-col items-end gap-2"
+          >
+            <div className="self-stretch p-4 rounded outline outline-1 outline-offset-[-1px] outline-blue-200 flex flex-col justify-start items-start gap-4">
+              <div className="self-stretch flex justify-between items-center">
+                <div className="flex justify-start items-start gap-2">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 text-sm font-weight-500">
+                    {getInitials(note.createdByName)=="Unknown User"? "Marwa Khalid":getInitials(note.createdByName)}
+                  </div>
 
-        {notes.map((note) => (
-          <div key={note.id} className="bg-neutral-100 p-4 rounded-lg">
-            <p className="text-neutral-700 text-sm font-weight-300 whitespace-pre-line leading-relaxed">
-              {note.text}
-            </p>
-            <p className="text-neutral-500 text-xs mt-2">
-              {formatDateTime(note.createdAt)}
-            </p>
+                  <div className="w-24 flex flex-col justify-start items-start">
+                    <div className="self-stretch text-black text-sm font-weight-500">
+                      {note.createdByName}
+                    </div>
+                    <div className="self-stretch text-neutral-500 text-xs font-weight-400">
+                      {note.createdByRole}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-start items-center gap-3">
+                  <div className="text-neutral-500 text-sm font-weight-400">
+                    {formatDateTime(note.createdAt)}
+                  </div>
+
+                  <div className="relative group">
+                    <button className="w-5 h-5 text-neutral-300">⋮</button>
+
+                    <div className="hidden group-hover:inline-flex absolute right-0 top-5 p-4 bg-white rounded shadow-[0px_4px_4px_0px_rgba(0,0,0,0.08)] flex-col justify-start items-start gap-4 z-20">
+                      <button
+                        type="button"
+                        onClick={() => setReplyingToId(note.id)}
+                        className="self-stretch inline-flex justify-start items-center gap-2"
+                      >
+                        <div className="w-14 flex justify-between items-center">
+                          <img src={reply} alt="" className="w-3.5 h-3.5" />
+
+                          <span className="text-blue-500 text-sm font-weight-300 font-light font-['Stack_Sans_Headline'] leading-4">
+                            Reply
+                          </span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingNoteId(note.id);
+                          setEditingParentNoteId(null);
+                          setEditText(stripHtmlToText(note.text));
+                          setEditFiles([]);
+                          setNoteFormatting({
+                            bold: false,
+                            italic: false,
+                            underline: false,
+                            list: false,
+                          });
+                        }}
+                        className="self-stretch inline-flex justify-start items-center gap-2"
+                      >
+                        <div className="w-12 flex justify-between items-center">
+                          <img src={NotesIcon} alt="" className="w-3.5 h-3.5" />
+                          <span className="text-blue-500 text-sm font-weight-300 font-light font-['Stack_Sans_Headline'] leading-4">
+                            Edit
+                          </span>
+                        </div>
+                      </button>
+
+                      {canDelete(note.createdById) && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDeleteModal({
+                              open: true,
+                              noteId: note.id,
+                            })
+                          }
+                          className="self-stretch inline-flex justify-start items-center gap-2"
+                        >
+                          <div className="w-16 flex justify-between items-center">
+                            <img src={deletee} alt="" className="w-3.5 h-3.5" />
+
+                            <span className="text-red-500 text-sm font-weight-300 font-light font-['Stack_Sans_Headline'] leading-4">
+                              Delete
+                            </span>
+                          </div>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="self-stretch text-neutral-700 text-sm font-weight-400 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={renderNoteHtml(note.text)}
+              />
+              {renderNoteAttachments(getNoteAttachments(note))}
+              {editingNoteId === note.id && !editingParentNoteId && (
+                <div className="w-full pt-2">
+                  {renderRichTextBox({
+                    value: editText,
+                    onChange: setEditText,
+                    placeholder: "Edit note",
+                    onSubmit: handleSubmitEdit,
+                    widthClass: "w-full",
+                    files: editFiles,
+                    onFilesChange: setEditFiles,
+                  })}
+                </div>
+              )}
+            </div>
+
+            {note.replies?.map((reply) => (
+              <div
+                key={reply.id}
+                className="w-[628px] max-w-[calc(100%-72px)] p-4 rounded outline outline-1 outline-offset-[-1px] outline-blue-200 flex flex-col justify-start items-start gap-4"
+              >
+                <div className="self-stretch flex justify-between items-center">
+                  <div className="flex justify-start items-start gap-2">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 text-sm font-weight-500">
+                      {getInitials(reply.createdByName)}
+                    </div>
+
+                    <div className="w-24 flex flex-col justify-start items-start">
+                      <div className="self-stretch text-black text-sm font-weight-500">
+                        {reply.createdByName}
+                      </div>
+                      <div className="self-stretch text-neutral-500 text-xs font-weight-400">
+                        {reply.createdByRole}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-start items-center gap-3">
+                    <div className="text-neutral-500 text-sm font-weight-400">
+                      {formatDateTime(reply.createdAt)}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingNoteId(reply.id);
+                        setEditingParentNoteId(note.id);
+                        setEditText(stripHtmlToText(reply.text));
+                        setEditFiles([]);
+                        setNoteFormatting({
+                          bold: false,
+                          italic: false,
+                          underline: false,
+                          list: false,
+                        });
+                      }}
+                      className="text-xs text-blue-500 hover:underline"
+                    >
+                      Edit
+                    </button>
+
+                    {canDelete(reply.createdById) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDeleteModal({
+                            open: true,
+                            noteId: reply.id,
+                            parentNoteId: note.id,
+                          })
+                        }
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  className="self-stretch text-neutral-700 text-sm font-weight-400 prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={renderNoteHtml(reply.text)}
+                />
+                {renderNoteAttachments(getNoteAttachments(reply))}
+
+                {editingNoteId === reply.id &&
+                  editingParentNoteId === note.id && (
+                    <div className="w-full pt-2">
+                      {renderRichTextBox({
+                        value: editText,
+                        onChange: setEditText,
+                        placeholder: "Edit reply",
+                        onSubmit: handleSubmitEdit,
+                        widthClass: "w-full",
+                        files: editFiles,
+                        onFilesChange: setEditFiles,
+                      })}
+                    </div>
+                  )}
+              </div>
+            ))}
+
+            {replyingToId === note.id && (
+              <div className="w-[628px] max-w-[calc(100%-72px)]">
+                {renderRichTextBox({
+                  value: replyText,
+                  onChange: setReplyText,
+                  placeholder: (
+                    <div className="justify-start">
+                      <span className="text-[#A6AAB1] text-sm font-weight-500 font-['Stack_Sans_Headline']">
+                        Reply to{" "}
+                      </span>
+
+                      <span className="text-[#245BDB] text-sm font-weight-500 font-['Stack_Sans_Headline']">
+                        {note.createdByName}
+                      </span>
+                    </div>
+                  ),
+                  onSubmit: () => handleSubmitReply(note.id),
+                  widthClass: "w-full",
+                  files: replyFiles,
+                  onFilesChange: setReplyFiles,
+                })}
+              </div>
+            )}
           </div>
         ))}
       </div>
     );
   };
 
-  const renderNoteBox = () => {
-    if (!showNoteBox) return null;
+  const renderRichTextBox = ({
+    value,
+    onChange,
+    placeholder,
+    onSubmit,
+    widthClass = "w-[700px] max-w-full",
+    files = [],
+    onFilesChange,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: React.ReactNode;
+    onSubmit: () => void;
+    widthClass?: string;
+    files?: File[];
+    onFilesChange?: (files: File[]) => void;
+  }) => {
+    const formatClass = [
+      noteFormatting.bold ? "font-weight-600" : "font-weight-300",
+      noteFormatting.italic ? "italic" : "",
+      noteFormatting.underline ? "underline" : "",
+    ].join(" ");
 
     return (
-      <div className="mt-4 border-t border-neutral-100 pt-6">
-        <div className="flex flex-col gap-3">
-          <label className="text-sm text-neutral-700 font-weight-400">
-            Add Note
-          </label>
+      <div className={`${widthClass} flex flex-col items-end gap-3`}>
+        <div className="self-stretch min-h-[8rem] px-5 pt-4 pb-2 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col justify-start items-start gap-2.5">
+          <div className="relative w-full flex-1">
+            {!value && typeof placeholder !== "string" && (
+              <div className="absolute top-0 left-0 pointer-events-none text-sm font-weight-500 font-['Stack_Sans_Headline']">
+                {placeholder}
+              </div>
+            )}
 
-          <textarea
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Write your note here..."
-            rows={5}
-            className="w-full rounded-lg border border-neutral-200 px-4 py-3 text-sm text-neutral-700 outline-none focus:border-blue-500 resize-none"
-          />
+            <textarea
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={typeof placeholder === "string" ? placeholder : ""}
+              className={`w-full flex-1 resize-none outline-none border-none bg-transparent text-neutral-700 text-sm placeholder:text-neutral-300 placeholder:font-light ${formatClass}`}
+            />
+          </div>
 
-          <div className="flex items-center gap-3">
+          <div className="self-stretch h-8 flex justify-between items-end">
+            <div className="flex justify-start items-center gap-2.5 text-neutral-700 text-xs">
+              <label className="hover:text-blue-600 cursor-pointer">
+                <img src={Option1} alt="" />
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const selected = Array.from(e.target.files || []);
+                    onFilesChange?.([...(files || []), ...selected]);
+                  }}
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setNoteFormatting((prev) => ({ ...prev, bold: !prev.bold }))
+                }
+                className={`italic hover:text-blue-600 ${
+                  noteFormatting.bold ? "text-blue-600" : ""
+                }`}
+              >
+                <img src={Option2} alt="" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setNoteFormatting((prev) => ({
+                    ...prev,
+                    italic: !prev.italic,
+                  }))
+                }
+                className={`italic hover:text-blue-600 ${
+                  noteFormatting.italic ? "text-blue-600" : ""
+                }`}
+              >
+                <img src={Option3} alt="" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setNoteFormatting((prev) => ({
+                    ...prev,
+                    underline: !prev.underline,
+                  }))
+                }
+                className={`underline hover:text-blue-600 ${
+                  noteFormatting.underline ? "text-blue-600" : ""
+                }`}
+              >
+                <img src={Option4} alt="" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setNoteFormatting((prev) => ({
+                    ...prev,
+                    list: !prev.list,
+                  }));
+
+                  if (!value.trim()) {
+                    onChange("• ");
+                    return;
+                  }
+
+                  const lines = value
+                    .split("\n")
+                    .map((line) =>
+                      line.trim().startsWith("•") ? line : `• ${line}`,
+                    )
+                    .join("\n");
+
+                  onChange(lines);
+                }}
+                className={`hover:text-blue-600 ${
+                  noteFormatting.list ? "text-blue-600" : ""
+                }`}
+              >
+                <img src={Option5} alt="" />
+              </button>
+            </div>
+            {files.length > 0 && (
+              <div className="self-stretch flex flex-wrap gap-2 pt-1">
+                {files.map((file, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    className="h-7 px-2 rounded bg-blue-50 text-blue-500 text-xs flex items-center gap-2"
+                  >
+                    <img src={attachmentt} alt="" className="w-3 h-3" />
+                    <span>{file.name}</span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onFilesChange?.(
+                          files.filter((_, fileIndex) => fileIndex !== index),
+                        )
+                      }
+                      className="text-neutral-400 hover:text-red-500"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <button
-              onClick={handleSaveNote}
-              disabled={!noteText.trim()}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm transition-colors"
+              type="button"
+              onClick={onSubmit}
+              // disabled={!value.trim()}
+              className="h-8 px-3 py-2 bg-blue-100 disabled:opacity-50 rounded flex justify-center items-center text-blue-600 text-sm font-weight-400 leading-4"
             >
-              Save Note
-            </button>
-
-            <button
-              onClick={() => {
-                setShowNoteBox(false);
-                setNoteText("");
-              }}
-              className="px-5 py-2.5 border border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-lg text-sm transition-colors"
-            >
-              Cancel
+              Submit
             </button>
           </div>
         </div>
+      </div>
+    );
+  };
+
+  const renderEmailTextBox = () => {
+    const formatClass = [
+      emailFormatting.bold ? "font-weight-600" : "font-weight-300",
+      emailFormatting.italic ? "italic" : "",
+      emailFormatting.underline ? "underline" : "",
+    ].join(" ");
+
+    return (
+      <div className="self-stretch min-h-[150px] px-5 pt-4 pb-2 bg-white border-b border-neutral-100 flex flex-col justify-start items-start gap-2.5">
+        <textarea
+          value={emailComment}
+          onChange={(e) => setEmailComment(e.target.value)}
+          placeholder="Write your message..."
+          className={`w-full min-h-[105px] resize-none outline-none border-none bg-transparent text-neutral-800 text-sm leading-6 placeholder:text-neutral-300 placeholder:font-light ${formatClass}`}
+        />
+
+        <div className="self-stretch h-8 flex justify-between items-end">
+          <div className="flex justify-start items-center gap-2.5 text-neutral-700 text-xs">
+            <button type="button" className="hover:text-blue-600">
+              <img src={Option1} alt="" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setEmailFormatting((prev) => ({ ...prev, bold: !prev.bold }))
+              }
+              className={`hover:text-blue-600 ${
+                emailFormatting.bold ? "text-blue-600" : ""
+              }`}
+            >
+              <img src={Option2} alt="" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setEmailFormatting((prev) => ({
+                  ...prev,
+                  italic: !prev.italic,
+                }))
+              }
+              className={`hover:text-blue-600 ${
+                emailFormatting.italic ? "text-blue-600" : ""
+              }`}
+            >
+              <img src={Option3} alt="" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setEmailFormatting((prev) => ({
+                  ...prev,
+                  underline: !prev.underline,
+                }))
+              }
+              className={`hover:text-blue-600 ${
+                emailFormatting.underline ? "text-blue-600" : ""
+              }`}
+            >
+              <img src={Option4} alt="" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!emailComment.trim()) {
+                  setEmailComment("• ");
+                  return;
+                }
+
+                const lines = emailComment
+                  .split("\n")
+                  .map((line) =>
+                    line.trim().startsWith("•") ? line : `• ${line}`,
+                  )
+                  .join("\n");
+
+                setEmailComment(lines);
+              }}
+              className="hover:text-blue-600"
+            >
+              <img src={Option5} alt="" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderNoteBox = () => {
+    return (
+      <div className="flex flex-col gap-4">
+        <h3 className="text-black text-xl font-weight-600 leading-5">
+          Add Note
+        </h3>
+        {renderRichTextBox({
+          value: noteText,
+          onChange: setNoteText,
+          placeholder: "Enter Text",
+          onSubmit: handleSubmitNote,
+          files: noteFiles,
+          onFilesChange: setNoteFiles,
+        })}
       </div>
     );
   };
@@ -226,7 +949,7 @@ const staticAiData = [
         rel="noreferrer"
         className="inline-flex items-center gap-2 text-[#245BDB] hover:underline text-sm"
       >
-        <Paperclip size={14} />
+        <img src={attachmentt} alt="" />
         <span>{fileName}</span>
       </a>
     );
@@ -260,6 +983,221 @@ const staticAiData = [
       </span>
     );
   };
+  const getWitnessStatement = () => {
+    try {
+      const parsed =
+        typeof data.detail_text === "string"
+          ? JSON.parse(data.detail_text)
+          : data.detail_text;
+
+      return parsed?.witness_statement || data.summary || "";
+    } catch {
+      return data.detail_text || data.summary || "";
+    }
+  };
+
+  const getBaseSubject = () => {
+    return data.subject || data.title || "Case Activity";
+  };
+
+  const getShareSubject = () => {
+    const baseSubject = getBaseSubject();
+
+    if (data.type === "Email" && emailActionModal?.type === "forward") {
+      return baseSubject.toLowerCase().startsWith("fwd:")
+        ? baseSubject
+        : `Fwd: ${baseSubject}`;
+    }
+
+    if (data.type === "Email" && emailActionModal?.type === "reply") {
+      return baseSubject.toLowerCase().startsWith("re:")
+        ? baseSubject
+        : `Re: ${baseSubject}`;
+    }
+
+    return baseSubject;
+  };
+
+  const getAiDamageRowsText = () => {
+    const rows =
+      data.meta?.damage_table ||
+      data.ai?.damage_table ||
+      staticAiTableRows ||
+      [];
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return "No damage summary available.";
+    }
+
+    return rows
+      .map((item: any, index: number) => {
+        const side = item.damage_side || item.side || "-";
+        const area = item.area_of_damage || item.area || item.part || "-";
+        const type =
+          item.type_of_damage || item.type || item.damage_type || "-";
+        const severity = item.severity || "-";
+        const confidence = item.confidence
+          ? String(item.confidence).includes("%")
+            ? item.confidence
+            : `${item.confidence}%`
+          : "-";
+        const points = item.points || "-";
+        const repair = item.suggested_repair || item.repair || "-";
+
+        return `${index + 1}. Side: ${side}
+   Area: ${area}
+   Type: ${type}
+   Severity: ${severity}
+   Confidence: ${confidence}
+   Points: ${points}
+   Suggested Repair: ${repair}`;
+      })
+      .join("\n\n");
+  };
+
+  const getAiReportMessageBody = () => {
+    const rows = data.meta?.damage_table || data.ai?.damage_table || [];
+
+    const formattedRows = rows
+      .map(
+        (item: any, index: number) =>
+          `${index + 1}.
+Side: ${item.damage_side || item.side || "-"}
+Area: ${item.area_of_damage || item.area || item.part || "-"}
+Type: ${item.type_of_damage || item.type || item.damage_type || "-"}
+Severity: ${item.severity || "-"}
+Confidence: ${
+            item.confidence
+              ? String(item.confidence).includes("%")
+                ? item.confidence
+                : `${item.confidence}%`
+              : "-"
+          }
+Repair: ${item.suggested_repair || item.repair || "-"}`,
+      )
+      .join("\n\n");
+
+    return `${emailComment ? `${emailComment}\n\n` : ""}AI Damage Report Summary
+
+${formattedRows}`;
+  };
+  const getPdfLinksText = () => {
+    const links = buildActivityAttachmentPayloads();
+
+    if (!links.length) return "";
+
+    return `
+
+PDF Link${links.length > 1 ? "s" : ""}:
+${links
+  .map(
+    (item: any, index: number) =>
+      `${index + 1}. ${item.file_name || "PDF"}: ${item.file_url}`,
+  )
+  .join("\n")}`;
+  };
+  const getShareMessage = () => {
+    if (data.type === "Witness") {
+      return `${emailComment ? `${emailComment}\n\n` : ""}Witness Questionnaire
+
+Title:
+${data.title || "-"}
+
+Submitted:
+${formatDateTime(data.timestamp)}
+
+Witness Statement:
+${getWitnessStatement() || "No witness statement available."}${getPdfLinksText()}`;
+    }
+
+    if (data.type === "AI Report") {
+      return `${getAiReportMessageBody()}${getPdfLinksText()}`;
+    }
+
+    return emailComment || "";
+  };
+  const buildActivityAttachmentPayloads = () => {
+    const attachments = Array.isArray(data.attachments) ? data.attachments : [];
+
+    const payloads = attachments
+      .filter(
+        (attachment: any) =>
+          attachment?.file_url && attachment.file_url !== "#",
+      )
+      .map((attachment: any) => ({
+        file_name: attachment.file_name || "attachment.pdf",
+        file_url:
+          data.type === "Witness"
+            ? data.meta?.view_link || attachment.file_url
+            : attachment.file_url,
+        activity_type: data.type,
+      }));
+
+    const aiFileUrl =
+      data?.ai?.report_pdf_url || data?.attachments?.[0]?.file_url;
+
+    if (
+      data.type === "AI Report" &&
+      aiFileUrl &&
+      !payloads.some((item: any) => item.file_url === aiFileUrl)
+    ) {
+      payloads.push({
+        file_name: aiAttachmentName || "AI Damage Report.pdf",
+        file_url: aiFileUrl,
+        activity_type: data.type,
+      });
+    }
+
+    return payloads;
+  };
+
+  const sendForwardWithAttachments = async (
+    activity: any,
+    toEmail: string,
+    comment: string,
+    files: File[] = [],
+    subject?: string,
+  ) => {
+    const formData = new FormData();
+
+    const messageId =
+      activity?.message_id || activity?.meta?.message_id || activity?.id;
+
+    if (
+      activity?.type === "Email" &&
+      messageId &&
+      String(messageId).toLowerCase() !== "none" &&
+      String(messageId).toLowerCase() !== "null"
+    ) {
+      formData.append("message_id", String(messageId));
+    }
+
+    formData.append("to_email", toEmail || "");
+    formData.append("comment", comment || "");
+    formData.append(
+      "subject",
+      subject || activity?.subject || activity?.title || "",
+    );
+    formData.append(
+      "attachment_urls",
+      JSON.stringify(buildActivityAttachmentPayloads()),
+    );
+    formData.append("use_graph", "true");
+
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
+
+    const response = await axiosInstance.post(
+      "/case-activity/email/forward-with-attachments",
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
+
+    return response.data;
+  };
 
   return (
     <>
@@ -276,7 +1214,7 @@ const staticAiData = [
         <div className="w-full px-10 py-5 border-b border-neutral-100 flex justify-between items-center bg-white sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-blue-100 rounded flex items-center justify-center">
-              {getIcon()}
+              <img src={getIcon()} alt="" className="h-6" />
             </div>
 
             <div className="flex flex-col">
@@ -291,7 +1229,7 @@ const staticAiData = [
 
           <button
             onClick={onClose}
-            className="px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded text-base font-weight-400 transition-colors"
+            className="px-10 py-4 bg-blue-500 hover:bg-blue-700 text-white rounded text-base font-weight-400 transition-colors"
           >
             Close
           </button>
@@ -300,30 +1238,32 @@ const staticAiData = [
         <div className="p-10 flex flex-col gap-6 overflow-y-auto h-[calc(100%-90px)]">
           {data.type === "AI Report" ? (
             <>
-              <div className="flex items-center gap-8 text-blue-600 text-sm border-b border-neutral-100 pb-6 flex-wrap">
+              <div className="flex items-center gap-8 text-blue-300 text-sm border-b border-neutral-100 pb-6 flex-wrap">
                 <button
-                  className="flex items-center gap-2 hover:text-blue-700"
+                  className="flex items-center gap-2 hover:text-blue-500"
                   onClick={handleOpenNote}
                 >
-                  <Edit3 size={16} />
+                  <img src={NotesIcon} alt="" />
                   Add Note
                 </button>
 
                 <button
-                  className="flex items-center gap-2 hover:text-blue-700"
-                  onClick={() => onForwardToClient?.(data)}
+                  className="flex items-center gap-2 hover:text-blue-500"
+                  onClick={() =>
+                    setEmailActionModal({ open: true, type: "forward" })
+                  }
                 >
-                  <FileText size={16} />
+                  <img src={ForwardIcon} alt="" />
                   Forward to Client
                 </button>
 
-                <button
-                  className="flex items-center gap-2 hover:text-blue-700"
+                {/* <button
+                  className="flex items-center gap-2 hover:text-blue-500"
                   onClick={() => onViewInDocumentLibrary?.(data)}
                 >
-                  <Eye size={16} />
+                  <img src={ViewIcon} alt="" />
                   Open in Document Library
-                </button>
+                </button> */}
 
                 {/* {aiAttachmentUrl && aiAttachmentUrl !== "#" && (
                   <a
@@ -332,7 +1272,7 @@ const staticAiData = [
                     rel="noreferrer"
                     className="flex items-center gap-2 hover:text-blue-700"
                   >
-                    <Paperclip size={16} />
+                  <img src={attachmentt} alt="" />
                     {aiAttachmentName}
                   </a>
                 )} */}
@@ -382,13 +1322,30 @@ const staticAiData = [
 
                     {/* BODY */}
                     <tbody className=" text-sm">
-                      {staticAiData.map((item, i) => (
+                      {(
+                        data.meta?.damage_table ||
+                        data.ai?.damage_table ||
+                        []
+                      ).map((item: any, i: number) => (
                         <tr key={i} className="border-b last:border-b-0">
-                          <td className="px-3 py-2">{item.side}</td>
-                          <td className="px-3 py-2">{item.area}</td>
-                          <td className="px-3 py-2">{item.type}</td>
+                          <td className="px-3 py-2">
+                            {item.damage_side || item.side || "-"}
+                          </td>
 
-                          {/* SEVERITY WITH COLOR */}
+                          <td className="px-3 py-2">
+                            {item.area_of_damage ||
+                              item.area ||
+                              item.part ||
+                              "-"}
+                          </td>
+
+                          <td className="px-3 py-2">
+                            {item.type_of_damage ||
+                              item.type ||
+                              item.damage_type ||
+                              "-"}
+                          </td>
+
                           <td className="px-3 py-2">
                             <span
                               className={
@@ -399,13 +1356,23 @@ const staticAiData = [
                                     : "text-green-600"
                               }
                             >
-                              {item.severity}
+                              {item.severity || "-"}
                             </span>
                           </td>
 
-                          <td className="px-3 py-2">{item.confidence}</td>
-                          <td className="px-3 py-2">{item.points}</td>
-                          <td className="px-3 py-2">{item.repair}</td>
+                          <td className="px-3 py-2">
+                            {item.confidence
+                              ? String(item.confidence).includes("%")
+                                ? item.confidence
+                                : `${item.confidence}%`
+                              : "-"}
+                          </td>
+
+                          <td className="px-3 py-2">{item.points || "-"}</td>
+
+                          <td className="px-3 py-2">
+                            {item.suggested_repair || item.repair || "-"}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -415,50 +1382,57 @@ const staticAiData = [
 
               {/* {aiAttachmentUrl && aiAttachmentUrl !== "#" && ( */}
               <div className="flex flex-col gap-2">
-                {renderAttachmentLink(
-                  { file_url: aiAttachmentUrl, file_name: aiAttachmentName },
-                  aiAttachmentName,
-                )}
+                <button
+                  type="button"
+                  onClick={() => onViewInDocumentLibrary?.(data)}
+                  className="inline-flex items-center gap-2 text-[#245BDB] hover:underline text-sm w-fit"
+                >
+                  <img src={attachmentt} alt="" />
+                  <span>{aiAttachmentName}</span>
+                </button>
               </div>
               {/* )} */}
 
-              {renderNotesSection()}
               {renderNoteBox()}
+              {renderNotesSection()}
             </>
           ) : data.type === "Email" ? (
             <>
               <div className="space-y-1">
-                <div className="flex items-center gap-8 text-blue-600 text-sm border-b border-neutral-100 pb-3 mb-3 flex-wrap">
+                <div className="flex items-center gap-8 text-blue-300 text-sm border-b border-neutral-100 pb-3 mb-3 flex-wrap">
                   <button
-                    className="flex items-center gap-2 hover:text-blue-700"
+                    className="flex items-center gap-2 hover:text-blue-500"
                     onClick={handleOpenNote}
                   >
-                    <Edit3 size={16} />
+                    <img src={NotesIcon} alt="" />
                     Add Note
                   </button>
 
                   <button
-                    className="flex items-center gap-2 hover:text-blue-700"
-                    onClick={() => onForwardToClient?.(data)}
+                    className="flex items-center gap-2 hover:text-blue-500"
+                    onClick={() =>
+                      setEmailActionModal({ open: true, type: "forward" })
+                    }
                   >
-                    <FileText size={16} />
+                    <img src={ForwardIcon} alt="" />
                     Forward to Client
                   </button>
-
-                  {data.attachments?.length > 0 && (
+                  {/* {data.attachments?.length > 0 && (
                     <button
-                      className="flex items-center gap-2 hover:text-blue-700"
+                      className="flex items-center gap-2 hover:text-blue-500"
                       onClick={() => onViewInDocumentLibrary?.(data)}
                     >
-                      <Eye size={16} />
+                      <img src={ViewIcon} alt="" />
                       Open in Document Library
                     </button>
-                  )}
+                  )} */}
                   <button
-                    className="flex items-center gap-2 hover:text-blue-700"
-                    onClick={() => onReplyToEmail?.(data)}
+                    className="flex items-center gap-2 hover:text-blue-500"
+                    onClick={() =>
+                      setEmailActionModal({ open: true, type: "reply" })
+                    }
                   >
-                    <Reply size={16} />
+                    <img src={reply} alt="" />
                     Reply to Email
                   </button>
 
@@ -500,25 +1474,130 @@ const staticAiData = [
               {data.attachments?.length > 0 && (
                 <div className="flex flex-col gap-2">
                   {data.attachments.map((attachment: any, index: number) => (
-                    <a
+                    <button
                       key={index}
-                      href={attachment.file_url || "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-600 hover:bg-blue-50 transition-colors w-fit"
+                      type="button"
+                      onClick={() =>
+                        openEmailAttachment(
+                          attachment.file_url,
+                          attachment.file_name,
+                        )
+                      }
+                      className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-300 hover:bg-blue-50 transition-colors w-fit"
                     >
                       <img src={attachmentt} alt="" />
                       <span className="text-sm font-weight-300">
                         {attachment.file_name}
                       </span>
-                    </a>
+                    </button>
                   ))}
                 </div>
               )}
 
-              {renderNotesSection()}
               {renderNoteBox()}
+              {renderNotesSection()}
             </>
+          ) : data.type === "Witness" ? (
+            <>
+              {data.created_by_name && (
+                <div className="space-y-1">
+                  <p className="text-sm text-neutral-700">
+                    <span className="font-weight-300">Updated By: </span>
+                    <span className="font-weight-600">
+                      {data.created_by_name}
+                    </span>
+                  </p>
+                </div>
+              )}
+              <div className="flex items-center gap-8 text-blue-300 text-sm border-b border-neutral-100 pb-3 mb-3 flex-wrap">
+                <button
+                  className="flex items-center gap-2 hover:text-blue-500"
+                  onClick={handleOpenNote}
+                >
+                  <img src={NotesIcon} alt="" />
+                  Add Note
+                </button>
+
+                <button
+                  className="flex items-center gap-2 hover:text-blue-500"
+                  onClick={() =>
+                    setEmailActionModal({ open: true, type: "forward" })
+                  }
+                >
+                  <img src={ForwardIcon} alt="" />
+                  Forward to Client
+                </button>
+              </div>
+              {data.detail_text && (
+                <div className="bg-neutral-100 p-6 rounded-lg">
+                  <p className="text-neutral-700 text-sm font-weight-300 leading-relaxed whitespace-pre-line">
+                    {(() => {
+                      try {
+                        const parsed =
+                          typeof data.detail_text === "string"
+                            ? JSON.parse(data.detail_text)
+                            : data.detail_text;
+
+                        return parsed?.witness_statement || "-";
+                      } catch {
+                        return data.detail_text || "-";
+                      }
+                    })()}
+                  </p>
+                </div>
+              )}
+
+              {data.attachments?.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {data.attachments.map((attachment: any, index: number) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+
+                        const fileUrl =
+                          data.meta?.view_link ||
+                          data.attachments?.[0]?.file_url;
+
+                        if (fileUrl) {
+                          openWitnessPdf(fileUrl);
+                        }
+                      }}
+                      className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-300 hover:bg-blue-50 transition-colors w-fit"
+                    >
+                      <img src={attachmentt} alt="" />
+                      <span className="text-sm font-weight-300">
+                        {attachment.file_name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {renderNoteBox()}
+              {renderNotesSection()}
+            </>
+          ) : data.type === "Note" ? (
+            <div className="w-full flex flex-col gap-6">
+              <div className="w-full pb-4 border-b border-neutral-100">
+                <h3 className="text-black text-xl font-weight-600">
+                  Notes Thread
+                </h3>
+                <p className="text-neutral-400 text-sm font-weight-300 mt-1">
+                  View, reply, edit, delete, and open attachments linked to this
+                  activity.
+                </p>
+              </div>
+
+              {renderNotesSection() || (
+                <div className="w-full p-6 rounded-xl bg-neutral-50 border border-neutral-100 text-center">
+                  <p className="text-neutral-400 text-sm font-weight-300">
+                    No notes found for this activity.
+                  </p>
+                </div>
+              )}
+            </div>
           ) : (
             <>
               {data.created_by_name && (
@@ -543,28 +1622,423 @@ const staticAiData = [
               {data.attachments?.length > 0 && (
                 <div className="flex flex-col gap-2">
                   {data.attachments.map((attachment: any, index: number) => (
-                    <a
+                    <button
                       key={index}
-                      href={attachment.file_url || "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-600 hover:bg-blue-50 transition-colors w-fit"
+                      type="button"
+                      onClick={() =>
+                        openEmailAttachment(
+                          attachment.file_url,
+                          attachment.file_name,
+                        )
+                      }
+                      className="flex items-center gap-2.5 h-10 px-4 rounded bg-white text-blue-300 hover:bg-blue-50 transition-colors w-fit"
                     >
                       <img src={attachmentt} alt="" />
                       <span className="text-sm font-weight-300">
                         {attachment.file_name}
                       </span>
-                    </a>
+                    </button>
                   ))}
                 </div>
               )}
 
-              {renderNotesSection()}
               {renderNoteBox()}
+              {renderNotesSection()}
             </>
           )}
         </div>
       </div>
+      {deleteModal?.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="w-[400px] bg-white rounded-xl shadow-xl p-6 flex flex-col gap-5">
+            {/* TITLE */}
+            <h3 className="text-lg font-weight-600 text-black">Delete Note</h3>
+
+            {/* MESSAGE */}
+            <p className="text-sm text-neutral-600">
+              Are you sure you want to delete this note? This action cannot be
+              undone.
+            </p>
+
+            {/* ACTIONS */}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="px-4 py-2 rounded bg-neutral-100 text-neutral-700 text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  onDeleteNote?.({
+                    activity: data,
+                    noteId: deleteModal.noteId!,
+                    parentNoteId: deleteModal.parentNoteId,
+                  });
+                  setDeleteModal(null);
+                }}
+                className="px-4 py-2 rounded bg-red-500 text-white text-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {emailActionModal?.open && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
+          <div className="w-[720px] max-w-[95vw] bg-white rounded overflow-hidden flex flex-col">
+            {/* Outlook-like header */}
+            <div className="h-12 px-5 py-8 bg-white border-b border-neutral-200 flex items-center justify-between">
+              <h2 className="text-[18px] font-weight-600 text-neutral-800 flex items-center gap-2">
+                {emailActionModal.type === "reply" ? (
+                  <>
+                    <img src={reply} alt="" className="w-4 h-4" />
+                    Reply
+                  </>
+                ) : (
+                  <>
+                    <img src={ForwardIcon} alt="" className="w-4 h-4" />
+                    Forward
+                  </>
+                )}
+              </h2>
+              <button
+                onClick={() => {
+                  setEmailActionModal(null);
+                  setEmailComment("");
+                  setForwardToEmail("");
+                }}
+                className="text-neutral-400 hover:text-neutral-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-5 flex flex-col gap-3">
+              {emailActionModal.type === "forward" && (
+                <div className="flex items-center gap-3 border-b border-neutral-100 pb-2">
+                  <span className="w-16 text-sm text-neutral-500">To</span>
+                  <input
+                    value={forwardToEmail}
+                    onChange={(e) => setForwardToEmail(e.target.value)}
+                    placeholder="Enter recipient email"
+                    className="flex-1 outline-none text-sm text-neutral-800"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 border-b border-neutral-100 pb-2">
+                <span className="w-16 text-sm text-neutral-500">Subject</span>
+                <input
+                  readOnly
+                  value={getShareSubject()}
+                  className="flex-1 outline-none text-sm text-neutral-800 bg-transparent"
+                />
+              </div>
+
+              {data.type === "Witness" ? (
+                <div className="self-stretch min-h-[220px] px-5 pt-4 pb-2 bg-white border-b border-neutral-100 flex flex-col justify-start items-start gap-2.5">
+                  <textarea
+                    value={`${emailComment ? `${emailComment}\n\n` : ""}Witness Questionnaire
+
+Title:
+${data.title || "-"}
+
+Submitted:
+${formatDateTime(data.timestamp)}
+
+Witness Statement:
+${getWitnessStatement() || "No witness statement available."}`}
+                    onChange={(e) => setEmailComment(e.target.value)}
+                    className="w-full min-h-[180px] resize-none outline-none border-none bg-transparent text-neutral-800 text-sm leading-6 whitespace-pre-line"
+                  />
+
+                  <div className="self-stretch h-8 flex justify-between items-end">
+                    <div className="flex justify-start items-center gap-2.5 text-neutral-700 text-xs">
+                      <button type="button">
+                        <img src={Option1} alt="" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEmailFormatting((prev) => ({
+                            ...prev,
+                            bold: !prev.bold,
+                          }))
+                        }
+                      >
+                        <img src={Option2} alt="" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEmailFormatting((prev) => ({
+                            ...prev,
+                            italic: !prev.italic,
+                          }))
+                        }
+                      >
+                        <img src={Option3} alt="" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEmailFormatting((prev) => ({
+                            ...prev,
+                            underline: !prev.underline,
+                          }))
+                        }
+                      >
+                        <img src={Option4} alt="" />
+                      </button>
+
+                      <button type="button">
+                        <img src={Option5} alt="" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : data.type === "AI Report" ? (
+                <div className="self-stretch px-5 pt-4 pb-4 bg-white border-b border-neutral-100 flex flex-col gap-4">
+                  <textarea
+                    value={emailComment}
+                    onChange={(e) => setEmailComment(e.target.value)}
+                    placeholder="Write your message..."
+                    className="w-full min-h-[70px] resize-none outline-none border-none bg-transparent text-neutral-800 text-sm leading-6 placeholder:text-neutral-300 placeholder:font-light"
+                  />
+
+                  <div className="text-sm text-neutral-800 font-weight-600">
+                    AI Damage Report Summary
+                  </div>
+
+                  <div className="w-full overflow-x-auto">
+                    <table className="w-full border border-neutral-200 text-sm">
+                      <thead className="bg-neutral-50 text-neutral-600">
+                        <tr>
+                          <th className="text-left px-3 py-2 border">Side</th>
+                          <th className="text-left px-3 py-2 border">Area</th>
+                          <th className="text-left px-3 py-2 border">Type</th>
+                          <th className="text-left px-3 py-2 border">
+                            Severity
+                          </th>
+                          <th className="text-left px-3 py-2 border">
+                            Confidence
+                          </th>
+                          <th className="text-left px-3 py-2 border">Points</th>
+                          <th className="text-left px-3 py-2 border">Repair</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {(
+                          data.meta?.damage_table ||
+                          data.ai?.damage_table ||
+                          []
+                        ).map((item: any, index: number) => (
+                          <tr key={index}>
+                            <td className="px-3 py-2 border">
+                              {item.damage_side || item.side || "-"}
+                            </td>
+                            <td className="px-3 py-2 border">
+                              {item.area_of_damage ||
+                                item.area ||
+                                item.part ||
+                                "-"}
+                            </td>
+                            <td className="px-3 py-2 border">
+                              {item.type_of_damage ||
+                                item.type ||
+                                item.damage_type ||
+                                "-"}
+                            </td>
+                            <td
+                              className={`px-3 py-2 border ${item.severity == "High" ? "text-red-500" : item.severity == "Medium" ? "text-orange-300" : "text-green-600"}`}
+                            >
+                              {item.severity || "-"}
+                            </td>
+                            <td className="px-3 py-2 border">
+                              {item.confidence
+                                ? String(item.confidence).includes("%")
+                                  ? item.confidence
+                                  : `${item.confidence}%`
+                                : "-"}
+                            </td>
+                            <td className="px-3 py-2 border">
+                              {item.points || "-"}
+                            </td>
+                            <td className="px-3 py-2 border">
+                              {item.suggested_repair || item.repair || "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="self-stretch h-8 flex justify-between items-end">
+                    <div className="flex justify-start items-center gap-2.5 text-neutral-700 text-xs">
+                      <button type="button">
+                        <img src={Option1} alt="" />
+                      </button>
+                      <button type="button">
+                        <img src={Option2} alt="" />
+                      </button>
+                      <button type="button">
+                        <img src={Option3} alt="" />
+                      </button>
+                      <button type="button">
+                        <img src={Option4} alt="" />
+                      </button>
+                      <button type="button">
+                        <img src={Option5} alt="" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                renderEmailTextBox()
+              )}
+
+              {data.type === "Email" && (
+                <div className="bg-neutral-50 border border-neutral-100 rounded p-4 max-h-[240px] overflow-y-auto">
+                  <div className="text-xs text-neutral-500 mb-3">
+                    ---------- Original Message ----------
+                  </div>
+
+                  <p className="text-sm text-neutral-700">
+                    <span className="font-weight-600">From:</span>{" "}
+                    {data.sender_name || data.sender_email || "-"}
+                  </p>
+
+                  <p className="text-sm text-neutral-700">
+                    <span className="font-weight-600">Subject:</span>{" "}
+                    {data.subject || "-"}
+                  </p>
+
+                  <p className="text-sm text-neutral-700 mb-3">
+                    <span className="font-weight-600">Received:</span>{" "}
+                    {formatDateTime(data.received_at || data.timestamp)}
+                  </p>
+
+                  <div className="text-sm text-neutral-700 whitespace-pre-line">
+                    {data.body_text ||
+                      data.body_preview ||
+                      "No email body available."}
+                  </div>
+                </div>
+              )}
+              {data.attachments?.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {data.attachments.map((attachment: any, index: number) => (
+                    <div
+                      key={index}
+                      className="h-9 px-3 rounded flex items-center gap-2 text-xs text-blue-300"
+                    >
+                      <img src={attachmentt} alt="" />
+                      {attachment.file_name}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedEmailFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedEmailFiles.map((file, index) => (
+                    <div
+                      key={`${file.name}-${index}`}
+                      className="h-9 px-3 rounded border border-neutral-200 bg-white flex items-center gap-2 text-xs text-neutral-700"
+                    >
+                      <img src={attachmentt} alt="" />
+                      <span>{file.name}</span>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedEmailFiles((prev) =>
+                            prev.filter((_, fileIndex) => fileIndex !== index),
+                          )
+                        }
+                        className="text-neutral-400 hover:text-red-500"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2 border-top border-neutral-200">
+                <div className="flex items-center gap-3 text-blue-500 text-sm">
+                  <label className="px-10 py-4 font-weight-600  rounded border border-blue-500 bg-white flex items-center gap-2 cursor-pointer hover:bg-neutral-50">
+                    <img src={attachmentt} alt="" />
+                    <span>Attach</span>
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        setSelectedEmailFiles((prev) => [...prev, ...files]);
+                      }}
+                    />
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={
+                    emailSending ||
+                    (emailActionModal.type === "forward" &&
+                      !forwardToEmail.trim())
+                  }
+                  onClick={async () => {
+                    try {
+                      setEmailSending(true);
+
+                      if (emailActionModal.type === "reply") {
+                        await replyToEmailGraph(
+                          data,
+                          emailComment,
+                          selectedEmailFiles,
+                        );
+                      } else {
+                        await sendForwardWithAttachments(
+                          data,
+                          forwardToEmail,
+                          getShareMessage(),
+                          selectedEmailFiles,
+                          getShareSubject(),
+                        );
+                      }
+
+                      setEmailActionModal(null);
+                      setEmailComment("");
+                      setForwardToEmail("");
+                      setSelectedEmailFiles([]);
+                      toast.success(
+                        emailActionModal.type === "reply"
+                          ? "Reply sent successfully."
+                          : "Email forwarded successfully.",
+                      );
+                    } catch (error) {
+                      console.error("Email action failed:", error);
+                      toast.error("Failed to send email.");
+                    } finally {
+                      setEmailSending(false);
+                    }
+                  }}
+                  className="px-10 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded text-base font-weight-400 transition-colors"
+                >
+                  {emailSending ? "Sending..." : "Send"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom"; // Import navigation hook
 import Vector from "../../../assets/AutoClaim_icon/Vector.svg";
 import Vector4 from "../../../assets/AutoClaim_icon/Vector-4.svg";
+import FileIcon from '../../../assets/case_activity/file.svg'
 
 const Header = ({ onNext }) => {
   const navigate = useNavigate();
@@ -22,14 +23,24 @@ const caseReference= localStorage.getItem("CaseReference")
 
         <div className="HeaderTitle text-black text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6">
           {caseReference ? caseReference : "Add New Claim"}
-
-
         </div>
 
-        <div className="ActivityLogContainer flex justify-start items-center gap-1 cursor-pointer group">
+        <div
+          className="ActivityLogContainer flex justify-start items-center gap-1 cursor-pointer group"
+          onClick={() => navigate("/case-activity")}
+        >
           <img src={Vector4} alt="" />
           <div className="ActivityLogText text-blue-300 text-xs font-weight-600 font-['Stack_Sans_Headline'] group-hover:underline">
             View Activity Log
+          </div>
+        </div>
+        <div
+          className="ActivityLogContainer flex justify-start items-center gap-1 cursor-pointer group"
+          onClick={() => navigate("/document-library")}
+        >
+          <img src={FileIcon} alt="" />
+          <div className="ActivityLogText text-blue-300 text-xs font-weight-600 font-['Stack_Sans_Headline'] group-hover:underline">
+            Documents Library
           </div>
         </div>
       </div>

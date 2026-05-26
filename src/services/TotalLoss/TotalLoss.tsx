@@ -46,10 +46,10 @@ export const sendPAVToClient = (claimId: number, to_email?: string) =>
 
 export const sendTotalLossEngReportToTPI = (
   claimId: number,
-  to_email: string,
+  to_email?: string,
 ) =>
   axiosInstance.post(`/total-loss/send-eng-report-tpi/${claimId}`, {
-    to_email,
+    to_email: to_email ?? null,
   });
 
 export const instructFleetOffHireFromTotalLoss = (

@@ -14,6 +14,7 @@ import high from "../../../assets/AutoClaim_icon/high.svg";
 import low from "../../../assets/AutoClaim_icon/low.svg";
 import VehicleManualForm from "./VehicleManualForm";
 import AIDamageReportSlider from "../Components/AIReportSlider";
+import ImageDetailSlider from "../Components/ImageDetailSlider";
 
 
 // Reusing the summary field logic from the story
@@ -75,6 +76,8 @@ useEffect(() => {
   // --- State Management ---
   const [assessmentType, setAssessmentType] = useState("Client vehicle only");
   const [open, setOpen] = useState(false);
+  const [imageSliderOpen, setImageSliderOpen] = useState(false);
+  const [sliderImageIndex, setSliderImageIndex] = useState<number>(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -248,6 +251,19 @@ useEffect(() => {
     <div className="MainContent w-full flex flex-col items-stretch gap-6 py-6 font-['Stack_Sans_Headline']">
       {" "}
       {/* Header Section */}
+      <ImageDetailSlider
+        isOpen={imageSliderOpen}
+        onClose={() => setImageSliderOpen(false)}
+        imageSrc={getAllDetectionImages()[sliderImageIndex]?.src || ""}
+        predictions={
+          aiResult?.images?.[sliderImageIndex]?.predictions ||
+          (aiResult?.predictions || []).filter(
+            (p: any) => p.image_index === sliderImageIndex,
+          )
+        }
+        imageIndex={sliderImageIndex}
+      />
+
       {open && (
         <AIDamageReportSlider
           isOpen={open}
@@ -540,8 +556,12 @@ useEffect(() => {
                         <button
                           key={image.id}
                           type="button"
-                          onClick={() => setSelectedImageIndex(index)}
-                          className="w-full h-[150px] rounded overflow-hidden bg-white border border-neutral-200"
+                          onClick={() => {
+                            setSelectedImageIndex(index);
+                            setSliderImageIndex(index);
+                            setImageSliderOpen(true);
+                          }}
+                          className="w-full h-[150px] rounded overflow-hidden bg-white border border-neutral-200 hover:border-blue-400 transition-colors"
                         >
                           <img
                             src={image.src}
@@ -582,76 +602,73 @@ useEffect(() => {
                 <h3 className="text-xl font-weight-600">Damage Summary</h3>
 
                 <div className="border border-gray-100 rounded-lg overflow-hidden">
-                  <div className="flex p-4 font-weight-600 text-sm border-b text-neutral-900 bg-white">
-                    <div className="w-36">DAMAGE SIDE</div>
-                    <div className="w-40">AREA OF DAMAGE</div>
-                    <div className="w-44">TYPE OF DAMAGE</div>
-                    <div className="w-32">SEVERITY</div>
-                    <div className="w-28">CONFIDENCE</div>
-                    <div className="w-28">POINTS</div>
-                    <div className="flex-1">SUGGESTED REPAIR</div>
-                  </div>
-
-                  {getAllDamageRows().length > 0 ? (
-                    getAllDamageRows().map((item: any, index: number) => {
-                      const severity = item.severity || "-";
-                      const damageType =
-                        item.damage_type ||
-                        item.type_of_damage ||
-                        item.type ||
-                        "-";
-
-                      return (
-                        <div
-                          key={index}
-                          className="flex p-4 text-sm items-start border-b last:border-b-0 font-weight-400 font-light text-neutral-700"
-                        >
-                          <div className="w-36 capitalize">
-                            {item.damage_side || item.side || "-"}
-                          </div>
-
-                          <div className="w-40 capitalize">
-                            {item.area_of_damage ||
-                              item.area ||
-                              item.part ||
-                              "-"}
-                          </div>
-
-                          <div className="w-44 capitalize">{damageType}</div>
-
-                          <div className="w-32">
-                            <span
-                              className={`px-2 py-1 rounded text-xs font-weight-600 ${
-                                severity === "High"
-                                  ? "bg-red-100 text-red-500"
-                                  : severity === "Medium"
-                                    ? "bg-orange-100 text-orange-500"
-                                    : "bg-green-100 text-green-500"
-                              }`}
+                  <table className="w-full text-sm table-fixed">
+                    <thead>
+                      <tr className="bg-white border-b text-neutral-900 font-weight-600">
+                        <th className="text-left px-4 py-3 w-[14%]">DAMAGE SIDE</th>
+                        <th className="text-left px-4 py-3 w-[16%]">AREA OF DAMAGE</th>
+                        <th className="text-left px-4 py-3 w-[16%]">TYPE OF DAMAGE</th>
+                        <th className="text-left px-4 py-3 w-[12%]">SEVERITY</th>
+                        <th className="text-left px-4 py-3 w-[12%]">CONFIDENCE</th>
+                        <th className="text-left px-4 py-3 w-[10%]">POINTS</th>
+                        <th className="text-left px-4 py-3">SUGGESTED REPAIR</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getAllDamageRows().length > 0 ? (
+                        getAllDamageRows().map((item: any, index: number) => {
+                          const severity = item.severity || "-";
+                          const damageType =
+                            item.damage_type ||
+                            item.type_of_damage ||
+                            item.type ||
+                            "-";
+                          return (
+                            <tr
+                              key={index}
+                              className="border-b last:border-b-0 font-light text-neutral-700"
                             >
-                              {severity}
-                            </span>
-                          </div>
-
-                          <div className="w-28">
-                            {formatConfidence(item.confidence)}
-                          </div>
-
-                          <div className="w-28">{item.points || 1}</div>
-
-                          <div className="flex-1">
-                            {item.suggested_repair ||
-                              item.repair ||
-                              getSuggestedRepair(damageType)}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="p-4 text-sm text-neutral-400">
-                      No damage summary available.
-                    </div>
-                  )}
+                              <td className="px-4 py-3 capitalize">
+                                {item.damage_side || item.side || "-"}
+                              </td>
+                              <td className="px-4 py-3 capitalize">
+                                {item.area_of_damage || item.area || item.part || "-"}
+                              </td>
+                              <td className="px-4 py-3 capitalize">{damageType}</td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`px-2 py-1 rounded text-xs font-weight-600 ${
+                                    severity === "High"
+                                      ? "bg-red-100 text-red-500"
+                                      : severity === "Medium"
+                                        ? "bg-orange-100 text-orange-500"
+                                        : "bg-green-100 text-green-500"
+                                  }`}
+                                >
+                                  {severity}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                {formatConfidence(item.confidence)}
+                              </td>
+                              <td className="px-4 py-3">{item.points || 1}</td>
+                              <td className="px-4 py-3">
+                                {item.suggested_repair ||
+                                  item.repair ||
+                                  getSuggestedRepair(damageType)}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-3 text-neutral-400">
+                            No damage summary available.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

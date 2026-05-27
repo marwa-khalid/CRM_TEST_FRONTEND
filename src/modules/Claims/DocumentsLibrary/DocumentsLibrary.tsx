@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import {
-  ChevronLeft,
-} from "lucide-react";
+import { ChevronLeft, Check, Mail } from "lucide-react";
+import { toast } from "react-toastify";
+import EmailAttachmentModal from "./EmailAttachmentModal";
 import PhotosIcon from "../../../assets/case_activity/photos.svg";
 import AIReportIcon from "../../../assets/case_activity/ai_report.svg";
 import UserUploadsIcon from "../../../assets/case_activity/user_uploads.svg";
@@ -40,6 +40,8 @@ const DocumentsLibrary = () => {
   const claimId = localStorage.getItem("claimId");
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string | number>>(new Set());
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [sliderInitialTab, setSliderInitialTab] = useState<
     "File Preview" | "Meta Data" | "Version History" | "Audit Log"
   >("File Preview");
@@ -67,6 +69,24 @@ const DocumentsLibrary = () => {
       photo.file_name?.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [photos, searchQuery]);
+
+  const togglePhotoSelection = (photo: any) => {
+    setSelectedPhotoIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(photo.id)) {
+        next.delete(photo.id);
+      } else {
+        if (next.size >= 5) {
+          toast.warn("Maximum 5 attachments allowed.");
+          return prev;
+        }
+        next.add(photo.id);
+      }
+      return next;
+    });
+  };
+
+  const selectedPhotos = filteredPhotos.filter((p) => selectedPhotoIds.has(p.id));
 
 
   const categories = [
@@ -301,6 +321,20 @@ Regards`;
         category={getUploadCategory()}
         onUploadSuccess={loadDocuments}
       />
+
+      {isEmailModalOpen && (
+        <EmailAttachmentModal
+          attachments={selectedPhotos}
+          onClose={() => setIsEmailModalOpen(false)}
+          onRemoveAttachment={(id) =>
+            setSelectedPhotoIds((prev) => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            })
+          }
+        />
+      )}
       <DocumentLibrarySlider
         isOpen={isSliderOpen}
         onClose={() => setIsSliderOpen(false)}
@@ -399,30 +433,21 @@ Regards`;
           {activeTab === "Photos" ? (
             /* PHOTO GALLERY VIEW */
             <div className="relative">
+              {/* Click-to-preview lightbox */}
               {hoveredPhoto && (
-                <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center bg-black/10">
-                  <div className="w-[720px] max-w-[85vw] max-h-[82vh] bg-white rounded shadow-[0px_20px_60px_rgba(0,0,0,0.25)] border border-gray-200 overflow-hidden p-3">
+                <div
+                  className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 cursor-pointer"
+                  onClick={() => setHoveredPhoto(null)}
+                >
+                  <div
+                    className="w-[720px] max-w-[85vw] max-h-[82vh] bg-white rounded shadow-[0px_20px_60px_rgba(0,0,0,0.25)] border border-gray-200 overflow-hidden p-3 cursor-default"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <img
                       src={hoveredPhoto.file_url}
                       alt={hoveredPhoto.file_name}
                       className="w-full max-h-[74vh] object-contain rounded bg-white"
                     />
-
-                    <div className="mt-3 flex justify-between items-center px-1">
-                      {/* <div className="text-[#374151] text-sm font-weight-500 truncate max-w-[520px]">
-                        {hoveredPhoto.file_name}
-                      </div> */}
-
-                      {/* <div
-                        className={`px-3 py-1 rounded text-xs font-weight-500 ${
-                          hoveredPhoto.photo_type === "Annotated"
-                            ? "bg-blue-100 text-blue-600"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {hoveredPhoto.photo_type}
-                      </div> */}
-                    </div>
                   </div>
                 </div>
               )}
@@ -436,32 +461,75 @@ Regards`;
                   No photos found for this claim.
                 </div>
               ) : (
+                <>
                 <div className="grid grid-cols-4 gap-4">
-                  {filteredPhotos.map((photo) => (
-                    <div
-                      key={photo.id}
-                      onMouseEnter={() => setHoveredPhoto(photo)}
-                      onMouseLeave={() => setHoveredPhoto(null)}
-                      className="group relative h-[190px] rounded overflow-hidden border border-gray-200 bg-white cursor-pointer shadow-sm hover:shadow-md transition-all"
-                    >
-                      <img
-                        src={photo.file_url}
-                        alt={photo.file_name}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
+                  {filteredPhotos.map((photo) => {
+                    const isSelected = selectedPhotoIds.has(photo.id);
+                    return (
+                      <div
+                        key={photo.id}
+                        onClick={() => setHoveredPhoto(photo)}
+                        className={`group relative h-[190px] rounded overflow-hidden bg-white cursor-pointer shadow-sm hover:shadow-md transition-all border-2 ${
+                          isSelected
+                            ? "border-blue-500"
+                            : "border-gray-200 hover:border-blue-300"
+                        }`}
+                      >
+                        <img
+                          src={photo.file_url}
+                          alt={photo.file_name}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
 
-                      {/* <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-3">
-                        <div className="text-white text-xs font-weight-500 truncate">
-                          {photo.file_name}
-                        </div>
+                        {/* Blue tint overlay when selected */}
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-blue-500/15 pointer-events-none" />
+                        )}
 
-                        <div className="mt-1 inline-flex px-2 py-0.5 rounded-full bg-white/90 text-[#374151] text-[10px] font-weight-600">
-                          {photo.photo_type}
+                        {/* Checkbox — click selects, stopPropagation so it doesn't open preview */}
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePhotoSelection(photo);
+                          }}
+                          className={`absolute top-2 left-2 w-6 h-6 rounded border-2 flex items-center justify-center transition-all shadow-sm cursor-pointer ${
+                            isSelected
+                              ? "bg-blue-500 border-blue-500 opacity-100"
+                              : "bg-white/90 border-gray-400 opacity-0 group-hover:opacity-100"
+                          }`}
+                        >
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                          )}
                         </div>
-                      </div> */}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {/* Floating selection bar */}
+                {selectedPhotoIds.size > 0 && (
+                  <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white rounded-full shadow-2xl border border-gray-200 px-6 py-3 flex items-center gap-5">
+                    <span className="text-sm font-weight-600 text-neutral-800">
+                      {selectedPhotoIds.size} selected
+                    </span>
+                    <div className="w-px h-4 bg-gray-200" />
+                    <button
+                      onClick={() => setSelectedPhotoIds(new Set())}
+                      className="text-sm text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      onClick={() => setIsEmailModalOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-full text-sm hover:bg-blue-600 transition-colors"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Forward
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           ) : (

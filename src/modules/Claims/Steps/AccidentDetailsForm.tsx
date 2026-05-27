@@ -341,7 +341,7 @@ const openLatestWitnessPdf = (w: any) => {
   const [editingWitness, setEditingWitness] = useState<any>(null);
   const [witnessQuestStatus, setWitnessQuestStatus] = useState<Record<number, any>>({});
   const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerQuestionnaireId, setViewerQuestionnaireId] = useState<number | null>(null);
+  const [viewerCaseDocumentId, setViewerCaseDocumentId] = useState<number | null>(null);
 
   const refreshWitnesses = useCallback(async () => {
     if (!claimId) return;
@@ -1145,7 +1145,7 @@ const timeOptions = generateTimeOptions();
                       <button
                         type="button"
                         onClick={() => {
-                          setViewerQuestionnaireId(witnessQuestStatus[w.id]?.claim_questionnaire_id);
+                          setViewerCaseDocumentId(witnessQuestStatus[w.id]?.case_document_id);
                           setViewerOpen(true);
                         }}
                         className="px-3 py-1.5 rounded bg-blue-100 text-blue-600 text-xs font-weight-600 hover:bg-blue-200"
@@ -1344,7 +1344,7 @@ const timeOptions = generateTimeOptions();
     <WitnessQuestionnaireViewer
       isOpen={viewerOpen}
       onClose={() => setViewerOpen(false)}
-      claimQuestionnaireId={viewerQuestionnaireId}
+      caseDocumentId={viewerCaseDocumentId}
     />
     </>
   );

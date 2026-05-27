@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import calander from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { useQuestionnaireForm } from "./QuestionnaireLayout";
 import { CustomDatePicker } from "../Components/DatePicker";
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 
 const Step1Witness = () => {
   const { formData, updateStepData } = useQuestionnaireForm();
@@ -59,24 +59,13 @@ const dobPickerRef = useRef<HTMLDivElement>(null);
 
       <div className="flex flex-col gap-2">
         <label className="text-gray-700 text-sm font-weight-400">Address</label>
-  <LeafletAutocompleteMap
-            showMap={false}
-            apiKey={import.meta.env.VITE_GOOGLE_MAP_KEY}
-            address={formData.witnessDetails.address || ""}
-            onPlaceSelected={(place) => {
-              if (place?.name || place?.address) {
-               handleChange("address", place.address || "");
-              }
-            }}
-            disabled={false}
-          />
-        {/* <input
-          type="text"
-          value={formData.witnessDetails.address || ""}
-          onChange={(e) => handleChange("address", e.target.value)}
+        <AddressAutocomplete
+          address={formData.witnessDetails.address || ""}
+          onChange={(v) => handleChange("address", v)}
+          onPlaceSelected={(place) => handleChange("address", place.address)}
           placeholder="Enter Address"
-          className="w-full px-5 py-4 h-[52px] bg-white rounded border border-gray-200 text-base font-light outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300"
-        /> */}
+          inputClassName="w-full px-5 py-4 h-[52px] bg-white rounded border border-gray-200 text-gray-700 text-base font-light outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-5">

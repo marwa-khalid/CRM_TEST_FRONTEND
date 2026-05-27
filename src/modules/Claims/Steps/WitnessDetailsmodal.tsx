@@ -15,8 +15,6 @@ import Vector3 from "../../../assets/AutoClaim_icon/Vector-3.svg";
 import checkgreen from "../../../assets/AutoClaim_icon/checkgreen.svg";
 import pdf from "../../../assets/AutoClaim_icon/pdf.svg";
 import download from "../../../assets/AutoClaim_icon/download.svg";
-import Letter from "../../../assets/documents/letter.pdf";
-import Questionnaire from "../../../assets/documents/questionnaire.pdf";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 
 export const WitnessDetailsModal = ({
@@ -81,11 +79,13 @@ export const WitnessDetailsModal = ({
 
   const formatWitnessDate = (dateString?: string) => {
     if (!dateString) return "";
-
-    const date = new Date(dateString);
-
+    // Ensure UTC timestamps from the DB are parsed as UTC, not local time
+    const normalized =
+      dateString.endsWith("Z") || dateString.includes("+")
+        ? dateString
+        : dateString + "Z";
+    const date = new Date(normalized);
     if (isNaN(date.getTime())) return "";
-
     return date
       .toLocaleString("en-GB", {
         day: "2-digit",
@@ -181,22 +181,6 @@ export const WitnessDetailsModal = ({
     window.open("/questionnaire/step-1?readonly=true", "_blank", "noreferrer");
   };
 
-  const handleDownloadPostal = () => {
-    const letterLink = document.createElement("a");
-    letterLink.href = Letter;
-    letterLink.download = "Letter.pdf";
-    document.body.appendChild(letterLink);
-    letterLink.click();
-    document.body.removeChild(letterLink);
-
-    const questionnaireLink = document.createElement("a");
-    questionnaireLink.href = Questionnaire;
-    questionnaireLink.download = "Questionnaire.pdf";
-    document.body.appendChild(questionnaireLink);
-    questionnaireLink.click();
-    document.body.removeChild(questionnaireLink);
-  };
-
   const handleFunctionality = async (method: any) => {
     setIsProcessing(true);
 
@@ -206,28 +190,39 @@ export const WitnessDetailsModal = ({
         return;
       }
 
-      if (method.id === "pdf" || method.id === "link") {
+      const witnessId = await saveWitness();
+
+      if (method.id === "pdf" || method.id === "link" || method.id === "download") {
         const res = await sendEmail(
-          witness.email,
+          witness.email || "",
           claimId,
           `${witness.firstName} ${witness.surname}`,
           claimRef,
           method,
+          witnessId,
         );
 
         if (method.id === "link" && res?.deep_link) {
           setDeepLink(res.deep_link);
           navigator.clipboard.writeText(res.deep_link);
-          // toast.success("Secure questionnaire link sent and copied");
         }
 
         if (res?.claim_questionnaire_id) {
           setQuestionnaireId(res.claim_questionnaire_id);
         }
-      }
 
-      if (method.id === "download") {
-        handleDownloadPostal();
+        if (method.id === "download" && res?.zip_base64) {
+          const bytes = Uint8Array.from(atob(res.zip_base64), (c) => c.charCodeAt(0));
+          const blob = new Blob([bytes], { type: "application/zip" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = res.filename || "Witness-Documents.zip";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
       }
 
       const timestamp = getCurrentTimestamp();

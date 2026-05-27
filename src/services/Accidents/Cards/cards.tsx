@@ -26,7 +26,7 @@ export const getQuestionnaireStatus = async (
 ) => {
   try {
     const response = await axiosInstance.get(
-      `/email/questionnaire-status/${claimId}/${witnessId}`,
+      `/witnesses/questionnaire-status/${claimId}/${witnessId}`,
     );
     return response.data;
   } catch (error) {
@@ -144,16 +144,14 @@ export const deleteWitness = async (id: number): Promise<void> => {
   await axiosInstance.patch(`/accident-details/deactive-witness/${id}`);
 };
 
-export const sendEmail = async (email: any, claimID: any, firstName: any, referrence_no: any, option: any) => {
-  console.log(option)
-    console.log(email)
-      console.log(referrence_no);
-  const data = {
+export const sendEmail = async (email: any, claimID: any, firstName: any, referrence_no: any, option: any, witnessId?: number) => {
+  const data: any = {
     witness_email: email,
     witness_name: firstName,
     reference: referrence_no,
-    option: option.id
-  }
+    option: option.id,
+  };
+  if (witnessId) data.witness_id = witnessId;
   const response = await axiosInstance.post(`/witnesses/send-witness-email/${claimID}`, data);
   return response.data;
 }

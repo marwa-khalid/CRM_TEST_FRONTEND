@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import SignatureCanvas from "react-signature-canvas";
@@ -34,10 +34,22 @@ const Step4Signature = () => {
   const { formData, updateStepData, resetFormData } = useQuestionnaireForm();
 
   const signatureRef = useRef<SignatureCanvas | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [canvasDims, setCanvasDims] = useState({ w: 0, h: 0 });
 
   const [mode, setMode] = useState<"sign" | "upload">("sign");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Measure once after paint; only render canvas after we have real dimensions
+  useEffect(() => {
+    if (containerRef.current) {
+      setCanvasDims({
+        w: containerRef.current.offsetWidth,
+        h: containerRef.current.offsetHeight,
+      });
+    }
+  }, []);
 
   const searchParams = new URLSearchParams(location.search);
   const queryToken = searchParams.get("details");
@@ -147,26 +159,30 @@ const Step4Signature = () => {
 
       <div className="h-px bg-gray-100 w-full" />
 
-      <div className="w-full h-72 bg-neutral-100 rounded-lg overflow-hidden">
+      <div ref={containerRef} className="w-full h-72 bg-neutral-100 rounded-lg overflow-hidden">
         {mode === "sign" ? (
-         <SignatureCanvas
-  ref={signatureRef}
-  penColor="black"
-  onEnd={() => {
-    if (!signatureRef.current || signatureRef.current.isEmpty()) return;
-
-    const signatureImage = signatureRef.current
-      .getTrimmedCanvas()
-      .toDataURL("image/png");
-
-    updateStepData("signature", {
-      witnessSignature: signatureImage,
-    });
-  }}
-  canvasProps={{
-    className: "w-full h-full bg-neutral-100",
-  }}
-/>
+          canvasDims.w > 0 && (
+            <SignatureCanvas
+              ref={signatureRef}
+              penColor="black"
+              onEnd={() => {
+                if (!signatureRef.current) return;
+                const dataUrl = signatureRef.current
+                  .getTrimmedCanvas()
+                  .toDataURL("image/png");
+                // Only save if the trimmed canvas actually has content (not a blank 1px image)
+                if (dataUrl && dataUrl.length > 100) {
+                  updateStepData("signature", { witnessSignature: dataUrl });
+                }
+              }}
+              canvasProps={{
+                width: canvasDims.w,
+                height: canvasDims.h,
+                className: "bg-neutral-100",
+                style: { touchAction: "none" },
+              }}
+            />
+          )
         ) : (
           <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer text-neutral-500 text-sm">
             {formData.signature?.witnessSignature ? (

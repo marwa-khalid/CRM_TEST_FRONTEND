@@ -14,10 +14,11 @@ import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from 'yup'
 import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
-import { deletePassenger, deletePoliceDetail, deleteWitness, getLatestWitnessQuestionnaire, getPassengerById, getPoliceDetails, getWitnesses } from "../../../services/Accidents/Cards/cards";
+import { deletePassenger, deletePoliceDetail, deleteWitness, getLatestWitnessQuestionnaire, getPassengerById, getPoliceDetails, getQuestionnaireStatus, getWitnesses } from "../../../services/Accidents/Cards/cards";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import { PoliceDetailsModal } from "./PoliceDetailsModal";
 import CreatableSelect from "react-select/creatable";
+import WitnessQuestionnaireViewer from "../Components/WitnessQuestionnaireViewer";
 export const AccidentDetailsForm = ({ formRef }: any) => {
   const weatherOptions = [
     { value: 1, label: "Dry" },
@@ -338,6 +339,9 @@ const openLatestWitnessPdf = (w: any) => {
   const [witnessesList, setWitnessesList] = useState<any[]>([]);
   const [isWitnessModalOpen, setIsWitnessModalOpen] = useState(false);
   const [editingWitness, setEditingWitness] = useState<any>(null);
+  const [witnessQuestStatus, setWitnessQuestStatus] = useState<Record<number, any>>({});
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerQuestionnaireId, setViewerQuestionnaireId] = useState<number | null>(null);
 
   const refreshWitnesses = useCallback(async () => {
     if (!claimId) return;
@@ -365,6 +369,23 @@ const handleViewWitnessQuestionnaire = async (witnessId: number) => {
   useEffect(() => {
     refreshWitnesses();
   }, [refreshWitnesses]);
+
+  useEffect(() => {
+    if (witnessesList.length > 0) {
+      formik.setFieldValue("hasWitnesses", "Yes");
+      formik.setFieldValue("numWitnesses", witnessesList.length);
+    }
+  }, [witnessesList.length]);
+
+  useEffect(() => {
+    if (!claimId || witnessesList.length === 0) return;
+    witnessesList.forEach(async (w) => {
+      try {
+        const status = await getQuestionnaireStatus(parseInt(claimId), w.id);
+        setWitnessQuestStatus((prev) => ({ ...prev, [w.id]: status }));
+      } catch {}
+    });
+  }, [witnessesList]);
 
   const handleEditWitness = (witness: any) => {
     // Format phone for the UI (5 space 6 digits)
@@ -453,19 +474,24 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
 };
 const timeOptions = generateTimeOptions();
   const formatWitnessDate = (isoString: string) => {
-    const date = new Date(isoString);
+    if (!isoString) return "";
+    // Ensure UTC timestamps from the DB are parsed as UTC, not local time
+    const normalized =
+      isoString.endsWith("Z") || isoString.includes("+")
+        ? isoString
+        : isoString + "Z";
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) return "";
 
-    // Get Day, Month, Year
     const day = date.getDate().toString().padStart(2, "0");
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const year = date.getFullYear().toString().slice(-2);
 
-    // Get Time (12-hour format)
     let hours = date.getHours();
     const minutes = date.getMinutes().toString().padStart(2, "0");
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12;
-    hours = hours ? hours : 12; // the hour '0' should be '12'
+    hours = hours ? hours : 12;
 
     return `${day}-${month}-${year}  ${hours}:${minutes}${ampm}`;
   };
@@ -489,6 +515,7 @@ const timeOptions = generateTimeOptions();
     return /^([01]?\d|2[0-3]):[0-5]\d$/.test(value);
   };
   return (
+    <>
     <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       {passengerModal && (
         <PassengerDetailsModal
@@ -1108,14 +1135,19 @@ const timeOptions = generateTimeOptions();
                   <div className="h-px bg-gray-100 w-full my-2" />
                   <div className="flex justify-between items-center text-gray-700 text-xs font-normal font-['Stack_Sans_Headline']">
                     <div>
-                      Questionnaire Link Sent :{" "}
-                      {formatWitnessDate(w.created_at)}
+                      Questionnaire Link Sent:{" "}
+                      {witnessQuestStatus[w.id]?.sent_at
+                        ? formatWitnessDate(witnessQuestStatus[w.id].sent_at)
+                        : formatWitnessDate(w.created_at)}
                     </div>
 
-                    {!getLatestWitnessPdfUrl(w) ? (
+                    {witnessQuestStatus[w.id]?.status === "completed" ? (
                       <button
                         type="button"
-                        onClick={() => handleViewWitnessQuestionnaire(w.id)}
+                        onClick={() => {
+                          setViewerQuestionnaireId(witnessQuestStatus[w.id]?.claim_questionnaire_id);
+                          setViewerOpen(true);
+                        }}
                         className="px-3 py-1.5 rounded bg-blue-100 text-blue-600 text-xs font-weight-600 hover:bg-blue-200"
                       >
                         Received - View Details
@@ -1308,5 +1340,12 @@ const timeOptions = generateTimeOptions();
         </div>
       </div>
     </div>
+
+    <WitnessQuestionnaireViewer
+      isOpen={viewerOpen}
+      onClose={() => setViewerOpen(false)}
+      claimQuestionnaireId={viewerQuestionnaireId}
+    />
+    </>
   );
 };

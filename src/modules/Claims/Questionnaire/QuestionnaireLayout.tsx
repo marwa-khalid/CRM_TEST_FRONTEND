@@ -294,6 +294,10 @@ const questionLabels = [
           question: "sketchObjects",
           answer: JSON.stringify(formData.signature?.placedObjects || []),
         },
+        {
+          question: "witnessSignature",
+          answer: formData.signature?.witnessSignature || "",
+        },
       );
 
       return answers;
@@ -446,9 +450,9 @@ console.log("test");
             </span>
           </div>
         </div>
-
-        <div className="flex gap-5">
-          {/* {currentStepIndex > 0 && (
+        {!isSubmittedSuccessfully &&
+          <div className="flex gap-5">
+            {/* {currentStepIndex > 0 && (
             <button
               type="button"
               onClick={goBack}
@@ -458,31 +462,31 @@ console.log("test");
             </button>
           )} */}
 
-          <button
-            type="button"
-            onClick={handleDiscard}
-            className="px-10 py-4 bg-white border border-blue-500 text-blue-500 rounded-lg font-medium"
-          >
-            Discard
-          </button>
+            <button
+              type="button"
+              onClick={handleDiscard}
+              className="px-10 py-4 bg-white border border-blue-500 text-blue-500 rounded-lg font-medium"
+            >
+              Discard
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (currentStepIndex === steps.length - 1) {
-                handleFinalSubmit();
-              } else {
-                goNext();
-              }
-            }}
-            // disabled={currentStepIndex === steps.length - 1}
-            className="px-10 py-4 rounded-lg font-weight-400 bg-blue-500 text-white"
-          >
-            {currentStepIndex === steps.length - 1
-              ? "Submit Details"
-              : "Save & Next"}
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentStepIndex === steps.length - 1) {
+                  handleFinalSubmit();
+                } else {
+                  goNext();
+                }
+              }}
+              // disabled={currentStepIndex === steps.length - 1}
+              className="px-10 py-4 rounded-lg font-weight-400 bg-blue-500 text-white"
+            >
+              {currentStepIndex === steps.length - 1
+                ? "Submit Details"
+                : "Save & Next"}
+            </button>
+          </div>}
       </header>
       {isPageLoading && (
         <div className="fixed inset-0 z-[9999] bg-[#e8e6df]/80 flex items-center justify-center font-['Stack_Sans_Headline']">

@@ -777,12 +777,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setStep(1);
-      // Initialize with default strings if empty
       if (!formData || Object.keys(formData).length === 0) {
         setFormData(defaultFormData);
       }
     }
   }, [isOpen]);
+
+  // Auto-compute valet charge: £30 if either interior OR exterior clean at check-in is "No", else £0
+  useEffect(() => {
+    const needsValet =
+      formData.interiorCleanCheckIn === "No" ||
+      formData.exteriorCleanCheckIn === "No";
+    const computed = needsValet ? 30 : 0;
+    if (formData.valetCharge !== computed) {
+      setFormData((prev: any) => ({ ...prev, valetCharge: computed }));
+    }
+  }, [formData.interiorCleanCheckIn, formData.exteriorCleanCheckIn]);
 
   const handleClose = () => {
     setStep(1);

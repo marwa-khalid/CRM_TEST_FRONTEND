@@ -119,7 +119,7 @@ const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep
                 return (
                   <div
                     key={idx}
-                    onClick={() => onStepClick(idx)}
+                    onClick={() => onPaymentStepClick(idx)}
                     className="Claimsteps self-stretch inline-flex justify-start items-center gap-3 cursor-pointer group"
                   >
                     {isActive ? (

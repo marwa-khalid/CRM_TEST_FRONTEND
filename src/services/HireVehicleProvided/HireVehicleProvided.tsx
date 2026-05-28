@@ -180,3 +180,21 @@ export const deactivateVehicle = async (vehicleId: number | string) => {
 export const updateAllDriverChecksForClaim = async (claimId: any, payload: any) => {
   return axiosInstance.put(`/driver-checks/claim/${claimId}/bulk`, payload);
 };
+
+export const getHireRecords = async (claimId: any) => {
+  return axiosInstance.get(`/hire-records/${claimId}`);
+};
+
+export const saveHireRecords = async (payload: any) => {
+  return axiosInstance.post(`/hire-records/`, payload);
+};
+
+export const saveCheckoutJson = async (payload: any) => {
+  return axiosInstance.post(`/driver-checks/save-checkout`, payload);
+};
+
+export const sendCheckoutEmail = async (claimId: any, hvpId: any) => {
+  return axiosInstance.post(`/driver-checks/hire-vehicle/${hvpId}/checkout-email`, null, {
+    params: { claim_id: claimId },
+  });
+};

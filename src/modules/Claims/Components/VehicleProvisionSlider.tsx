@@ -117,7 +117,7 @@
 //   );
 // };
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ProvisionLog {
@@ -131,50 +131,15 @@ interface ProvisionLog {
 interface SliderProps {
   isOpen: boolean;
   onClose: () => void;
-  // Optional: you can still pass external logs, or let it fetch from local
-  logs?: ProvisionLog[];
+  logs: ProvisionLog[];
 }
 
 export const VehicleProvisionSlider = ({
   isOpen,
   onClose,
-  logs: externalLogs = [],
+  logs,
 }: SliderProps) => {
-  const [localLogs, setLocalLogs] = useState<ProvisionLog[]>([]);
-  const claimId = localStorage.getItem("claimId");
-
-  useEffect(() => {
-    if (isOpen && claimId) {
-      // 1. Get the draft data from local storage
-      const rawData = localStorage.getItem(`hire_details_draft_${claimId}`);
-      if (rawData) {
-        try {
-          const parsed = JSON.parse(rawData);
-          // 2. Access the vehicles array from the formikValues
-          const vehicles = parsed.formikValues?.thirdPartyVehicles || [];
-
-          // 3. Map them to the Slider's table structure
-          const mappedLogs: ProvisionLog[] = vehicles.map((v: any) => ({
-            registration: v.hire_vehicle_registration || "TBC",
-            make: v.make || "—",
-            model: v.model || "—",
-            start: v.hireOutDate || "—",
-            end: v.hireBackDate || "Active",
-          }));
-
-          setLocalLogs(mappedLogs);
-        } catch (error) {
-          console.error(
-            "Failed to parse provision logs from local storage",
-            error,
-          );
-        }
-      }
-    }
-  }, [isOpen, claimId]);
-
-  // Combine external mock logs (if any) with the actual local storage data
-  const displayLogs = [...localLogs, ...externalLogs];
+  const displayLogs = logs;
 
   return (
     <AnimatePresence>

@@ -3,35 +3,37 @@ import { toast } from "react-toastify";
 import * as Yup from "yup";
 import { useFormik, FormikProvider } from "formik";
 import Select from "react-select";
-import { Clock, FileText, Mail, MoreVertical } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { today, getLocalTimeZone } from "@internationalized/date";
 
 // Assets & Icons
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import Vector4 from "../../../assets/AutoClaim_icon/Vector-4.svg";
+import Mail from "../../../assets/AutoClaim_icon/Vector-5.svg";
+import File from "../../../assets/AutoClaim_icon/Document.svg";
+import Trash2 from "../../../assets/AutoClaim_icon/deletee.svg";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 
 // Services
 import {
-  createHireDetails,
-  updateHireDetails,
   getActualVehicleCategory,
   getClientVehicleCategory,
   getAdminFeeType,
-  getHireDetails,
-  fetchVehicleExtraData,
 } from "../../../services/HireDetail/HireDetails";
 import {
-  createHireProvided,
   downloadCheckSheet,
   downloadFeeExemption,
   downloadHireDocumentationAgreement,
   downloadMitigationQuestionnaire,
   downloadStorageRecovery,
-  getHireProvided,
   getHireVehicleStatus,
   sendEmails,
-  updateHireProvided,
+  getHireRecords,
+  saveHireRecords,
+  getTableData,
+  saveCheckoutJson,
+  sendCheckoutEmail,
 } from "../../../services/HireVehicleProvided/HireVehicleProvided";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import { CustomDatePicker } from "../Components/DatePicker";
@@ -67,6 +69,37 @@ function openOutlookCompose(to: string, subject: string, body: string) {
   }, 1000);
 }
 
+function toCheckoutApiPayload(formData: any, claimId: string, hvpId: number) {
+  const toVal = (v: any) => parseFloat(v) || 0;
+  const total =
+    toVal(formData.valetCharge) +
+    toVal(formData.petrolChargeAmount) +
+    (formData.applyDamageCharges === "Yes" ? toVal(formData.damageCharges) : 0);
+  return {
+    claim_id: Number(claimId),
+    hire_vehicle_provided_id: hvpId,
+    currency: "GBP",
+    interior_clean_at_check_out: formData.interiorCleanCheckOut === "Yes",
+    interior_clean_at_check_in: formData.interiorCleanCheckIn === "Yes",
+    interior_damage_at_check_in: formData.interiorDamage === "Yes",
+    describe_interior_damage: formData.interiorDamageDescription || null,
+    exterior_clean_at_check_out: formData.exteriorCleanCheckOut === "Yes",
+    exterior_clean_at_check_in: formData.exteriorCleanCheckIn === "Yes",
+    exterior_damage_at_check_in: formData.exteriorDamage === "Yes",
+    describe_exterior_damage: formData.exteriorDamageDescription || null,
+    apply_petrol_checkout_charges: formData.petrolCheckoutCharge === "Yes",
+    petrol_checkout_charges: toVal(formData.petrolChargeAmount) || null,
+    petrol_charges_note: formData.petrolChargeReason || null,
+    apply_damage_charges: formData.applyDamageCharges === "Yes",
+    damage_charges: toVal(formData.damageCharges) || null,
+    damage_charges_paid_now: null,
+    damage_charges_note: formData.damageNotes || null,
+    damage_charges_paid: false,
+    valet_charges: toVal(formData.valetCharge),
+    total_driver_checkout_charges: total,
+  };
+}
+
 export const HireDetailsForm = ({ formRef }: any) => {
   const claimId = localStorage.getItem("claimId");
   const [isLoading, setIsLoading] = useState(false);
@@ -75,7 +108,6 @@ export const HireDetailsForm = ({ formRef }: any) => {
   const [clientVehicleCategory, setClientVehicleCategory] = useState([]);
   const [vehicleStatus, setVehicleStatus] = useState([]);
   const [activeVehicleTab, setActiveVehicleTab] = useState(0);
-  const DRAFT_KEY = `hire_details_draft_${claimId}`; // Unique key per claim
 const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
 
   // Picker States
@@ -146,6 +178,8 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     initialValues: {
       thirdPartyVehicles: [
         {
+          id: null as number | null,
+          hire_detail_id: null as number | null,
           client_vehicle_category: "",
           actual_vehicle_category: "",
           abi_hire_charge_per_day: 0,
@@ -183,42 +217,50 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       ],
     },
     onSubmit: async (values) => {
+      if (!claimId) return;
       try {
-        const hireId = localStorage.getItem("hireId");
-        const hireProvidedId = localStorage.getItem("hireProvidedId");
+        const records = values.thirdPartyVehicles.map((v) => ({
+          id: v.id || undefined,
+          hire_detail_id: v.hire_detail_id || undefined,
+          client_vehicle_category_id: v.client_vehicle_category || null,
+          actual_vehicle_category_id: v.actual_vehicle_category || null,
+          cross_hire: v.cross_hired,
+          hire_vehicle_status_id: v.hire_vehicle_status_id || null,
+          hire_vehicle_registration: v.hire_vehicle_registration || null,
+          make: v.make || null,
+          model: v.model || null,
+          hire_start_date: v.hireOutDate || null,
+          hire_end_date: v.hireBackDate || null,
+          fuel_type: v.fuel_type || null,
+          plate_transfer: v.plate_transfer,
+          vehicle_file_reference: v.provider_name || null,
+          abi_insurer: v.abi_insured,
+          abi_hire_charge_per_day: v.abi_hire_charge_per_day || null,
+          abi_extra_charges_per_day: v.extra_charge_per_day || null,
+          admin_fee_id: v.admin_fee_type || null,
+          abi_administration_fee: v.administration_fee || null,
+          total_abi_hire_charge: v.total_abi_hire_charge || null,
+          bhr_hire_charge_per_day: v.bhr_hire_charge_per_day || null,
+          bhr_extra_charges_per_day: v.bhr_extra_charge_per_day || null,
+          bhr_administration_fee: v.bhr_administration_fee || null,
+          cdw_charges: v.cdw_per_day || null,
+          collection_delivery_fee: v.collection_and_delivery_fee || null,
+          total_bhr_charges: v.total_bhr_charge || null,
+          no_of_days_hire_so_far: v.no_of_days_hired || null,
+          final_total_no_of_hire_days: v.total_no_of_days_hired || null,
+        }));
 
-        const chargesPayload = {
-          hire_details: values.thirdPartyVehicles.map((v) => ({
-            ...v,
-            claim_id: claimId,
-            hire_out: v.hireOutDate,
-            hire_back: v.hireBackDate,
-          })),
-        };
+        const { data: saved } = await saveHireRecords({ claim_id: Number(claimId), records });
 
-        const provisionPayload = {
-          claim_id: claimId,
-          section_a: { ...formData }, // Unified modal data
-          section_b: values.thirdPartyVehicles.map((v) => ({
-            ...v,
-            cross_hire: v.cross_hired ? 1 : 0,
-            plate_transfer: v.plate_transfer ? 1 : 0,
-            hire_start_date: v.hireOutDate,
-            hire_end_date: v.hireBackDate,
-            rate: v.abi_hire_charge_per_day,
-          })),
-        };
+        // Update Formik with returned ids so subsequent saves are updates
+        const updated = values.thirdPartyVehicles.map((v, idx) => ({
+          ...v,
+          id: saved[idx]?.id ?? v.id,
+          hire_detail_id: saved[idx]?.hire_detail_id ?? v.hire_detail_id,
+        }));
+        formik.setFieldValue("thirdPartyVehicles", updated);
 
-        // await Promise.all([
-        //   claimId && hireId
-        //     ? updateHireDetails(chargesPayload, claimId)
-        //     : createHireDetails(chargesPayload),
-        //   claimId && hireProvidedId
-        //     ? updateHireProvided(claimId, provisionPayload, false)
-        //     : createHireProvided(claimId, provisionPayload, false),
-        // ]);
-
-        toast.success("All hire details saved successfully");
+        toast.success("Hire details saved successfully");
       } catch (error) {
         toast.error("Error saving hire information");
         throw error;
@@ -254,74 +296,56 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     };
     fetchLookups();
   }, []);
-  // Unified Data Loader
+  // Load hire records from API
   useEffect(() => {
     if (!claimId) return;
-    const loadData = async () => {
-      const savedDraft = localStorage.getItem(DRAFT_KEY);
-
-      if (savedDraft) {
-        const parsed = JSON.parse(savedDraft);
-        formik.setValues(parsed.formikValues);
-        console.log(parsed.formikValues);
-        setShowSwapBanner(true)
-        setCheckoutData(parsed.checkoutFormData);
-        // If we have a draft, we can skip the API call or merge them.
-        // Usually, draft takes priority for "it just works" feel.
-        setIsLoading(false);
-        return;
-      }
-      
-      // setIsLoading(true);
-      // try {
-      //   const provRes = await getHireProvided(claimId);
-      //   const detRes = await getHireDetails(claimId);
-      //   // getHireVehicleStatus(),
-      //   // getClientVehicleCategory(),
-      //   // getActualVehicleCategory(),
-      //   // getAdminFeeType()
-      //   // setVehicleStatus(statusRes.data.map((i: any) => ({ value: i.id, label: i.label })));
-      //   // setClientVehicleCategory(clientRes.data.map((i: any) => ({ value: i.id, label: i.label })));
-      //   // setActualVehicleCategory(actualRes.data.map((i: any) => ({ value: i.id, label: i.label, abi_rate: i.abi_rate, bhr_rate: i.bhr_rate })));
-      //   // setAdminFeeType(adminRes.data.map((i: any) => ({ value: i.id, label: i.label })));
-
-      //   const hireProvided = Array.isArray(provRes?.data) ? provRes.data : [];
-      //   const hireDetails = Array.isArray(detRes?.data?.hire_details)
-      //     ? detRes.data.hire_details
-      //     : [];
-
-      //   const merged = hireProvided.map((prov: any, idx: number) => {
-      //     const det = hireDetails[idx] || {};
-      //     return {
-      //       ...prov,
-      //       ...det,
-      //       cross_hired: !!prov.cross_hire,
-      //       hireOutDate:
-      //         prov.hire_start_date ||
-      //         det.hire_out ||
-      //         today(getLocalTimeZone()).toString(),
-      //       hireBackDate: prov.hire_end_date || det.hire_back || null,
-      //     };
-      //   });
-
-      //   if (merged.length > 0) formik.setValues({ thirdPartyVehicles: merged });
-      // } finally {
-      //   setIsLoading(false);
-      // }
-    };
-    loadData();
+    setIsLoading(true);
+    getHireRecords(claimId)
+      .then(({ data }) => {
+        if (!Array.isArray(data) || data.length === 0) return;
+        const mapped = data.map((r: any, idx: number) => ({
+          id: r.id ?? null,
+          hire_detail_id: r.hire_detail_id ?? null,
+          client_vehicle_category: r.client_vehicle_category_id ?? "",
+          actual_vehicle_category: r.actual_vehicle_category_id ?? "",
+          abi_hire_charge_per_day: Number(r.abi_hire_charge_per_day ?? 0),
+          extra_charge_per_day: Number(r.abi_extra_charges_per_day ?? 5),
+          administration_fee: Number(r.abi_administration_fee ?? 37),
+          bhr_hire_charge_per_day: Number(r.bhr_hire_charge_per_day ?? 0),
+          bhr_extra_charge_per_day: Number(r.bhr_extra_charges_per_day ?? 5),
+          bhr_administration_fee: Number(r.bhr_administration_fee ?? 60),
+          cdw_per_day: Number(r.cdw_charges ?? 15),
+          collection_and_delivery_fee: Number(r.collection_delivery_fee ?? 60),
+          no_of_days_hired: Number(r.no_of_days_hire_so_far ?? 0),
+          total_no_of_days_hired: Number(r.final_total_no_of_hire_days ?? 0),
+          total_abi_hire_charge: Number(r.total_abi_hire_charge ?? 0),
+          total_bhr_charge: Number(r.total_bhr_charges ?? 0),
+          abi_insured: r.abi_insurer ?? false,
+          admin_fee_type: r.admin_fee_id ?? "",
+          hireOutDate: r.hire_start_date ?? today(getLocalTimeZone()).toString(),
+          hireBackDate: r.hire_end_date ?? null,
+          cross_hired: r.cross_hire ?? false,
+          hire_vehicle_status_id: r.hire_vehicle_status_id ?? null,
+          hire_vehicle_registration: r.hire_vehicle_registration ?? "",
+          make: r.make ?? "",
+          model: r.model ?? "",
+          provider_name: r.vehicle_file_reference ?? "",
+          fuel_type: r.fuel_type ?? "",
+          plate_transfer: r.plate_transfer ?? false,
+          actionsCompleted: {
+            onHire: r.hire_vehicle_status_id !== null,
+            offHire: r.hire_end_date !== null,
+            switchStarted: idx < data.length - 1,
+            switchCompleted: idx > 0,
+          },
+        }));
+        formik.setValues({ thirdPartyVehicles: mapped });
+        if (mapped.length > 1) setShowSwapBanner(true);
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
   }, [claimId]);
-  useEffect(() => {
-    if (claimId && formik.dirty) {
-      const draftData = {
-        formikValues: formik.values,
-        checkoutFormData: checkoutData,
-      };
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
-    }
-  }, [formik.values, checkoutData, claimId]);
   // Live Calculations (So Far vs Final Days)
-  console.log(checkoutData)
   useEffect(() => {
     const vehicle = formik.values.thirdPartyVehicles[activeVehicleTab];
     if (!vehicle || !vehicle.hireOutDate) return;
@@ -391,7 +415,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     if (!currentClaimId) return;
 
     try {
-      toast.info("Preparing your document...");
+      setDownloadingDoc(docType);
       let response;
 
       switch (docType) {
@@ -451,23 +475,26 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     } catch (error) {
       console.error("Download error:", error);
       toast.error("Failed to download document.");
+    } finally {
+      setDownloadingDoc(null);
     }
   };
   const [emailData, setEmailData] = useState<any>();
   const [onHireEmailData, setOnHireEmailData] = useState<any>();
+  const [emailSending, setEmailSending] = useState(false);
+  const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
 
   const currentVehicle = formik.values.thirdPartyVehicles[activeVehicleTab];
   // Action Handlers
   // Action Handlers for Swap Logic
 
   const handleQuestionnaireSend = async (
-    // email: string,
     sendReminders: boolean,
     option: any,
   ) => {
-    // const firstName = values.company_name || "Client";
+    setShowEmailPopup({});
     try {
-      console.log(option);
+      setEmailSending(true);
       if (option === "Inst Fleet to On Hire") {
         const { data } = await sendEmails(claimId, "on_hire");
         console.log(
@@ -546,7 +573,9 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         // openOutlookCompose(data.to, subject, body);
         // toast.success("Off Hire email prepared in Outlook");
       }
-    } catch {}
+    } catch {} finally {
+      setEmailSending(false);
+    }
   };
   const [previewModal, setPreviewModalOpen] = useState<boolean>(false);
   const [onHirePreviewModal, setOnHirePreviewModalOpen] =
@@ -637,7 +666,6 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       );
     }
   };
-  console.log(currentVehicle.actual_vehicle_category);
   // 2. Tab System for multiple records (Vehicle Swap Handling) [cite: 207, 210]
   const renderVehicleTabs = () => (
     <div className="flex gap-4 border-b border-slate-100 mb-4">
@@ -661,19 +689,17 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
   const docsPopupRef = useRef<HTMLDivElement>(null);
   const emailPopupRef = useRef<HTMLDivElement>(null);
 
-  // Close all popups when clicking outside
+  // Close each popup independently when clicking outside its container
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        actionPopupRef.current &&
-        !actionPopupRef.current.contains(event.target as Node) &&
-        docsPopupRef.current &&
-        !docsPopupRef.current.contains(event.target as Node) &&
-        emailPopupRef.current &&
-        !emailPopupRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node;
+      if (actionPopupRef.current && !actionPopupRef.current.contains(target)) {
         setShowActionPopup(false);
+      }
+      if (docsPopupRef.current && !docsPopupRef.current.contains(target)) {
         setShowDocsPopup({});
+      }
+      if (emailPopupRef.current && !emailPopupRef.current.contains(target)) {
         setShowEmailPopup({});
       }
     };
@@ -690,32 +716,112 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
   };
   const [isLogOpen, setIsLogOpen] = useState(false);
 
-  const mockLogs = [
-    {
-      registration: "AB23 CDE",
-      make: "Toyota",
-      model: "Camry",
-      start: "02-14-2026",
-      end: "02-18-2026",
-    },
-    {
-      registration: "CD34 EFG",
-      make: "Honda",
-      model: "Accord",
-      start: "03-05-2026",
-      end: "03-10-2026",
-    },
-    {
-      registration: "EF45 HIJ",
-      make: "Ford",
-      model: "Fusion",
-      start: "04-20-2026",
-      end: "04-25-2026",
-    },
-  ];
+  // Delete vehicle confirmation
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTargetIdx, setDeleteTargetIdx] = useState<number | null>(null);
+
+  const handleDeleteVehicle = (idx: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteTargetIdx(idx);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteVehicle = () => {
+    if (deleteTargetIdx === null) return;
+    const filtered = formik.values.thirdPartyVehicles.filter((_, i) => i !== deleteTargetIdx);
+    const updated = filtered.map((v, idx) => ({
+      ...v,
+      actionsCompleted: {
+        onHire: v.actionsCompleted?.onHire ?? false,
+        offHire: v.actionsCompleted?.offHire ?? false,
+        switchStarted: idx < filtered.length - 1,
+        switchCompleted: idx > 0,
+      },
+    }));
+    formik.setFieldValue("thirdPartyVehicles", updated.length ? updated : formik.initialValues.thirdPartyVehicles);
+    const nextTab = Math.min(activeVehicleTab, Math.max(0, updated.length - 1));
+    setActiveVehicleTab(nextTab);
+    if (updated.length <= 1) setShowSwapBanner(false);
+    setShowDeleteModal(false);
+    setDeleteTargetIdx(null);
+  };
+
+  // Derived live from formik so edits (e.g. reg change) appear before saving
+  const provisionLogs = formik.values.thirdPartyVehicles.map((v) => ({
+    registration: v.hire_vehicle_registration || "TBC",
+    make: v.make || "—",
+    model: v.model || "—",
+    start: v.hireOutDate || "—",
+    end: v.hireBackDate || "Active",
+  }));
+
+  const handleOpenLog = () => setIsLogOpen(true);
 
   return (
     <>
+      {emailSending && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg px-8 py-6 flex items-center gap-4 shadow-xl">
+            <svg
+              className="animate-spin h-6 w-6 text-blue-600"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <span className="text-sm font-medium text-neutral-700">
+              Preparing email preview…
+            </span>
+          </div>
+        </div>
+      )}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 font-['Stack_Sans_Headline']">
+          <div className="w-[400px] p-6 bg-white rounded-lg flex flex-col gap-6">
+            <div className="flex items-center gap-4">
+              <span className="text-black text-xl font-weight-600 leading-5">
+                Delete Vehicle
+              </span>
+            </div>
+            <p className="text-neutral-700 text-base font-normal">
+              Are you sure you want to Delete Vehicle ?
+            </p>
+            <div className="pt-10 flex justify-end items-center gap-4">
+              <button
+                className="px-6 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-blue-500 flex justify-center items-center gap-2.5"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteTargetIdx(null);
+                }}
+              >
+                <span className="text-blue-500 text-base font-weight-400 leading-4">
+                  Cancel
+                </span>
+              </button>
+              <button
+                className="px-6 py-4 bg-blue-500 rounded flex justify-center items-center gap-2.5"
+                onClick={confirmDeleteVehicle}
+              >
+                <span className="text-white text-base font-weight-400 leading-4">
+                  Delete
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <FormikProvider value={formik}>
         <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
           {previewModal && (
@@ -729,7 +835,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           <VehicleProvisionSlider
             isOpen={isLogOpen}
             onClose={() => setIsLogOpen(false)}
-            logs={[]}
+            logs={provisionLogs}
           />
           {onHirePreviewModal && (
             <OnHireEmailPreviewModal
@@ -744,10 +850,10 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </h1>
 
             <button
-              className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center gap-2 text-blue-600 whitespace-nowrap"
-              onClick={() => setIsLogOpen(true)}
+              className="h-8 px-3 py-2 bg-blue-100 rounded flex items-center gap-2 text-blue-300 whitespace-nowrap"
+              onClick={handleOpenLog}
             >
-              <Clock size={16} />
+              <img src={Vector4} alt="" />
               <span className="text-sm">Provision Log</span>
             </button>
           </div>
@@ -759,79 +865,183 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 <div
                   key={i}
                   onClick={() => setActiveVehicleTab(i)}
-                  className={`flex-1 p-5 rounded-lg border cursor-pointer flex flex-col items-center gap-4 ${activeVehicleTab === i ? "bg-blue-100 border-blue-200" : "bg-white border-blue-200"}`}
+                  className={`flex-1 p-5 rounded-lg border cursor-pointer flex flex-col items-start gap-4 bg-blue-100 ${activeVehicleTab === i ? "border-blue-400" : "border-blue-200"}`}
                 >
-                  <div className="text-center">
-                    <div className="text-neutral-900 text-[20px] font-weight-600 leading-5">
-                      Vehicle{i + 1}
+                  <div className="w-full flex justify-between items-start">
+                    <div className="text-left">
+                      <div className="text-neutral-900 text-[20px] font-weight-600 leading-5">
+                        Vehicle{i + 1}
+                      </div>
+                      <div className="text-neutral-700 text-[14px] font-weight-500">
+                        {`Reg#${v.hire_vehicle_registration}` || "Reg#"}
+                      </div>
                     </div>
-                    <div className="text-slate-500 text-sm font-weight-400">
-                      {v.hire_vehicle_registration || "Reg#"}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteVehicle(i, e)}
+                    >
+                      <img src={Trash2} alt="" />
+                    </button>
                   </div>
-                  <div className="flex gap-4 relative">
+                  <div className="flex gap-4 relative w-full justify-start">
                     {/* VIEW DOCS BUTTON & POPUP */}
                     <div
                       className="relative"
                       ref={i === activeVehicleTab ? docsPopupRef : null}
                     >
                       <button
-                        className="flex gap-2"
+                        className="flex gap-2 items-center text-blue-300 text-sm"
                         onClick={() => {
                           setActiveVehicleTab(i);
                           toggleDocsPopup(i);
                         }}
                       >
-                        <FileText size={16} /> View Docs
+                        <img src={File} alt="" /> View Docs
                       </button>
                       {showDocsPopup[i] && (
                         <div className="absolute left-0 top-10 z-[70] w-64 p-4 bg-white shadow-xl border rounded-lg">
-                          {/* Item 1: Inst Fleet to On Hire */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3 flex items-center justify-between hover:bg-slate-50 rounded"
                             onClick={() =>
                               handleDownload("Hire_Vehicle_Check_Sheet")
                             }
                           >
                             Hire Vehicle Check Sheet
+                            {downloadingDoc === "Hire_Vehicle_Check_Sheet" && (
+                              <svg
+                                className="animate-spin h-4 w-4 text-blue-500"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                />
+                              </svg>
+                            )}
                           </div>
                           <div className="self-stretch h-px bg-slate-100"></div>
-
-                          {/* Item 2: Inst Fleet to Off Hire */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3 flex items-center justify-between hover:bg-slate-50 rounded"
                             onClick={() => handleDownload("Hire_Documentation")}
                           >
                             Hire Documentation
+                            {downloadingDoc === "Hire_Documentation" && (
+                              <svg
+                                className="animate-spin h-4 w-4 text-blue-500"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                />
+                              </svg>
+                            )}
                           </div>
                           <div className="self-stretch h-px bg-slate-100"></div>
-
-                          {/* Item 3: Check Sheet (Usually an XLS or PDF) */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3 flex items-center justify-between hover:bg-slate-50 rounded"
                             onClick={() => handleDownload("Fee_Exemption_Form")}
                           >
                             Fee Exemption Form
+                            {downloadingDoc === "Fee_Exemption_Form" && (
+                              <svg
+                                className="animate-spin h-4 w-4 text-blue-500"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                />
+                              </svg>
+                            )}
                           </div>
                           <div className="self-stretch h-px bg-slate-100"></div>
-
-                          {/* Item 4: Mitigation Questionnaire */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3 flex items-center justify-between hover:bg-slate-50 rounded"
                             onClick={() =>
                               handleDownload("Mitigation_Questionnaire")
                             }
                           >
                             Mitigation Questionnaire
+                            {downloadingDoc === "Mitigation_Questionnaire" && (
+                              <svg
+                                className="animate-spin h-4 w-4 text-blue-500"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                />
+                              </svg>
+                            )}
                           </div>
                           <div className="self-stretch h-px bg-slate-100"></div>
-
-                          {/* Item 5: Authority Letter */}
                           <div
-                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
+                            className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3 flex items-center justify-between hover:bg-slate-50 rounded"
                             onClick={() => handleDownload("Recovery_Storage")}
                           >
                             Recovery & Storage
+                            {downloadingDoc === "Recovery_Storage" && (
+                              <svg
+                                className="animate-spin h-4 w-4 text-blue-500"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                />
+                              </svg>
+                            )}
                           </div>
                         </div>
                       )}
@@ -842,24 +1052,23 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                       ref={i === activeVehicleTab ? emailPopupRef : null}
                     >
                       <button
-                        className="flex gap-2"
+                        className="flex gap-2 items-center text-blue-300 text-sm"
                         onClick={() => {
                           setActiveVehicleTab(i);
                           toggleEmailPopup(i);
                         }}
                       >
-                        <Mail size={16} /> Send Email
+                        <img src={Mail} alt="" /> Send Email
                       </button>
                       {showEmailPopup[i] && (
                         <div className="absolute left-0 top-10 z-[70] w-64 p-4 bg-white shadow-xl border rounded-lg">
-                          {" "}
                           {/* Item 1: Inst Fleet to On Hire */}
                           <div
                             className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-3"
                             onClick={() =>
                               handleQuestionnaireSend(
                                 true,
-                                "Inst Fleet to Off Hire",
+                                "Inst Fleet to On Hire",
                               )
                             }
                           >
@@ -892,98 +1101,206 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 <div className="text-neutral-900 text-[20px] font-weight-600 leading-5">
                   Vehicle
                 </div>
-                <div className="text-slate-500 text-sm font-weight-400">
+                <div className="text-blue-300 text-sm font-weight-400">
                   Reg# {currentVehicle.hire_vehicle_registration}
                 </div>
               </div>
-              <div className="flex gap-4">
+              <div className="flex items-center gap-4">
+                <div className="relative" ref={docsPopupRef}>
+                  <button
+                    className="flex items-center gap-2 text-blue-300 text-sm"
+                    onClick={() => toggleDocsPopup(activeVehicleTab)}
+                  >
+                    <img src={File} alt="" /> View Docs
+                  </button>
+                  {showDocsPopup[activeVehicleTab] && (
+                    <div className="absolute right-0 top-full mt-2 z-[60] w-64 p-4 bg-white rounded-lg shadow-[0px_4px_8px_0px_rgba(0,0,0,0.08)] flex flex-col gap-1 border border-slate-100">
+                      <div
+                        className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-2 rounded hover:bg-slate-50 flex items-center justify-between"
+                        onClick={() =>
+                          handleDownload("Hire_Vehicle_Check_Sheet")
+                        }
+                      >
+                        Hire Vehicle Check Sheet
+                        {downloadingDoc === "Hire_Vehicle_Check_Sheet" && (
+                          <svg
+                            className="animate-spin h-4 w-4 text-blue-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="self-stretch h-px bg-slate-100"></div>
+                      <div
+                        className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-2 rounded hover:bg-slate-50 flex items-center justify-between"
+                        onClick={() => handleDownload("Hire_Documentation")}
+                      >
+                        Hire Documentation
+                        {downloadingDoc === "Hire_Documentation" && (
+                          <svg
+                            className="animate-spin h-4 w-4 text-blue-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="self-stretch h-px bg-slate-100"></div>
+                      <div
+                        className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-2 rounded hover:bg-slate-50 flex items-center justify-between"
+                        onClick={() => handleDownload("Fee_Exemption_Form")}
+                      >
+                        Fee Exemption Form
+                        {downloadingDoc === "Fee_Exemption_Form" && (
+                          <svg
+                            className="animate-spin h-4 w-4 text-blue-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="self-stretch h-px bg-slate-100"></div>
+                      <div
+                        className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-2 rounded hover:bg-slate-50 flex items-center justify-between"
+                        onClick={() =>
+                          handleDownload("Mitigation_Questionnaire")
+                        }
+                      >
+                        Mitigation Questionnaire
+                        {downloadingDoc === "Mitigation_Questionnaire" && (
+                          <svg
+                            className="animate-spin h-4 w-4 text-blue-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="self-stretch h-px bg-slate-100"></div>
+                      <div
+                        className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-2 rounded hover:bg-slate-50 flex items-center justify-between"
+                        onClick={() => handleDownload("Recovery_Storage")}
+                      >
+                        Recovery & Storage
+                        {downloadingDoc === "Recovery_Storage" && (
+                          <svg
+                            className="animate-spin h-4 w-4 text-blue-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="relative" ref={emailPopupRef}>
+                  <button
+                    className="flex items-center gap-2 text-blue-300 text-sm"
+                    onClick={() => toggleEmailPopup(activeVehicleTab)}
+                  >
+                    <img src={Mail} alt="" />
+                    Send Email
+                  </button>
+                  {showEmailPopup[activeVehicleTab] && (
+                    <div className="absolute right-0 top-full mt-2 z-[60] w-56 p-4 bg-white rounded-lg shadow-[0px_4px_8px_0px_rgba(0,0,0,0.08)] flex flex-col gap-1 border border-slate-100">
+                      <div
+                        className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-2 rounded hover:bg-slate-50"
+                        onClick={() =>
+                          handleQuestionnaireSend(true, "Inst Fleet to On Hire")
+                        }
+                      >
+                        Inst Fleet to On Hire
+                      </div>
+                      <div className="self-stretch h-px bg-slate-100"></div>
+                      <div
+                        className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full p-2 rounded hover:bg-slate-50"
+                        onClick={() =>
+                          handleQuestionnaireSend(
+                            true,
+                            "Inst Fleet to Off Hire",
+                          )
+                        }
+                      >
+                        Inst Fleet to Off Hire
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <button
-                  className="flex items-center gap-2 text-primary text-sm"
-                  onClick={() => toggleDocsPopup(activeVehicleTab)}
+                  type="button"
+                  onClick={(e) => handleDeleteVehicle(activeVehicleTab, e)}
+                  className="text-neutral-500 hover:text-blue-300 transition-colors"
                 >
-                  <FileText size={16} /> View Docs
+                  <img src={Trash2} alt="" />
                 </button>
-                {/* Docs Popup Design */}
-                {showDocsPopup[activeVehicleTab] && (
-                  // Inside your Docs Popup mapping area:
-                  <div className="absolute right-70 top-[290px] z-[60] w-96 p-6 bg-white rounded-lg shadow-[0px_4px_8px_0px_rgba(0,0,0,0.08)] flex flex-col justify-center items-start gap-3 border border-slate-100">
-                    {/* Item 1: Inst Fleet to On Hire */}
-                    <div
-                      className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
-                      onClick={() => handleDownload("Hire_Vehicle_Check_Sheet")}
-                    >
-                      Hire Vehicle Check Sheet
-                    </div>
-                    <div className="self-stretch h-px bg-slate-100"></div>
-
-                    {/* Item 2: Inst Fleet to Off Hire */}
-                    <div
-                      className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
-                      onClick={() => handleDownload("Hire_Documentation")}
-                    >
-                      Hire Documentation
-                    </div>
-                    <div className="self-stretch h-px bg-slate-100"></div>
-
-                    {/* Item 3: Check Sheet (Usually an XLS or PDF) */}
-                    <div
-                      className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
-                      onClick={() => handleDownload("Fee_Exemption_Form")}
-                    >
-                      Fee Exemption Form
-                    </div>
-                    <div className="self-stretch h-px bg-slate-100"></div>
-
-                    {/* Item 4: Mitigation Questionnaire */}
-                    <div
-                      className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
-                      onClick={() => handleDownload("Mitigation_Questionnaire")}
-                    >
-                      Mitigation Questionnaire
-                    </div>
-                    <div className="self-stretch h-px bg-slate-100"></div>
-
-                    {/* Item 5: Authority Letter */}
-                    <div
-                      className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
-                      onClick={() => handleDownload("Recovery_Storage")}
-                    >
-                      Recovery & Storage
-                    </div>
-                  </div>
-                )}
-                <button
-                  className="flex items-center gap-2 text-primary text-sm"
-                  onClick={() => toggleEmailPopup(activeVehicleTab)}
-                >
-                  <Mail size={16} />
-                  Send Email
-                </button>
-                {showEmailPopup[activeVehicleTab] && (
-                  // Inside your Docs Popup mapping area:
-                  <div className="absolute right-20 top-[290px]  z-[60] w-96 p-6 bg-white rounded-lg shadow-[0px_4px_8px_0px_rgba(0,0,0,0.08)] flex flex-col justify-center items-start gap-3 border border-slate-100">
-                    {/* Item 1: Inst Fleet to On Hire */}
-                    <div
-                      className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
-                      onClick={() =>
-                        handleQuestionnaireSend(true, "Inst Fleet to On Hire")
-                      }
-                    >
-                      Inst Fleet to On Hire
-                    </div>
-                    <div className="self-stretch h-px bg-slate-100"></div>
-
-                    {/* Item 2: Inst Fleet to Off Hire */}
-                    <div
-                      className="text-primary text-sm cursor-pointer hover:text-blue-600 w-full"
-                      onClick={() =>
-                        handleQuestionnaireSend(true, "Inst Fleet to Off Hire")
-                      }
-                    >
-                      Inst Fleet to Off Hire
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -1459,8 +1776,10 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         <CheckoutModal
           isOpen={showCheckoutModal}
           onClose={() => setShowCheckoutModal(false)}
-          onSave={(capturedFormData) => {
+          onSave={async (capturedFormData) => {
             const todayStr = new Date().toISOString().split("T")[0];
+            const hvpId: number | null =
+              formik.values.thirdPartyVehicles[activeVehicleTab]?.id ?? null;
 
             formik.setFieldValue(
               `thirdPartyVehicles[${activeVehicleTab}].hireBackDate`,
@@ -1471,7 +1790,6 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               2,
             );
 
-            // 2. Store the data into the 'forms' array at the specific index
             setCheckoutData((prev) => {
               const updatedForms = [...prev.forms];
               updatedForms[activeVehicleTab] = capturedFormData;
@@ -1481,11 +1799,39 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             setShowCheckoutModal(false);
             setShowActionPopup(false);
             setShowSwapBanner(true);
-            toast.success(
-              switchVehicle
-                ? "Vehicle off-hired..."
-                : "Vehicle off-hired successfully.",
-            );
+
+            if (!hvpId || !claimId) {
+              toast.success(
+                switchVehicle
+                  ? "Vehicle off-hired..."
+                  : "Vehicle off-hired successfully.",
+              );
+              return;
+            }
+
+            try {
+              await saveCheckoutJson(
+                toCheckoutApiPayload(capturedFormData, claimId, hvpId),
+              );
+              try {
+                await sendCheckoutEmail(claimId, hvpId);
+                toast.success(
+                  switchVehicle
+                    ? "Vehicle off-hired (email sent)"
+                    : "Vehicle off-hired — confirmation email sent.",
+                );
+              } catch {
+                toast.success(
+                  switchVehicle
+                    ? "Vehicle off-hired (email could not be sent)"
+                    : "Vehicle off-hired (email could not be sent).",
+                );
+              }
+            } catch {
+              toast.error(
+                "Checkout saved locally but failed to save to server.",
+              );
+            }
           }}
           // Access from the forms array
           formData={checkoutData.forms[activeVehicleTab] || {}}

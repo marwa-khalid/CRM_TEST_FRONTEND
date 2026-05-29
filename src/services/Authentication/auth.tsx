@@ -37,6 +37,11 @@ export const login = async ({
   return response.data;
 };
 
+export const forgotPassword = async (user_name: string) => {
+  const response = await axiosInstance.post("/auth/forgot-password", { user_name });
+  return response.data;
+};
+
 export const signup = async ({
   user_name,
   password,

@@ -3,9 +3,8 @@ import Subtractt from '../../assets/images/Subtractt.svg';
 import group from "../../assets/images/Group 2608219.svg";
 import background from "../../assets/images/background.png";
 import group2 from "../../assets/images/group-2608221.svg";
-import subtract1 from "../../assets/images/subtract-1.svg";
-import union from "../../assets/images/union.svg";
 import { useNavigate } from "react-router-dom";
+import { forgotPassword } from "../../services/Authentication/auth";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -21,36 +20,12 @@ const ForgotPassword = () => {
 
     
     try {
-      // 1. Call the send email endpoint
-      const response = await fetch(
-        "https://emailbackend-ten.vercel.app/send-reset-link",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            recipientEmail: email,
-            inviteLink: `https://claims-crm.netlify.app/auth/reset-password?email=${email}`,
-          }),
-        },
-      );
-
-      if (response.ok) {
-        // 2. Store OTP and Expiry in localStorage for the frontend to verify
-        localStorage.setItem(
-          "email",
-          email
-        );
-
-        console.log("Activation email sent successfully");
-        navigate("/forgot-password2");
-      } else {
-        setErrorMessage("User not found or server error.");
-      }
-    } catch (error) {
-      console.error("Network error:", error);
-      setErrorMessage("Could not connect to the server.");
+      await forgotPassword(email);
+      localStorage.setItem("email", email);
+      navigate("/forgot-password2");
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail;
+      setErrorMessage(msg || "Could not connect to the server.");
     } finally {
       setLoading(false);
     }
@@ -83,7 +58,7 @@ const ForgotPassword = () => {
     }, []);
   
   return (
-    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white">
+    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white font-['Stack_Sans_Headline']">
       <div
         ref={containerRef}
         style={{
@@ -192,7 +167,7 @@ const ForgotPassword = () => {
               <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
                 <label
                   htmlFor="email"
-                  className="relative self-stretch text-[#444444] text-[14px] font-medium break-words"
+                  className="relative self-stretch text-[#444444] text-[14px] font-weight-500 break-words"
                 >
                   Email
                 </label>
@@ -218,7 +193,7 @@ const ForgotPassword = () => {
               loading ? "bg-gray-400" : "bg-[#0352FD] hover:bg-[#0246d9]"
             } active:scale-[0.98]`}
           >
-            <span className="text-white text-[16px] font-medium leading-[16px]">
+            <span className="text-white text-[16px] font-weight-500 leading-[16px]">
               {loading ? "Sending..." : "Send Email"}
             </span>
           </button>

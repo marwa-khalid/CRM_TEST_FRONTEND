@@ -13,11 +13,13 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setErrorMessage("");
+  setLoading(true);
 
   const lockoutData = localStorage.getItem(`lockout_${email}`);
   if (lockoutData) {
@@ -94,6 +96,8 @@ const Login = () => {
   } catch (error) {
     console.error(error);
     setErrorMessage("Something went wrong. Please try again.");
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -125,7 +129,7 @@ const Login = () => {
 
   return (
     /* Outer wrapper matches the background to hide any potential gaps */
-    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white">
+    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white font-['Stack_Sans_Headline']">
       <div
         ref={containerRef}
         style={{
@@ -258,9 +262,17 @@ const Login = () => {
             <button
               type="submit"
               onClick={handleSubmit}
-              className="flex items-center justify-center w-[508px] px-10 py-4 bg-[#0352FD] rounded-[4px] hover:bg-[#0246d9] active:scale-[0.98] transition-all"
+              disabled={loading}
+              className={`flex items-center justify-center w-[508px] px-10 py-4 rounded-[4px] active:scale-[0.98] transition-all ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-[#0352FD] hover:bg-[#0246d9]"}`}
             >
-              <span className="text-white text-[16px] font-medium">Login</span>
+              {loading ? (
+                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <span className="text-white text-[16px] font-medium">Login</span>
+              )}
             </button>
           </form>
         </div>

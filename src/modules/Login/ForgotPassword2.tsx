@@ -35,7 +35,7 @@ const ForgotPassword2 = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
   return (
-    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white">
+    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white font-['Stack_Sans_Headline']">
       <div
         ref={containerRef}
         style={{

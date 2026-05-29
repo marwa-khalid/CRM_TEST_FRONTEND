@@ -7,6 +7,7 @@ import Fleet from "../../assets/images/Fleet.svg";
 import { useNavigate } from "react-router-dom";
 import subtract1 from '../../assets/images/subtract-1.svg'
 import union from '../../assets/images/union.svg'
+import ArrowRight from '../../assets/images/arrowRightt.svg'
 
 const SingleSignOn = () => {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ const SingleSignOn = () => {
 
   return (
     /* Outer wrapper matches the background to hide any potential gaps */
-    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white">
+    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white font-['Stack_Sans_Headline']">
       <div
         ref={containerRef}
         style={{
@@ -117,10 +118,12 @@ const SingleSignOn = () => {
           <form className="flex flex-col items-start gap-6 relative self-stretch w-full flex-[0_0_auto]">
             <div className="flex flex-col items-start gap-5 relative self-stretch w-full flex-[0_0_auto]">
               <div className="w-[440px] text-[#444444] text-base font-['Stack_Sans_Headline'] break-words leading-relaxed">
-                <span className="font-normal">You have been logged in as </span>
+                <span className="font-weight-400">
+                  You have been logged in as{" "}
+                </span>
                 <span className="font-weight-600">{email}</span>
                 <br />
-                <span className="font-normal">
+                <span className="font-weight-400">
                   Select from the listed applications to proceed
                 </span>
               </div>
@@ -145,29 +148,12 @@ const SingleSignOn = () => {
                         src={union}
                       />
                     </div>
-                    <div className=" top-2 left-[31px] [font-family:'Stack_Sans_Headline',Helvetica] font-weight-600 text-black text-xs tracking-[0] leading-[normal]">
+                    <div className=" top-2 left-[31px] text-neutral-900 font-weight-600 text-black text-[12px]">
                       AUTOCLAIM
                     </div>
                   </div>
                   {/* Arrow Icon */}
-                  <div className="w-6 h-6 flex items-center justify-center">
-                    <svg
-                      width="20"
-                      height="11"
-                      viewBox="0 0 20 11"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="transform -rotate-90"
-                    >
-                      <path
-                        d="M1 1L10 10L19 1"
-                        stroke="#286CFF"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
+                  <img src={ArrowRight} alt="" />
                 </div>
 
                 {/* Content Section */}
@@ -175,7 +161,7 @@ const SingleSignOn = () => {
                   <h3 className="text-black text-[16px] font-weight-600 font-weight-[500] leading-4 font-['Stack_Sans_Headline']">
                     Claims Management
                   </h3>
-                  <p className="text-[#888888] text-[12px] font-normal  leading-relaxed">
+                  <p className="text-[#888888] text-[12px] font-weight-400  leading-relaxed">
                     Manage claims end-to-end with complete visibility and
                     control.
                     <br />
@@ -186,50 +172,50 @@ const SingleSignOn = () => {
               </div>
 
               <div className="flex flex-col items-start justify-start self-stretch gap-6 p-4 rounded-lg outline outline-1 outline-[#A3CFFF] -outline-offset-1 bg-white">
-                {/* Header Row */}
-                <div className="flex items-center justify-between self-stretch">
-                  <div className="flex w-[101px] h-[31px] items-center gap-[1]">
-                    <div className="flex items-center">
-                      <img src={Fleet} alt="" />
-                    </div>
-                    <div className="[font-family:'Stack_Sans_Headline',Helvetica] font-weight-600 text-black text-xs tracking-[0] leading-[normal]">
-                      AUTOFLEET
-                    </div>
-                  </div>
-
-                  {/* Arrow Icon */}
-                  <div className="w-6 h-6 flex items-center justify-center">
-                    <svg
-                      width="20"
-                      height="11"
-                      viewBox="0 0 20 11"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="transform -rotate-90"
-                    >
-                      <path
-                        d="M1 1L10 10L19 1"
-                        stroke="#286CFF"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Content Section */}
-                <div className="flex flex-col items-start gap-3">
-                  <h3 className="text-black text-[16px] font-weight-600 font-weight-[500] leading-4 font-['Stack_Sans_Headline']">
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-black text-base font-medium font-['Stack_Sans_Headline'] leading-4">
                     Fleet Management
                   </h3>
-                  <p className="text-[#888888] text-[12px] font-normal leading-relaxed">
-                    Manage fleet end-to-end with complete visibility and
-                    control.
-                    <br />
-                    Track status, documents, and approvals in one centralized
-                    system
+
+                  <p className="text-[#888888] text-xs font-weight-600 font-['Stack_Sans_Headline']">
+                    Select Module you want to navigate to
                   </p>
+                </div>
+
+                <div className="flex flex-col gap-4 w-full">
+                  <div className="w-full flex justify-between items-center cursor-pointer hover:opacity-70 transition-opacity">
+                    <div className="flex items-center gap-3">
+                      <img src={Fleet} alt="Fleet icon" className="w-8 h-8" />
+
+                      <span className="text-black text-sm font-weight-600 font-['Stack_Sans_Headline']">
+                        Skyline Vehicles
+                      </span>
+                    </div>
+
+                    <img
+                      src={ArrowRight}
+                      alt="Go to Skyline Vehicles"
+                      className="w-5 h-5"
+                    />
+                  </div>
+
+                  <div className="w-full h-px bg-gray-100" />
+
+                  <div className="w-full flex justify-between items-center cursor-pointer hover:opacity-70 transition-opacity">
+                    <div className="flex items-center gap-3">
+                      <img src={Fleet} alt="Fleet icon" className="w-8 h-8" />
+
+                      <span className="text-black text-sm font-weight-600 font-['Stack_Sans_Headline']">
+                        Skyline Client Management
+                      </span>
+                    </div>
+
+                    <img
+                      src={ArrowRight}
+                      alt="Go to Skyline Client Management"
+                      className="w-5 h-5"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

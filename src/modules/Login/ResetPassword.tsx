@@ -19,6 +19,7 @@ const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // 2. Real-time Validation State
   const validations = {
@@ -63,6 +64,7 @@ const ResetPassword = () => {
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setError("");
+  setLoading(true);
 
   if (password !== confirmPassword) {
     setError("Passwords do not match");
@@ -110,6 +112,8 @@ const ResetPassword = () => {
   } catch (err) {
     setError("Server error. Please try again later.");
     console.error(err);
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -141,7 +145,7 @@ const ResetPassword = () => {
     }, []);
   
   return (
-    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white">
+    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white font-['Stack_Sans_Headline']">
       <div
         ref={containerRef}
         style={{
@@ -196,13 +200,13 @@ const ResetPassword = () => {
           src={group2}
         />
 
-        <button
+        {/* <button
           className="absolute top-[113px] left-[678px] w-[101px] h-[31px] inline-flex items-center justify-start gap-[12px] group focus:outline-none"
           onClick={() => {
             navigate("/login");
           }}
         >
-          {/* Back Arrow Icon */}
+        
 
           <div className="relative w-5 h-5 flex items-center justify-center">
             <svg
@@ -223,12 +227,11 @@ const ResetPassword = () => {
             </svg>
           </div>
 
-          {/* Text */}
 
-          <span className="text-[#0352FD] text-[14px] font-normal break-words hover:underline">
+          <span className="text-primary text-[14px] font-normal break-words hover:underline">
             Login
           </span>
-        </button>
+        </button> */}
         {/* Main Form Section */}
         <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[197px] left-[678px]">
           <h2 className="text-black text-[24px] font-weight-600">
@@ -236,14 +239,14 @@ const ResetPassword = () => {
           </h2>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full">
-            <div className="w-[440px] text-[#444444] text-[16px]">
+            <div className="w-[440px] text-neutral-700 text-[16px]">
               <span>Reset Password for Email </span>
               <span className="font-weight-600">{emailFromUrl}</span>
             </div>
 
             {/* New Password Input */}
             <div className="flex flex-col gap-2 w-full">
-              <label className="text-[#444444] text-[14px] font-medium">
+              <label className="text-neutral-700 text-[14px] font-medium">
                 New Password
               </label>
               <div className="flex items-center px-5 py-4 bg-white rounded-[4px] border border-[#CCCCCC] focus-within:border-[#0352FD]">
@@ -260,7 +263,7 @@ const ResetPassword = () => {
 
             {/* Confirm Password Input */}
             <div className="flex flex-col gap-2 w-full">
-              <label className="text-[#444444] text-[14px] font-medium">
+              <label className="text-neutral-700 text-[14px] font-medium">
                 Confirm Password
               </label>
               <div className="flex items-center px-5 py-4 bg-white rounded-[4px] border border-[#CCCCCC] focus-within:border-[#0352FD]">
@@ -308,14 +311,21 @@ const ResetPassword = () => {
 
             <button
               type="submit"
-              disabled={!allValid}
-              className={`w-full py-4 rounded-[4px] text-white font-medium transition-all ${
-                allValid
-                  ? "bg-[#0352FD] hover:bg-[#0246d9]"
-                  : "bg-gray-300 cursor-not-allowed"
+              disabled={!allValid || loading}
+              className={`w-full py-4 rounded-[4px] text-white font-medium transition-all flex items-center justify-center ${
+                !allValid || loading
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "bg-[#0352FD] hover:bg-[#0246d9]"
               }`}
             >
-              Reset Password
+              {loading ? (
+                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                "Reset Password"
+              )}
             </button>
 
             {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -330,7 +340,7 @@ const ResetPassword = () => {
 const RequirementItem = ({ met, text }: { met: boolean; text: string }) => (
   <div className="flex items-center gap-2">
     <img src={met ? Vector3 : Vector4} alt="" className="w-4 h-4" />
-    <span className={`text-[13px] ${met ? "text-black" : "text-gray-400"}`}>
+    <span className={`text-[13px] ${met ? "text-neutral-900" : "text-gray-500"}`}>
       {text}
     </span>
   </div>

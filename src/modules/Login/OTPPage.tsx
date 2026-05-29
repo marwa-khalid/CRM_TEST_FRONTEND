@@ -39,7 +39,7 @@ const OTPPage = () => {
     }
 
     if (!otp || otp.length !== 6) {
-      setErrorMessage("Please enter the 6-digit OTP.");
+      setErrorMessage("Invalid OTP");
       return;
     }
 
@@ -159,7 +159,7 @@ const OTPPage = () => {
   };
 
   return (
-    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white">
+    <div className="w-full h-screen overflow-hidden flex justify-center items-center bg-white font-['Stack_Sans_Headline']">
       <div
         ref={containerRef}
         style={{
@@ -249,10 +249,10 @@ const OTPPage = () => {
 
         <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[197px] left-[810px]">
           <div>
-            <h2 className="relative self-stretch text-black text-[24px] font-weight-600 mb-2 leading-[24px] break-words">
+            <h2 className="relative self-stretch text-neutral-900 text-[24px] font-weight-600 mb-2 leading-[24px] break-words">
               Verify OTP
             </h2>
-            <span className="text-neutral-700 text-md font-weight-400 font-regular margin-top-[10px]">
+            <span className="text-neutral-700 text-[16px] font-light margin-top-[10px]">
               We have sent a one-time password (OTP) to your email
               <br />
               address. Enter it below to verify your account.
@@ -274,7 +274,7 @@ const OTPPage = () => {
               <div className="flex flex-col items-start gap-2 relative self-stretch w-full flex-[0_0_auto]">
                 <label
                   htmlFor="otp"
-                  className="relative self-stretch text-[#444444] text-[14px] font-medium break-words"
+                  className="relative self-stretch text-neutral-700 text-[14px] font-weight-500 break-words"
                 >
                   OTP
                 </label>
@@ -286,6 +286,11 @@ const OTPPage = () => {
                     maxLength={6}
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+                      setOtp(pasted);
+                    }}
                     className="w-full bg-transparent text-[16px] tracking-[0.5em] font-weight-600 outline-none"
                   />
                 </div>
@@ -293,16 +298,16 @@ const OTPPage = () => {
             </div>
 
             <div className="flex items-start justify-start w-full">
-              <p className="text-[14px] font-normal">
-                <span className="text-[#444444]">Didn’t Receive OTP? </span>
+              <p className="text-[14px] font-weight-400 font-light">
+                <span className="text-neutral-700">Didn’t Receive OTP? </span>
                 <button
                   type="button"
                   disabled={countdown > 0 || isResending}
                   onClick={handleResendOTP}
-                  className={`font-medium transition-all ${
+                  className={`font-weight-400 transition-all  ${
                     countdown > 0 || isResending
                       ? "text-gray-400 cursor-not-allowed"
-                      : "text-[#0352FD] hover:underline cursor-pointer"
+                      : "text-primary hover:underline cursor-pointer"
                   }`}
                 >
                   {isResending
@@ -319,9 +324,9 @@ const OTPPage = () => {
             type="button"
             disabled={isVerifying}
             onClick={() => handleSubmit()}
-            className="flex items-center justify-center w-[508px] px-10 py-4 bg-[#0352FD] rounded-[4px] gap-[10px] hover:bg-[#0246d9] active:scale-[0.98] transition-all group disabled:bg-blue-300"
+            className="flex items-center justify-center w-[508px] px-10 py-4 bg-blue-500 rounded-[4px] gap-[10px] hover:bg-[#0246d9] active:scale-[0.98] transition-all group disabled:bg-blue-300"
           >
-            <span className="text-white text-[16px] font-medium leading-[16px] break-words">
+            <span className="text-white text-[16px] font-weight-500 leading-[16px] break-words">
               {isVerifying ? "Verifying..." : "Verify and Continue"}
             </span>
           </button>

@@ -7,7 +7,7 @@ import Fleet from "../../assets/images/Fleet.svg";
 import { useNavigate } from "react-router-dom";
 import subtract1 from '../../assets/images/subtract-1.svg'
 import union from '../../assets/images/union.svg'
-import ArrowRight from '../../assets/images/arrowRightt.svg'
+import ArrowRight from '../../assets/images/ArrowRight.svg'
 
 const SingleSignOn = () => {
   const navigate = useNavigate();
@@ -195,7 +195,6 @@ const SingleSignOn = () => {
                     <img
                       src={ArrowRight}
                       alt="Go to Skyline Vehicles"
-                      className="w-5 h-5"
                     />
                   </div>
 
@@ -213,7 +212,6 @@ const SingleSignOn = () => {
                     <img
                       src={ArrowRight}
                       alt="Go to Skyline Client Management"
-                      className="w-5 h-5"
                     />
                   </div>
                 </div>

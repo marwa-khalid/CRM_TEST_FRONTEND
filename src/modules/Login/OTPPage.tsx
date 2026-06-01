@@ -8,6 +8,7 @@ import Vector from "../../assets/images/Vector.svg";
 import union from "../../assets/images/union.svg";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../services/axiosConfig.ts";
+import { registerSession } from "../../services/AccountSettings/AccountSettings";
 
 const OTPPage = () => {
   const [otp, setOtp] = useState("");
@@ -84,6 +85,8 @@ const OTPPage = () => {
       localStorage.removeItem("pendingLoginEmail");
       localStorage.removeItem("activeUser");
       localStorage.removeItem("pendingOTP");
+
+      await registerSession({ device_info: navigator.userAgent }).catch(() => {});
 
       navigate("/single-signon");
     } catch (error) {

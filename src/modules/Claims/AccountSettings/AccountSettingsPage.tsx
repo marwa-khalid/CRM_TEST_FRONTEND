@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Eye, EyeOff, Monitor } from "lucide-react";
 import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 import loginn from "../../../assets/AutoClaim_icon/loginn.svg";
 import trashIcon from "../../../assets/AccountSettingsIcons/Vector.svg";
 import {
   changePassword,
   getSessions,
-  registerSession,
+  logSessionExpiry,
   terminateSession,
 } from "../../../services/AccountSettings/AccountSettings";
+import { ConfirmModal } from "../../../components/common/ConfirmModal";
 
 type ViewMode = "settings" | "changePassword" | "success";
 
@@ -22,7 +24,9 @@ interface Session {
 
 function formatSessionTime(iso: string | null): string {
   if (!iso) return "";
-  const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
+  const hasTimezone = iso.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(iso);
+  const d = new Date(hasTimezone ? iso : iso + "Z");
+  if (isNaN(d.getTime())) return "";
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const yr = String(d.getFullYear()).slice(2);
@@ -51,9 +55,15 @@ function parseDeviceLabel(userAgent: string | null): string {
 }
 
 const AccountSettingsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"Profile" | "Security">("Security");
   const [viewMode, setViewMode] = useState<ViewMode>("settings");
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    sessionId: number | null;
+    isCurrent: boolean;
+  }>({ open: false, sessionId: null, isCurrent: false });
 
   const [formData, setFormData] = useState({
     currentPassword: "",
@@ -68,10 +78,7 @@ const AccountSettingsPage: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  // Register current session + load sessions on mount
   useEffect(() => {
-    const device_info = navigator.userAgent;
-    registerSession({ device_info }).catch(() => {});
     loadSessions();
   }, []);
 
@@ -81,11 +88,25 @@ const AccountSettingsPage: React.FC = () => {
       .catch(() => {});
   };
 
-  const handleTerminate = async (id: number) => {
+  const openConfirm = (sessionId: number, isCurrent: boolean) => {
+    setConfirmModal({ open: true, sessionId, isCurrent });
+  };
+
+  const handleConfirmAction = async () => {
+    const { sessionId, isCurrent } = confirmModal;
+    setConfirmModal({ open: false, sessionId: null, isCurrent: false });
+    if (!sessionId) return;
     try {
-      await terminateSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-      toast.success("Session terminated");
+      if (isCurrent) {
+        await logSessionExpiry();
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        navigate("/login");
+      } else {
+        await terminateSession(sessionId);
+        setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        toast.success("Session terminated");
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || "Failed to terminate session");
     }
@@ -190,6 +211,20 @@ const AccountSettingsPage: React.FC = () => {
   const drawerOpen = viewMode === "changePassword" || viewMode === "success";
 
   return (
+    <>
+    {confirmModal.open && (
+      <ConfirmModal
+        title={confirmModal.isCurrent ? "Log Out" : "Terminate Session"}
+        message={
+          confirmModal.isCurrent
+            ? "This will log you out of your current session. You will need to sign in again."
+            : "Are you sure you want to terminate this session?"
+        }
+        confirmLabel={confirmModal.isCurrent ? "Log Out" : "Terminate"}
+        onConfirm={handleConfirmAction}
+        onCancel={() => setConfirmModal({ open: false, sessionId: null, isCurrent: false })}
+      />
+    )}
     <div className="w-full h-full bg-white relative overflow-hidden">
       {/* ── Main settings page ── */}
       <div className="w-full px-16 py-10 inline-flex flex-col justify-start items-start gap-10">
@@ -238,7 +273,7 @@ const AccountSettingsPage: React.FC = () => {
                 Security
               </div>
               <div
-                className={`self-stretch h-0 outline outline-2 outline-offset-[-2px] ${
+                className={`self-stretch h-0 outline outline-4 outline-offset-[-2px] ${
                   activeTab === "Security" ? "outline-[#007AFF]" : "outline-transparent"
                 }`}
               />
@@ -326,16 +361,13 @@ const AccountSettingsPage: React.FC = () => {
                         <div className="w-56 text-[#475467] text-sm font-normal font-['Stack_Sans_Headline']">
                           {formatSessionTime(session.created_at)}
                         </div>
-                        {!session.is_current && (
-                          <button
-                            type="button"
-                            onClick={() => handleTerminate(session.id)}
-                            className="w-4 h-4 flex items-center justify-center flex-shrink-0"
-                          >
-                            <img src={trashIcon} alt="Remove session" className="w-4 h-4" />
-                          </button>
-                        )}
-                        {session.is_current && <div className="w-4 h-4" />}
+                        <button
+                          type="button"
+                          onClick={() => openConfirm(session.id, !!session.is_current)}
+                          className="p-2 flex items-center justify-center flex-shrink-0 rounded hover:bg-gray-100 transition-colors"
+                        >
+                          <img src={trashIcon} alt="Remove session" className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                     {idx !== sessions.length - 1 && (
@@ -423,6 +455,7 @@ const AccountSettingsPage: React.FC = () => {
         </>
       )}
     </div>
+    </>
   );
 };
 

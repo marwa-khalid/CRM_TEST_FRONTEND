@@ -1,7 +1,6 @@
 import axios from "axios";
 
-export const API_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL as string;
-
+export const API_BASE_URL = "https://noninflected-saul-stratiformis.ngrok-free.dev";
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {

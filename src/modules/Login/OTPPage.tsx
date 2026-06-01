@@ -74,7 +74,11 @@ const OTPPage = () => {
       const parsedPendingUser = JSON.parse(pendingUser);
 
       localStorage.setItem("access_token", parsedPendingUser.access_token);
-      localStorage.setItem("user", JSON.stringify(parsedPendingUser));
+      if (parsedPendingUser.refresh_token) {
+        localStorage.setItem("refresh_token", parsedPendingUser.refresh_token);
+      }
+      const { access_token, refresh_token, ...userInfo } = parsedPendingUser;
+      localStorage.setItem("user", JSON.stringify(userInfo));
 
       localStorage.removeItem("pendingLoginUser");
       localStorage.removeItem("pendingLoginEmail");

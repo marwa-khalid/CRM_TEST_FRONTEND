@@ -10,9 +10,8 @@ import { StorageProviderModal } from "./StorageProviderModal";
 import { parseCalendarDate } from "../../../common/common";
 import { RecoveryProviderModal } from "./RecoveryProviderModal";
 
-export const StorageRecoveryDetails = ({ formRef }: any) => {
-  const storageRecoveryId = localStorage.getItem("storageRecoveryId");
-  const claimId = localStorage.getItem("claimId");
+export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
+  const [storageRecoveryId, setStorageRecoveryId] = useState<string | null>(null);
   // --- MODAL STATES ---
   const [storageProviderModal, setStorageProviderModalOpen] = useState(false);
   const [recoveryProviderModal, setRecoveryProviderModalOpen] = useState(false);
@@ -66,16 +65,13 @@ export const StorageRecoveryDetails = ({ formRef }: any) => {
 
         const payloadToSend = cleanPayload(payload);
         // return
+        let response;
         if (claimId && storageRecoveryId) {
-          const response = await updateStorageRecovery(
-            payloadToSend,
-            parseInt(claimId),
-          );
-          localStorage.setItem("storageRecoveryId", response.id);
+          response = await updateStorageRecovery(payloadToSend, parseInt(claimId));
         } else {
-          const response = await createStorageRecovery(payloadToSend);
-          localStorage.setItem("storageRecoveryId", response.id);
+          response = await createStorageRecovery(payloadToSend);
         }
+        if (response?.id) setStorageRecoveryId(String(response.id));
         toast.success("Storage recovery details saved successfully");
       } catch (error) {
         toast.error("Error saving storage recovery details");
@@ -121,10 +117,12 @@ export const StorageRecoveryDetails = ({ formRef }: any) => {
         });
       }
     };
-    if (claimId && storageRecoveryId) {
-      fetchData();
+    if (claimId) {
+      fetchData().catch((err) => {
+        if (err?.response?.status !== 404) toast.error("Failed to load storage recovery details");
+      });
     }
-  }, []);
+  }, [claimId]);
   useEffect(() => {
     if (formRef) {
       formRef.current = formik;

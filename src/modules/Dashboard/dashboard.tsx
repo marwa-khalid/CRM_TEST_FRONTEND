@@ -10,15 +10,12 @@ import {
   Settings,
   HelpCircle,
   Search,
-  Plus,
   MoreVertical,
   Bell,
   Clock3,
   Hourglass,
   CheckCircle2,
   AlertCircle,
-  TrendingUp,
-  TrendingDown,
   Upload,
   ChevronDown,
   ClipboardList,
@@ -42,6 +39,8 @@ const Dashboard: React.FC = () => {
   const [activePage, setActivePage] = useState<ActivePage>("claims");
   const [claims, setClaims] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const sidebarItems = [
     { name: "Dashboard", icon: LayoutDashboard },
@@ -121,65 +120,21 @@ const Dashboard: React.FC = () => {
     fetchClaims();
   }, []);
 
-  const normalizeClaim = (claim: any, index: number) => {
-    const clientName =
-      claim.client_name ||
-      claim.client ||
-      claim.claimant_name ||
-      claim.name ||
-      fallbackClaims[index % fallbackClaims.length].client;
-
-    const claimNo =
-      claim.claim_no ||
-      claim.claim_number ||
-      claim.case_reference ||
-      claim.reference ||
-      fallbackClaims[index % fallbackClaims.length].claimNo;
-
-    const type =
-      claim.claim_type ||
-      claim.type ||
-      claim.accident_type ||
-      fallbackClaims[index % fallbackClaims.length].type;
-
-    const incidentDate =
-      claim.incident_date ||
-      claim.accident_date ||
-      claim.date ||
-      fallbackClaims[index % fallbackClaims.length].date;
-
-    const assignedTo =
-      claim.assigned_to ||
-      claim.assigned ||
-      claim.handler_name ||
-      fallbackClaims[index % fallbackClaims.length].assigned;
-
-    const status =
-      claim.status ||
-      claim.claim_status ||
-      fallbackClaims[index % fallbackClaims.length].status;
-
-    const priority =
-      claim.priority ||
-      claim.claim_priority ||
-      fallbackClaims[index % fallbackClaims.length].priority;
-
+  const normalizeClaim = (claim: any) => {
     return {
       ...claim,
-      client: clientName,
-      claimNo,
-      type,
-      date: formatDate(incidentDate),
-      assigned: assignedTo,
-      status: String(status).toUpperCase(),
-      priority: String(priority).toUpperCase(),
+      client: claim.client_name || "—",
+      claimNo: claim.our_reference || claim.claim_no || claim.claim_number || "—",
+      type: claim.actual_category || claim.claim_type || claim.type || "—",
+      date: formatDate(claim.incident_date || claim.accident_date || claim.date),
+      assigned: claim.handler || claim.assigned_to || claim.handler_name || "—",
+      status: claim.case_status || claim.status || "—",
+      priority: claim.priority || "—",
     };
   };
 
   const tableRows = useMemo(() => {
-    const source = claims.length > 0 ? claims : fallbackClaims;
-
-    return source.map((claim, index) => normalizeClaim(claim, index));
+    return claims.map((claim) => normalizeClaim(claim));
   }, [claims]);
 
   const filteredRows = useMemo(() => {
@@ -188,59 +143,62 @@ const Dashboard: React.FC = () => {
     if (!query) return tableRows;
 
     return tableRows.filter((claim) =>
-      [claim.client, claim.claimNo, claim.type, claim.assigned, claim.status]
+      [claim.client, claim.claimNo, claim.type, claim.assigned, claim.status, claim.priority]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query)),
     );
   }, [tableRows, searchQuery]);
 
-  const totalClaims = claims.length || 1256;
+  const highCount = claims.filter((c) => c.priority === "High").length;
+  const mediumCount = claims.filter((c) => c.priority === "Medium").length;
+  const lowCount = claims.filter((c) => c.priority === "Low").length;
+  const totalClaims = claims.length;
 
   const stats = [
     {
       title: "Total Claims",
       value: totalClaims,
-      change: "+8.2%",
+      change: "",
       trend: "up",
       icon: ClipboardList,
       iconBg: "bg-blue-100",
       iconColor: "text-blue-700",
     },
     {
-      title: "Pending",
-      value: 48,
-      change: "+12.4%",
+      title: "High Priority",
+      value: highCount,
+      change: "",
       trend: "up",
-      icon: Clock3,
+      icon: AlertCircle,
       iconBg: "bg-red-100",
       iconColor: "text-red-500",
     },
     {
-      title: "Processing",
-      value: 31,
-      change: "-2.2%",
+      title: "Medium Priority",
+      value: mediumCount,
+      change: "",
       trend: "down",
       icon: Hourglass,
       iconBg: "bg-yellow-100",
       iconColor: "text-yellow-500",
     },
     {
-      title: "Approved",
-      value: 42,
-      change: "-2.2%",
+      title: "Low Priority",
+      value: lowCount,
+      change: "",
       trend: "down",
       icon: CheckCircle2,
       iconBg: "bg-green-100",
       iconColor: "text-green-500",
     },
     {
-      title: "High Priority",
-      value: 42,
-      change: "-2.2%",
-      trend: "down",
-      icon: AlertCircle,
-      iconBg: "bg-red-100",
-      iconColor: "text-red-500",
+      title: "Active Claims",
+      value: totalClaims,
+      change: "",
+      trend: "up",
+      icon: Clock3,
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-500",
     },
   ];
 
@@ -369,7 +327,7 @@ const Dashboard: React.FC = () => {
                     <input
                       type="text"
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                       placeholder="Claim number / Client / Assigned to"
                       className="w-full outline-none text-base font-light text-neutral-700 placeholder:text-neutral-300"
                     />
@@ -437,10 +395,13 @@ const Dashboard: React.FC = () => {
                     </thead>
 
                     <tbody>
-                      {filteredRows.slice(0, 10).map((claim, index) => (
+                      {filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((claim, index) => (
                         <tr
                           key={`${claim.claimNo}-${index}`}
-                          className="border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50 transition"
+                          className="border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50 transition cursor-pointer"
+                          onClick={() => {
+                            navigate(claim.claim_id ? `/add-claim/${claim.claim_id}` : "/add-claim");
+                          }}
                         >
                           <TableCell className="w-10">
                             <div className="w-5 h-5 bg-neutral-300 rounded" />
@@ -477,21 +438,21 @@ const Dashboard: React.FC = () => {
                       Showing{" "}
                     </span>
                     <span className="text-black text-xs font-weight-600">
-                      1
+                      {filteredRows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}
                     </span>
                     <span className="text-neutral-600 text-xs font-weight-400">
                       {" "}
                       to{" "}
                     </span>
                     <span className="text-black text-xs font-weight-600">
-                      {Math.min(10, filteredRows.length)}
+                      {Math.min(currentPage * PAGE_SIZE, filteredRows.length)}
                     </span>
                     <span className="text-neutral-600 text-xs font-weight-400">
                       {" "}
                       of{" "}
                     </span>
                     <span className="text-black text-xs font-weight-600">
-                      {filteredRows.length || 100}
+                      {filteredRows.length}
                     </span>
                     <span className="text-neutral-600 text-xs font-weight-400">
                       {" "}
@@ -499,7 +460,11 @@ const Dashboard: React.FC = () => {
                     </span>
                   </div>
 
-                  <Pagination />
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={Math.ceil(filteredRows.length / PAGE_SIZE)}
+                    onPageChange={setCurrentPage}
+                  />
                 </div>
               </div>
             </section>
@@ -533,12 +498,6 @@ const StatCard = ({
         <div className={`p-3 ${iconBg} rounded flex items-center`}>
           <Icon size={20} className={iconColor} />
         </div>
-
-        {isUp ? (
-          <TrendingUp size={48} className="text-green-500" />
-        ) : (
-          <TrendingDown size={48} className="text-red-500" />
-        )}
       </div>
 
       <div className="flex flex-col gap-1">
@@ -546,21 +505,6 @@ const StatCard = ({
           {value}
         </div>
         <div className="text-neutral-500 text-sm font-weight-500">{title}</div>
-      </div>
-
-      <div className="h-px bg-neutral-200" />
-
-      <div className="flex items-center gap-2">
-        <div
-          className={`p-1 rounded text-xs font-weight-600 ${
-            isUp ? "bg-green-100 text-green-700" : "bg-red-100 text-red-500"
-          }`}
-        >
-          {change}
-        </div>
-        <span className="text-neutral-500 text-sm font-weight-400">
-          vs last month
-        </span>
       </div>
     </div>
   );
@@ -607,70 +551,111 @@ const TableCell = ({
 );
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const normalized = status?.toUpperCase();
-
-  if (normalized === "APPROVED") {
+  const s = status?.toLowerCase() || "";
+  if (s.includes("cancel") || s.includes("closed")) {
+    return (
+      <span className="px-2 py-1 bg-neutral-100 rounded text-neutral-600 text-[10px] font-weight-500 font-['Outfit']">
+        {status}
+      </span>
+    );
+  }
+  if (s.includes("complet") || s.includes("settled") || s.includes("approved")) {
     return (
       <span className="px-2 py-1 bg-green-100 rounded text-lime-700 text-[10px] font-weight-500 font-['Outfit']">
-        APPROVED
+        {status}
       </span>
     );
   }
-
-  if (normalized === "PROCESSING") {
+  if (s.includes("process") || s.includes("progress") || s.includes("pending")) {
     return (
-      <span className="px-2 py-1 bg-yellow-100 rounded text-amber-500 text-[10px] font-weight-500 font-['Outfit']">
-        PROCESSING
+      <span className="px-2 py-1 bg-yellow-100 rounded text-amber-600 text-[10px] font-weight-500 font-['Outfit']">
+        {status}
       </span>
     );
   }
-
   return (
-    <span className="px-2 py-1 bg-red-100 rounded text-red-700 text-[10px] font-weight-500 font-['Outfit']">
-      PENDING
+    <span className="px-2 py-1 bg-blue-100 rounded text-blue-700 text-[10px] font-weight-500 font-['Outfit']">
+      {status || "—"}
     </span>
   );
 };
 
-const PriorityBadge = ({ priority }: { priority: string }) => (
-  <span className="px-2 py-1 bg-red-100 rounded text-red-700 text-[10px] font-weight-500 font-['Outfit']">
-    {priority || "HIGH"}
-  </span>
-);
+const PriorityBadge = ({ priority }: { priority: string }) => {
+  const p = priority?.toLowerCase() || "";
+  if (p === "high") {
+    return (
+      <span className="px-2 py-1 bg-red-100 rounded text-red-700 text-[10px] font-weight-500 font-['Outfit']">
+        High
+      </span>
+    );
+  }
+  if (p === "medium") {
+    return (
+      <span className="px-2 py-1 bg-yellow-100 rounded text-amber-600 text-[10px] font-weight-500 font-['Outfit']">
+        Medium
+      </span>
+    );
+  }
+  if (p === "low") {
+    return (
+      <span className="px-2 py-1 bg-green-100 rounded text-lime-700 text-[10px] font-weight-500 font-['Outfit']">
+        Low
+      </span>
+    );
+  }
+  return (
+    <span className="px-2 py-1 bg-neutral-100 rounded text-neutral-600 text-[10px] font-weight-500 font-['Outfit']">
+      {priority || "—"}
+    </span>
+  );
+};
 
-const Pagination = () => {
-  const pages = [1, 2, 3, 4, 5, 6, 7, 8, "...", 99];
+const Pagination = ({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) => {
+  const pages = Math.max(1, totalPages);
 
   return (
     <div className="flex justify-start items-center shadow-[0px_1px_0.5px_0.05px_rgba(29,41,61,0.02)] font-['Inter'] text-sm">
-      <button className="h-9 px-3 py-2 bg-white rounded-tl rounded-bl outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-center items-center">
+      <button
+        disabled={currentPage === 1}
+        onClick={() => onPageChange(currentPage - 1)}
+        className="h-9 px-3 py-2 bg-white rounded-tl rounded-bl outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-center items-center disabled:opacity-40 disabled:cursor-not-allowed"
+      >
         <span className="text-neutral-600 text-sm font-weight-500 leading-5">
           Previous
         </span>
       </button>
 
-      {pages.map((page, index) => {
-        const isActive = page === 3;
-
-        return (
-          <button
-            key={`${page}-${index}`}
-            className={`w-9 h-9 px-3 py-2 outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-center items-center ${
-              isActive ? "bg-blue-100" : "bg-white"
+      {Array.from({ length: pages }, (_, i) => i + 1).map((page) => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          className={`w-9 h-9 px-3 py-2 outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-center items-center ${
+            page === currentPage ? "bg-blue-100" : "bg-white"
+          }`}
+        >
+          <span
+            className={`text-sm font-weight-500 leading-5 ${
+              page === currentPage ? "text-black" : "text-neutral-600"
             }`}
           >
-            <span
-              className={`text-sm font-weight-500 leading-5 ${
-                isActive ? "text-black" : "text-neutral-600"
-              }`}
-            >
-              {page}
-            </span>
-          </button>
-        );
-      })}
+            {page}
+          </span>
+        </button>
+      ))}
 
-      <button className="h-9 px-3 py-2 bg-white rounded-tr rounded-br outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-center items-center">
+      <button
+        disabled={currentPage === pages}
+        onClick={() => onPageChange(currentPage + 1)}
+        className="h-9 px-3 py-2 bg-white rounded-tr rounded-br outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-center items-center disabled:opacity-40 disabled:cursor-not-allowed"
+      >
         <span className="text-blue-500 text-sm font-weight-500 leading-5">
           Next
         </span>

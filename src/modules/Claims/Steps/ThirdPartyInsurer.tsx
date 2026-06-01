@@ -944,8 +944,8 @@ import { getLocalTimeZone } from "@internationalized/date";
 // notification stamp dates are not in the backend model — persisted locally per claim
 const NOTIF_KEY = (id: string) => `tpi_notif_${id}`;
 
-const ThirdPartyInsurer = ({ formRef }: any) => {
-  const claimId = localStorage.getItem("claimId") || "";
+const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
+  const claimId = claimIdProp || "";
 
   const [loading, setLoading] = useState(true);
   const [tpiExists, setTpiExists] = useState(false);

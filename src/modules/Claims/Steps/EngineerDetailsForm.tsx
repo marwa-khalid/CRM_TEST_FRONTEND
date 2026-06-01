@@ -18,9 +18,9 @@ import {
 import { V5CEngineerUploadModal } from "../UploadModalPopups/V5CEngineerUploadModal";
 import { CustomDatePicker } from "../Components/DatePicker";
 
-export const EngineerDetailsForm = ({ formRef }: any) => {
-  const claimId = localStorage.getItem("claimId");
+export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
 
+  const [engineerId, setEngineerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lossModal, openModal1] = useState<boolean>(false);
   const [repairModal, openModal2] = useState<boolean>(false);
@@ -163,25 +163,13 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
 
         const payloadToSend = cleanPayload(payload);
 
-        const existingEngineerId = localStorage.getItem("engineerId");
-
-        if (existingEngineerId && existingEngineerId !== "undefined") {
-          const response = await udpateEnginerDetails(
-            payloadToSend,
-            Number(claimId),
-          );
-
-          if (response?.id) {
-            localStorage.setItem("engineerId", String(response.id));
-          }
+        let response;
+        if (engineerId) {
+          response = await udpateEnginerDetails(payloadToSend, Number(claimId));
         } else {
-          const response =
-            await EngineerDetailsApi.createEngineerDetails(payloadToSend);
-
-          if (response?.id) {
-            localStorage.setItem("engineerId", String(response.id));
-          }
+          response = await EngineerDetailsApi.createEngineerDetails(payloadToSend);
         }
+        if (response?.id) setEngineerId(String(response.id));
 
         toast.success("Engineer details saved successfully");
       } catch (error: any) {
@@ -232,9 +220,7 @@ export const EngineerDetailsForm = ({ formRef }: any) => {
       try {
         const res = await gettingEnginerDetails(Number(claimId));
 
-        if (res?.id) {
-          localStorage.setItem("engineerId", String(res.id));
-        }
+        if (res?.id) setEngineerId(String(res.id));
 
         const mappedValues = {
           companyName: res.company_name || "",

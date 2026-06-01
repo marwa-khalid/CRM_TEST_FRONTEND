@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "./Components/ClaimSidebar";
 import { Header } from "./Components/ClaimHeader";
 import GeneralDetailsForm from "./Steps/GeneralDetailsForm";
@@ -18,16 +19,25 @@ import DriverDocumentAgreement from "./Steps/DriverDocumentAgreement";
 import ThirdPartyInsurer from "./Steps/ThirdPartyInsurer";
 import PlatingChargesSection from "./PaymentSteps/PlatingAdditionalChargesForm";
 import ABIBHRCharges from "./PaymentSteps/ABI&BHRChargesForm";
+import ComparisonActualAgreedForm from "./PaymentSteps/ComparisonActualAgreedForm";
+import HirePaymentDetailsForm from "./PaymentSteps/HirePaymentDetailsForm";
+import DirectHirePaymentForm from "./PaymentSteps/DirectHirePaymentForm";
 
 type ActiveMode = "claim" | "payment";
 
 const AddClaimPage = () => {
+  const { claimId } = useParams<{ claimId?: string }>();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [currentPaymentStep, setCurrentPaymentStep] = useState(0);
   const [activeMode, setActiveMode] = useState<ActiveMode>("claim");
 
   const formRef = useRef<any>(null);
   const paymentFormRef = useRef<any>(null);
+
+  const handleClaimCreated = (newId: string | number) => {
+    navigate(`/add-claim/${newId}`, { replace: true });
+  };
 
   const steps = [
     { label: "General Details" },
@@ -52,7 +62,7 @@ const AddClaimPage = () => {
     { label: "ABI and BHR Charges" },
     { label: "Comparison - Agreed & Actual Settlement" },
     { label: "Hire Payment Details & Recovery Management" },
-    { label: "Direct Hire Payment" },
+    { label: "Settlement Received Date" },
   ];
 
   const handleSaveAndNext = async () => {
@@ -89,29 +99,32 @@ const AddClaimPage = () => {
 
   const renderClaimForm = () => {
     switch (currentStep) {
-      case 0:  return <GeneralDetailsForm formRef={formRef} />;
-      case 1:  return <ReferrerDetailsForm formRef={formRef} />;
-      case 2:  return <ClientDetailsForm formRef={formRef} />;
-      case 3:  return <AccidentDetailsForm formRef={formRef} />;
-      case 4:  return <VehicleDetailsForm formRef={formRef} />;
-      case 5:  return <VehicleOwnerForm formRef={formRef} />;
-      case 6:  return <EngineerDetailsForm formRef={formRef} />;
-      case 7:  return <ClientInsurerBrokerForm formRef={formRef} />;
-      case 8:  return <PanelSolicitorForm formRef={formRef} />;
-      case 9:  return <StorageRecoveryDetails formRef={formRef} />;
-      case 10: return <VehicleDamageAI formRef={formRef} />;
-      case 11: return <ThirdPartyInsurer formRef={formRef} />;
-      case 12: return <HireDetailsForm formRef={formRef} />;
-      case 13: return <DriverDocumentAgreement formRef={formRef} />;
-      case 14: return <DriverCheckoutForm formRef={formRef} />;
+      case 0:  return <GeneralDetailsForm formRef={formRef} claimId={claimId} onClaimCreated={handleClaimCreated} />;
+      case 1:  return <ReferrerDetailsForm formRef={formRef} claimId={claimId} />;
+      case 2:  return <ClientDetailsForm formRef={formRef} claimId={claimId} />;
+      case 3:  return <AccidentDetailsForm formRef={formRef} claimId={claimId} />;
+      case 4:  return <VehicleDetailsForm formRef={formRef} claimId={claimId} />;
+      case 5:  return <VehicleOwnerForm formRef={formRef} claimId={claimId} />;
+      case 6:  return <EngineerDetailsForm formRef={formRef} claimId={claimId} />;
+      case 7:  return <ClientInsurerBrokerForm formRef={formRef} claimId={claimId} />;
+      case 8:  return <PanelSolicitorForm formRef={formRef} claimId={claimId} />;
+      case 9:  return <StorageRecoveryDetails formRef={formRef} claimId={claimId} />;
+      case 10: return <VehicleDamageAI formRef={formRef} claimId={claimId} />;
+      case 11: return <ThirdPartyInsurer formRef={formRef} claimId={claimId} />;
+      case 12: return <HireDetailsForm formRef={formRef} claimId={claimId} />;
+      case 13: return <DriverDocumentAgreement formRef={formRef} claimId={claimId} />;
+      case 14: return <DriverCheckoutForm formRef={formRef} claimId={claimId} />;
       default: return <div>Coming soon…</div>;
     }
   };
 
   const renderPaymentForm = () => {
     switch (currentPaymentStep) {
-      case 0: return <PlatingChargesSection paymentFormRef={paymentFormRef} />;
-      case 1: return <ABIBHRCharges paymentFormRef={paymentFormRef} />;
+      case 0: return <PlatingChargesSection paymentFormRef={paymentFormRef} claimId={claimId} />;
+      case 1: return <ABIBHRCharges paymentFormRef={paymentFormRef} claimId={claimId} />;
+      case 2: return <ComparisonActualAgreedForm paymentFormRef={paymentFormRef} claimId={claimId} />;
+      case 3: return <HirePaymentDetailsForm paymentFormRef={paymentFormRef} claimId={claimId} />;
+      case 4: return <DirectHirePaymentForm paymentFormRef={paymentFormRef} claimId={claimId} />;
       default: return <div>Coming soon…</div>;
     }
   };

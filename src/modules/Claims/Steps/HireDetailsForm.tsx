@@ -100,8 +100,7 @@ function toCheckoutApiPayload(formData: any, claimId: string, hvpId: number) {
   };
 }
 
-export const HireDetailsForm = ({ formRef }: any) => {
-  const claimId = localStorage.getItem("claimId");
+export const HireDetailsForm = ({ formRef, claimId }: any) => {
   const [isLoading, setIsLoading] = useState(false);
   const [adminFeeType, setAdminFeeType] = useState([]);
   const [actualVehicleCategory, setActualVehicleCategory] = useState([]);

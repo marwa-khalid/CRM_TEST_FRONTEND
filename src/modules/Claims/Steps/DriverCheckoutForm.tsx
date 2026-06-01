@@ -83,8 +83,7 @@ function fromApiRecord(rec: any) {
   };
 }
 
-export const DriverCheckoutForm = ({ formRef }: any) => {
-  const claimId = localStorage.getItem("claimId") ?? "";
+export const DriverCheckoutForm = ({ formRef, claimId }: any) => {
 
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [checkoutMap, setCheckoutMap] = useState<Record<number, any>>({});

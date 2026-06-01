@@ -18,12 +18,6 @@ import {
 } from "../../components/application/table/table.tsx";
 import "react-responsive-modal/styles.css";
 import { Modal } from "react-responsive-modal";
-import {
-  PaginationButtonGroup,
-  PaginationCardDefault,
-  PaginationCardMinimal,
-  PaginationPageDefault,
-} from "../../components/application/pagination/pagination.tsx";
 import { BadgeWithDot } from "../../components/base/badges/badges.tsx";
 import { FaTimes } from "react-icons/fa";
 import TenantHistoryActivities from "../../components/Drawer/TenantHistoryDrawer.tsx";
@@ -587,13 +581,42 @@ function Claims() {
             </Table>
           </div>
 
-          <PaginationButtonGroup
-            page={currentPage}
-            total={totalPages}
-            onPageChange={setCurrentPage}
-            className="px-4 py-3"
-          />
         </TableCard.Root>
+      )}
+
+      {/* Pagination — bottom of page */}
+      {!loading && !error && totalPages > 1 && (
+        <div className="flex items-center justify-end gap-1 px-4 py-3 mt-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1.5 rounded border border-gray-200 text-sm text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Previous
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              onClick={() => setCurrentPage(p)}
+              className={`w-9 h-9 rounded text-sm transition-colors ${
+                p === currentPage
+                  ? "bg-blue-600 text-white font-weight-600 border border-blue-600"
+                  : "border border-gray-200 text-gray-600 bg-white hover:bg-gray-50"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1.5 rounded border border-gray-200 text-sm text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next
+          </button>
+        </div>
       )}
       <Modal
         open={confirmation}

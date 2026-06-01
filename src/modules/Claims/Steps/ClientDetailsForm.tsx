@@ -40,14 +40,11 @@ export const cleanPayload = (obj: any) => {
 };
 
 
-export const ClientDetailsForm = ({ formRef }: any) => {
-
+export const ClientDetailsForm = ({ formRef, claimId }: any) => {
 
   const [showDobPicker, setShowDobPicker] = useState(false);
 
-  
-  const clientId = localStorage.getItem("clientId");
-  const claimId = localStorage.getItem("claimId");
+  const [clientId, setClientId] = useState<string | null>(null);
 
   const formik = useFormik({
     initialValues: {
@@ -140,11 +137,10 @@ export const ClientDetailsForm = ({ formRef }: any) => {
             parseInt(claimId),
             payloadToSend,
           );
-          localStorage.setItem("clientId", response.id);
         } else {
            response = await createClient(payloadToSend);
-          localStorage.setItem("clientId", response.id);
         }
+        if (response?.id) setClientId(String(response.id));
        
 
       const now = new Date();
@@ -178,6 +174,7 @@ export const ClientDetailsForm = ({ formRef }: any) => {
   useEffect(() => {
     const fetchData = async () => {
       const clientData = await getClientByClaimID(parseInt(claimId));
+      if (clientData?.id) setClientId(String(clientData.id));
           const mappedValues = {
             clientTitle: clientData.gender || "",
             clientFirstName: clientData.first_name || "",
@@ -226,10 +223,12 @@ export const ClientDetailsForm = ({ formRef }: any) => {
       formik.setValues(mappedValues);
     };
    
-    if (claimId && clientId) {
-      fetchData();
+    if (claimId) {
+      fetchData().catch((err) => {
+        if (err?.response?.status !== 404) toast.error("Failed to load client details");
+      });
     }
-  }, []);
+  }, [claimId]);
     useEffect(() => {
       if (formRef) {
         formRef.current = formik;

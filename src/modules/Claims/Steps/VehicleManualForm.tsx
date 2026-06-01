@@ -56,7 +56,7 @@ const statusOptions = [
   { value: 3, label: "TBC" },
 ];
 
-const VehicleManualForm = ({formRef}:any) => {
+const VehicleManualForm = ({formRef, claimId}:any) => {
   const formik = useFormik({
     initialValues: {
       client: {
@@ -118,7 +118,6 @@ const VehicleManualForm = ({formRef}:any) => {
         //   }
 
           toast.success("Vehicle damage saved successfully");
-          localStorage.setItem("manualDataId","Yes")
       } catch (error: any) {
         console.error(error);
           toast.error("Failed to save vehicle damage");
@@ -128,9 +127,6 @@ const VehicleManualForm = ({formRef}:any) => {
       }
     },
   });
-    const claimId = localStorage.getItem("claimId");
-    const manualDataId = localStorage.getItem("manualDataId");
-
     const [clientVehicleId, setClientVehicleId] = React.useState("");
     const [thirdPartyVehicleId, setThirdPartyVehicleId] = React.useState("");
     const [isLoading, setIsLoading] = React.useState(false);
@@ -189,7 +185,7 @@ const loadData = async () => {
   if (claimId) {
     loadData();
   }
-}, [claimId, manualDataId]);
+}, [claimId]);
   const toggleZone = (section: DamageSection, zone: string) => {
     const current = formik.values[section].areaDamage;
 

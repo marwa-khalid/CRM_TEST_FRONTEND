@@ -165,8 +165,9 @@ const RepairCostRouteModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   engineer_report_received?: any;
-}> = ({ isOpen, onClose, engineer_report_received }) => {
-  const claimId = useMemo(() => Number(localStorage.getItem("claimId")), []);
+  claimId?: string | null;
+}> = ({ isOpen, onClose, engineer_report_received, claimId: claimIdProp }) => {
+  const claimId = useMemo(() => Number(claimIdProp), [claimIdProp]);
   const [repairRecordId, setRepairRecordId] = useState<number | null>(null);
   const [cilLoading, setCilLoading] = useState(false);
   const [clientCilLoading, setClientCilLoading] = useState(false);

@@ -15,8 +15,7 @@ import {
   uploadDriverDocumentAgreementFile,
 } from "../../../services/DriverDocumentAgreement/DriverDocumentAgreement";
 
-const DriverDocumentAgreement = ({ formRef }: any) => {
-  const claimId = localStorage.getItem("claimId");
+const DriverDocumentAgreement = ({ formRef, claimId }: any) => {
   const parsedClaimId = claimId ? parseInt(claimId) : 0;
 const [uploadModal, setUploadModal] = useState<{
   open: boolean;

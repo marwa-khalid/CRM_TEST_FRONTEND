@@ -33,8 +33,8 @@ const DamageSummaryRow = ({
   </div>
 );
 
-export const VehicleDamageAI = ({ formRef }: any) => {
-  const claimID = localStorage.getItem("claimId");
+export const VehicleDamageAI = ({ formRef, claimId }: any) => {
+  const claimID = claimId;
 useEffect(() => {
   const loadSavedReport = async () => {
     try {

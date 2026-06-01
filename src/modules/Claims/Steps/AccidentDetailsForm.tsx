@@ -19,7 +19,7 @@ import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import { PoliceDetailsModal } from "./PoliceDetailsModal";
 import CreatableSelect from "react-select/creatable";
 import WitnessQuestionnaireViewer from "../Components/WitnessQuestionnaireViewer";
-export const AccidentDetailsForm = ({ formRef }: any) => {
+export const AccidentDetailsForm = ({ formRef, claimId }: any) => {
   const weatherOptions = [
     { value: 1, label: "Dry" },
     { value: 2, label: "Wet" },
@@ -54,8 +54,7 @@ export const AccidentDetailsForm = ({ formRef }: any) => {
 
     return `${yyyy}-${mm}-${dd}T${hh}:${min}:00`;
   };
-  const accidentId = localStorage.getItem("accidentId");
-  const claimId = localStorage.getItem("claimId");
+  const [accidentId, setAccidentId] = useState<string | null>(null);
   const witnessCountKey = `numWitnesses_${claimId}`;
   const cleanPayload = (obj: any) => {
     if (obj === "") return null;
@@ -137,16 +136,13 @@ const openLatestWitnessPdf = (w: any) => {
         };
         const payloadToSend = cleanPayload(accidentData);
         // return
+        let response;
         if (claimId && accidentId) {
-          const response = await updateAccidentDetail(
-            parseInt(claimId),
-            payloadToSend,
-          );
-          localStorage.setItem("accidentId", response.id);
+          response = await updateAccidentDetail(parseInt(claimId), payloadToSend);
         } else {
-          const response = await createAccidentDetail(payloadToSend);
-          localStorage.setItem("accidentId", response.id);
+          response = await createAccidentDetail(payloadToSend);
         }
+        if (response?.id) setAccidentId(String(response.id));
         localStorage.setItem("location", values.location);
         toast.success("Accident details saved successfully");
       } catch (error) {
@@ -192,12 +188,15 @@ const openLatestWitnessPdf = (w: any) => {
       };
       // setDate(parseCalendarDate((accidentData.date_time as string)?.split('T')[0]));
       // setServiceDate(parseCalendarDate(accidentData.service_date_time?.split('T')[0]));
+      if (accidentData?.id) setAccidentId(String(accidentData.id));
       formik.setValues(mappedValues);
     };
-    if (claimId && accidentId) {
-      fetchData();
+    if (claimId) {
+      fetchData().catch((err) => {
+        if (err?.response?.status !== 404) toast.error("Failed to load accident details");
+      });
     }
-  }, []);
+  }, [claimId]);
   useEffect(() => {
     if (formRef) {
       formRef.current = formik;

@@ -15,9 +15,8 @@ import { toast } from "react-toastify";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 
-export const ReferrerDetailsForm = ({ formRef }: any) => {
-  const claimId = localStorage.getItem("claimId");
-  const referrerId = localStorage.getItem("referrerId");
+export const ReferrerDetailsForm = ({ formRef, claimId }: any) => {
+  const [referrerId, setReferrerId] = useState<string | null>(null);
 
   const [companies, setCompanies] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -144,7 +143,7 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
           response = await createReferrer(payloadToSend);
         }
 
-        localStorage.setItem("referrerId", response.data.id);
+        setReferrerId(response.data.id);
         toast.success("Referrer details saved successfully");
       } catch (error) {
         toast.error("Error saving referrer details");
@@ -175,10 +174,9 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      
       if (!claimId) return;
-    setIsAnalyzing(true);
-
+      setIsAnalyzing(true);
+      try {
       const res = await getReferrer(Number(claimId));
 
       formik.setValues({
@@ -223,14 +221,20 @@ export const ReferrerDetailsForm = ({ formRef }: any) => {
       });
 
       setSearchTerm(res.data?.company_name || "");
-    setIsAnalyzing(false);
-
+      if (res.data?.id) setReferrerId(res.data.id);
+      } catch (err: any) {
+        if (err?.response?.status !== 404) {
+          toast.error("Failed to load referrer details");
+        }
+      } finally {
+        setIsAnalyzing(false);
+      }
     };
 
-    if (claimId && referrerId) {
+    if (claimId) {
       fetchData();
     }
-  }, [claimId, referrerId]);
+  }, [claimId]);
 
   useEffect(() => {
     if (formRef) {

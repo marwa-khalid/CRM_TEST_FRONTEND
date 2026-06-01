@@ -167,7 +167,7 @@ export const convertToApiPayload = (formData: any): ClaimFormPayload => {
 
 export const getClaims = async () => {
   try {
-    const response = await axiosInstance.get(`/claims/list`);
+    const response = await axiosInstance.get(`/claims/claims-list`);
     return response.data;
   } catch (error) {
     console.error("Error fetching claims:", error);

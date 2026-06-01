@@ -14,9 +14,8 @@ import { cleanPayload } from "./ClientDetailsForm";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { createPanelSolicitors, getPanelSolicitorDetails, updatePanelSolicitors } from "../../../services/PanelSolicitorDetails/PanelSolicitorDetails";
 
-export const PanelSolicitorForm = ({ formRef }: any) => {
-  const claimId = localStorage.getItem("claimId");
-  const panelId = localStorage.getItem("panelId");
+export const PanelSolicitorForm = ({ formRef, claimId }: any) => {
+  const [panelId, setPanelId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -96,7 +95,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           await updatePanelSolicitors(payloadToSend, parseInt(claimId),'');
         } else {
           const res = await createPanelSolicitors(payloadToSend,'');
-          localStorage.setItem("panelId", res.id);
+          if (res?.id) setPanelId(String(res.id));
         }
         toast.success("Panel Solicitor Details saved successfully");
       } catch (error) {
@@ -127,7 +126,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
          const response = await getPanelSolicitorDetails(claimId);
          const panelSolicitors = response.data || response;
          if (panelSolicitors) {
-
+           if (panelSolicitors?.id) setPanelId(String(panelSolicitors.id));
            formik.setValues((prev) => ({
              ...prev,
              company_name: panelSolicitors.company_name,
@@ -157,10 +156,10 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
        return d.toISOString().split("T")[0];
      };
   useEffect(() => {
-    if (claimId && panelId) {
+    if (claimId) {
       fetchPanelSolicitosDetails();
     }
-  }, []);
+  }, [claimId]);
 
   //  Two-way sync: Update Vehicle Owner when Policy Holder changes
   const syncBackToVehicleOwner = async (val: string) => {

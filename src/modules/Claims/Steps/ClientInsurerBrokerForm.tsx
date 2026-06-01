@@ -22,9 +22,8 @@ import { cleanPayload } from "./ClientDetailsForm";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 
-export const ClientInsurerBrokerForm = ({ formRef }: any) => {
-  const claimId = localStorage.getItem("claimId");
-  const insurerId = localStorage.getItem("insurerId");
+export const ClientInsurerBrokerForm = ({ formRef, claimId }: any) => {
+  const [insurerId, setInsurerId] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
@@ -99,7 +98,7 @@ export const ClientInsurerBrokerForm = ({ formRef }: any) => {
           await updateClientInsurer(payloadToSend, parseInt(claimId));
         } else {
           const res = await createClientInsurer(payloadToSend);
-          localStorage.setItem("insurerId", res.id);
+          if (res?.id) setInsurerId(String(res.id));
         }
         toast.success("Client insurer Details saved successfully");
       } catch (error) {
@@ -127,6 +126,7 @@ export const ClientInsurerBrokerForm = ({ formRef }: any) => {
         try {
           const res = await getClientInsurer(parseInt(claimId));
   
+          if (res?.id) setInsurerId(String(res.id));
           formik.setValues((prev) => ({
             ...prev,
             companyName: res?.company_name,

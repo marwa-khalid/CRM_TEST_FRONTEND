@@ -16,11 +16,10 @@ import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
 import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import { getVehicleOwner, updateVehicleOwner, VehicleOwnersApi } from "../../../services/VehicleOwner/vehicleOwner";
 
-export const VehicleOwnerForm = ({ formRef }: any) => {
+export const VehicleOwnerForm = ({ formRef, claimId }: any) => {
 
- const claimId = localStorage.getItem("claimId")
+  const [vehicleOwnerId, setVehicleOwnerId] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const vehicleOwnerId = localStorage.getItem("vehicleOwnerId");
 
   const formik = useFormik({
     initialValues: {
@@ -54,18 +53,13 @@ export const VehicleOwnerForm = ({ formRef }: any) => {
         };
 
         const payloadToSend = cleanPayload(payload);
-        console.log(parseInt(claimId));
-        // return
+        let response;
         if (claimId && vehicleOwnerId) {
-          const response = await updateVehicleOwner(
-            payloadToSend,
-            parseInt(claimId),
-          );
-          localStorage.setItem("vehicleOwnerId", response.id);
+          response = await updateVehicleOwner(payloadToSend, parseInt(claimId));
         } else {
-          const response = await VehicleOwnersApi.createVehicleOwner(payloadToSend);
-          localStorage.setItem("vehicleOwnerId", response.id);
+          response = await VehicleOwnersApi.createVehicleOwner(payloadToSend);
         }
+        if (response?.id) setVehicleOwnerId(String(response.id));
         toast.success("Vehicle Owner details saved successfully");
       } catch (error) {
         toast.error("Error saving vehicle ownerdetails");
@@ -76,26 +70,26 @@ export const VehicleOwnerForm = ({ formRef }: any) => {
   useEffect(() => {
     const fetchData = async () => {
       const ownerData = await getVehicleOwner(parseInt(claimId));
-      console.log(ownerData);
-        const mappedValues = {
-          clientTitle: ownerData?.gender,
-          clientFirstName: ownerData?.first_name,
-          clientSurname: ownerData?.surname,
-          email: ownerData?.address?.email,
-          homeTelephone: ownerData?.address?.home_tel,
-          mobileTelephone: ownerData?.address?.mobile_tel,
-          vehiclePaymentBeneficiary: ownerData?.payment_benificiary,
-          address: ownerData?.address?.address,
-          postcode: ownerData?.address?.postcode,
-        };
-
+      if (ownerData?.id) setVehicleOwnerId(String(ownerData.id));
+      const mappedValues = {
+        clientTitle: ownerData?.gender,
+        clientFirstName: ownerData?.first_name,
+        clientSurname: ownerData?.surname,
+        email: ownerData?.address?.email,
+        homeTelephone: ownerData?.address?.home_tel,
+        mobileTelephone: ownerData?.address?.mobile_tel,
+        vehiclePaymentBeneficiary: ownerData?.payment_benificiary,
+        address: ownerData?.address?.address,
+        postcode: ownerData?.address?.postcode,
+      };
       formik.setValues(mappedValues);
     };
-    console.log(formik.values)
-    if (claimId && vehicleOwnerId) {
-      fetchData();
+    if (claimId) {
+      fetchData().catch((err) => {
+        if (err?.response?.status !== 404) toast.error("Failed to load vehicle owner details");
+      });
     }
-  }, []);
+  }, [claimId]);
     useEffect(() => {
       if (formRef) {
         formRef.current = formik;

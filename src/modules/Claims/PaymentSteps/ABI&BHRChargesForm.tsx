@@ -1,11 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
-import { getABIBHRCharges, saveABIBHRCharges } from "../../../services/ABIBHRCharges/ABIBHRCharges";
+import { getABIBHRCharges, saveABIBHRCharges, generatePaymentPack } from "../../../services/ABIBHRCharges/ABIBHRCharges";
 import { getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharges";
 import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { gettingEnginerDetails } from "../../../services/EngineeringDetails/engineeringDetails";
 import { getHireRecords } from "../../../services/HireDetail/HireDetails";
+import { CustomDatePicker } from "../Components/DatePicker";
+import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import Plus from "../../../assets/AutoClaim_icon/Plus.svg";
+
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
 
@@ -27,10 +31,13 @@ function fmt(n: number): string {
   return n === 0 ? "0.00" : n.toFixed(2);
 }
 
+function dateToISO(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 // ─── main component ────────────────────────────────────────────────────────────
 
-const ABIBHRCharges = ({ paymentFormRef }: any) => {
-  const claimId = localStorage.getItem("claimId");
+const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
   // ABI base rates (read-only, from hire records)
   const [abiDailyRate, setAbiDailyRate] = useState(0);
@@ -43,6 +50,16 @@ const ABIBHRCharges = ({ paymentFormRef }: any) => {
   const [recoveryCharges, setRecoveryCharges] = useState(0);
   const [engineerCharges, setEngineerCharges] = useState(0);
   const [platingCharges, setPlatingCharges] = useState(0);
+
+  // Date picker visibility state
+  const [showRaisedPicker, setShowRaisedPicker] = useState(false);
+  const [showSentPicker, setShowSentPicker] = useState(false);
+  const [showPaidPicker, setShowPaidPicker] = useState(false);
+  const raisedRef = useRef<HTMLDivElement>(null);
+  const sentRef = useRef<HTMLDivElement>(null);
+  const paidRef = useRef<HTMLDivElement>(null);
+
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Formik — only the Payment Pack Sent Detail fields are saved to DB
   const formik = useFormik({
@@ -74,6 +91,20 @@ const ABIBHRCharges = ({ paymentFormRef }: any) => {
   useEffect(() => {
     if (paymentFormRef) paymentFormRef.current = formik;
   }, [formik]);
+
+  // Close date pickers when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (raisedRef.current && !raisedRef.current.contains(e.target as Node))
+        setShowRaisedPicker(false);
+      if (sentRef.current && !sentRef.current.contains(e.target as Node))
+        setShowSentPicker(false);
+      if (paidRef.current && !paidRef.current.contains(e.target as Node))
+        setShowPaidPicker(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   // Load ABI/BHR rates from hire records
   useEffect(() => {
@@ -133,6 +164,41 @@ const ABIBHRCharges = ({ paymentFormRef }: any) => {
       .catch(() => {});
   }, [claimId]);
 
+  // ── Generate Payment Pack ──────────────────────────────────────────────────
+  const handleGeneratePaymentPack = async () => {
+    if (!claimId || isGenerating) return;
+    try {
+      setIsGenerating(true);
+      const response = await generatePaymentPack(claimId);
+      const blob = new Blob([response.data], { type: "application/zip" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const disposition = response.headers?.["content-disposition"] ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      a.download = match ? match[1] : `PaymentPack_Claim${claimId}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      // Refresh the raised date field since the backend may have set it
+      getABIBHRCharges(claimId)
+        .then(({ data }: any) => {
+          if (data?.payment_pack_raised_date) {
+            formik.setFieldValue("payment_pack_raised_date", data.payment_pack_raised_date);
+          }
+        })
+        .catch(() => {});
+
+      toast.success("Payment pack generated and downloaded");
+    } catch {
+      toast.error("Failed to generate payment pack");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // ── computed values ────────────────────────────────────────────────────────────
   const rd = formik.values.payment_pack_raised_date;
 
@@ -168,29 +234,76 @@ const ABIBHRCharges = ({ paymentFormRef }: any) => {
 
   return (
     <div className="w-full mt-3 flex flex-col justify-start items-start gap-6 bg-white font-['Stack_Sans_Headline']">
-      <h1 className="self-stretch text-black text-2xl font-weight-600 leading-6">
-        ABI &amp; BHR Charges
-      </h1>
-
+      <div className="w-full flex items-center justify-between">
+        <h1 className="text-black text-2xl font-weight-600 leading-6">
+          ABI &amp; BHR Charges
+        </h1>
+        <button
+          type="button"
+          onClick={handleGeneratePaymentPack}
+          disabled={isGenerating}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-100 disabled:bg-blue-300 text-blue-500 text-sm font-weight-500 rounded transition-all"
+        >
+          {isGenerating ? (
+            <>
+              <svg
+                className="animate-spin w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8H4z"
+                />
+              </svg>
+              Generating...
+            </>
+          ) : (
+            <>
+            <img src={Plus} alt="" />
+              Generate Payment Pack
+            </>
+          )}
+        </button>
+      </div>
       {/* Section 1: Payment Pack Sent Detail */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">
-        <h2 className="self-stretch text-neutral-900 text-xl font-weight-600 leading-5">
-          Payment Pack Sent Detail
-        </h2>
+        <div className="w-full flex items-center justify-between">
+          <h2 className="text-neutral-900 text-xl font-weight-600 leading-5">
+            Payment Pack Sent Detail
+          </h2>
+        </div>
         <div className="self-stretch h-px bg-neutral-100" />
 
         <div className="w-full grid grid-cols-2 gap-5">
-          <DateField
+          <DatePickerField
             label="Payment Pack Raised Date"
-            name="payment_pack_raised_date"
             value={formik.values.payment_pack_raised_date}
-            onChange={formik.handleChange}
+            onSelect={(d) =>
+              formik.setFieldValue("payment_pack_raised_date", dateToISO(d))
+            }
+            show={showRaisedPicker}
+            containerRef={raisedRef}
+            onToggle={() => setShowRaisedPicker((p) => !p)}
           />
-          <DateField
+          <DatePickerField
             label="Payment Pack Sent Date"
-            name="payment_pack_sent_date"
             value={formik.values.payment_pack_sent_date}
-            onChange={formik.handleChange}
+            onSelect={(d) =>
+              formik.setFieldValue("payment_pack_sent_date", dateToISO(d))
+            }
+            show={showSentPicker}
+            containerRef={sentRef}
+            onToggle={() => setShowSentPicker((p) => !p)}
           />
         </div>
 
@@ -211,11 +324,15 @@ const ABIBHRCharges = ({ paymentFormRef }: any) => {
         </div>
 
         <div className="w-full grid grid-cols-2 gap-5">
-          <DateField
+          <DatePickerField
             label="Date Hire Paid"
-            name="date_hire_paid"
             value={formik.values.date_hire_paid}
-            onChange={formik.handleChange}
+            onSelect={(d) =>
+              formik.setFieldValue("date_hire_paid", dateToISO(d))
+            }
+            show={showPaidPicker}
+            containerRef={paidRef}
+            onToggle={() => setShowPaidPicker((p) => !p)}
           />
         </div>
       </section>
@@ -238,10 +355,17 @@ const ABIBHRCharges = ({ paymentFormRef }: any) => {
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Admin Charges" value={fmt(abiAdminFee)} />
-            <ReadonlyField label="Number of Hired Days" value={noOfDays ? String(noOfDays) : ""} symbol="" />
+            <ReadonlyField
+              label="Number of Hired Days"
+              value={noOfDays ? String(noOfDays) : ""}
+              symbol=""
+            />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Total Hire Charge" value={fmt(totalHire030)} />
+            <ReadonlyField
+              label="Total Hire Charge"
+              value={fmt(totalHire030)}
+            />
           </div>
         </div>
 
@@ -253,15 +377,25 @@ const ABIBHRCharges = ({ paymentFormRef }: any) => {
           <div className="self-stretch h-px bg-neutral-100" />
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Daily Rate (ABI)" value={fmt(rate3160)} />
-            <ReadonlyField label="Daily Rate + Extra Charges" value={fmt(rateAndExtra3160)} />
+            <ReadonlyField
+              label="Daily Rate + Extra Charges"
+              value={fmt(rateAndExtra3160)}
+            />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Total Hire Charges" value={fmt(totalHire3160)} />
+            <ReadonlyField
+              label="Total Hire Charges"
+              value={fmt(totalHire3160)}
+            />
             <ReadonlyField label="Admin Charges" value={fmt(admin3160)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Updated Value" value={fmt(updated3160)} />
-            <ReadonlyField label="Payment Pack Generate Date + 60 Days" value={penaltyDate60} symbol="" />
+            <ReadonlyField
+              label="Payment Pack Generate Date + 60 Days"
+              value={penaltyDate60}
+              symbol=""
+            />
           </div>
         </div>
 
@@ -273,15 +407,25 @@ const ABIBHRCharges = ({ paymentFormRef }: any) => {
           <div className="self-stretch h-px bg-neutral-100" />
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Daily Rate (ABI)" value={fmt(rate61plus)} />
-            <ReadonlyField label="Daily Rate + Extra Charges" value={fmt(rateAndExtra61plus)} />
+            <ReadonlyField
+              label="Daily Rate + Extra Charges"
+              value={fmt(rateAndExtra61plus)}
+            />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Total Hire Charges" value={fmt(totalHire61plus)} />
+            <ReadonlyField
+              label="Total Hire Charges"
+              value={fmt(totalHire61plus)}
+            />
             <ReadonlyField label="Admin Charges" value={fmt(admin61plus)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Updated Value" value={fmt(updated61plus)} />
-            <ReadonlyField label="Payment Pack Generate Date + 61(+) Days" value={penaltyDate61} symbol="" />
+            <ReadonlyField
+              label="Payment Pack Generate Date + 61(+) Days"
+              value={penaltyDate61}
+              symbol=""
+            />
           </div>
         </div>
 
@@ -293,7 +437,11 @@ const ABIBHRCharges = ({ paymentFormRef }: any) => {
           <div className="self-stretch h-px bg-neutral-100" />
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="BHR Daily Rate" value={fmt(bhrDailyRate)} />
-            <ReadonlyField label="Payment Pack Generate Date + 90 Days" value={penaltyDate90} symbol="" />
+            <ReadonlyField
+              label="Payment Pack Generate Date + 90 Days"
+              value={penaltyDate90}
+              symbol=""
+            />
           </div>
         </div>
       </section>
@@ -310,10 +458,16 @@ const ABIBHRCharges = ({ paymentFormRef }: any) => {
         </div>
         <div className="w-full grid grid-cols-2 gap-5">
           <ReadonlyField label="Storage Charges" value={fmt(storageCharges)} />
-          <ReadonlyField label="Recovery Charges" value={fmt(recoveryCharges)} />
+          <ReadonlyField
+            label="Recovery Charges"
+            value={fmt(recoveryCharges)}
+          />
         </div>
         <div className="w-full grid grid-cols-2 gap-5">
-          <ReadonlyField label="Engineers Charges" value={fmt(engineerCharges)} />
+          <ReadonlyField
+            label="Engineers Charges"
+            value={fmt(engineerCharges)}
+          />
           <ReadonlyField label="Plating Charges" value={fmt(platingCharges)} />
         </div>
       </section>
@@ -348,29 +502,45 @@ const ReadonlyField: React.FC<ReadonlyFieldProps> = ({ label, value, symbol = "�
   </div>
 );
 
-interface DateFieldProps {
+interface DatePickerFieldProps {
   label: string;
-  name: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSelect: (d: Date) => void;
+  show: boolean;
+  containerRef: React.RefObject<HTMLDivElement>;
+  onToggle: () => void;
 }
 
-const DateField: React.FC<DateFieldProps> = ({ label, name, value, onChange }) => (
-  <div className="flex flex-col justify-start items-start gap-2">
-    <label className="self-stretch text-neutral-700 text-sm font-weight-400 font-['Stack_Sans_Headline']">
-      {label}
-    </label>
-    <div className="self-stretch px-5 py-4 bg-white rounded border border-neutral-200 flex justify-start items-center gap-2.5 focus-within:border-blue-500 transition-colors">
-      <input
-        type="date"
-        name={name}
-        value={value}
-        onChange={onChange}
-        className="w-full bg-transparent outline-none text-black text-base font-light leading-4"
-      />
+const DatePickerField: React.FC<DatePickerFieldProps> = ({
+  label, value, onSelect, show, containerRef, onToggle,
+}) => {
+  const selectedDate = value ? new Date(value + "T00:00:00") : new Date();
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-neutral-700 text-[14px] font-weight-500">
+        {label}
+      </label>
+      <div className="flex flex-col gap-2 relative" ref={containerRef}>
+        <div
+          onClick={onToggle}
+          className="h-[52px] px-5 bg-white border border-gray-200 rounded flex items-center justify-between cursor-pointer"
+        >
+          <span className={value ? "text-gray-900" : "text-gray-400"}>
+            {value || "Select Date"}
+          </span>
+          <img src={Vector6} alt="" />
+        </div>
+        {show && (
+          <CustomDatePicker
+            selectedDate={selectedDate}
+            onDateSelect={(d) => { onSelect(d); onToggle(); }}
+          />
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 interface TextFieldProps {
   label: string;

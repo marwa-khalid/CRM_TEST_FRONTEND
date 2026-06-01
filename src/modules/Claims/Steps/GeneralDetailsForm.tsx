@@ -11,8 +11,7 @@ import Select, {
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
-import { useNavigate, useParams } from "react-router-dom";
-
+import { useParams } from "react-router-dom";
 // Assets & Icons
 import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
 import Vector9 from "../../../assets/AutoClaim_icon/Vector-9.svg";
@@ -117,7 +116,7 @@ export const customStyles: StylesConfig<any, false> = {
   }),
 };
 // --- COMPONENT ---
-const GeneralDetailsForm = ({ formRef }: any) => {
+const GeneralDetailsForm = ({ formRef, claimId, onClaimCreated }: any) => {
   const { id } = useParams();
   const [fileClosedOn, setFileClosedOn] = useState<any>(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -185,8 +184,7 @@ useEffect(() => {
     { value:"NO", label: "No" },
     { value: "TBC", label: "TBC" },
   ];
-  const claimId = localStorage.getItem("claimId");
-   useEffect(() => {
+  useEffect(() => {
      const fetchData = async () => {
     setIsAnalyzing(true);
        
@@ -236,17 +234,12 @@ useEffect(() => {
           credit_hire_accepted: values.credit_hire_accepted === "Yes" ? true : false,
           client_going_abroad: values.client_going_abroad === "Yes" ? true : false
         };
-        console.log(payload);
         if (values.id) {
-        console.log(payload);
-          
           const response = await ClaimsApi.updateClaim(
             parseInt(claimId),
             payload,
-       
           );
-           console.log(payload);
-          localStorage.setItem("claimId", response.id);
+          onClaimCreated?.(response.id);
           if (response.claim_type_id) {
             localStorage.setItem(
               "claimType",
@@ -254,12 +247,9 @@ useEffect(() => {
                 .label,
             );
           }
-        console.log(payload);
-  
         } else {
-           console.log(payload);
           const response = await ClaimsApi.submitClaim(payload);
-          localStorage.setItem("claimId", response.id);
+          onClaimCreated?.(response.id);
           localStorage.setItem(
             "claimType",
             claimTypeOptions.find((opt) => opt.value === response.claim_type_id)
@@ -284,7 +274,7 @@ useEffect(() => {
     formRef.current = formik;
   }
 }, [formRef, formik]);
-console.log(formik.values)
+
   const handleNotifyManager = async () => {
     try {
       await notifyManager(parseInt(formik.values.id));

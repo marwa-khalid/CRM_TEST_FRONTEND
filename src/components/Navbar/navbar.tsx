@@ -38,7 +38,11 @@ const Header: React.FC = () => {
   }, []);
 
   const handleLogout = () => {
-    // localStorage.clear();
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("activeUser");
+    localStorage.removeItem("user_name");
     dispatch({ type: "RESET_STORE" });
     navigate("/login");
   };

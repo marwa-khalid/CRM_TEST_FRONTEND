@@ -16,8 +16,7 @@ const validationSchema = Yup.object({
   additional_driver_charges: Yup.number().min(0).nullable(),
 });
 
-const PlatingChargesSection = ({ paymentFormRef }: any) => {
-  const claimId = localStorage.getItem("claimId");
+const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
 
   const formik = useFormik({
     initialValues: {

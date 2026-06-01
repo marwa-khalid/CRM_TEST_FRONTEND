@@ -5,3 +5,8 @@ export const getABIBHRCharges = (claimId: any) =>
 
 export const saveABIBHRCharges = (payload: any) =>
   axiosInstance.post(`/abi-bhr-charges/`, payload);
+
+export const generatePaymentPack = (claimId: string | number) =>
+  axiosInstance.post(`/abi-bhr-charges/payment-pack/${claimId}`, null, {
+    responseType: "blob",
+  });

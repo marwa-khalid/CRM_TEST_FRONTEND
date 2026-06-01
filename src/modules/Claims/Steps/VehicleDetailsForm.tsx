@@ -16,7 +16,7 @@ import * as Yup from 'yup'
 import { ErrorMessage, useFormik } from "formik";
 import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";
 import { cleanPayload } from "./ClientDetailsForm";
-export const VehicleDetailsForm = ({ formRef }: any) => {
+export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
 
   const fuelOptions = [
     { value: 1, label: "Petrol" },
@@ -78,7 +78,6 @@ export const VehicleDetailsForm = ({ formRef }: any) => {
     color: "",
     imagesAvailable: "Yes",
   });
-  const claimId = localStorage.getItem("claimId")
   const claimType = localStorage.getItem("claimType");
   // Validation Logic based on Acceptance Criteria
   const [checkModal, openModal1] = useState<boolean>(false)
@@ -163,9 +162,9 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 //       });
 //     }
 //   };
+  const [vehicleId, setVehicleId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const vehicleId = localStorage.getItem("vehicleId");
 const [deleteConfirm, setDeleteConfirm] = useState<{
   open: boolean;
   id: number | null;
@@ -235,17 +234,13 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
           })),
         };
         const payloadToSend = cleanPayload(payload);
-        // return
+        let response;
         if (claimId && vehicleId) {
-          const response = await updateVehicle(
-            payloadToSend,
-            parseInt(claimId),
-          );
-          localStorage.setItem("vehicleId", response.id);
+          response = await updateVehicle(payloadToSend, parseInt(claimId));
         } else {
-          const response = await createVehicleDetail(payloadToSend);
-          localStorage.setItem("vehicleId", response.id);
+          response = await createVehicleDetail(payloadToSend);
         }
+        if (response?.id) setVehicleId(String(response.id));
         toast.success("Vehicle details saved successfully");
       } catch (error) {
         toast.error("Error saving vehicle details");
@@ -288,12 +283,15 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
             })) || [],
         };
 
+      if (res?.id) setVehicleId(String(res.id));
       formik.setValues(mappedValues);
     };
-    if (claimId && vehicleId) {
-      fetchData();
+    if (claimId) {
+      fetchData().catch((err) => {
+        if (err?.response?.status !== 404) toast.error("Failed to load vehicle details");
+      });
     }
-  }, []);
+  }, [claimId]);
     useEffect(() => {
       if (formRef) {
         formRef.current = formik;

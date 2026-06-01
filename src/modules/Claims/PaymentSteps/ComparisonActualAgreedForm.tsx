@@ -49,15 +49,16 @@ interface EditFieldProps {
   value: string | number;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   placeholder?: string;
+  noSymbol?: boolean;
 }
 
-const EditField: React.FC<EditFieldProps> = ({ label, name, value, onChange, placeholder }) => (
+const EditField: React.FC<EditFieldProps> = ({ label, name, value, onChange, placeholder, noSymbol }) => (
   <div className="flex flex-col gap-2 w-full">
     <label className="text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
       {label}
     </label>
     <div className="h-[52px] px-5 bg-white border border-neutral-200 rounded flex items-center gap-2 focus-within:border-blue-500">
-      <span className="text-neutral-300 text-base font-light leading-4 select-none">£</span>
+      {!noSymbol && <span className="text-neutral-300 text-base font-light leading-4 select-none">£</span>}
       <input
         type="number"
         step="0.01"
@@ -110,15 +111,16 @@ const SETTLEMENT_STATUSES = [
 ];
 
 const RATE_BANDS = [
-  { pct: "10", label: "10%", range: "0–31 days" },
-  { pct: "15", label: "15%", range: "31–60 days" },
-  { pct: "20", label: "20%", range: "60-90 days" },
-  { pct: "35", label: "35%", range: "90+ days" },
+  { pct: "0",  label: "Base ABI", range: "Standard rate" },
+  { pct: "10", label: "10%",      range: "0–31 days" },
+  { pct: "20", label: "20%",      range: "31–60 days" },
+  { pct: "35", label: "35%",      range: "60+ days" },
 ];
 
 interface SystemValues {
   hire_days: number;
   hire_rate_per_day: number;
+  extra_charges_per_day: number;
   hire_costs: number;
   admin_fee: number;
   storage: number;
@@ -136,6 +138,7 @@ interface SystemValues {
 const EMPTY_SYSTEM: SystemValues = {
   hire_days: 0,
   hire_rate_per_day: 0,
+  extra_charges_per_day: 0,
   hire_costs: 0,
   admin_fee: 0,
   storage: 0,
@@ -159,7 +162,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const formik = useFormik({
     initialValues: {
       settlement_status: "",
-      abi_rate_band: "10",
+      abi_rate_band: "0",
       agreed_hire_days: "" as string | number,
       agreed_hire_rate: "" as string | number,
       agreed_storage_days: "" as string | number,
@@ -204,6 +207,31 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     if (paymentFormRef) paymentFormRef.current = formik;
   }, [formik]);
 
+  // Pre-populate fields when system data loads
+  useEffect(() => {
+    if (system.hire_days === 0 && system.hire_rate_per_day === 0) return;
+    const mult = 1 + toF(formik.values.abi_rate_band) / 100;
+    const cdwRate = system.cdw_days > 0 ? system.cdw / system.cdw_days : 0;
+    formik.setFieldValue("agreed_hire_days", system.hire_days);
+    formik.setFieldValue("agreed_hire_rate", +(system.hire_rate_per_day * mult).toFixed(2));
+    formik.setFieldValue("agreed_storage_days", system.storage_days);
+    formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day * mult).toFixed(2));
+    formik.setFieldValue("agreed_cdw_days", system.cdw_days);
+    formik.setFieldValue("agreed_cdw_rate", +(cdwRate * mult).toFixed(2));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [system.hire_days, system.hire_rate_per_day, system.storage_days, system.storage_rate_per_day, system.cdw, system.cdw_days]);
+
+  // Update rate fields when band changes
+  useEffect(() => {
+    if (system.hire_rate_per_day === 0) return;
+    const mult = 1 + toF(formik.values.abi_rate_band) / 100;
+    const cdwRate = system.cdw_days > 0 ? system.cdw / system.cdw_days : 0;
+    formik.setFieldValue("agreed_hire_rate", +(system.hire_rate_per_day * mult).toFixed(2));
+    formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day * mult).toFixed(2));
+    formik.setFieldValue("agreed_cdw_rate", +(cdwRate * mult).toFixed(2));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formik.values.abi_rate_band]);
+
   // Load saved form data
   useEffect(() => {
     if (!claimId) return;
@@ -245,6 +273,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           ...prev,
           hire_days: days,
           hire_rate_per_day: rate,
+          extra_charges_per_day: toF(first.abi_extra_charges_per_day),
           hire_costs: days * rate,
           admin_fee: toF(first.abi_administration_fee),
           cdw: toF(first.cdw_charges),
@@ -367,7 +396,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const agreedExclVAT =
     agreedHire + agreedAdmin + agreedStorage + agreedRepair + agreedRecovery +
     agreedPlating + agreedEngineer + agreedCdw + agreedCdFee + agreedAdditional + agreedPenalties;
-  const agreedVAT = agreedExclVAT * 0.2;
+  const agreedVAT = formik.values.vat_recovered === true ? agreedExclVAT * 0.2 : 0;
   const agreedInclVAT = agreedExclVAT + agreedVAT;
 
   // Summary
@@ -495,66 +524,20 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         </div>
         {divider}
         <div className="grid grid-cols-2 gap-5">
-          <EditField
-            label="Hire Days (if adjusted)"
-            name="agreed_hire_days"
-            value={formik.values.agreed_hire_days}
-            onChange={formik.handleChange}
-            placeholder="Days"
-          />
-          <EditField
-            label="Hire Rate (if adjusted)"
-            name="agreed_hire_rate"
-            value={formik.values.agreed_hire_rate}
-            onChange={formik.handleChange}
-            placeholder="Rate per day"
-          />
+          <EditField label="Hire Days (if adjusted)" name="agreed_hire_days" value={formik.values.agreed_hire_days} onChange={formik.handleChange} placeholder="Days" noSymbol />
+          <EditField label="Hire Rate (if adjusted)" name="agreed_hire_rate" value={formik.values.agreed_hire_rate} onChange={formik.handleChange} placeholder="Rate per day" />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <EditField
-            label="Storage Days (if adjusted)"
-            name="agreed_storage_days"
-            value={formik.values.agreed_storage_days}
-            onChange={formik.handleChange}
-            placeholder="Days"
-          />
-          <EditField
-            label="Storage Rate (if adjusted)"
-            name="agreed_storage_rate"
-            value={formik.values.agreed_storage_rate}
-            onChange={formik.handleChange}
-            placeholder="Rate per day"
-          />
+          <EditField label="Storage Days (if adjusted)" name="agreed_storage_days" value={formik.values.agreed_storage_days} onChange={formik.handleChange} placeholder="Days" noSymbol />
+          <EditField label="Storage Rate (if adjusted)" name="agreed_storage_rate" value={formik.values.agreed_storage_rate} onChange={formik.handleChange} placeholder="Rate per day" />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <EditField
-            label="CDW Days (if adjusted)"
-            name="agreed_cdw_days"
-            value={formik.values.agreed_cdw_days}
-            onChange={formik.handleChange}
-            placeholder="Days"
-          />
-          <EditField
-            label="CDW Rate (if adjusted)"
-            name="agreed_cdw_rate"
-            value={formik.values.agreed_cdw_rate}
-            onChange={formik.handleChange}
-            placeholder="Rate per day"
-          />
+          <EditField label="CDW Days (if adjusted)" name="agreed_cdw_days" value={formik.values.agreed_cdw_days} onChange={formik.handleChange} placeholder="Days" noSymbol />
+          <EditField label="CDW Rate (if adjusted)" name="agreed_cdw_rate" value={formik.values.agreed_cdw_rate} onChange={formik.handleChange} placeholder="Rate per day" />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <EditField
-            label="Additional Fees &amp; Charges (as applicable)"
-            name="agreed_additional_fees"
-            value={formik.values.agreed_additional_fees}
-            onChange={formik.handleChange}
-          />
-          <EditField
-            label="Penalties"
-            name="agreed_penalties"
-            value={formik.values.agreed_penalties}
-            onChange={formik.handleChange}
-          />
+          <EditField label="Additional Fees &amp; Charges (as applicable)" name="agreed_additional_fees" value={formik.values.agreed_additional_fees} onChange={formik.handleChange} />
+          <EditField label="Penalties" name="agreed_penalties" value={formik.values.agreed_penalties} onChange={formik.handleChange} />
         </div>
         {/* VAT Recovered */}
         <div className="flex flex-col gap-2">
@@ -625,10 +608,10 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           {/* Header */}
           <div className="h-12 px-4 inline-flex items-center gap-2 w-full bg-white">
             <div className="w-32 text-sm font-weight-600 text-black">CHARGE TYPE</div>
-            <div className="w-40 text-sm font-weight-600 text-black">ACTUAL (SYSTEM-AUTO)</div>
+            <div className="w-40 text-sm font-weight-600 text-black">ACTUAL AMOUNT</div>
             <div className="w-44 text-sm font-weight-600 text-black leading-tight">
-              AGREED (MANUAL-ABI)
-              <span className="text-xs font-weight-400"> {formik.values.abi_rate_band}% ADD. CHARGES</span>
+              AGREED AMOUNT
+              {formik.values.abi_rate_band !== "0" && <span className="text-xs font-weight-400"> {formik.values.abi_rate_band}%</span>}
             </div>
             <div className="w-24 text-sm font-weight-600 text-black">DIFFERENCE</div>
             <div className="w-28 text-sm font-weight-600 text-black">DIFF %</div>
@@ -666,23 +649,25 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         <h2 className="text-black text-xl font-weight-600 leading-5">Summary</h2>
         {divider}
         <p className="text-sm">
-          <span className="text-black font-weight-400">Total Reduction / Increase Amount:  </span>
+          <span className="text-black font-weight-400">
+            {totalDiff >= 0 ? "Total Increase Amount: " : "Total Reduction Amount: "}
+          </span>
           <span className="text-black text-base font-weight-600">
-            {totalDiff >= 0
-              ? `Increase by ${fmt(totalDiff)}`
-              : `Reduction by ${fmt(Math.abs(totalDiff))}`}
+            £{fmt(Math.abs(totalDiff))}
           </span>
         </p>
         <p className="text-sm">
-          <span className="text-black font-weight-400">Reduction in Hire Days:  </span>
+          <span className="text-black font-weight-400">
+            {reductionInHireDays >= 0 ? "Reduction in Hire Days: " : "Increase in Hire Days: "}
+          </span>
           <span className="text-black text-base font-weight-600">
-            {reductionInHireDays >= 0
-              ? `${fmt(reductionInHireDays)} days`
-              : `Increase by ${fmt(Math.abs(reductionInHireDays))} days`}
+            {fmt(Math.abs(reductionInHireDays))} days
           </span>
         </p>
         <p className="text-sm">
-          <span className="text-black font-weight-400">Overall % Reduction on Settlement: </span>
+          <span className="text-black font-weight-400">
+            {overallPct >= 0 ? "Overall % Increase on Settlement: " : "Overall % Reduction on Settlement: "}
+          </span>
           <span className="text-black text-base font-weight-600">{fmtPct(Math.abs(overallPct))}</span>
         </p>
         {divider}

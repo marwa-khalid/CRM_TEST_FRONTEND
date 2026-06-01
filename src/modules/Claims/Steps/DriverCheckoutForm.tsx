@@ -79,7 +79,7 @@ function fromApiRecord(rec: any) {
     applyDamageCharges: yn(rec.apply_damage_charges),
     damageCharges: String(rec.damage_charges ?? "0"),
     damageNotes: rec.damage_charges_note ?? "",
-    valetCharge: parseFloat(rec.valet_charges ?? 30),
+    valetCharge: 30,
   };
 }
 
@@ -92,41 +92,51 @@ export const DriverCheckoutForm = ({ formRef, claimId }: any) => {
   const [checkoutStep, setCheckoutStep] = useState(1);
   const [checkoutFormData, setCheckoutFormData] = useState<any>(DEFAULT_CHECKOUT);
 
-  // Load vehicles and existing checkout records from API
+  // Load vehicles and existing checkout records from API, then auto-select the vehicle with data
   useEffect(() => {
     if (!claimId) return;
 
-    getHireRecords(claimId)
-      .then(({ data }) => setVehicles(Array.isArray(data) ? data : []))
-      .catch(() => {});
+    Promise.all([
+      getHireRecords(claimId).catch(() => ({ data: [] })),
+      getCheckoutDetails(claimId).catch(() => ({ data: [] })),
+    ]).then(([{ data: vehicleData }, { data: checkoutData }]) => {
+      const vList = Array.isArray(vehicleData) ? vehicleData : [];
+      setVehicles(vList);
 
-    getCheckoutDetails(claimId)
-      .then(({ data }) => {
-        if (!Array.isArray(data)) return;
-        const map: Record<number, any> = {};
-        data.forEach((rec: any) => {
+      const map: Record<number, any> = {};
+      if (Array.isArray(checkoutData)) {
+        checkoutData.forEach((rec: any) => {
           map[rec.hire_vehicle_provided_id] = fromApiRecord(rec);
         });
-        setCheckoutMap(map);
-      })
-      .catch(() => {});
+      }
+      setCheckoutMap(map);
+
+      // Auto-select the first vehicle that has saved checkout data
+      const firstWithData = vList.findIndex((v: any) => map[v.id] !== undefined);
+      if (firstWithData !== -1) {
+        setActiveVehicleTab(firstWithData);
+      }
+    });
   }, [claimId]);
 
-  // Sync modal form when switching tabs
+  // Sync modal form data when tab or checkout map changes
   useEffect(() => {
     const hvpId = vehicles[activeVehicleTab]?.id;
-    setCheckoutFormData(hvpId ? (checkoutMap[hvpId] ?? DEFAULT_CHECKOUT) : DEFAULT_CHECKOUT);
+    setCheckoutFormData(hvpId !== undefined ? (checkoutMap[hvpId] ?? DEFAULT_CHECKOUT) : DEFAULT_CHECKOUT);
   }, [activeVehicleTab, vehicles, checkoutMap]);
 
   const activeHvpId: number | null = vehicles[activeVehicleTab]?.id ?? null;
-  const activeCheckout = activeHvpId ? (checkoutMap[activeHvpId] ?? DEFAULT_CHECKOUT) : DEFAULT_CHECKOUT;
+  const activeCheckout = activeHvpId !== null ? checkoutMap[activeHvpId] : undefined;
+  const hasData = activeCheckout !== undefined;
 
   const getVal = (val: any) => parseFloat(val) || 0;
-  const valet = getVal(activeCheckout.valetCharge);
-  const petrol = getVal(activeCheckout.petrolChargeAmount);
-  const damage = getVal(activeCheckout.damageCharges);
-  const isDamageApplied = activeCheckout.applyDamageCharges === "Yes";
-  const totalCharges = isDamageApplied ? valet + petrol + damage : valet + petrol;
+  const valet = hasData ? getVal(activeCheckout.valetCharge) : null;
+  const petrol = hasData ? getVal(activeCheckout.petrolChargeAmount) : null;
+  const damage = hasData ? getVal(activeCheckout.damageCharges) : null;
+  const isDamageApplied = hasData && activeCheckout.applyDamageCharges === "Yes";
+  const totalCharges = hasData
+    ? (isDamageApplied ? valet! + petrol! + damage! : valet! + petrol!)
+    : null;
 
   const handleEditCheckout = (idx: number) => {
     setActiveVehicleTab(idx);
@@ -226,46 +236,49 @@ export const DriverCheckoutForm = ({ formRef, claimId }: any) => {
             onClick={() => handleEditCheckout(activeVehicleTab)}
             className="flex items-center gap-2 text-blue-300 text-sm hover:bg-blue-50 px-3 py-2 rounded-md"
           >
-            {/* <img src={editpencil} alt="" className="text-blue-600"/> */}
-            Edit
+            {hasData ? "Edit" : "Add Checkout"}
           </button>
         </div>
 
         <div className="h-px w-full bg-gray-100" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <ChargeInput label="Valet Charges" value={`£${valet.toFixed(2)}`} />
-          <ChargeInput
-            label="Petrol Checkout Charges"
-            value={`£${petrol.toFixed(2)}`}
-          />
-        </div>
+        {!hasData ? (
+          <p className="text-sm text-gray-400 py-4 text-center">
+            No checkout data recorded for this vehicle yet.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <ChargeInput label="Valet Charges" value={`£${valet!.toFixed(2)}`} />
+              <ChargeInput
+                label="Petrol Checkout Charges"
+                value={`£${petrol!.toFixed(2)}`}
+              />
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <ChargeInput label="Damage Charges" value={`£${damage.toFixed(2)}`} />
-          {/* <ChargeInput
-            label="Total Charges"
-            value={`£${totalCharges.toFixed(2)}`}
-          /> */}
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <ChargeInput label="Damage Charges" value={`£${damage!.toFixed(2)}`} />
+            </div>
 
-        <div className="flex items-center gap-2">
-          {isDamageApplied ? (
-            <div className="h-5 w-5 relative rounded bg-blue-500 border-blue-200 border-solid border-[6px] box-border" />
-          ) : (
-            <div className="h-5 w-5 rounded border border-gray-300 bg-white" />
-          )}
-          <span className="text-sm font-normal text-black">
-            Damage Charges Paid
-          </span>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* <ChargeInput label="Damage Charges" value={`£${damage.toFixed(2)}`} /> */}
-          <ChargeInput
-            label="Total Charges"
-            value={`£${totalCharges.toFixed(2)}`}
-          />
-        </div>
+            <div className="flex items-center gap-2">
+              {isDamageApplied ? (
+                <div className="h-5 w-5 relative rounded bg-blue-500 border-blue-200 border-solid border-[6px] box-border" />
+              ) : (
+                <div className="h-5 w-5 rounded border border-gray-300 bg-white" />
+              )}
+              <span className="text-sm font-normal text-black">
+                Damage Charges Paid
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <ChargeInput
+                label="Total Charges"
+                value={`£${totalCharges!.toFixed(2)}`}
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

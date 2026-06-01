@@ -55,9 +55,22 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [showRaisedPicker, setShowRaisedPicker] = useState(false);
   const [showSentPicker, setShowSentPicker] = useState(false);
   const [showPaidPicker, setShowPaidPicker] = useState(false);
+  const [showPenaltyDue30Picker, setShowPenaltyDue30Picker] = useState(false);
+  const [showPenaltyDue60Picker, setShowPenaltyDue60Picker] = useState(false);
+  const [showPenaltyDue61Picker, setShowPenaltyDue61Picker] = useState(false);
+  const [showPenaltyDue90Picker, setShowPenaltyDue90Picker] = useState(false);
   const raisedRef = useRef<HTMLDivElement>(null);
   const sentRef = useRef<HTMLDivElement>(null);
   const paidRef = useRef<HTMLDivElement>(null);
+  const penaltyDue30Ref = useRef<HTMLDivElement>(null);
+  const penaltyDue60Ref = useRef<HTMLDivElement>(null);
+  const penaltyDue61Ref = useRef<HTMLDivElement>(null);
+  const penaltyDue90Ref = useRef<HTMLDivElement>(null);
+
+  const [penaltyDueDate30, setPenaltyDueDate30] = useState("");
+  const [penaltyDueDate60, setPenaltyDueDate60] = useState("");
+  const [penaltyDueDate61, setPenaltyDueDate61] = useState("");
+  const [penaltyDueDate90, setPenaltyDueDate90] = useState("");
 
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -101,10 +114,29 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         setShowSentPicker(false);
       if (paidRef.current && !paidRef.current.contains(e.target as Node))
         setShowPaidPicker(false);
+      if (penaltyDue30Ref.current && !penaltyDue30Ref.current.contains(e.target as Node))
+        setShowPenaltyDue30Picker(false);
+      if (penaltyDue60Ref.current && !penaltyDue60Ref.current.contains(e.target as Node))
+        setShowPenaltyDue60Picker(false);
+      if (penaltyDue61Ref.current && !penaltyDue61Ref.current.contains(e.target as Node))
+        setShowPenaltyDue61Picker(false);
+      if (penaltyDue90Ref.current && !penaltyDue90Ref.current.contains(e.target as Node))
+        setShowPenaltyDue90Picker(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Auto-set penalty due dates when raised date changes
+  useEffect(() => {
+    const rd = formik.values.payment_pack_raised_date;
+    if (rd) {
+      setPenaltyDueDate30(addDays(rd, 30));
+      setPenaltyDueDate60(addDays(rd, 60));
+      setPenaltyDueDate61(addDays(rd, 61));
+      setPenaltyDueDate90(addDays(rd, 90));
+    }
+  }, [formik.values.payment_pack_raised_date]);
 
   // Load ABI/BHR rates from hire records
   useEffect(() => {
@@ -206,29 +238,27 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
   // 0-30 section
   const totalHire030 = useMemo(
-    () => (abiDailyRate + abiExtraCharges) * noOfDays,
-    [abiDailyRate, abiExtraCharges, noOfDays]
+    () => (abiDailyRate + abiExtraCharges + abiAdminFee) * noOfDays,
+    [abiDailyRate, abiExtraCharges, abiAdminFee, noOfDays]
   );
 
   // 31-60 section (+10%)
   const rate3160 = abiDailyRate * 1.1;
-  const rateAndExtra3160 = (abiDailyRate + abiExtraCharges) * 1.1;
+  const extra3160 = abiExtraCharges * 1.1;
   const admin3160 = abiAdminFee * 1.1;
-  const totalHire3160 = rateAndExtra3160 * noOfDays;
-  const updated3160 = totalHire3160 + admin3160;
-  const penaltyDate60 = rd ? addDays(rd, 60) : "";
+  const totalHire3160 = (rate3160 + extra3160 + admin3160) * noOfDays;
 
   // 61+ section (+20%)
   const rate61plus = abiDailyRate * 1.2;
-  const rateAndExtra61plus = (abiDailyRate + abiExtraCharges) * 1.2;
+  const extra61plus = abiExtraCharges * 1.2;
   const admin61plus = abiAdminFee * 1.2;
-  const totalHire61plus = rateAndExtra61plus * noOfDays;
-  const updated61plus = totalHire61plus + admin61plus;
-  const penaltyDate61 = rd ? addDays(rd, 61) : "";
+  const totalHire61plus = (rate61plus + extra61plus + admin61plus) * noOfDays;
 
   // 90+ BHR (+35%)
   const bhrDailyRate = abiDailyRate * 1.35;
-  const penaltyDate90 = rd ? addDays(rd, 90) : "";
+  const bhrExtra = abiExtraCharges * 1.35;
+  const bhrAdmin = abiAdminFee * 1.35;
+  const totalHire90 = (bhrDailyRate + bhrExtra + bhrAdmin) * noOfDays;
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -316,10 +346,9 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             placeholder="Enter invoice number"
           />
           <ReadonlyField
-            label="Days Expired from Payment Required"
-            value={daysExpired !== null ? String(daysExpired) : ""}
+            label="Number of Hired Days"
+            value={noOfDays ? String(noOfDays) : ""}
             symbol=""
-            suffix=" days"
           />
         </div>
 
@@ -333,6 +362,12 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             show={showPaidPicker}
             containerRef={paidRef}
             onToggle={() => setShowPaidPicker((p) => !p)}
+          />
+          <ReadonlyField
+            label="Days Expired from Payment Required"
+            value={daysExpired !== null ? String(daysExpired) : ""}
+            symbol=""
+            suffix=" days"
           />
         </div>
       </section>
@@ -355,17 +390,10 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Admin Charges" value={fmt(abiAdminFee)} />
-            <ReadonlyField
-              label="Number of Hired Days"
-              value={noOfDays ? String(noOfDays) : ""}
-              symbol=""
-            />
+            <ReadonlyField label="Total Hire Charge" value={fmt(totalHire030)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField
-              label="Total Hire Charge"
-              value={fmt(totalHire030)}
-            />
+            <ReadonlyField label="Penalty Due Date" value={penaltyDueDate30} symbol="" />
           </div>
         </div>
 
@@ -377,25 +405,14 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           <div className="self-stretch h-px bg-neutral-100" />
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Daily Rate (ABI)" value={fmt(rate3160)} />
-            <ReadonlyField
-              label="Daily Rate + Extra Charges"
-              value={fmt(rateAndExtra3160)}
-            />
+            <ReadonlyField label="Extra Charges" value={fmt(extra3160)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField
-              label="Total Hire Charges"
-              value={fmt(totalHire3160)}
-            />
             <ReadonlyField label="Admin Charges" value={fmt(admin3160)} />
+            <ReadonlyField label="Total Hire Charge" value={fmt(totalHire3160)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Updated Value" value={fmt(updated3160)} />
-            <ReadonlyField
-              label="Payment Pack Generate Date + 60 Days"
-              value={penaltyDate60}
-              symbol=""
-            />
+            <ReadonlyField label="Penalty Due Date" value={penaltyDueDate60} symbol="" />
           </div>
         </div>
 
@@ -407,25 +424,14 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           <div className="self-stretch h-px bg-neutral-100" />
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Daily Rate (ABI)" value={fmt(rate61plus)} />
-            <ReadonlyField
-              label="Daily Rate + Extra Charges"
-              value={fmt(rateAndExtra61plus)}
-            />
+            <ReadonlyField label="Extra Charges" value={fmt(extra61plus)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField
-              label="Total Hire Charges"
-              value={fmt(totalHire61plus)}
-            />
             <ReadonlyField label="Admin Charges" value={fmt(admin61plus)} />
+            <ReadonlyField label="Total Hire Charge" value={fmt(totalHire61plus)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Updated Value" value={fmt(updated61plus)} />
-            <ReadonlyField
-              label="Payment Pack Generate Date + 61(+) Days"
-              value={penaltyDate61}
-              symbol=""
-            />
+            <ReadonlyField label="Penalty Due Date" value={penaltyDueDate61} symbol="" />
           </div>
         </div>
 
@@ -436,12 +442,15 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           </h3>
           <div className="self-stretch h-px bg-neutral-100" />
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="BHR Daily Rate" value={fmt(bhrDailyRate)} />
-            <ReadonlyField
-              label="Payment Pack Generate Date + 90 Days"
-              value={penaltyDate90}
-              symbol=""
-            />
+            <ReadonlyField label="Daily Rate (ABI)" value={fmt(bhrDailyRate)} />
+            <ReadonlyField label="Extra Charges" value={fmt(bhrExtra)} />
+          </div>
+          <div className="w-full grid grid-cols-2 gap-5">
+            <ReadonlyField label="Admin Charges" value={fmt(bhrAdmin)} />
+            <ReadonlyField label="Total Hire Charge" value={fmt(totalHire90)} />
+          </div>
+          <div className="w-full grid grid-cols-2 gap-5">
+            <ReadonlyField label="Penalty Due Date" value={penaltyDueDate90} symbol="" />
           </div>
         </div>
       </section>

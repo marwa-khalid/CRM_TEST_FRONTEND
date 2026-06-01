@@ -34,6 +34,7 @@ import {
   getTableData,
   saveCheckoutJson,
   sendCheckoutEmail,
+  getCheckoutDetails,
 } from "../../../services/HireVehicleProvided/HireVehicleProvided";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import { CustomDatePicker } from "../Components/DatePicker";
@@ -67,6 +68,29 @@ function openOutlookCompose(to: string, subject: string, body: string) {
       console.warn("Live URL popup blocked or failed", e);
     }
   }, 1000);
+}
+
+function fromApiRecord(rec: any) {
+  const yn = (v: boolean) => (v ? "Yes" : "No");
+  return {
+    interiorCleanCheckOut: yn(rec.interior_clean_at_check_out),
+    interiorCleanCheckIn: yn(rec.interior_clean_at_check_in),
+    interiorDamage: yn(rec.interior_damage_at_check_in),
+    interiorDamageDescription: rec.describe_interior_damage ?? "",
+    interiorPhotos: [],
+    exteriorCleanCheckOut: yn(rec.exterior_clean_at_check_out),
+    exteriorCleanCheckIn: yn(rec.exterior_clean_at_check_in),
+    exteriorDamage: yn(rec.exterior_damage_at_check_in),
+    exteriorDamageDescription: rec.describe_exterior_damage ?? "",
+    exteriorPhotos: [],
+    petrolCheckoutCharge: yn(rec.apply_petrol_checkout_charges),
+    petrolChargeAmount: String(rec.petrol_checkout_charges ?? "0"),
+    petrolChargeReason: rec.petrol_charges_note ?? "",
+    applyDamageCharges: yn(rec.apply_damage_charges),
+    damageCharges: String(rec.damage_charges ?? "0"),
+    damageNotes: rec.damage_charges_note ?? "",
+    valetCharge: 30,
+  };
 }
 
 function toCheckoutApiPayload(formData: any, claimId: string, hvpId: number) {
@@ -295,7 +319,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     };
     fetchLookups();
   }, []);
-  // Load hire records from API
+  // Load hire records and existing checkout data from API
   useEffect(() => {
     if (!claimId) return;
     setIsLoading(true);
@@ -340,6 +364,19 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         }));
         formik.setValues({ thirdPartyVehicles: mapped });
         if (mapped.length > 1) setShowSwapBanner(true);
+
+        // Pre-populate checkout modal data from saved records
+        getCheckoutDetails(claimId)
+          .then(({ data: checkouts }) => {
+            if (!Array.isArray(checkouts)) return;
+            const forms: any[] = [];
+            checkouts.forEach((rec: any) => {
+              const idx = mapped.findIndex((v) => v.id === rec.hire_vehicle_provided_id);
+              if (idx !== -1) forms[idx] = fromApiRecord(rec);
+            });
+            if (forms.some(Boolean)) setCheckoutData({ forms });
+          })
+          .catch(() => {});
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));

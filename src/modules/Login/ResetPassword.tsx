@@ -233,7 +233,7 @@ const ResetPassword = () => {
           </span>
         </button> */}
         {/* Main Form Section */}
-        <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[197px] left-[678px]">
+        <div className="flex flex-col w-[508px] items-start gap-10 absolute top-[197px] left-[810px]">
           <h2 className="text-black text-[24px] font-weight-600">
             Reset Password
           </h2>
@@ -279,7 +279,7 @@ const ResetPassword = () => {
             </div>
 
             {/* Requirements Box (Floating Right) */}
-            <div className="absolute top-[151px] left-[570px] flex flex-col w-[260px] p-6 bg-white shadow-lg rounded-lg border border-[#EEEEEE] gap-3">
+            <div className="absolute top-[142px] left-[525px] flex flex-col w-[260px] p-6 bg-white shadow-lg rounded-lg border border-[#EEEEEE] gap-3">
               <RequirementItem
                 met={validations.minLength}
                 text="Minimum 12 characters"
@@ -319,9 +319,24 @@ const ResetPassword = () => {
               }`}
             >
               {loading ? (
-                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                <svg
+                  className="animate-spin h-5 w-5 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
               ) : (
                 "Reset Password"

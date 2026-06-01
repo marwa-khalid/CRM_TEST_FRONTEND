@@ -282,10 +282,7 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
 
   // Auto-compute section 3 values unless user has overridden them
   const paymentsReceivedAuto = useMemo(() => paymentAmt, [paymentAmt]);
-  const writeOffAuto = useMemo(
-    () => Math.max(0, totalInclVAT - paymentAmt),
-    [totalInclVAT, paymentAmt]
-  );
+  const writeOffAuto = 0;
   const outstandingInclAuto = useMemo(
     () => Math.max(0, totalInclVAT - paymentAmt),
     [totalInclVAT, paymentAmt]

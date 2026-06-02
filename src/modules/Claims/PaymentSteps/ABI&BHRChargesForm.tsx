@@ -272,7 +272,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           type="button"
           onClick={handleGeneratePaymentPack}
           disabled={isGenerating}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-100 disabled:bg-blue-300 text-blue-500 text-sm font-weight-500 rounded transition-all"
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-100 disabled:bg-blue-100 text-blue-500 text-sm font-weight-500 rounded transition-all"
         >
           {isGenerating ? (
             <>

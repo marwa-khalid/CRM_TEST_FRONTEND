@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
-import * as Yup from "yup";
 import { toast } from "react-toastify";
 import {
   getComparisonSettlement,
   saveComparisonSettlement,
+  sendComparisonDifferenceEmail,
 } from "../../../services/ComparisonSettlement/ComparisonSettlement";
 import { getHireRecords } from "../../../services/HireDetail/HireDetails";
 import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
@@ -159,6 +159,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const [system, setSystem] = useState<SystemValues>(EMPTY_SYSTEM);
   const [statusOpen, setStatusOpen] = useState(false);
 
+  // Holds latest computed totals so onSubmit reads fresh values (avoids stale closure)
+  const amountsRef = useRef({ actual: 0, agreed: 0 });
+
   const formik = useFormik({
     initialValues: {
       settlement_status: "",
@@ -174,9 +177,6 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
       vat_recovered: null as boolean | null,
       reason_for_reduction: "",
     },
-    validationSchema: Yup.object({
-      reason_for_reduction: Yup.string().required("Reason is required"),
-    }),
     onSubmit: async (values) => {
       if (!claimId) return;
       try {
@@ -196,6 +196,26 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           reason_for_reduction: values.reason_for_reduction || null,
         });
         toast.success("Comparison settlement saved");
+
+        // Notify handler when amount received (agreed) is less than actual payable
+        const { actual, agreed } = amountsRef.current;
+        const outstanding = actual - agreed;
+        if (outstanding > 0.005) {
+          let user: any = {};
+          try {
+            user = JSON.parse(localStorage.getItem("user") || "{}");
+          } catch {
+            user = {};
+          }
+          sendComparisonDifferenceEmail({
+            claim_id: Number(claimId),
+            recipient_email: user.email,
+            recipient_name: user.first_name,
+            actual_amount: actual,
+            amount_received: agreed,
+            outstanding_difference: outstanding,
+          }).catch(() => {});
+        }
       } catch {
         toast.error("Failed to save");
         throw new Error("save failed");
@@ -211,7 +231,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   useEffect(() => {
     if (system.hire_days === 0 && system.hire_rate_per_day === 0) return;
     const mult = 1 + toF(formik.values.abi_rate_band) / 100;
-    const cdwRate = system.cdw_days > 0 ? system.cdw / system.cdw_days : 0;
+    const cdwRate = system.cdw; // cdw_charges is stored as the per-day rate
     formik.setFieldValue("agreed_hire_days", system.hire_days);
     formik.setFieldValue("agreed_hire_rate", +(system.hire_rate_per_day * mult).toFixed(2));
     formik.setFieldValue("agreed_storage_days", system.storage_days);
@@ -225,7 +245,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   useEffect(() => {
     if (system.hire_rate_per_day === 0) return;
     const mult = 1 + toF(formik.values.abi_rate_band) / 100;
-    const cdwRate = system.cdw_days > 0 ? system.cdw / system.cdw_days : 0;
+    const cdwRate = system.cdw; // cdw_charges is stored as the per-day rate
     formik.setFieldValue("agreed_hire_rate", +(system.hire_rate_per_day * mult).toFixed(2));
     formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day * mult).toFixed(2));
     formik.setFieldValue("agreed_cdw_rate", +(cdwRate * mult).toFixed(2));
@@ -347,7 +367,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const actualRecovery = system.recovery;
   const actualPlating = system.plating;
   const actualEngineer = system.engineer_fee;
-  const actualCdw = system.cdw;
+  const actualCdw = system.cdw * system.cdw_days; // per-day rate × days = total
   const actualCdFee = system.cd_fee;
 
   const actualExclVAT =
@@ -377,7 +397,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     formik.values.agreed_cdw_days !== "" || formik.values.agreed_cdw_rate !== "";
   const agreedCdwDays =
     formik.values.agreed_cdw_days !== "" ? toF(formik.values.agreed_cdw_days) : system.cdw_days;
-  const cdwRatePerDay = system.cdw_days > 0 ? system.cdw / system.cdw_days : 0;
+  const cdwRatePerDay = system.cdw; // cdw_charges is stored as the per-day rate
   const agreedCdwRate =
     formik.values.agreed_cdw_rate !== "" ? toF(formik.values.agreed_cdw_rate) : cdwRatePerDay;
   const agreedCdw = hasCdwAdj
@@ -403,6 +423,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const totalDiff = agreedInclVAT - actualInclVAT;
   const overallPct = actualInclVAT > 0 ? (totalDiff / actualInclVAT) * 100 : 0;
   const reductionInHireDays = system.hire_days - agreedHireDays;
+
+  // Keep latest totals available to onSubmit
+  amountsRef.current = { actual: actualInclVAT, agreed: agreedInclVAT };
 
   // ─── render ───────────────────────────────────────────────────────────────
 

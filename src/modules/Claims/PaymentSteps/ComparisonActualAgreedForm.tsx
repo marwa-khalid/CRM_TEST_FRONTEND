@@ -4,13 +4,15 @@ import { toast } from "react-toastify";
 import {
   getComparisonSettlement,
   saveComparisonSettlement,
-  sendComparisonDifferenceEmail,
 } from "../../../services/ComparisonSettlement/ComparisonSettlement";
 import { getHireRecords } from "../../../services/HireDetail/HireDetails";
 import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { gettingEnginerDetails } from "../../../services/EngineeringDetails/engineeringDetails";
 import { getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharges";
 import { getRepairData } from "../../../services/RepairAndCost/RepairAndCost";
+import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
+import No from "../../../assets/AutoClaim_icon/No.svg";
+import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -48,11 +50,12 @@ interface EditFieldProps {
   name: string;
   value: string | number;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   placeholder?: string;
   noSymbol?: boolean;
 }
 
-const EditField: React.FC<EditFieldProps> = ({ label, name, value, onChange, placeholder, noSymbol }) => (
+const EditField: React.FC<EditFieldProps> = ({ label, name, value, onChange, onBlur, placeholder, noSymbol }) => (
   <div className="flex flex-col gap-2 w-full">
     <label className="text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
       {label}
@@ -65,12 +68,17 @@ const EditField: React.FC<EditFieldProps> = ({ label, name, value, onChange, pla
         name={name}
         value={value}
         onChange={onChange}
+        onBlur={onBlur}
         placeholder={placeholder ?? "0.00"}
         className="flex-1 bg-transparent outline-none text-base text-neutral-700 font-light leading-4"
       />
     </div>
   </div>
 );
+
+// Format an input value to 2 decimals (empty stays empty)
+const toTwoDecimals = (v: string): string =>
+  v === "" || Number.isNaN(Number(v)) ? v : Number(v).toFixed(2);
 
 interface TableRowProps {
   label: string;
@@ -158,9 +166,9 @@ const EMPTY_SYSTEM: SystemValues = {
 const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const [system, setSystem] = useState<SystemValues>(EMPTY_SYSTEM);
   const [statusOpen, setStatusOpen] = useState(false);
-
-  // Holds latest computed totals so onSubmit reads fresh values (avoids stale closure)
-  const amountsRef = useRef({ actual: 0, agreed: 0 });
+  const [loading, setLoading] = useState(true);
+  // Latest system-derived rates, used as fallback when saved values are null
+  const computedRatesRef = useRef({ repair: "0.00", recovery: "0.00", engineer: "0.00", plating: "0.00", cdFee: "0.00" });
 
   const formik = useFormik({
     initialValues: {
@@ -174,6 +182,11 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
       agreed_cdw_rate: "" as string | number,
       agreed_additional_fees: "" as string | number,
       agreed_penalties: "" as string | number,
+      agreed_repair_rate: "" as string | number,
+      agreed_recovery_rate: "" as string | number,
+      agreed_engineer_rate: "" as string | number,
+      agreed_plating_rate: "" as string | number,
+      agreed_cd_fee: "" as string | number,
       vat_recovered: null as boolean | null,
       reason_for_reduction: "",
     },
@@ -192,30 +205,15 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           agreed_cdw_rate: values.agreed_cdw_rate !== "" ? Number(values.agreed_cdw_rate) : null,
           agreed_additional_fees: values.agreed_additional_fees !== "" ? Number(values.agreed_additional_fees) : null,
           agreed_penalties: values.agreed_penalties !== "" ? Number(values.agreed_penalties) : null,
+          agreed_repair_rate: values.agreed_repair_rate !== "" ? Number(values.agreed_repair_rate) : null,
+          agreed_recovery_rate: values.agreed_recovery_rate !== "" ? Number(values.agreed_recovery_rate) : null,
+          agreed_engineer_rate: values.agreed_engineer_rate !== "" ? Number(values.agreed_engineer_rate) : null,
+          agreed_plating_rate: values.agreed_plating_rate !== "" ? Number(values.agreed_plating_rate) : null,
+          agreed_cd_fee: values.agreed_cd_fee !== "" ? Number(values.agreed_cd_fee) : null,
           vat_recovered: values.vat_recovered,
           reason_for_reduction: values.reason_for_reduction || null,
         });
         toast.success("Comparison settlement saved");
-
-        // Notify handler when amount received (agreed) is less than actual payable
-        const { actual, agreed } = amountsRef.current;
-        const outstanding = actual - agreed;
-        if (outstanding > 0.005) {
-          let user: any = {};
-          try {
-            user = JSON.parse(localStorage.getItem("user") || "{}");
-          } catch {
-            user = {};
-          }
-          sendComparisonDifferenceEmail({
-            claim_id: Number(claimId),
-            recipient_email: user.email,
-            recipient_name: user.first_name,
-            actual_amount: actual,
-            amount_received: agreed,
-            outstanding_difference: outstanding,
-          }).catch(() => {});
-        }
       } catch {
         toast.error("Failed to save");
         throw new Error("save failed");
@@ -252,9 +250,29 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formik.values.abi_rate_band]);
 
+  // Pre-populate repair/recovery/engineer/plating rates from system × band mult.
+  // Also caches the values in a ref so the saved-record loader can use them as a
+  // fallback (its null columns must not clobber these fields back to empty).
+  useEffect(() => {
+    const mult = 1 + toF(formik.values.abi_rate_band) / 100;
+    // Keep as 2-decimal strings so the fields show "85.00" from the start
+    const repair = (system.repair * mult).toFixed(2);
+    const recovery = (system.recovery * mult).toFixed(2);
+    const engineer = (system.engineer_fee * mult).toFixed(2);
+    const plating = (system.plating * mult).toFixed(2);
+    const cdFee = (system.cd_fee * mult).toFixed(2);
+    computedRatesRef.current = { repair, recovery, engineer, plating, cdFee };
+    formik.setFieldValue("agreed_repair_rate", repair);
+    formik.setFieldValue("agreed_recovery_rate", recovery);
+    formik.setFieldValue("agreed_engineer_rate", engineer);
+    formik.setFieldValue("agreed_plating_rate", plating);
+    formik.setFieldValue("agreed_cd_fee", cdFee);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [system.repair, system.recovery, system.engineer_fee, system.plating, system.cd_fee, formik.values.abi_rate_band]);
+
   // Load saved form data
   useEffect(() => {
-    if (!claimId) return;
+    if (!claimId) { setLoading(false); return; }
     getComparisonSettlement(claimId)
       .then(({ data }: any) => {
         const s = data?.saved;
@@ -270,11 +288,17 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           agreed_cdw_rate: s.agreed_cdw_rate ?? "",
           agreed_additional_fees: s.agreed_additional_fees ?? "",
           agreed_penalties: s.agreed_penalties ?? "",
+          agreed_repair_rate: s.agreed_repair_rate ?? computedRatesRef.current.repair,
+          agreed_recovery_rate: s.agreed_recovery_rate ?? computedRatesRef.current.recovery,
+          agreed_engineer_rate: s.agreed_engineer_rate ?? computedRatesRef.current.engineer,
+          agreed_plating_rate: s.agreed_plating_rate ?? computedRatesRef.current.plating,
+          agreed_cd_fee: s.agreed_cd_fee ?? computedRatesRef.current.cdFee,
           vat_recovered: s.vat_recovered ?? null,
           reason_for_reduction: s.reason_for_reduction ?? "",
         });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [claimId]);
 
   // Load system values from each source screen (mirrors ABI&BHR approach)
@@ -341,12 +365,12 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
       })
       .catch(() => {});
 
-    // Repair (total_inc_vat from route_repairs)
+    // Repair (sub_total = excl VAT, from route_repairs)
     getRepairData(claimId)
       .then((data: any) => {
         setSystem((prev) => ({
           ...prev,
-          repair: toF(data?.total_inc_vat),
+          repair: toF(data?.sub_total),
         }));
       })
       .catch(() => {});
@@ -416,6 +440,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const agreedExclVAT =
     agreedHire + agreedAdmin + agreedStorage + agreedRepair + agreedRecovery +
     agreedPlating + agreedEngineer + agreedCdw + agreedCdFee + agreedAdditional + agreedPenalties;
+  console.log(agreedCdFee);
   const agreedVAT = formik.values.vat_recovered === true ? agreedExclVAT * 0.2 : 0;
   const agreedInclVAT = agreedExclVAT + agreedVAT;
 
@@ -424,34 +449,47 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const overallPct = actualInclVAT > 0 ? (totalDiff / actualInclVAT) * 100 : 0;
   const reductionInHireDays = system.hire_days - agreedHireDays;
 
-  // Keep latest totals available to onSubmit
-  amountsRef.current = { actual: actualInclVAT, agreed: agreedInclVAT };
-
   // ─── render ───────────────────────────────────────────────────────────────
 
   const divider = <div className="self-stretch h-px bg-neutral-100" />;
 
   return (
     <div className="w-full mt-3 flex flex-col gap-6 font-['Stack_Sans_Headline']">
+      {loading && <SpinnerLoader />}
       <h1 className="text-black text-2xl font-weight-600 leading-6">
         Comparison - Actual &amp; Agreed Settlement
       </h1>
 
       {/* ── Section 1: Settlement Status ── */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600 leading-5">Settlement Status</h2>
+        <h2 className="text-black text-xl font-weight-600 leading-5">
+          Settlement Status
+        </h2>
         {divider}
         <div className="relative w-96">
-          <label className="block text-neutral-700 text-sm font-weight-500 mb-2">Status</label>
+          <label className="block text-neutral-700 text-sm font-weight-500 mb-2">
+            Status
+          </label>
           <div
             onClick={() => setStatusOpen((o) => !o)}
             className="h-[52px] px-5 bg-white border border-neutral-200 rounded flex items-center justify-between cursor-pointer"
           >
-            <span className={formik.values.settlement_status ? "text-neutral-700 text-base font-light" : "text-neutral-300 text-base font-light"}>
+            <span
+              className={
+                formik.values.settlement_status
+                  ? "text-neutral-700 text-base font-light"
+                  : "text-neutral-300 text-base font-light"
+              }
+            >
               {formik.values.settlement_status || "Select Status"}
             </span>
             <svg width="12" height="6" viewBox="0 0 12 6" fill="none">
-              <path d="M1 1L6 5L11 1" stroke="#0352FD" strokeWidth="1.5" strokeLinecap="round" />
+              <path
+                d="M1 1L6 5L11 1"
+                stroke="#0352FD"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </svg>
           </div>
           {statusOpen && (
@@ -464,7 +502,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
                     setStatusOpen(false);
                   }}
                   className={`px-5 py-3 text-sm cursor-pointer hover:bg-blue-100 ${
-                    formik.values.settlement_status === s ? "bg-blue-100 font-weight-500" : "text-neutral-700"
+                    formik.values.settlement_status === s
+                      ? "bg-blue-100 font-weight-500"
+                      : "text-neutral-700"
                   }`}
                 >
                   {s}
@@ -477,7 +517,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
 
       {/* ── Section 2: System Calculated Settlement ── */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600 leading-5">System Calculated Settlement</h2>
+        <h2 className="text-black text-xl font-weight-600 leading-5">
+          System Calculated Settlement
+        </h2>
         <div className="flex flex-col gap-4">
           {divider}
           <div className="grid grid-cols-2 gap-5">
@@ -504,16 +546,28 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
             <span className="text-black text-base font-weight-600">Totals</span>
             <div className="h-px bg-blue-200" />
             <p className="text-base">
-              <span className="text-neutral-700 font-weight-400">Total (Excl. VAT) </span>
-              <span className="text-neutral-700 font-weight-600">– £{fmt(actualExclVAT)}</span>
+              <span className="text-neutral-700 font-weight-400">
+                Total (Excl. VAT){" "}
+              </span>
+              <span className="text-neutral-700 font-weight-600">
+                – £{fmt(actualExclVAT)}
+              </span>
             </p>
             <p className="text-base">
-              <span className="text-neutral-700 font-weight-400">VAT (20%) </span>
-              <span className="text-neutral-700 font-weight-600">– £{fmt(actualVAT)}</span>
+              <span className="text-neutral-700 font-weight-400">
+                VAT (20%){" "}
+              </span>
+              <span className="text-neutral-700 font-weight-600">
+                – £{fmt(actualVAT)}
+              </span>
             </p>
             <p className="text-base">
-              <span className="text-neutral-700 font-weight-400">Total Actual Settlement (Incl. VAT) </span>
-              <span className="text-neutral-700 font-weight-600">– £{fmt(actualInclVAT)}</span>
+              <span className="text-neutral-700 font-weight-400">
+                Total Actual Settlement (Incl. VAT){" "}
+              </span>
+              <span className="text-neutral-700 font-weight-600">
+                – £{fmt(actualInclVAT)}
+              </span>
             </p>
           </div>
         </div>
@@ -537,7 +591,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
                   selected ? "bg-blue-100" : "bg-white"
                 }`}
               >
-                <span className="text-neutral-900 text-xl font-weight-600 leading-5">{band.label}</span>
+                <span className="text-neutral-900 text-xl font-weight-600 leading-5">
+                  {band.label}
+                </span>
                 <span className="text-neutral-700 text-sm font-weight-500">
                   Paid between <br /> {band.range}
                 </span>
@@ -547,76 +603,200 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         </div>
         {divider}
         <div className="grid grid-cols-2 gap-5">
-          <EditField label="Hire Days (if adjusted)" name="agreed_hire_days" value={formik.values.agreed_hire_days} onChange={formik.handleChange} placeholder="Days" noSymbol />
-          <EditField label="Hire Rate (if adjusted)" name="agreed_hire_rate" value={formik.values.agreed_hire_rate} onChange={formik.handleChange} placeholder="Rate per day" />
+          <EditField
+            label="Hire Days (if adjusted)"
+            name="agreed_hire_days"
+            value={formik.values.agreed_hire_days}
+            onChange={formik.handleChange}
+            placeholder="Days"
+            noSymbol
+          />
+          <EditField
+            label="Hire Rate (if adjusted)"
+            name="agreed_hire_rate"
+            value={formik.values.agreed_hire_rate}
+            onChange={formik.handleChange}
+            placeholder="Rate per day"
+          />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <EditField label="Storage Days (if adjusted)" name="agreed_storage_days" value={formik.values.agreed_storage_days} onChange={formik.handleChange} placeholder="Days" noSymbol />
-          <EditField label="Storage Rate (if adjusted)" name="agreed_storage_rate" value={formik.values.agreed_storage_rate} onChange={formik.handleChange} placeholder="Rate per day" />
+          <EditField
+            label="Storage Days (if adjusted)"
+            name="agreed_storage_days"
+            value={formik.values.agreed_storage_days}
+            onChange={formik.handleChange}
+            placeholder="Days"
+            noSymbol
+          />
+          <EditField
+            label="Storage Rate (if adjusted)"
+            name="agreed_storage_rate"
+            value={formik.values.agreed_storage_rate}
+            onChange={formik.handleChange}
+            placeholder="Rate per day"
+          />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <EditField label="CDW Days (if adjusted)" name="agreed_cdw_days" value={formik.values.agreed_cdw_days} onChange={formik.handleChange} placeholder="Days" noSymbol />
-          <EditField label="CDW Rate (if adjusted)" name="agreed_cdw_rate" value={formik.values.agreed_cdw_rate} onChange={formik.handleChange} placeholder="Rate per day" />
+          <EditField
+            label="CDW Days (if adjusted)"
+            name="agreed_cdw_days"
+            value={formik.values.agreed_cdw_days}
+            onChange={formik.handleChange}
+            placeholder="Days"
+            noSymbol
+          />
+          <EditField
+            label="CDW Rate (if adjusted)"
+            name="agreed_cdw_rate"
+            value={formik.values.agreed_cdw_rate}
+            onChange={formik.handleChange}
+            placeholder="Rate per day"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-5">
+          <EditField
+            label="Repair Charges"
+            name="agreed_repair_rate"
+            value={formik.values.agreed_repair_rate}
+            onChange={formik.handleChange}
+            onBlur={(e) =>
+              formik.setFieldValue(
+                "agreed_repair_rate",
+                toTwoDecimals(e.target.value),
+              )
+            }
+            placeholder="Rate"
+          />
+          <EditField
+            label="Recovery Charges"
+            name="agreed_recovery_rate"
+            value={formik.values.agreed_recovery_rate}
+            onChange={formik.handleChange}
+            onBlur={(e) =>
+              formik.setFieldValue(
+                "agreed_recovery_rate",
+                toTwoDecimals(e.target.value),
+              )
+            }
+            placeholder="Rate"
+          />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <EditField label="Additional Fees &amp; Charges (as applicable)" name="agreed_additional_fees" value={formik.values.agreed_additional_fees} onChange={formik.handleChange} />
-          <EditField label="Penalties" name="agreed_penalties" value={formik.values.agreed_penalties} onChange={formik.handleChange} />
+          <EditField
+            label="Plating Charges"
+            name="agreed_plating_rate"
+            value={formik.values.agreed_plating_rate}
+            onChange={formik.handleChange}
+            onBlur={(e) =>
+              formik.setFieldValue(
+                "agreed_plating_rate",
+                toTwoDecimals(e.target.value),
+              )
+            }
+            placeholder="Rate"
+          />
+          <EditField
+            label="Engineer Fee"
+            name="agreed_engineer_rate"
+            value={formik.values.agreed_engineer_rate}
+            onChange={formik.handleChange}
+            onBlur={(e) =>
+              formik.setFieldValue(
+                "agreed_engineer_rate",
+                toTwoDecimals(e.target.value),
+              )
+            }
+            placeholder="Rate"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-5">
+          <EditField
+            label="C & D Fee"
+            name="cd_fee"
+            value={system.cd_fee}
+            onChange={formik.handleChange}
+          />
+          <EditField
+            label="Admin Charges"
+            name="actualAdmin"
+            value={system.admin_fee}
+            onChange={formik.handleChange}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-5">
+          <EditField
+            label="Additional Fees &amp; Charges (as applicable)"
+            name="agreed_additional_fees"
+            value={formik.values.agreed_additional_fees}
+            onChange={formik.handleChange}
+          />
+          <EditField
+            label="Penalties"
+            name="agreed_penalties"
+            value={formik.values.agreed_penalties}
+            onChange={formik.handleChange}
+          />
         </div>
         {/* VAT Recovered */}
         <div className="flex flex-col gap-2">
-            <span className="text-black text-sm font-weight-500">VAT Recovered ?</span>
-            <div className="flex gap-5 mt-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className="relative w-5 h-5">
-                  <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      formik.values.vat_recovered === true
-                        ? "border-blue-300 bg-blue-200"
-                        : "border-neutral-300 bg-white"
-                    }`}
-                    onClick={() => formik.setFieldValue("vat_recovered", true)}
-                  >
-                    {formik.values.vat_recovered === true && (
-                      <div className="w-2 h-2 rounded-full bg-blue-500" />
-                    )}
+          <span className="text-black text-sm font-weight-500">
+            VAT Recovered ?
+          </span>
+          <div className="flex gap-6 mt-1 items-center">
+            {["Yes", "No"].map((option) => {
+              const isYes = option === "Yes";
+              const selected = formik.values.vat_recovered === isYes;
+              return (
+                <label
+                  key={option}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <div className="relative flex items-center justify-center">
+                    <input
+                      type="radio"
+                      name="vat_recovered"
+                      className="sr-only"
+                      checked={selected}
+                      onChange={() =>
+                        formik.setFieldValue("vat_recovered", isYes)
+                      }
+                    />
+                    {selected ? <img src={Yes} /> : <img src={No} />}
                   </div>
-                </div>
-                <span className="text-black text-sm font-weight-400">Yes</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className="relative w-5 h-5">
-                  <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      formik.values.vat_recovered === false
-                        ? "border-blue-300 bg-blue-200"
-                        : "border-neutral-300 bg-white"
-                    }`}
-                    onClick={() => formik.setFieldValue("vat_recovered", false)}
-                  >
-                    {formik.values.vat_recovered === false && (
-                      <div className="w-2 h-2 rounded-full bg-blue-500" />
-                    )}
-                  </div>
-                </div>
-                <span className="text-black text-sm font-weight-400">No</span>
-              </label>
-            </div>
+                  <span className="text-black text-sm font-weight-400">
+                    {option}
+                  </span>
+                </label>
+              );
+            })}
           </div>
+        </div>
         {/* Agreed Totals */}
         <div className="p-4 bg-blue-100 rounded-lg flex flex-col gap-2">
           <span className="text-black text-base font-weight-600">Totals</span>
           <div className="h-px bg-blue-200" />
           <p className="text-base">
-            <span className="text-neutral-700 font-weight-400">Total (Excl. VAT) </span>
-            <span className="text-neutral-700 font-weight-600">– £{fmt(agreedExclVAT)}</span>
+            <span className="text-neutral-700 font-weight-400">
+              Total (Excl. VAT){" "}
+            </span>
+            <span className="text-neutral-700 font-weight-600">
+              – £{fmt(agreedExclVAT)}
+            </span>
           </p>
           <p className="text-base">
             <span className="text-neutral-700 font-weight-400">VAT (20%) </span>
-            <span className="text-neutral-700 font-weight-600">– £{fmt(agreedVAT)}</span>
+            <span className="text-neutral-700 font-weight-600">
+              – £{fmt(agreedVAT)}
+            </span>
           </p>
           <p className="text-base">
-            <span className="text-neutral-700 font-weight-400">Total Agreed Settlement (Incl. VAT) </span>
-            <span className="text-neutral-700 font-weight-600">– £{fmt(agreedInclVAT)}</span>
+            <span className="text-neutral-700 font-weight-400">
+              Total Agreed Settlement (Incl. VAT){" "}
+            </span>
+            <span className="text-neutral-700 font-weight-600">
+              – £{fmt(agreedInclVAT)}
+            </span>
           </p>
         </div>
       </section>
@@ -630,50 +810,114 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         <div className="rounded-lg border border-neutral-100 overflow-hidden">
           {/* Header */}
           <div className="h-12 px-4 inline-flex items-center gap-2 w-full bg-white">
-            <div className="w-32 text-sm font-weight-600 text-black">CHARGE TYPE</div>
-            <div className="w-40 text-sm font-weight-600 text-black">ACTUAL AMOUNT</div>
+            <div className="w-32 text-sm font-weight-600 text-black">
+              CHARGE TYPE
+            </div>
+            <div className="w-40 text-sm font-weight-600 text-black">
+              ACTUAL AMOUNT
+            </div>
             <div className="w-44 text-sm font-weight-600 text-black leading-tight">
               AGREED AMOUNT
-              {formik.values.abi_rate_band !== "0" && <span className="text-xs font-weight-400"> {formik.values.abi_rate_band}%</span>}
+              {formik.values.abi_rate_band !== "0" && (
+                <span className="text-xs font-weight-400">
+                  {" "}
+                  ({formik.values.abi_rate_band}% PENALTY)
+                </span>
+              )}
             </div>
-            <div className="w-24 text-sm font-weight-600 text-black">DIFFERENCE</div>
-            <div className="w-28 text-sm font-weight-600 text-black">DIFF %</div>
+            <div className="w-24 text-sm font-weight-600 text-black">
+              DIFFERENCE
+            </div>
+            <div className="w-28 text-sm font-weight-600 text-black">
+              DIFF %
+            </div>
           </div>
           <div className="h-px bg-neutral-100" />
-          <TableRow label="Hire Costs" actual={actualHire} agreed={agreedHire} />
+          <TableRow
+            label="Hire Costs"
+            actual={actualHire}
+            agreed={agreedHire}
+          />
           <div className="h-px bg-neutral-100" />
-          <TableRow label="Admin Fee" actual={actualAdmin} agreed={agreedAdmin} />
+          <TableRow
+            label="Admin Fee"
+            actual={actualAdmin}
+            agreed={agreedAdmin}
+          />
           <div className="h-px bg-neutral-100" />
-          <TableRow label="Storage" actual={actualStorage} agreed={agreedStorage} />
+          <TableRow
+            label="Storage"
+            actual={actualStorage}
+            agreed={agreedStorage}
+          />
           <div className="h-px bg-neutral-100" />
-          <TableRow label="Repair" actual={actualRepair} agreed={agreedRepair} />
+          <TableRow
+            label="Repair"
+            actual={actualRepair}
+            agreed={agreedRepair}
+          />
           <div className="h-px bg-neutral-100" />
-          <TableRow label="Recovery" actual={actualRecovery} agreed={agreedRecovery} />
+          <TableRow
+            label="Recovery"
+            actual={actualRecovery}
+            agreed={agreedRecovery}
+          />
           <div className="h-px bg-neutral-100" />
-          <TableRow label="Plating" actual={actualPlating} agreed={agreedPlating} />
+          <TableRow
+            label="Plating"
+            actual={actualPlating}
+            agreed={agreedPlating}
+          />
           <div className="h-px bg-neutral-100" />
-          <TableRow label="Engineer Fee" actual={actualEngineer} agreed={agreedEngineer} />
+          <TableRow
+            label="Engineer Fee"
+            actual={actualEngineer}
+            agreed={agreedEngineer}
+          />
           <div className="h-px bg-neutral-100" />
           <TableRow label="CDW" actual={actualCdw} agreed={agreedCdw} />
           <div className="h-px bg-neutral-100" />
-          <TableRow label="C &amp; D Fee" actual={actualCdFee} agreed={agreedCdFee} />
+          <TableRow
+            label="C &amp; D Fee"
+            actual={actualCdFee}
+            agreed={agreedCdFee}
+          />
           <div className="h-px bg-neutral-100" />
           {/* Totals rows with blue bg */}
-          <TableRow label="Total (Excl. VAT)" actual={actualExclVAT} agreed={agreedExclVAT} isTotal />
+          <TableRow
+            label="Total (Excl. VAT)"
+            actual={actualExclVAT}
+            agreed={agreedExclVAT}
+            isTotal
+          />
           <div className="h-px bg-blue-200" />
-          <TableRow label="VAT (20%)" actual={actualVAT} agreed={agreedVAT} isTotal />
+          <TableRow
+            label="VAT (20%)"
+            actual={actualVAT}
+            agreed={agreedVAT}
+            isTotal
+          />
           <div className="h-px bg-blue-200" />
-          <TableRow label="Total (Incl. VAT)" actual={actualInclVAT} agreed={agreedInclVAT} isTotal />
+          <TableRow
+            label="Total (Incl. VAT)"
+            actual={actualInclVAT}
+            agreed={agreedInclVAT}
+            isTotal
+          />
         </div>
       </section>
 
       {/* ── Section 5: Summary ── */}
-      <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600 leading-5">Summary</h2>
+      <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4 mb-10">
+        <h2 className="text-black text-xl font-weight-600 leading-5">
+          Summary
+        </h2>
         {divider}
         <p className="text-sm">
           <span className="text-black font-weight-400">
-            {totalDiff >= 0 ? "Total Increase Amount: " : "Total Reduction Amount: "}
+            {totalDiff >= 0
+              ? "Total Increase Amount: "
+              : "Total Reduction Amount: "}
           </span>
           <span className="text-black text-base font-weight-600">
             £{fmt(Math.abs(totalDiff))}
@@ -681,7 +925,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         </p>
         <p className="text-sm">
           <span className="text-black font-weight-400">
-            {reductionInHireDays >= 0 ? "Reduction in Hire Days: " : "Increase in Hire Days: "}
+            {reductionInHireDays >= 0
+              ? "Reduction in Hire Days: "
+              : "Increase in Hire Days: "}
           </span>
           <span className="text-black text-base font-weight-600">
             {fmt(Math.abs(reductionInHireDays))} days
@@ -689,9 +935,13 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         </p>
         <p className="text-sm">
           <span className="text-black font-weight-400">
-            {overallPct >= 0 ? "Overall % Increase on Settlement: " : "Overall % Reduction on Settlement: "}
+            {overallPct >= 0
+              ? "Overall % Increase on Settlement: "
+              : "Overall % Reduction on Settlement: "}
           </span>
-          <span className="text-black text-base font-weight-600">{fmtPct(Math.abs(overallPct))}</span>
+          <span className="text-black text-base font-weight-600">
+            {fmtPct(Math.abs(overallPct))}
+          </span>
         </p>
         {divider}
         {/* Reason textarea */}
@@ -708,14 +958,18 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
             placeholder="Add Reason"
             rows={4}
             className={`w-full px-5 py-4 bg-white border rounded text-base text-neutral-700 font-light resize-none outline-none focus:border-blue-500 ${
-              formik.touched.reason_for_reduction && formik.errors.reason_for_reduction
+              formik.touched.reason_for_reduction &&
+              formik.errors.reason_for_reduction
                 ? "border-red-400"
                 : "border-neutral-200"
             }`}
           />
-          {formik.touched.reason_for_reduction && formik.errors.reason_for_reduction && (
-            <span className="text-red-500 text-xs">{formik.errors.reason_for_reduction}</span>
-          )}
+          {formik.touched.reason_for_reduction &&
+            formik.errors.reason_for_reduction && (
+              <span className="text-red-500 text-xs">
+                {formik.errors.reason_for_reduction}
+              </span>
+            )}
         </div>
       </section>
     </div>

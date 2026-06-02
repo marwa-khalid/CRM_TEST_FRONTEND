@@ -9,6 +9,7 @@ import { getHireRecords } from "../../../services/HireDetail/HireDetails";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import Plus from "../../../assets/AutoClaim_icon/Plus.svg";
+import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [abiDailyRate, setAbiDailyRate] = useState(0);
   const [abiExtraCharges, setAbiExtraCharges] = useState(0);
   const [abiAdminFee, setAbiAdminFee] = useState(0);
+  const [bhrAdminFee, setBhrAdminFee] = useState(0);
   const [noOfDays, setNoOfDays] = useState(0);
 
   // Billed breakdown (auto-fetched, read-only)
@@ -73,6 +75,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [penaltyDueDate90, setPenaltyDueDate90] = useState("");
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Formik — only the Payment Pack Sent Detail fields are saved to DB
   const formik = useFormik({
@@ -149,6 +152,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         setAbiDailyRate(toF(first.abi_hire_charge_per_day));
         setAbiExtraCharges(toF(first.abi_extra_charges_per_day));
         setAbiAdminFee(toF(first.abi_administration_fee));
+        setBhrAdminFee(toF(first.bhr_administration_fee));
         setNoOfDays(toF(first.final_total_no_of_hire_days ?? first.no_of_days_hire_so_far));
       })
       .catch(() => {});
@@ -182,7 +186,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
   // Load saved Payment Pack Sent Detail
   useEffect(() => {
-    if (!claimId) return;
+    if (!claimId) { setLoading(false); return; }
     getABIBHRCharges(claimId)
       .then(({ data }: any) => {
         if (!data) return;
@@ -193,7 +197,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           date_hire_paid: data.date_hire_paid ?? "",
         });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [claimId]);
 
   // ── Generate Payment Pack ──────────────────────────────────────────────────
@@ -257,13 +262,18 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   // 90+ BHR (+35%)
   const bhrDailyRate = abiDailyRate * 1.35;
   const bhrExtra = abiExtraCharges * 1.35;
-  const bhrAdmin = abiAdminFee * 1.35;
+  const bhrAdmin = bhrAdminFee; // BHR administration fee from hire records (not surged)
   const totalHire90 = (bhrDailyRate + bhrExtra + bhrAdmin) * noOfDays;
+
+  // Billed Breakdown total (Credit Hire already includes admin)
+  const totalOutlay =
+    totalHire030 + abiAdminFee + storageCharges + recoveryCharges + engineerCharges + platingCharges;
 
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="w-full mt-3 flex flex-col justify-start items-start gap-6 bg-white font-['Stack_Sans_Headline']">
+      {loading && <SpinnerLoader />}
       <div className="w-full flex items-center justify-between">
         <h1 className="text-black text-2xl font-weight-600 leading-6">
           ABI &amp; BHR Charges
@@ -442,7 +452,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           </h3>
           <div className="self-stretch h-px bg-neutral-100" />
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Daily Rate (ABI)" value={fmt(bhrDailyRate)} />
+            <ReadonlyField label="Daily Rate (BHR)" value={fmt(bhrDailyRate)} />
             <ReadonlyField label="Extra Charges" value={fmt(bhrExtra)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
@@ -456,7 +466,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       </section>
 
       {/* Section 3: Billed Breakdown */}
-      <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">
+      <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4 mb-10">
         <h2 className="self-stretch text-neutral-900 text-xl font-weight-600 leading-5">
           Billed Breakdown Section (ABI 30 days Rate)
         </h2>
@@ -478,6 +488,9 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             value={fmt(engineerCharges)}
           />
           <ReadonlyField label="Plating Charges" value={fmt(platingCharges)} />
+        </div>
+        <div className="w-full grid grid-cols-2 gap-5">
+          <ReadonlyField label="Total Outlay" value={fmt(totalOutlay)} />
         </div>
       </section>
     </div>

@@ -8,12 +8,16 @@ import {
 } from "../../../services/DirectHirePayment/DirectHirePayment";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function dateToISO(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
+
+const toTwoDecimals = (v: string): string =>
+  v === "" || Number.isNaN(Number(v)) ? v : Number(v).toFixed(2);
 
 function formatDisplay(dateStr: string): string {
   if (!dateStr) return "";
@@ -26,6 +30,7 @@ function formatDisplay(dateStr: string): string {
 const DirectHirePaymentForm = ({ paymentFormRef, claimId }: any) => {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [loading, setLoading] = useState(true);
   const dateRef = useRef<HTMLDivElement>(null);
 
   const formik = useFormik({
@@ -81,17 +86,21 @@ const DirectHirePaymentForm = ({ paymentFormRef, claimId }: any) => {
 
   // Load saved data
   useEffect(() => {
-    if (!claimId) return;
+    if (!claimId) { setLoading(false); return; }
     getDirectHirePayment(claimId)
       .then(({ data }: any) => {
         const s = data?.saved;
         if (!s) return;
         formik.setValues({
           date_settlement_received: s.date_settlement_received ?? "",
-          settlement_amount_received: s.settlement_amount_received ?? "",
+          settlement_amount_received:
+            s.settlement_amount_received != null
+              ? toTwoDecimals(String(s.settlement_amount_received))
+              : "",
         });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [claimId]);
 
   // ─── date picker max = today ─────────────────────────────────────────────
@@ -109,12 +118,13 @@ const DirectHirePaymentForm = ({ paymentFormRef, claimId }: any) => {
 
   return (
     <div className="w-full mt-3 flex flex-col gap-6 font-['Stack_Sans_Headline']">
+      {loading && <SpinnerLoader />}
       <h1 className="text-black text-2xl font-weight-600 leading-6">
         Settlement Received Date
       </h1>
 
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        {divider}
+        {/* {divider} */}
         <div className="w-full grid grid-cols-2 gap-5">
 
           {/* Date Settlement Received */}
@@ -177,7 +187,13 @@ const DirectHirePaymentForm = ({ paymentFormRef, claimId }: any) => {
                 name="settlement_amount_received"
                 value={formik.values.settlement_amount_received}
                 onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
+                onBlur={(e) => {
+                  formik.handleBlur(e);
+                  formik.setFieldValue(
+                    "settlement_amount_received",
+                    toTwoDecimals(e.target.value),
+                  );
+                }}
                 placeholder="0.00"
                 className="flex-1 bg-transparent outline-none text-base text-neutral-700 font-light leading-4 placeholder:text-neutral-300"
               />

@@ -6,7 +6,7 @@ import {
   saveHirePaymentDetails,
 } from "../../../services/HirePaymentDetails/HirePaymentDetails";
 import { getABIBHRCharges } from "../../../services/ABIBHRCharges/ABIBHRCharges";
-import { getComparisonSettlement } from "../../../services/ComparisonSettlement/ComparisonSettlement";
+import { getComparisonSettlement, sendComparisonDifferenceEmail } from "../../../services/ComparisonSettlement/ComparisonSettlement";
 import { getHireRecords } from "../../../services/HireDetail/HireDetails";
 import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { gettingEnginerDetails } from "../../../services/EngineeringDetails/engineeringDetails";
@@ -14,6 +14,7 @@ import { getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharg
 import { getRepairData } from "../../../services/RepairAndCost/RepairAndCost";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -112,6 +113,8 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
 
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [showReceivedPicker, setShowReceivedPicker] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notifying, setNotifying] = useState(false);
   const receivedRef = useRef<HTMLDivElement>(null);
 
   // System (billed) values loaded from multiple source screens
@@ -238,7 +241,7 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
 
   // Load saved form data; if no saved data, pre-populate payment_amount from agreed settlement
   useEffect(() => {
-    if (!claimId) return;
+    if (!claimId) { setLoading(false); return; }
     getHirePaymentDetails(claimId)
       .then(({ data }: any) => {
         const s = data?.saved;
@@ -271,7 +274,8 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
             .catch(() => {});
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [claimId]);
 
   // ─── computed derived values ──────────────────────────────────────────────
@@ -294,8 +298,47 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
 
   const divider = <div className="self-stretch h-px bg-neutral-100" />;
 
+  // Notify the manager that the amount received is less than the actual payable amount
+  const handleNotifyManager = async () => {
+    if (!claimId || notifying) return;
+    const actual = totalInclVAT;
+    const received =
+      formik.values.payments_received_total !== ""
+        ? toF(formik.values.payments_received_total)
+        : paymentsReceivedAuto;
+    const outstanding =
+      formik.values.payment_outstanding_incl_vat !== ""
+        ? toF(formik.values.payment_outstanding_incl_vat)
+        : outstandingInclAuto;
+
+    let user: any = {};
+    try {
+      user = JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      user = {};
+    }
+
+    setNotifying(true);
+    try {
+      await sendComparisonDifferenceEmail({
+        claim_id: Number(claimId),
+        recipient_email: user.email,
+        recipient_name: user.first_name,
+        actual_amount: actual,
+        amount_received: received,
+        outstanding_difference: outstanding,
+      });
+      toast.success("Manager notified");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Failed to notify manager");
+    } finally {
+      setNotifying(false);
+    }
+  };
+
   return (
     <div className="w-full mt-3 flex flex-col gap-6 font-['Stack_Sans_Headline']">
+      {loading && <SpinnerLoader />}
       <h1 className="text-black text-2xl font-weight-600 leading-6">
         Hire Payment Details &amp; Recovery Management
       </h1>
@@ -303,14 +346,17 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
       {/* ── Section 1: Billed Costs ── */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
         <div className="self-stretch flex items-start justify-between">
-          <h2 className="text-black text-xl font-weight-600 leading-5">Billed Costs:</h2>
+          <h2 className="text-black text-xl font-weight-600 leading-5">
+            Billed Costs:
+          </h2>
           <div className="text-sm leading-snug">
             <span className="text-neutral-700 font-weight-600 font-['Stack_Sans_Headline']">
               {claimRef}
             </span>
             {invoiceNumber && (
               <span className="text-neutral-700 font-weight-400 font-['Stack_Sans_Headline']">
-                {" "}Invoice# {invoiceNumber}
+                {" "}
+                Invoice# {invoiceNumber}
               </span>
             )}
           </div>
@@ -354,7 +400,9 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
           <DatePickerField
             label="Received Date"
             value={formik.values.received_date}
-            onSelect={(d) => formik.setFieldValue("received_date", dateToISO(d))}
+            onSelect={(d) =>
+              formik.setFieldValue("received_date", dateToISO(d))
+            }
             show={showReceivedPicker}
             containerRef={receivedRef}
             onToggle={() => setShowReceivedPicker((p) => !p)}
@@ -376,22 +424,41 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
       </section>
 
       {/* ── Section 3: Calculations & Adjustments ── */}
-      <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
-        <h2 className="text-black text-xl font-weight-600 leading-5">
-          Calculations &amp; Adjustments
-        </h2>
+      <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4 mb-10">
+        <div className="flex justify-between">
+          {" "}
+          <h2 className="text-black text-xl font-weight-600 leading-5">
+            Calculations &amp; Adjustments
+          </h2>
+          <button
+            onClick={handleNotifyManager}
+            disabled={notifying}
+            type="button"
+            className="h-8 px-3 py-2 text-blue-500 bg-blue-100 hover:bg-blue-100 rounded flex items-center gap-2.5 transition-colors group disabled:opacity-60"
+          >
+            {notifying ? "Notifying..." : "Notify Manager"}
+          </button>
+        </div>
         {divider}
         <div className="grid grid-cols-2 gap-5">
           <CurrencyField
             label="Payments Received Total"
             name="payments_received_total"
-            value={formik.values.payments_received_total !== "" ? formik.values.payments_received_total : fmt(paymentsReceivedAuto)}
+            value={
+              formik.values.payments_received_total !== ""
+                ? formik.values.payments_received_total
+                : fmt(paymentsReceivedAuto)
+            }
             onChange={formik.handleChange}
           />
           <CurrencyField
             label="Write-Off Amount"
             name="write_off_amount"
-            value={formik.values.write_off_amount !== "" ? formik.values.write_off_amount : fmt(writeOffAuto)}
+            value={
+              formik.values.write_off_amount !== ""
+                ? formik.values.write_off_amount
+                : fmt(writeOffAuto)
+            }
             onChange={formik.handleChange}
           />
         </div>
@@ -399,13 +466,21 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
           <CurrencyField
             label="Payment Outstanding (Incl. VAT)"
             name="payment_outstanding_incl_vat"
-            value={formik.values.payment_outstanding_incl_vat !== "" ? formik.values.payment_outstanding_incl_vat : fmt(outstandingInclAuto)}
+            value={
+              formik.values.payment_outstanding_incl_vat !== ""
+                ? formik.values.payment_outstanding_incl_vat
+                : fmt(outstandingInclAuto)
+            }
             onChange={formik.handleChange}
           />
           <CurrencyField
             label="Payment Outstanding (Excl. VAT)"
             name="payment_outstanding_excl_vat"
-            value={formik.values.payment_outstanding_excl_vat !== "" ? formik.values.payment_outstanding_excl_vat : fmt(outstandingExclAuto)}
+            value={
+              formik.values.payment_outstanding_excl_vat !== ""
+                ? formik.values.payment_outstanding_excl_vat
+                : fmt(outstandingExclAuto)
+            }
             onChange={formik.handleChange}
           />
         </div>

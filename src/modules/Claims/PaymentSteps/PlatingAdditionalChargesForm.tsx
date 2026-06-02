@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
@@ -6,6 +6,7 @@ import {
   getPlatingCharges,
   savePlatingCharges,
 } from "../../../services/PlatingCharges/PlatingCharges";
+import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 
 const validationSchema = Yup.object({
   private_hire_plating_fee: Yup.number().min(0).nullable(),
@@ -17,6 +18,8 @@ const validationSchema = Yup.object({
 });
 
 const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
+
+  const [loading, setLoading] = useState(true);
 
   const formik = useFormik({
     initialValues: {
@@ -57,7 +60,7 @@ const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
 
   // Load existing data
   useEffect(() => {
-    if (!claimId) return;
+    if (!claimId) { setLoading(false); return; }
     getPlatingCharges(claimId)
       .then(({ data }) => {
         if (!data) return;
@@ -71,7 +74,8 @@ const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
           additional_driver_charges: data.additional_driver_charges ?? "",
         });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [claimId]);
 
   // Auto-calculate total plating cost
@@ -83,6 +87,7 @@ const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
 
   return (
     <div className="w-full mt-3 flex flex-col justify-start items-start gap-6 bg-white font-['Stack_Sans_Headline']">
+      {loading && <SpinnerLoader />}
       <h1 className="self-stretch text-black text-2xl font-weight-600 leading-6">
         Plating &amp; Additional Charges
       </h1>

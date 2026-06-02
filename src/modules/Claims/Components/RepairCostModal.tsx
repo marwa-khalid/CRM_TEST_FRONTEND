@@ -3,6 +3,8 @@ import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
+import No from "../../../assets/AutoClaim_icon/No.svg";
 import {
   costRepairApi,
   getRepairData,
@@ -651,27 +653,22 @@ const RadioGroup = ({
     <span className="text-gray-900 text-sm font-weight-500">{label}</span>
     <div className="flex gap-10">
       {[true, false].map((val) => (
-        <button
+        <label
           key={String(val)}
-          type="button"
-          onClick={() => formik.setFieldValue(name, val)}
-          className="flex items-center gap-3"
+          className="flex items-center gap-2 cursor-pointer"
         >
-          <div
-            className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all ${
-              formik.values[name] === val
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-300"
-            }`}
-          >
-            {formik.values[name] === val && (
-              <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
-            )}
+          <div className="relative flex items-center justify-center">
+            <input
+              type="radio"
+              name={name}
+              className="sr-only"
+              checked={formik.values[name] === val}
+              onChange={() => formik.setFieldValue(name, val)}
+            />
+            {formik.values[name] === val ? <img src={Yes} /> : <img src={No} />}
           </div>
-          <span className="text-sm text-gray-700 font-weight-500">
-            {val ? "Yes" : "No"}
-          </span>
-        </button>
+          <span className="text-black text-sm">{val ? "Yes" : "No"}</span>
+        </label>
       ))}
     </div>
   </div>

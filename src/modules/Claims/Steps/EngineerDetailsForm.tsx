@@ -9,6 +9,8 @@ import { cleanPayload } from "./ClientDetailsForm";
 import { TotalLossView } from "../Components/TotalLossModal";
 import RepairCostRouteModal from "../Components/RepairCostModal";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
+import No from "../../../assets/AutoClaim_icon/No.svg";
 import {
   EngineerDetailsApi,
   gettingEnginerDetails,
@@ -418,6 +420,7 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
           isOpen={lossModal}
           onClose={() => openModal1(false)}
           engineer_report_received={engineer_report_received}
+          claimId={claimId}
         />
       )}
 
@@ -426,6 +429,7 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
           isOpen={repairModal}
           onClose={() => openModal2(false)}
           engineer_report_received={engineer_report_received}
+          claimId={claimId}
         />
       )}
 
@@ -744,34 +748,31 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
               Engineer Report received?
             </label>
 
-            <div className="flex gap-4">
-              <button
-                type="button"
-                onClick={() =>
-                  formik.setFieldValue("engineer_report_received", true)
-                }
-                className={`px-6 py-3 rounded border text-sm ${
-                  formik.values.engineer_report_received
-                    ? "bg-blue-50 border-blue-600 text-blue-600"
-                    : "bg-white border-gray-200 text-neutral-700"
-                }`}
-              >
-                Yes
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  formik.setFieldValue("engineer_report_received", false)
-                }
-                className={`px-6 py-3 rounded border text-sm ${
-                  !formik.values.engineer_report_received
-                    ? "bg-blue-50 border-blue-600 text-blue-600"
-                    : "bg-white border-gray-200 text-neutral-700"
-                }`}
-              >
-                No
-              </button>
+            <div className="flex gap-6 items-center">
+              {["Yes", "No"].map((option) => {
+                const isYes = option === "Yes";
+                const selected = formik.values.engineer_report_received === isYes;
+                return (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="radio"
+                        name="engineer_report_received"
+                        className="sr-only"
+                        checked={selected}
+                        onChange={() =>
+                          formik.setFieldValue("engineer_report_received", isYes)
+                        }
+                      />
+                      {selected ? <img src={Yes} /> : <img src={No} />}
+                    </div>
+                    <span className="text-black text-sm">{option}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 

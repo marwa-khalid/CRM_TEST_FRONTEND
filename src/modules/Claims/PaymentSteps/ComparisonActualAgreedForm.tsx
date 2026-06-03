@@ -95,12 +95,12 @@ const TableRow: React.FC<TableRowProps> = ({ label, actual, agreed, isTotal }) =
     : "text-sm font-weight-400 text-neutral-700";
 
   return (
-    <div className={`self-stretch h-12 px-4 inline-flex items-center gap-2 ${isTotal ? "bg-blue-100" : ""}`}>
-      <div className={`w-32 ${textCls}`}>{label}</div>
-      <div className="w-40 text-sm font-weight-600 text-neutral-700">{fmt(actual)}</div>
-      <div className="w-44 text-sm font-weight-600 text-neutral-700">{fmt(agreed)}</div>
-      <div className="w-24 text-sm font-weight-600 text-neutral-700">{fmt(Math.abs(diff))}</div>
-      <div className="w-28 text-sm font-weight-600 text-neutral-700">{fmtPct(Math.abs(diffPct))}</div>
+    <div className={`self-stretch h-12 px-4 flex items-center gap-2 ${isTotal ? "bg-blue-100" : ""}`}>
+      <div className={`flex-[5] min-w-0 ${textCls}`}>{label}</div>
+      <div className="flex-[6] min-w-0 text-sm font-weight-600 text-neutral-700">{fmt(actual)}</div>
+      <div className="flex-[6] min-w-0 text-sm font-weight-600 text-neutral-700">{fmt(agreed)}</div>
+      <div className="flex-[4] min-w-0 text-sm font-weight-600 text-neutral-700">{fmt(Math.abs(diff))}</div>
+      <div className="flex-[6] min-w-0 text-sm font-weight-600 text-neutral-700">{fmtPct(Math.abs(diffPct))}</div>
     </div>
   );
 };
@@ -168,7 +168,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const [statusOpen, setStatusOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   // Latest system-derived rates, used as fallback when saved values are null
-  const computedRatesRef = useRef({ repair: "0.00", recovery: "0.00", engineer: "0.00", plating: "0.00", cdFee: "0.00" });
+  const computedRatesRef = useRef({ repair: "0.00", recovery: "0.00", engineer: "0.00", plating: "0.00", cdFee: "0.00", admin: "0.00" });
 
   const formik = useFormik({
     initialValues: {
@@ -187,6 +187,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
       agreed_engineer_rate: "" as string | number,
       agreed_plating_rate: "" as string | number,
       agreed_cd_fee: "" as string | number,
+      agreed_admin: "" as string | number,
       vat_recovered: null as boolean | null,
       reason_for_reduction: "",
     },
@@ -210,6 +211,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           agreed_engineer_rate: values.agreed_engineer_rate !== "" ? Number(values.agreed_engineer_rate) : null,
           agreed_plating_rate: values.agreed_plating_rate !== "" ? Number(values.agreed_plating_rate) : null,
           agreed_cd_fee: values.agreed_cd_fee !== "" ? Number(values.agreed_cd_fee) : null,
+          agreed_admin: values.agreed_admin !== "" ? Number(values.agreed_admin) : null,
           vat_recovered: values.vat_recovered,
           reason_for_reduction: values.reason_for_reduction || null,
         });
@@ -261,14 +263,16 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     const engineer = (system.engineer_fee * mult).toFixed(2);
     const plating = (system.plating * mult).toFixed(2);
     const cdFee = (system.cd_fee * mult).toFixed(2);
-    computedRatesRef.current = { repair, recovery, engineer, plating, cdFee };
+    const admin = (system.admin_fee * mult).toFixed(2);
+    computedRatesRef.current = { repair, recovery, engineer, plating, cdFee, admin };
     formik.setFieldValue("agreed_repair_rate", repair);
     formik.setFieldValue("agreed_recovery_rate", recovery);
     formik.setFieldValue("agreed_engineer_rate", engineer);
     formik.setFieldValue("agreed_plating_rate", plating);
     formik.setFieldValue("agreed_cd_fee", cdFee);
+    formik.setFieldValue("agreed_admin", admin);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [system.repair, system.recovery, system.engineer_fee, system.plating, system.cd_fee, formik.values.abi_rate_band]);
+  }, [system.repair, system.recovery, system.engineer_fee, system.plating, system.cd_fee, system.admin_fee, formik.values.abi_rate_band]);
 
   // Load saved form data
   useEffect(() => {
@@ -293,6 +297,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           agreed_engineer_rate: s.agreed_engineer_rate ?? computedRatesRef.current.engineer,
           agreed_plating_rate: s.agreed_plating_rate ?? computedRatesRef.current.plating,
           agreed_cd_fee: s.agreed_cd_fee ?? computedRatesRef.current.cdFee,
+          agreed_admin: s.agreed_admin ?? computedRatesRef.current.admin,
           vat_recovered: s.vat_recovered ?? null,
           reason_for_reduction: s.reason_for_reduction ?? "",
         });
@@ -311,7 +316,12 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         const records: any[] = Array.isArray(data) ? data : [];
         const first = records[0];
         if (!first) return;
-        const days = toF(first.final_total_no_of_hire_days ?? first.no_of_days_hire_so_far);
+        // Total days = sum of every vehicle's total hire days
+        const days = records.reduce(
+          (sum: number, r: any) =>
+            sum + toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far),
+          0,
+        );
         const rate = toF(first.abi_hire_charge_per_day);
         setSystem((prev) => ({
           ...prev,
@@ -713,15 +723,23 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         <div className="grid grid-cols-2 gap-5">
           <EditField
             label="C & D Fee"
-            name="cd_fee"
-            value={system.cd_fee}
+            name="agreed_cd_fee"
+            value={formik.values.agreed_cd_fee}
             onChange={formik.handleChange}
+            onBlur={(e) =>
+              formik.setFieldValue("agreed_cd_fee", toTwoDecimals(e.target.value))
+            }
+            placeholder="Rate"
           />
           <EditField
             label="Admin Charges"
-            name="actualAdmin"
-            value={system.admin_fee}
+            name="agreed_admin"
+            value={formik.values.agreed_admin}
             onChange={formik.handleChange}
+            onBlur={(e) =>
+              formik.setFieldValue("agreed_admin", toTwoDecimals(e.target.value))
+            }
+            placeholder="Rate"
           />
         </div>
         <div className="grid grid-cols-2 gap-5">
@@ -809,14 +827,14 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         {divider}
         <div className="rounded-lg border border-neutral-100 overflow-hidden">
           {/* Header */}
-          <div className="h-12 px-4 inline-flex items-center gap-2 w-full bg-white">
-            <div className="w-32 text-sm font-weight-600 text-black">
+          <div className="h-12 px-4 flex items-center gap-2 w-full bg-white">
+            <div className="flex-[5] min-w-0 text-sm font-weight-600 text-black">
               CHARGE TYPE
             </div>
-            <div className="w-40 text-sm font-weight-600 text-black">
+            <div className="flex-[6] min-w-0 text-sm font-weight-600 text-black">
               ACTUAL AMOUNT
             </div>
-            <div className="w-44 text-sm font-weight-600 text-black leading-tight">
+            <div className="flex-[6] min-w-0 text-sm font-weight-600 text-black leading-tight">
               AGREED AMOUNT
               {formik.values.abi_rate_band !== "0" && (
                 <span className="text-xs font-weight-400">
@@ -825,10 +843,10 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
                 </span>
               )}
             </div>
-            <div className="w-24 text-sm font-weight-600 text-black">
+            <div className="flex-[4] min-w-0 text-sm font-weight-600 text-black">
               DIFFERENCE
             </div>
-            <div className="w-28 text-sm font-weight-600 text-black">
+            <div className="flex-[6] min-w-0 text-sm font-weight-600 text-black">
               DIFF %
             </div>
           </div>
@@ -930,7 +948,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
               : "Increase in Hire Days: "}
           </span>
           <span className="text-black text-base font-weight-600">
-            {fmt(Math.abs(reductionInHireDays))} days
+            {Math.round(Math.abs(reductionInHireDays))} days
           </span>
         </p>
         <p className="text-sm">

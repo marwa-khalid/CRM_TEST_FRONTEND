@@ -199,7 +199,12 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
         const records: any[] = Array.isArray(data) ? data : [];
         const first = records[0];
         if (!first) return;
-        const days = toF(first.final_total_no_of_hire_days ?? first.no_of_days_hire_so_far);
+        // Total days = sum of every vehicle's total hire days
+        const days = records.reduce(
+          (sum: number, r: any) =>
+            sum + toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far),
+          0,
+        );
         const rate = toF(first.abi_hire_charge_per_day);
         hireCosts = days * rate;
         adminFee = toF(first.abi_administration_fee);
@@ -354,7 +359,7 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
               {claimRef}
             </span>
             {invoiceNumber && (
-              <span className="text-neutral-700 font-weight-400 font-['Stack_Sans_Headline']">
+              <span className="ms-10 text-neutral-700 font-weight-400 font-['Stack_Sans_Headline']">
                 {" "}
                 Invoice# {invoiceNumber}
               </span>

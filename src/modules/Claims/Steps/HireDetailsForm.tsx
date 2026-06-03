@@ -124,6 +124,43 @@ function toCheckoutApiPayload(formData: any, claimId: string, hvpId: number) {
   };
 }
 
+// Maps the in-form vehicle objects to the /hire-records save payload.
+// Shared by the main save (onSubmit) and the off-hire checkout flow so a
+// newly added vehicle can be persisted (and get a DB id) before its checkout
+// is saved.
+function mapVehiclesToRecords(vehicles: any[]) {
+  return vehicles.map((v) => ({
+    id: v.id || undefined,
+    hire_detail_id: v.hire_detail_id || undefined,
+    client_vehicle_category_id: v.client_vehicle_category || null,
+    actual_vehicle_category_id: v.actual_vehicle_category || null,
+    cross_hire: v.cross_hired,
+    hire_vehicle_status_id: v.hire_vehicle_status_id || null,
+    hire_vehicle_registration: v.hire_vehicle_registration || null,
+    make: v.make || null,
+    model: v.model || null,
+    hire_start_date: v.hireOutDate || null,
+    hire_end_date: v.hireBackDate || null,
+    fuel_type: v.fuel_type || null,
+    plate_transfer: v.plate_transfer,
+    vehicle_file_reference: v.provider_name || null,
+    abi_insurer: v.abi_insured,
+    abi_hire_charge_per_day: v.abi_hire_charge_per_day || null,
+    abi_extra_charges_per_day: v.extra_charge_per_day || null,
+    admin_fee_id: v.admin_fee_type || null,
+    abi_administration_fee: v.administration_fee || null,
+    total_abi_hire_charge: v.total_abi_hire_charge || null,
+    bhr_hire_charge_per_day: v.bhr_hire_charge_per_day || null,
+    bhr_extra_charges_per_day: v.bhr_extra_charge_per_day || null,
+    bhr_administration_fee: v.bhr_administration_fee || null,
+    cdw_charges: v.cdw_per_day || null,
+    collection_delivery_fee: v.collection_and_delivery_fee || null,
+    total_bhr_charges: v.total_bhr_charge || null,
+    no_of_days_hire_so_far: v.no_of_days_hired || null,
+    final_total_no_of_hire_days: v.total_no_of_days_hired || null,
+  }));
+}
+
 export const HireDetailsForm = ({ formRef, claimId }: any) => {
   const [isLoading, setIsLoading] = useState(false);
   const [adminFeeType, setAdminFeeType] = useState([]);
@@ -242,36 +279,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     onSubmit: async (values) => {
       if (!claimId) return;
       try {
-        const records = values.thirdPartyVehicles.map((v) => ({
-          id: v.id || undefined,
-          hire_detail_id: v.hire_detail_id || undefined,
-          client_vehicle_category_id: v.client_vehicle_category || null,
-          actual_vehicle_category_id: v.actual_vehicle_category || null,
-          cross_hire: v.cross_hired,
-          hire_vehicle_status_id: v.hire_vehicle_status_id || null,
-          hire_vehicle_registration: v.hire_vehicle_registration || null,
-          make: v.make || null,
-          model: v.model || null,
-          hire_start_date: v.hireOutDate || null,
-          hire_end_date: v.hireBackDate || null,
-          fuel_type: v.fuel_type || null,
-          plate_transfer: v.plate_transfer,
-          vehicle_file_reference: v.provider_name || null,
-          abi_insurer: v.abi_insured,
-          abi_hire_charge_per_day: v.abi_hire_charge_per_day || null,
-          abi_extra_charges_per_day: v.extra_charge_per_day || null,
-          admin_fee_id: v.admin_fee_type || null,
-          abi_administration_fee: v.administration_fee || null,
-          total_abi_hire_charge: v.total_abi_hire_charge || null,
-          bhr_hire_charge_per_day: v.bhr_hire_charge_per_day || null,
-          bhr_extra_charges_per_day: v.bhr_extra_charge_per_day || null,
-          bhr_administration_fee: v.bhr_administration_fee || null,
-          cdw_charges: v.cdw_per_day || null,
-          collection_delivery_fee: v.collection_and_delivery_fee || null,
-          total_bhr_charges: v.total_bhr_charge || null,
-          no_of_days_hire_so_far: v.no_of_days_hired || null,
-          final_total_no_of_hire_days: v.total_no_of_days_hired || null,
-        }));
+        const records = mapVehiclesToRecords(values.thirdPartyVehicles);
 
         const { data: saved } = await saveHireRecords({ claim_id: Number(claimId), records });
 
@@ -1814,7 +1822,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           onClose={() => setShowCheckoutModal(false)}
           onSave={async (capturedFormData) => {
             const todayStr = new Date().toISOString().split("T")[0];
-            const hvpId: number | null =
+            let hvpId: number | null =
               formik.values.thirdPartyVehicles[activeVehicleTab]?.id ?? null;
 
             formik.setFieldValue(
@@ -1836,11 +1844,36 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             setShowActionPopup(false);
             setShowSwapBanner(true);
 
+            // A newly switched-in vehicle has no DB id yet — without one its
+            // checkout could never be saved (second-vehicle data loss). Persist
+            // the hire records first to obtain the id, then save the checkout.
+            if (!hvpId && claimId) {
+              try {
+                const vehiclesNow = formik.values.thirdPartyVehicles.map(
+                  (v: any, idx: number) =>
+                    idx === activeVehicleTab
+                      ? { ...v, hireBackDate: todayStr, hire_vehicle_status_id: 2 }
+                      : v,
+                );
+                const { data: saved } = await saveHireRecords({
+                  claim_id: Number(claimId),
+                  records: mapVehiclesToRecords(vehiclesNow),
+                });
+                const withIds = vehiclesNow.map((v: any, idx: number) => ({
+                  ...v,
+                  id: saved[idx]?.id ?? v.id,
+                  hire_detail_id: saved[idx]?.hire_detail_id ?? v.hire_detail_id,
+                }));
+                formik.setFieldValue("thirdPartyVehicles", withIds);
+                hvpId = saved[activeVehicleTab]?.id ?? null;
+              } catch {
+                // fall through to the error toast below
+              }
+            }
+
             if (!hvpId || !claimId) {
-              toast.success(
-                switchVehicle
-                  ? "Vehicle off-hired..."
-                  : "Vehicle off-hired successfully.",
+              toast.error(
+                "Vehicle off-hired locally, but the checkout could not be saved — please save hire records and try again.",
               );
               return;
             }

@@ -153,7 +153,14 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         setAbiExtraCharges(toF(first.abi_extra_charges_per_day));
         setAbiAdminFee(toF(first.abi_administration_fee));
         setBhrAdminFee(toF(first.bhr_administration_fee));
-        setNoOfDays(toF(first.final_total_no_of_hire_days ?? first.no_of_days_hire_so_far));
+        // Total days = sum of every vehicle's total hire days
+        setNoOfDays(
+          records.reduce(
+            (sum: number, r: any) =>
+              sum + toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far),
+            0,
+          ),
+        );
       })
       .catch(() => {});
   }, [claimId]);

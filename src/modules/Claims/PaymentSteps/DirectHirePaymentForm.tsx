@@ -40,11 +40,7 @@ const DirectHirePaymentForm = ({ paymentFormRef, claimId }: any) => {
     },
     validationSchema: Yup.object({
       date_settlement_received: Yup.string()
-        .required("Date is required")
-        .test("not-future", "Date cannot be in the future", (val) => {
-          if (!val) return false;
-          return new Date(val + "T23:59:59") <= new Date();
-        }),
+        .required("Date is required"),
       settlement_amount_received: Yup.number()
         .typeError("Must be a number")
         .required("Amount is required")

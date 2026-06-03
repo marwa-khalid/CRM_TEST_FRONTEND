@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 
-const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutes
+const INACTIVITY_MS = 60 * 60 * 1000; // 1 hour
 
 const ACTIVITY_EVENTS: string[] = [
   "mousemove",

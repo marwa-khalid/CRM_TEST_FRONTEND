@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "./Components/ClaimSidebar";
 import { Header } from "./Components/ClaimHeader";
 import GeneralDetailsForm from "./Steps/GeneralDetailsForm";
@@ -28,9 +28,14 @@ type ActiveMode = "claim" | "payment";
 const AddClaimPage = () => {
   const { claimId } = useParams<{ claimId?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [currentStep, setCurrentStep] = useState(0);
   const [currentPaymentStep, setCurrentPaymentStep] = useState(0);
-  const [activeMode, setActiveMode] = useState<ActiveMode>("claim");
+  // Email "View Case" CTA deep-links with ?mode=payment to open the payment
+  // section's first screen directly.
+  const [activeMode, setActiveMode] = useState<ActiveMode>(
+    searchParams.get("mode") === "payment" ? "payment" : "claim",
+  );
 
   const formRef = useRef<any>(null);
   const paymentFormRef = useRef<any>(null);
@@ -142,6 +147,7 @@ const AddClaimPage = () => {
             paymentSteps={paymentSteps}
             activePaymentStep={currentPaymentStep}
             onPaymentStepClick={handlePaymentStepClick}
+            activeMode={activeMode}
           />
         </div>
 

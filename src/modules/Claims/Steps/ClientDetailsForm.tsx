@@ -174,7 +174,9 @@ export const ClientDetailsForm = ({ formRef, claimId }: any) => {
   useEffect(() => {
     const fetchData = async () => {
       const clientData = await getClientByClaimID(parseInt(claimId));
-      if (clientData?.id) setClientId(String(clientData.id));
+      // New claim with no client yet — nothing to pre-populate, leave the form blank
+      if (!clientData?.id) return;
+      setClientId(String(clientData.id));
           const mappedValues = {
             clientTitle: clientData.gender || "",
             clientFirstName: clientData.first_name || "",
@@ -225,7 +227,11 @@ export const ClientDetailsForm = ({ formRef, claimId }: any) => {
    
     if (claimId) {
       fetchData().catch((err) => {
-        if (err?.response?.status !== 404) toast.error("Failed to load client details");
+        // "Client not found" (404) just means this is a new claim — stay silent.
+        // The service re-throws error.response.data, so detect via the detail message too.
+        const isNotFound =
+          err?.detail === "Client not found" || err?.response?.status === 404;
+        if (!isNotFound) toast.error("Failed to load client details");
       });
     }
   }, [claimId]);

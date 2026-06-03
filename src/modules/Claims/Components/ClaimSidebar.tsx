@@ -1,4 +1,4 @@
-import React, { useState } from "react"; // 1. Import useState
+import React, { useState, useEffect } from "react"; // 1. Import useState
 import Vector8 from "../../../assets/AutoClaim_icon/Vector-8.svg";
 import Vector1 from "../../../assets/AutoClaim_icon/Vector-1.svg";
 import Vector2 from "../../../assets/AutoClaim_icon/Vector-2.svg";
@@ -14,12 +14,37 @@ interface SidebarProps {
   onStepClick: (index: number) => void;
   activePaymentStep: number;
   onPaymentStepClick: (index: number) => void;
+  activeMode?: "claim" | "payment";
 }
 
-const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep,onPaymentStepClick }: SidebarProps) => {
-  // 2. Local state to track if "Claim Details" is expanded
-  const [isClaimsExpanded, setIsClaimsExpanded] = useState(true);
-  const [isPaymentExpanded, setIsPaymentExpanded] = useState(true);
+const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep,onPaymentStepClick, activeMode = "claim" }: SidebarProps) => {
+  // 2. Local state to track if "Claim Details" is expanded.
+  // The two sections are mutually exclusive: opening one closes the other.
+  // Initial expansion follows the active mode so a deep-link (?mode=payment)
+  // opens with the Payment Details accordion expanded.
+  const [isClaimsExpanded, setIsClaimsExpanded] = useState(activeMode !== "payment");
+  const [isPaymentExpanded, setIsPaymentExpanded] = useState(activeMode === "payment");
+
+  // Keep the open accordion in sync when the active mode changes (e.g. the page
+  // switches to payment mode after mount).
+  useEffect(() => {
+    setIsClaimsExpanded(activeMode !== "payment");
+    setIsPaymentExpanded(activeMode === "payment");
+  }, [activeMode]);
+
+  const toggleClaims = () =>
+    setIsClaimsExpanded((prev) => {
+      const next = !prev;
+      if (next) setIsPaymentExpanded(false);
+      return next;
+    });
+
+  const togglePayment = () =>
+    setIsPaymentExpanded((prev) => {
+      const next = !prev;
+      if (next) setIsClaimsExpanded(false);
+      return next;
+    });
 
 
   return (
@@ -40,7 +65,7 @@ const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep
             src={Vector2}
             alt="Toggle"
             className={`cursor-pointer transition-transform duration-300 ${isClaimsExpanded ? "" : "rotate-180"}`}
-            onClick={() => setIsClaimsExpanded(!isClaimsExpanded)}
+            onClick={toggleClaims}
           />
         </div>
 
@@ -56,7 +81,11 @@ const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep
                 return (
                   <div
                     key={idx}
-                    onClick={() => onStepClick(idx)}
+                    onClick={() => {
+                      setIsClaimsExpanded(true);
+                      setIsPaymentExpanded(false);
+                      onStepClick(idx);
+                    }}
                     className="Claimsteps self-stretch inline-flex justify-start items-center gap-3 cursor-pointer group"
                   >
                     {isActive ? (
@@ -104,7 +133,7 @@ const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep
             src={Vector10}
             className={`cursor-pointer transition-transform duration-300 ${isPaymentExpanded ? "" : "rotate-180"}`}
             alt=""
-            onClick={() => setIsPaymentExpanded(!isPaymentExpanded)}
+            onClick={togglePayment}
           />
         </div>
         {/* 4. Conditional Rendering Logic */}
@@ -119,7 +148,11 @@ const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep
                 return (
                   <div
                     key={idx}
-                    onClick={() => onPaymentStepClick(idx)}
+                    onClick={() => {
+                      setIsPaymentExpanded(true);
+                      setIsClaimsExpanded(false);
+                      onPaymentStepClick(idx);
+                    }}
                     className="Claimsteps self-stretch inline-flex justify-start items-center gap-3 cursor-pointer group"
                   >
                     {isActive ? (

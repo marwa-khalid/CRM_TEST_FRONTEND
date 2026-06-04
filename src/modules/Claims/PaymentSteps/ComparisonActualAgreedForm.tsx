@@ -131,6 +131,7 @@ interface SystemValues {
   extra_charges_per_day: number;
   hire_costs: number;
   admin_fee: number;
+  bhr_admin_fee: number;
   storage: number;
   storage_days: number;
   storage_rate_per_day: number;
@@ -149,6 +150,7 @@ const EMPTY_SYSTEM: SystemValues = {
   extra_charges_per_day: 0,
   hire_costs: 0,
   admin_fee: 0,
+  bhr_admin_fee: 0,
   storage: 0,
   storage_days: 0,
   storage_rate_per_day: 0,
@@ -237,7 +239,11 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     formik.setFieldValue("agreed_storage_days", system.storage_days);
     formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day * mult).toFixed(2));
     formik.setFieldValue("agreed_cdw_days", system.cdw_days);
-    formik.setFieldValue("agreed_cdw_rate", +(cdwRate * mult).toFixed(2));
+    // CDW is BHR-only — 15/day for the BHR (35%) band, 0 for ABI bands
+    formik.setFieldValue(
+      "agreed_cdw_rate",
+      formik.values.abi_rate_band === "35" ? +(cdwRate).toFixed(2) : 0,
+    );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [system.hire_days, system.hire_rate_per_day, system.storage_days, system.storage_rate_per_day, system.cdw, system.cdw_days]);
 
@@ -248,7 +254,11 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     const cdwRate = system.cdw; // cdw_charges is stored as the per-day rate
     formik.setFieldValue("agreed_hire_rate", +(system.hire_rate_per_day * mult).toFixed(2));
     formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day * mult).toFixed(2));
-    formik.setFieldValue("agreed_cdw_rate", +(cdwRate * mult).toFixed(2));
+    // CDW is BHR-only — 15/day for the BHR (35%) band, 0 for ABI bands
+    formik.setFieldValue(
+      "agreed_cdw_rate",
+      formik.values.abi_rate_band === "35" ? +(cdwRate).toFixed(2) : 0,
+    );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formik.values.abi_rate_band]);
 
@@ -262,8 +272,11 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     const recovery = (system.recovery * mult).toFixed(2);
     const engineer = (system.engineer_fee * mult).toFixed(2);
     const plating = (system.plating * mult).toFixed(2);
-    const cdFee = (system.cd_fee * mult).toFixed(2);
-    const admin = (system.admin_fee * mult).toFixed(2);
+    const isBhr = formik.values.abi_rate_band === "35";
+    // C&D Fee is BHR-only — its value for the BHR band, 0 for ABI bands
+    const cdFee = (isBhr ? system.cd_fee : 0).toFixed(2);
+    // BHR admin is a flat 60 (no uplift); ABI bands keep abi admin × band mult
+    const admin = (isBhr ? system.bhr_admin_fee : system.admin_fee * mult).toFixed(2);
     computedRatesRef.current = { repair, recovery, engineer, plating, cdFee, admin };
     formik.setFieldValue("agreed_repair_rate", repair);
     formik.setFieldValue("agreed_recovery_rate", recovery);
@@ -272,7 +285,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     formik.setFieldValue("agreed_cd_fee", cdFee);
     formik.setFieldValue("agreed_admin", admin);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [system.repair, system.recovery, system.engineer_fee, system.plating, system.cd_fee, system.admin_fee, formik.values.abi_rate_band]);
+  }, [system.repair, system.recovery, system.engineer_fee, system.plating, system.cd_fee, system.admin_fee, system.bhr_admin_fee, formik.values.abi_rate_band]);
 
   // Load saved form data
   useEffect(() => {
@@ -330,6 +343,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           extra_charges_per_day: toF(first.abi_extra_charges_per_day),
           hire_costs: days * rate,
           admin_fee: toF(first.abi_administration_fee),
+          bhr_admin_fee: toF(first.bhr_administration_fee) || 60, // BHR admin is a flat 60
           cdw: toF(first.cdw_charges),
           cdw_days: days,
           cd_fee: toF(first.collection_delivery_fee),
@@ -401,8 +415,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const actualRecovery = system.recovery;
   const actualPlating = system.plating;
   const actualEngineer = system.engineer_fee;
-  const actualCdw = system.cdw * system.cdw_days; // per-day rate × days = total
-  const actualCdFee = system.cd_fee;
+  // CDW and C&D Fee are BHR-only charges — not part of the ABI actual settlement
+  const actualCdw = 0;
+  const actualCdFee = 0;
 
   const actualExclVAT =
     actualHire + actualAdmin + actualStorage + actualRepair + actualRecovery +
@@ -434,16 +449,21 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const cdwRatePerDay = system.cdw; // cdw_charges is stored as the per-day rate
   const agreedCdwRate =
     formik.values.agreed_cdw_rate !== "" ? toF(formik.values.agreed_cdw_rate) : cdwRatePerDay;
-  const agreedCdw = hasCdwAdj
-    ? agreedCdwDays * agreedCdwRate * rateMult
-    : actualCdw * rateMult;
+  // CDW and C&D Fee are BHR-only charges: zero for Base ABI / 10% / 20%.
+  // For the 35% (BHR) band they use their already-calculated value WITHOUT the
+  // 35% uplift that applies to the other line items.
+  const isBhrBand = formik.values.abi_rate_band === "35";
+  const agreedCdw = isBhrBand
+    ? (hasCdwAdj ? agreedCdwDays * agreedCdwRate : system.cdw * system.cdw_days)
+    : 0;
 
-  const agreedAdmin = actualAdmin * rateMult;
+  // BHR admin is a flat 60 (no band uplift); ABI bands keep abi admin × band mult
+  const agreedAdmin = isBhrBand ? system.bhr_admin_fee : actualAdmin * rateMult;
   const agreedRepair = actualRepair * rateMult;
   const agreedRecovery = actualRecovery * rateMult;
   const agreedPlating = actualPlating * rateMult;
   const agreedEngineer = actualEngineer * rateMult;
-  const agreedCdFee = actualCdFee * rateMult;
+  const agreedCdFee = isBhrBand ? system.cd_fee : 0;
   const agreedAdditional = toF(formik.values.agreed_additional_fees) * rateMult;
   const agreedPenalties = toF(formik.values.agreed_penalties);
 

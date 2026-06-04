@@ -297,7 +297,7 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
     [totalInclVAT, paymentAmt]
   );
   const outstandingExclAuto = useMemo(
-    () => Math.max(0, totalExclVAT - paymentAmt / 1.2),
+    () => Math.max(0, totalExclVAT - paymentAmt),
     [totalExclVAT, paymentAmt]
   );
 

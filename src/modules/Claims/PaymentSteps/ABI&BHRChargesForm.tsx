@@ -250,7 +250,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
   // 0-30 section
   const totalHire030 = useMemo(
-    () => (abiDailyRate + abiExtraCharges + abiAdminFee) * noOfDays,
+    () => ((abiDailyRate + abiExtraCharges) * noOfDays)  + abiAdminFee,
     [abiDailyRate, abiExtraCharges, abiAdminFee, noOfDays]
   );
 
@@ -258,19 +258,23 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const rate3160 = abiDailyRate * 1.1;
   const extra3160 = abiExtraCharges * 1.1;
   const admin3160 = abiAdminFee * 1.1;
-  const totalHire3160 = (rate3160 + extra3160 + admin3160) * noOfDays;
+  const totalHire3160 = ((rate3160 + extra3160) * noOfDays)  + admin3160;
+console.log(rate3160)
+console.log(extra3160)
+console.log(admin3160);
 
   // 61+ section (+20%)
   const rate61plus = abiDailyRate * 1.2;
   const extra61plus = abiExtraCharges * 1.2;
   const admin61plus = abiAdminFee * 1.2;
-  const totalHire61plus = (rate61plus + extra61plus + admin61plus) * noOfDays;
+  const totalHire61plus = ((rate61plus + extra61plus) * noOfDays)  + admin61plus;
+console.log(rate61plus)
 
   // 90+ BHR (+35%)
   const bhrDailyRate = abiDailyRate * 1.35;
   const bhrExtra = abiExtraCharges * 1.35;
   const bhrAdmin = bhrAdminFee; // BHR administration fee from hire records (not surged)
-  const totalHire90 = (bhrDailyRate + bhrExtra + bhrAdmin) * noOfDays;
+  const totalHire90 = ((bhrDailyRate + bhrExtra ) * noOfDays) + bhrAdmin;
 
   // Billed Breakdown total (Credit Hire already includes admin)
   const totalOutlay =

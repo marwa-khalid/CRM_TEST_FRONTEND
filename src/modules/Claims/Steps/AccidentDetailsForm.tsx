@@ -191,11 +191,11 @@ const openLatestWitnessPdf = (w: any) => {
       if (accidentData?.id) setAccidentId(String(accidentData.id));
       formik.setValues(mappedValues);
     };
-    if (claimId) {
-      fetchData().catch((err) => {
-        if (err?.response?.status !== 404) toast.error("Failed to load accident details");
-      });
-    }
+    // if (claimId) {
+    //   fetchData().catch((err) => {
+    //     if (err?.response?.status !== 404) console.log("Failed to load accident details");
+    //   });
+    // }
   }, [claimId]);
   useEffect(() => {
     if (formRef) {

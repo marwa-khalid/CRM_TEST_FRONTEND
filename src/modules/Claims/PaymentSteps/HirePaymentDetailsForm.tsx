@@ -20,6 +20,9 @@ import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 
 const toF = (v: any): number => parseFloat(String(v ?? 0)) || 0;
 
+// Round to 2 decimals so totals never carry sub-penny drift (e.g. 5070.076 -> 5070.08)
+const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
+
 function fmt(n: number): string {
   return n.toFixed(2);
 }
@@ -190,8 +193,12 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
     let engineer = 0;
 
     const recalc = () => {
-      const excl = hireCosts + adminFee + cdw + cdFee + storage + recovery + repair + plating + engineer;
-      setTotalExclVAT(excl);
+      // Round each line item to 2dp before summing so the total matches the
+      // generated pack (which rounds per cell) to the penny.
+      const excl =
+        round2(hireCosts) + round2(adminFee) + round2(cdw) + round2(cdFee) +
+        round2(storage) + round2(recovery) + round2(repair) + round2(plating) + round2(engineer);
+      setTotalExclVAT(round2(excl));
     };
 
     getHireRecords(claimId)
@@ -285,36 +292,50 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
 
   // ─── computed derived values ──────────────────────────────────────────────
 
-  const totalInclVAT = useMemo(() => totalExclVAT * 1.2, [totalExclVAT]);
+  const totalInclVAT = useMemo(() => round2(totalExclVAT * 1.2), [totalExclVAT]);
 
   const paymentAmt = toF(formik.values.payment_amount);
 
   // Auto-compute section 3 values unless user has overridden them
   const paymentsReceivedAuto = useMemo(() => paymentAmt, [paymentAmt]);
-  const writeOffAuto = 0;
   const outstandingInclAuto = useMemo(
-    () => Math.max(0, totalInclVAT - paymentAmt),
+    () => round2(Math.max(0, totalInclVAT - paymentAmt)),
     [totalInclVAT, paymentAmt]
   );
   const outstandingExclAuto = useMemo(
-    () => Math.max(0, totalExclVAT - paymentAmt),
+    () => round2(Math.max(0, totalExclVAT - paymentAmt)),
     [totalExclVAT, paymentAmt]
   );
 
   const divider = <div className="self-stretch h-px bg-neutral-100" />;
 
   // Notify the manager that the amount received is less than the actual payable amount
+  // Write off the outstanding (excl. VAT) amount — records it for the email + save
+  const handleWriteOff = () => {
+    const outstandingExcl =
+      formik.values.payment_outstanding_excl_vat !== ""
+        ? toF(formik.values.payment_outstanding_excl_vat)
+        : outstandingExclAuto;
+    formik.setFieldValue("write_off_amount", fmt(round2(outstandingExcl)));
+    toast.success("Outstanding (Excl. VAT) written off");
+  };
+
   const handleNotifyManager = async () => {
     if (!claimId || notifying) return;
-    const actual = totalInclVAT;
-    const received =
+    const actual = round2(totalInclVAT);
+    const received = round2(
       formik.values.payments_received_total !== ""
         ? toF(formik.values.payments_received_total)
-        : paymentsReceivedAuto;
-    const outstanding =
+        : paymentsReceivedAuto,
+    );
+    const outstanding = round2(
       formik.values.payment_outstanding_incl_vat !== ""
         ? toF(formik.values.payment_outstanding_incl_vat)
-        : outstandingInclAuto;
+        : outstandingInclAuto,
+    );
+    const writeOff = round2(
+      formik.values.write_off_amount !== "" ? toF(formik.values.write_off_amount) : 0,
+    );
 
     let user: any = {};
     try {
@@ -332,6 +353,8 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
         actual_amount: actual,
         amount_received: received,
         outstanding_difference: outstanding,
+        write_off_amount: writeOff,
+        payment_reason: formik.values.payment_reason || null,
       });
       toast.success("Manager notified");
     } catch (e: any) {
@@ -449,25 +472,9 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
           <CurrencyField
             label="Payments Received Total"
             name="payments_received_total"
-            value={
-              formik.values.payments_received_total !== ""
-                ? formik.values.payments_received_total
-                : fmt(paymentsReceivedAuto)
-            }
+            value={formik.values.payments_received_total}
             onChange={formik.handleChange}
           />
-          <CurrencyField
-            label="Write-Off Amount"
-            name="write_off_amount"
-            value={
-              formik.values.write_off_amount !== ""
-                ? formik.values.write_off_amount
-                : fmt(writeOffAuto)
-            }
-            onChange={formik.handleChange}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-5">
           <CurrencyField
             label="Payment Outstanding (Incl. VAT)"
             name="payment_outstanding_incl_vat"
@@ -478,6 +485,8 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
             }
             onChange={formik.handleChange}
           />
+        </div>
+        <div className="grid grid-cols-2 gap-5">
           <CurrencyField
             label="Payment Outstanding (Excl. VAT)"
             name="payment_outstanding_excl_vat"
@@ -488,6 +497,15 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
             }
             onChange={formik.handleChange}
           />
+        </div>
+        <div>
+          <button
+            type="button"
+            onClick={handleWriteOff}
+            className="h-9 px-4 py-2 text-blue-500 bg-blue-100 hover:bg-blue-200 rounded text-sm font-weight-500 transition-colors"
+          >
+            Write Off
+          </button>
         </div>
       </section>
     </div>

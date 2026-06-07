@@ -29,12 +29,13 @@ const AddClaimPage = () => {
   const { claimId } = useParams<{ claimId?: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [currentPaymentStep, setCurrentPaymentStep] = useState(0);
   // Email "View Case" CTA deep-links with ?mode=payment to open the payment
-  // section's first screen directly.
+  // section directly on screen 4 (Hire Payment Details & Recovery Management).
+  const isPaymentMode = searchParams.get("mode") === "payment";
+  const [currentStep, setCurrentStep] = useState(0);
+  const [currentPaymentStep, setCurrentPaymentStep] = useState(isPaymentMode ? 3 : 0);
   const [activeMode, setActiveMode] = useState<ActiveMode>(
-    searchParams.get("mode") === "payment" ? "payment" : "claim",
+    isPaymentMode ? "payment" : "claim",
   );
 
   const formRef = useRef<any>(null);

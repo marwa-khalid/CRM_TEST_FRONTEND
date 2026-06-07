@@ -10,13 +10,14 @@ import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/St
 import { gettingEnginerDetails } from "../../../services/EngineeringDetails/engineeringDetails";
 import { getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharges";
 import { getRepairData } from "../../../services/RepairAndCost/RepairAndCost";
-import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
-import No from "../../../assets/AutoClaim_icon/No.svg";
 import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 const toF = (v: any): number => parseFloat(String(v ?? 0)) || 0;
+
+// Round to 2 decimals so totals never carry sub-penny drift and match the pack
+const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
 function fmt(n: number): string {
   return n.toFixed(2);
@@ -119,10 +120,10 @@ const SETTLEMENT_STATUSES = [
 ];
 
 const RATE_BANDS = [
-  { pct: "0",  label: "Base ABI", range: "Standard rate" },
-  { pct: "10", label: "10%",      range: "0–31 days" },
-  { pct: "20", label: "20%",      range: "31–60 days" },
-  { pct: "35", label: "35%",      range: "60+ days" },
+  { pct: "0", label: "Base ABI", range: "0–31 days" },
+  { pct: "10", label: "10%", range: "31–60 days" },
+  { pct: "20", label: "20%", range: "60-90 days" },
+  { pct: "35", label: "35%", range: "90 days" },
 ];
 
 interface SystemValues {
@@ -190,7 +191,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
       agreed_plating_rate: "" as string | number,
       agreed_cd_fee: "" as string | number,
       agreed_admin: "" as string | number,
-      vat_recovered: null as boolean | null,
+      vat_recovered: true as boolean | null,
       reason_for_reduction: "",
     },
     onSubmit: async (values) => {
@@ -229,36 +230,27 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     if (paymentFormRef) paymentFormRef.current = formik;
   }, [formik]);
 
-  // Pre-populate fields when system data loads
+  // Pre-populate fields when system data loads. All rate fields hold BASE rates;
+  // the band top-up is applied in the calc and only to hire & admin.
   useEffect(() => {
     if (system.hire_days === 0 && system.hire_rate_per_day === 0) return;
-    const mult = 1 + toF(formik.values.abi_rate_band) / 100;
-    const cdwRate = system.cdw; // cdw_charges is stored as the per-day rate
+    const isBhr = formik.values.abi_rate_band === "35";
     formik.setFieldValue("agreed_hire_days", system.hire_days);
-    formik.setFieldValue("agreed_hire_rate", +(system.hire_rate_per_day * mult).toFixed(2));
+    formik.setFieldValue("agreed_hire_rate", +(system.hire_rate_per_day).toFixed(2));
     formik.setFieldValue("agreed_storage_days", system.storage_days);
-    formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day * mult).toFixed(2));
+    formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day).toFixed(2));
     formik.setFieldValue("agreed_cdw_days", system.cdw_days);
     // CDW is BHR-only — 15/day for the BHR (35%) band, 0 for ABI bands
-    formik.setFieldValue(
-      "agreed_cdw_rate",
-      formik.values.abi_rate_band === "35" ? +(cdwRate).toFixed(2) : 0,
-    );
+    formik.setFieldValue("agreed_cdw_rate", isBhr ? +(system.cdw).toFixed(2) : 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [system.hire_days, system.hire_rate_per_day, system.storage_days, system.storage_rate_per_day, system.cdw, system.cdw_days]);
 
-  // Update rate fields when band changes
+  // Update band-dependent fields when the band changes. Hire/storage rates are
+  // base (band-independent); only the CDW rate flips with the BHR band.
   useEffect(() => {
     if (system.hire_rate_per_day === 0) return;
-    const mult = 1 + toF(formik.values.abi_rate_band) / 100;
-    const cdwRate = system.cdw; // cdw_charges is stored as the per-day rate
-    formik.setFieldValue("agreed_hire_rate", +(system.hire_rate_per_day * mult).toFixed(2));
-    formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day * mult).toFixed(2));
-    // CDW is BHR-only — 15/day for the BHR (35%) band, 0 for ABI bands
-    formik.setFieldValue(
-      "agreed_cdw_rate",
-      formik.values.abi_rate_band === "35" ? +(cdwRate).toFixed(2) : 0,
-    );
+    const isBhr = formik.values.abi_rate_band === "35";
+    formik.setFieldValue("agreed_cdw_rate", isBhr ? +(system.cdw).toFixed(2) : 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formik.values.abi_rate_band]);
 
@@ -267,12 +259,12 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   // fallback (its null columns must not clobber these fields back to empty).
   useEffect(() => {
     const mult = 1 + toF(formik.values.abi_rate_band) / 100;
-    // Keep as 2-decimal strings so the fields show "85.00" from the start
-    const repair = (system.repair * mult).toFixed(2);
-    const recovery = (system.recovery * mult).toFixed(2);
-    const engineer = (system.engineer_fee * mult).toFixed(2);
-    const plating = (system.plating * mult).toFixed(2);
     const isBhr = formik.values.abi_rate_band === "35";
+    // Repair / recovery / engineer / plating are NOT topped up — base values
+    const repair = (system.repair).toFixed(2);
+    const recovery = (system.recovery).toFixed(2);
+    const engineer = (system.engineer_fee).toFixed(2);
+    const plating = (system.plating).toFixed(2);
     // C&D Fee is BHR-only — its value for the BHR band, 0 for ABI bands
     const cdFee = (isBhr ? system.cd_fee : 0).toFixed(2);
     // BHR admin is a flat 60 (no uplift); ABI bands keep abi admin × band mult
@@ -311,7 +303,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           agreed_plating_rate: s.agreed_plating_rate ?? computedRatesRef.current.plating,
           agreed_cd_fee: s.agreed_cd_fee ?? computedRatesRef.current.cdFee,
           agreed_admin: s.agreed_admin ?? computedRatesRef.current.admin,
-          vat_recovered: s.vat_recovered ?? null,
+          vat_recovered: s.vat_recovered ?? true,
           reason_for_reduction: s.reason_for_reduction ?? "",
         });
       })
@@ -419,11 +411,13 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const actualCdw = 0;
   const actualCdFee = 0;
 
-  const actualExclVAT =
-    actualHire + actualAdmin + actualStorage + actualRepair + actualRecovery +
-    actualPlating + actualEngineer + actualCdw + actualCdFee;
-  const actualVAT = actualExclVAT * 0.2;
-  const actualInclVAT = actualExclVAT + actualVAT;
+  const actualExclVAT = round2(
+    round2(actualHire) + round2(actualAdmin) + round2(actualStorage) + round2(actualRepair) +
+    round2(actualRecovery) + round2(actualPlating) + round2(actualEngineer) +
+    round2(actualCdw) + round2(actualCdFee),
+  );
+  const actualVAT = round2(actualExclVAT * 0.2);
+  const actualInclVAT = round2(actualExclVAT + actualVAT);
 
   // Agreed line items
   const agreedHireDays =
@@ -438,9 +432,10 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     formik.values.agreed_storage_days !== "" ? toF(formik.values.agreed_storage_days) : system.storage_days;
   const agreedStorageRate =
     formik.values.agreed_storage_rate !== "" ? toF(formik.values.agreed_storage_rate) : system.storage_rate_per_day;
+  // Storage is NOT topped up by the band — stays at base
   const agreedStorage = hasStorageAdj
-    ? agreedStorageDays * agreedStorageRate * rateMult
-    : actualStorage * rateMult;
+    ? agreedStorageDays * agreedStorageRate
+    : actualStorage;
 
   const hasCdwAdj =
     formik.values.agreed_cdw_days !== "" || formik.values.agreed_cdw_rate !== "";
@@ -459,20 +454,23 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
 
   // BHR admin is a flat 60 (no band uplift); ABI bands keep abi admin × band mult
   const agreedAdmin = isBhrBand ? system.bhr_admin_fee : actualAdmin * rateMult;
-  const agreedRepair = actualRepair * rateMult;
-  const agreedRecovery = actualRecovery * rateMult;
-  const agreedPlating = actualPlating * rateMult;
-  const agreedEngineer = actualEngineer * rateMult;
+  // Repair / recovery / plating / engineer are NOT topped up — stay at base
+  const agreedRepair = actualRepair;
+  const agreedRecovery = actualRecovery;
+  const agreedPlating = actualPlating;
+  const agreedEngineer = actualEngineer;
   const agreedCdFee = isBhrBand ? system.cd_fee : 0;
-  const agreedAdditional = toF(formik.values.agreed_additional_fees) * rateMult;
+  const agreedAdditional = toF(formik.values.agreed_additional_fees);
   const agreedPenalties = toF(formik.values.agreed_penalties);
 
-  const agreedExclVAT =
-    agreedHire + agreedAdmin + agreedStorage + agreedRepair + agreedRecovery +
-    agreedPlating + agreedEngineer + agreedCdw + agreedCdFee + agreedAdditional + agreedPenalties;
-  console.log(agreedCdFee);
-  const agreedVAT = formik.values.vat_recovered === true ? agreedExclVAT * 0.2 : 0;
-  const agreedInclVAT = agreedExclVAT + agreedVAT;
+  const agreedExclVAT = round2(
+    round2(agreedHire) + round2(agreedAdmin) + round2(agreedStorage) + round2(agreedRepair) +
+    round2(agreedRecovery) + round2(agreedPlating) + round2(agreedEngineer) + round2(agreedCdw) +
+    round2(agreedCdFee) + round2(agreedAdditional) + round2(agreedPenalties),
+  );
+  // VAT is always recovered (the Yes/No option was removed) → always apply 20%
+  const agreedVAT = round2(agreedExclVAT * 0.2);
+  const agreedInclVAT = round2(agreedExclVAT + agreedVAT);
 
   // Summary
   const totalDiff = agreedInclVAT - actualInclVAT;
@@ -776,40 +774,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
             onChange={formik.handleChange}
           />
         </div>
-        {/* VAT Recovered */}
-        <div className="flex flex-col gap-2">
-          <span className="text-black text-sm font-weight-500">
-            VAT Recovered ?
-          </span>
-          <div className="flex gap-6 mt-1 items-center">
-            {["Yes", "No"].map((option) => {
-              const isYes = option === "Yes";
-              const selected = formik.values.vat_recovered === isYes;
-              return (
-                <label
-                  key={option}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="radio"
-                      name="vat_recovered"
-                      className="sr-only"
-                      checked={selected}
-                      onChange={() =>
-                        formik.setFieldValue("vat_recovered", isYes)
-                      }
-                    />
-                    {selected ? <img src={Yes} /> : <img src={No} />}
-                  </div>
-                  <span className="text-black text-sm font-weight-400">
-                    {option}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
+        {/* VAT is always recovered (20% always applied) — toggle removed */}
         {/* Agreed Totals */}
         <div className="p-4 bg-blue-100 rounded-lg flex flex-col gap-2">
           <span className="text-black text-base font-weight-600">Totals</span>

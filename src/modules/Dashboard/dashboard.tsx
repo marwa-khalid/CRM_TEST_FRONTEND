@@ -27,8 +27,9 @@ import FileIcon from '../../assets/case_activity/file.svg'
 
 import { Link, useNavigate } from "react-router-dom";
 import { getClaims } from "../../services/Claims/Claims";
+import Tasks from "../TaskManagement/Tasks";
 
-type ActivePage = "claims" | "settings";
+type ActivePage = "claims" | "settings" | "tasks";
 
 const CASE_ACTIVITY_ROUTE = "/case-activity";
 const DOCUMENT_LIBRARY_ROUTE = "/document-library";
@@ -205,6 +206,8 @@ const Dashboard: React.FC = () => {
   const handleSidebarClick = (name: string) => {
     if (name === "Claims") {
       setActivePage("claims");
+    } else if (name === "Tasks") {
+      setActivePage("tasks");
     }
   };
 
@@ -219,7 +222,8 @@ const Dashboard: React.FC = () => {
         <nav className="flex-1 py-6">
           {sidebarItems.map((item) => {
             const isSelected =
-              item.name === "Claims" && activePage === "claims";
+              (item.name === "Claims" && activePage === "claims") ||
+              (item.name === "Tasks" && activePage === "tasks");
 
             return (
               <button
@@ -476,6 +480,8 @@ const Dashboard: React.FC = () => {
             <AccountSettingsContent onClose={() => setActivePage("claims")} />
           </section>
         )}
+
+        {activePage === "tasks" && <Tasks />}
       </main>
     </div>
   );

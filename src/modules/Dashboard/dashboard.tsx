@@ -28,8 +28,10 @@ import FileIcon from '../../assets/case_activity/file.svg'
 import { Link, useNavigate } from "react-router-dom";
 import { getClaims } from "../../services/Claims/Claims";
 import Tasks from "../TaskManagement/Tasks";
+import TasksDashboard from "../TaskManagement/TasksDashboard";
+import type { TaskFilters } from "../../services/Tasks/Tasks";
 
-type ActivePage = "claims" | "settings" | "tasks";
+type ActivePage = "claims" | "settings" | "tasks" | "dashboard";
 
 const CASE_ACTIVITY_ROUTE = "/case-activity";
 const DOCUMENT_LIBRARY_ROUTE = "/document-library";
@@ -38,6 +40,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   const [activePage, setActivePage] = useState<ActivePage>("claims");
+  const [taskFilter, setTaskFilter] = useState<TaskFilters | undefined>(undefined);
   const [claims, setClaims] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -208,7 +211,15 @@ const Dashboard: React.FC = () => {
       setActivePage("claims");
     } else if (name === "Tasks") {
       setActivePage("tasks");
+    } else if (name === "Dashboard") {
+      setActivePage("dashboard");
     }
+  };
+
+  // Open the Tasks screen pre-filtered (used by the Dashboard task columns)
+  const goToTasks = (filter?: TaskFilters) => {
+    setTaskFilter(filter);
+    setActivePage("tasks");
   };
 
   return (
@@ -223,7 +234,8 @@ const Dashboard: React.FC = () => {
           {sidebarItems.map((item) => {
             const isSelected =
               (item.name === "Claims" && activePage === "claims") ||
-              (item.name === "Tasks" && activePage === "tasks");
+              (item.name === "Tasks" && activePage === "tasks") ||
+              (item.name === "Dashboard" && activePage === "dashboard");
 
             return (
               <button
@@ -481,7 +493,9 @@ const Dashboard: React.FC = () => {
           </section>
         )}
 
-        {activePage === "tasks" && <Tasks />}
+        {activePage === "tasks" && <Tasks initialFilters={taskFilter} />}
+
+        {activePage === "dashboard" && <TasksDashboard onOpen={goToTasks} />}
       </main>
     </div>
   );

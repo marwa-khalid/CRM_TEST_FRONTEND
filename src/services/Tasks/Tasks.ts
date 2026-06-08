@@ -50,3 +50,11 @@ export const updateTask = (id: number, payload: Partial<TaskPayload>) =>
   axiosInstance.put(`/tasks/${id}`, payload);
 
 export const deleteTask = (id: number) => axiosInstance.delete(`/tasks/${id}`);
+
+export const uploadTaskFile = (file: File) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  return axiosInstance.post("/tasks/upload", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};

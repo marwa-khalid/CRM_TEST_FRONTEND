@@ -16,15 +16,23 @@ import {
   CheckCircle2,
   UploadCloud,
 } from "lucide-react";
+import TotalTasks from '../../assets/TaskManagement/TotalTasks.svg'
+import Pending from "../../assets/TaskManagement/Pending.svg";
+import InProgress from '../../assets/TaskManagement/InProgress.svg'
+import Overdue from '../../assets/TaskManagement/Overdue.svg'
+import Complete from "../../assets/TaskManagement/Complete.svg";
+
 import {
   listTasks,
   getTaskStats,
   createTask,
   updateTask,
+  uploadTaskFile,
   type TaskFilters,
   type TaskPayload,
 } from "../../services/Tasks/Tasks";
 import { getClaims } from "../../services/Claims/Claims";
+import { API_BASE_URL } from "../../services/axiosConfig";
 import { CustomDatePicker } from "../Claims/Components/DatePicker";
 import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
 
@@ -78,6 +86,13 @@ const formatDate = (value?: string | null): string => {
   return `${d}-${m}-${y.slice(2)}`;
 };
 
+// Due date + time (story §6: cards show "Due Date and Time")
+const formatDue = (t: any): string => {
+  const d = formatDate(t.due_date);
+  if (d === "—") return d;
+  return t.due_time ? `${d} ${t.due_time}` : d;
+};
+
 const Badge = ({ text, cls }: { text: string; cls: string }) => (
   <span className={`px-2 py-1 rounded text-[10px] font-weight-600 uppercase ${cls}`}>
     {text}
@@ -91,11 +106,13 @@ const DatePickerField = ({
   onChange,
   placeholder = "Date",
   triggerClassName,
+  align = "left",
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   triggerClassName?: string;
+  align?: "left" | "right";
 }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -115,13 +132,19 @@ const DatePickerField = ({
           "h-[52px] px-4 bg-white rounded border border-neutral-200 flex items-center justify-between cursor-pointer"
         }
       >
-        <span className={value ? "text-neutral-700 font-light" : "text-neutral-300 font-light"}>
+        <span
+          className={
+            value
+              ? "text-neutral-700 font-light"
+              : "text-neutral-300 font-light"
+          }
+        >
           {value || placeholder}
         </span>
         <img src={Vector6} alt="" className="w-4 h-4" />
       </div>
       {open && (
-        <div className="absolute z-40 top-full mt-1 left-0 shadow-xl rounded-lg bg-white">
+        <div className={`absolute z-40 top-full mt-1 ${align === "right" ? "right-0" : "left-0"} shadow-xl rounded-lg bg-white`}>
           <CustomDatePicker
             selectedDate={value ? new Date(value) : new Date()}
             onDateSelect={(date: Date) => {
@@ -138,22 +161,46 @@ const DatePickerField = ({
 // ─── summary cards ──────────────────────────────────────────────────────────────
 
 const SUMMARY_META = [
-  { key: "total", label: "Total Tasks", bg: "bg-blue-50", iconBg: "bg-blue-100", iconColor: "text-blue-600", Icon: Inbox },
-  { key: "pending", label: "Pending", bg: "bg-red-50", iconBg: "bg-red-100", iconColor: "text-red-500", Icon: Clock3 },
-  { key: "in_progress", label: "In progress", bg: "bg-amber-50", iconBg: "bg-amber-100", iconColor: "text-amber-500", Icon: Hourglass },
-  { key: "overdue", label: "Overdue", bg: "bg-red-50", iconBg: "bg-red-100", iconColor: "text-red-500", Icon: AlertCircle },
-  { key: "completed", label: "Completed", bg: "bg-green-50", iconBg: "bg-green-100", iconColor: "text-green-600", Icon: CheckCircle2 },
+  {
+    key: "total",
+    label: "Total Tasks",
+    bg: "bg-blue-100",
+    Icon: TotalTasks,
+  },
+  {
+    key: "pending",
+    label: "Pending",
+    bg: "bg-red-100",
+    Icon: Pending,
+  },
+  {
+    key: "in_progress",
+    label: "In progress",
+    bg: "bg-yellow-100",
+    Icon: InProgress,
+  },
+  {
+    key: "overdue",
+    label: "Overdue",
+    bg: "bg-red-100",
+    Icon: Overdue,
+  },
+  {
+    key: "completed",
+    label: "Completed",
+    bg: "bg-green-100",
+    Icon: Complete,
+  },
 ] as const;
 
 const SummaryCard = ({
-  label, value, bg, iconBg, iconColor, Icon,
-}: { label: string; value: number; bg: string; iconBg: string; iconColor: string; Icon: any }) => (
+  label, value, bg, Icon,
+}: { label: string; value: number; bg: string; Icon: any }) => (
   <div className={`${bg} rounded-lg p-5 flex flex-col gap-3`}>
     <div className="flex items-start justify-between">
       <span className="text-neutral-900 text-3xl font-weight-600 leading-8">{value}</span>
-      <div className={`${iconBg} w-9 h-9 rounded flex items-center justify-center`}>
-        <Icon size={18} className={iconColor} />
-      </div>
+       <img src={Icon} alt="" />
+     
     </div>
     <span className="text-neutral-700 text-sm font-weight-500">{label}</span>
   </div>
@@ -228,8 +275,7 @@ const QuickActions = ({
     { key: "complete", label: "Mark as Complete" },
     { key: "reassign", label: "Reassign" },
     { key: "note", label: "Add Note" },
-    { key: "edit", label: "Edit Task" },
-    ...(task.claim_id ? [{ key: "open_claim", label: "Open Linked Claim" }] : []),
+    { key: "edit", label: "Edit Task" }
   ];
   return (
     <div className="relative" ref={ref}>
@@ -297,6 +343,7 @@ const AddTaskDrawer = ({
 }) => {
   const [form, setForm] = useState<any>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -444,13 +491,44 @@ const AddTaskDrawer = ({
           <Field label="Attachment Upload">
             <label className="border border-dashed border-neutral-300 rounded-lg p-8 flex flex-col items-center gap-2 cursor-pointer hover:border-blue-400">
               <UploadCloud size={28} className="text-blue-400" />
-              <span className="text-neutral-700 text-sm font-weight-600">
-                {form.attachment_path || "Choose a file or Drag & Drop here"}
+              <span className="text-neutral-700 text-sm font-weight-600 text-center break-all px-2">
+                {uploading
+                  ? "Uploading…"
+                  : form.attachment_path
+                    ? form.attachment_path.split("/").pop() || "File attached"
+                    : "Choose a file or Drag & Drop here"}
               </span>
               <span className="text-neutral-400 text-xs">JPG, PNG, PDF, CSV Supported</span>
-              <input type="file" className="hidden" accept=".jpg,.jpeg,.png,.pdf,.csv"
-                onChange={(e) => set("attachment_path", e.target.files?.[0]?.name ?? "")} />
+              <input
+                type="file"
+                className="hidden"
+                accept=".jpg,.jpeg,.png,.pdf,.csv"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploading(true);
+                  try {
+                    const { data } = await uploadTaskFile(file);
+                    set("attachment_path", data.path);
+                    toast.success("File uploaded");
+                  } catch {
+                    toast.error("Upload failed");
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+              />
             </label>
+            {form.attachment_path && !uploading && (
+              <a
+                href={`${API_BASE_URL.replace(/\/$/, "")}${form.attachment_path}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 text-xs hover:underline mt-1 inline-block"
+              >
+                View attachment
+              </a>
+            )}
           </Field>
         </div>
       </div>
@@ -494,7 +572,7 @@ const Pagination = ({
 
 // ─── main ────────────────────────────────────────────────────────────────────────
 
-const Tasks: React.FC = () => {
+const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) => {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState<any>({ total: 0, pending: 0, in_progress: 0, overdue: 0, completed: 0 });
@@ -503,14 +581,26 @@ const Tasks: React.FC = () => {
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"list" | "card">("list");
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<TaskFilters>({});
+  const [filters, setFilters] = useState<TaskFilters>(initialFilters ?? {});
   const [loading, setLoading] = useState(false);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [claims, setClaims] = useState<{ id: number; ref: string }[]>([]);
+  const [vehicleRegs, setVehicleRegs] = useState<string[]>([]);
+
+  // Overdue notifications
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [overdueTasks, setOverdueTasks] = useState<any[]>([]);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const fetchOverdue = () => {
+    listTasks({ status: "Overdue", page_size: 50 })
+      .then(({ data }) => setOverdueTasks(data?.items ?? []))
+      .catch(() => setOverdueTasks([]));
+  };
 
   const fetchStats = () => {
     getTaskStats().then(({ data }) => setStats(data)).catch(() => {});
@@ -546,6 +636,28 @@ const Tasks: React.FC = () => {
 
   useEffect(() => { fetchStats(); }, []);
 
+  // Distinct vehicle registrations for the Vehicle Reg. filter dropdown
+  useEffect(() => {
+    listTasks({ page_size: 100 })
+      .then(({ data }) => {
+        const regs = Array.from(
+          new Set((data?.items ?? []).map((t: any) => t.vehicle_registration).filter(Boolean)),
+        ) as string[];
+        setVehicleRegs(regs);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Overdue notifications: prime the list on mount; close panel on outside click
+  useEffect(() => { fetchOverdue(); }, []);
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+    };
+    if (notifOpen) document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [notifOpen]);
+
   // Debounced search + filter/page driven fetch
   useEffect(() => {
     const t = setTimeout(fetchTasks, 250);
@@ -558,7 +670,7 @@ const Tasks: React.FC = () => {
     setFilters((f) => ({ ...f, [key]: value || undefined }));
   };
 
-  const refresh = () => { fetchTasks(); fetchStats(); };
+  const refresh = () => { fetchTasks(); fetchStats(); fetchOverdue(); };
 
   const handleAction = async (action: string, task: any) => {
     try {
@@ -597,7 +709,88 @@ const Tasks: React.FC = () => {
         <h1 className="text-neutral-900 text-2xl font-weight-600">Tasks</h1>
         <div className="flex items-center gap-6 text-neutral-500">
           <Search size={20} />
-          <Bell size={20} />
+          <div className="relative" ref={notifRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setNotifOpen((o) => !o);
+                if (!notifOpen) fetchOverdue();
+              }}
+              className="relative text-neutral-500 hover:text-neutral-700"
+            >
+              <Bell size={20} />
+              {stats.overdue > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-weight-600 rounded-full flex items-center justify-center">
+                  {stats.overdue}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg border border-neutral-200 shadow-xl z-50 font-['Stack_Sans_Headline']">
+                <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+                  <span className="text-sm font-weight-600 text-neutral-900">
+                    Overdue Tasks
+                  </span>
+                  <span className="text-xs text-red-500 font-weight-600">
+                    {stats.overdue}
+                  </span>
+                </div>
+                <div className="max-h-80 overflow-auto">
+                  {overdueTasks.length === 0 ? (
+                    <div className="px-4 py-6 text-center text-neutral-400 text-sm">
+                      No overdue tasks
+                    </div>
+                  ) : (
+                    overdueTasks.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setEditing(t);
+                          setDrawerOpen(true);
+                          setNotifOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-3 border-b border-neutral-50 last:border-0 hover:bg-red-50"
+                      >
+                        <div className="flex items-start gap-2">
+                          <AlertCircle
+                            size={16}
+                            className="text-red-500 mt-0.5 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="text-sm font-weight-600 text-neutral-900 truncate">
+                              {t.title}
+                            </div>
+                            <div className="text-xs text-neutral-500">
+                              Due {formatDue(t)}
+                              {t.assigned_user ? ` · ${t.assigned_user}` : ""}
+                            </div>
+                            {t.claim_reference && (
+                              <div className="text-xs text-blue-500">
+                                {t.claim_reference}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+                {stats.overdue > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilter("status", "Overdue");
+                      setNotifOpen(false);
+                    }}
+                    className="w-full px-4 py-2.5 text-center text-sm text-blue-500 font-weight-500 hover:bg-blue-50 border-t border-neutral-100"
+                  >
+                    View all overdue
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -605,8 +798,13 @@ const Tasks: React.FC = () => {
         {/* Summary cards */}
         <div className="grid grid-cols-5 gap-4 mb-6">
           {SUMMARY_META.map((m) => (
-            <SummaryCard key={m.key} label={m.label} value={stats[m.key] ?? 0}
-              bg={m.bg} iconBg={m.iconBg} iconColor={m.iconColor} Icon={m.Icon} />
+            <SummaryCard
+              key={m.key}
+              label={m.label}
+              value={stats[m.key] ?? 0}
+              bg={m.bg}
+              Icon={m.Icon}
+            />
           ))}
         </div>
 
@@ -615,7 +813,10 @@ const Tasks: React.FC = () => {
           <div className="flex-1 max-w-[520px] px-5 py-3 bg-white rounded border border-neutral-200 flex items-center">
             <input
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               placeholder="Search task"
               className="w-full outline-none text-base font-light text-neutral-700 placeholder:text-neutral-300"
             />
@@ -623,17 +824,29 @@ const Tasks: React.FC = () => {
           <div className="flex items-center gap-3">
             {/* View toggle CTA */}
             <div className="flex items-center rounded border border-neutral-200 overflow-hidden">
-              <button type="button" onClick={() => setView("list")}
-                className={`px-3 py-2.5 flex items-center gap-1.5 text-sm ${view === "list" ? "bg-blue-500 text-white" : "bg-white text-neutral-600"}`}>
-                <ListIcon size={16} /> List
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={`px-3 py-2.5 flex items-center gap-1.5 text-sm ${view === "list" ? "bg-blue-500 text-white" : "bg-white text-neutral-600"}`}
+              >
+                <ListIcon size={16} />
               </button>
-              <button type="button" onClick={() => setView("card")}
-                className={`px-3 py-2.5 flex items-center gap-1.5 text-sm ${view === "card" ? "bg-blue-500 text-white" : "bg-white text-neutral-600"}`}>
-                <LayoutGrid size={16} /> Cards
+              <button
+                type="button"
+                onClick={() => setView("card")}
+                className={`px-3 py-2.5 flex items-center gap-1.5 text-sm ${view === "card" ? "bg-blue-500 text-white" : "bg-white text-neutral-600"}`}
+              >
+                <LayoutGrid size={16} />
               </button>
             </div>
-            <button type="button" onClick={() => { setEditing(null); setDrawerOpen(true); }}
-              className="px-8 py-3 bg-blue-500 rounded text-white text-base font-weight-500 hover:bg-blue-600 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(null);
+                setDrawerOpen(true);
+              }}
+              className="px-8 py-3 bg-blue-500 rounded text-white text-base font-weight-500 hover:bg-blue-600 flex items-center gap-2"
+            >
               <Plus size={18} /> Add Task
             </button>
           </div>
@@ -641,12 +854,43 @@ const Tasks: React.FC = () => {
 
         {/* Filters */}
         <div className="flex items-center gap-6 flex-wrap mb-5">
-          <div className="flex items-center gap-5 flex-wrap">
-            <FilterDropdown label="Priority" value={filters.priority || ""} options={PRIORITIES} onChange={(v) => setFilter("priority", v)} />
-            <FilterDropdown label="Status" value={filters.status || ""} options={STATUSES} onChange={(v) => setFilter("status", v)} />
-            <FilterDropdown label="Department" value={filters.department || ""} options={DEPARTMENTS} onChange={(v) => setFilter("department", v)} />
-            <FilterDropdown label="Assigned to" value={filters.assigned_user || ""} options={SAMPLE_USERS} onChange={(v) => setFilter("assigned_user", v)} />
-            <FilterDropdown label="Claim" value={filters.claim_reference || ""} options={claims.map((c) => c.ref)} onChange={(v) => setFilter("claim_reference", v)} />
+          <div className="flex items-center gap-12 flex-wrap">
+            <FilterDropdown
+              label="Priority"
+              value={filters.priority || ""}
+              options={PRIORITIES}
+              onChange={(v) => setFilter("priority", v)}
+            />
+            <FilterDropdown
+              label="Status"
+              value={filters.status || ""}
+              options={STATUSES}
+              onChange={(v) => setFilter("status", v)}
+            />
+            <FilterDropdown
+              label="Department"
+              value={filters.department || ""}
+              options={DEPARTMENTS}
+              onChange={(v) => setFilter("department", v)}
+            />
+            <FilterDropdown
+              label="Assigned to"
+              value={filters.assigned_user || ""}
+              options={SAMPLE_USERS}
+              onChange={(v) => setFilter("assigned_user", v)}
+            />
+            <FilterDropdown
+              label="Claim"
+              value={filters.claim_reference || ""}
+              options={claims.map((c) => c.ref)}
+              onChange={(v) => setFilter("claim_reference", v)}
+            />
+            <FilterDropdown
+              label="Vehicle Reg."
+              value={filters.vehicle_registration || ""}
+              options={vehicleRegs}
+              onChange={(v) => setFilter("vehicle_registration", v)}
+            />
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-neutral-700 text-sm">Date Range</span>
@@ -654,12 +898,14 @@ const Tasks: React.FC = () => {
               value={filters.due_from || ""}
               onChange={(v) => setFilter("due_from", v)}
               placeholder="From"
+              align="left"
               triggerClassName="w-36 h-11 px-3 bg-white rounded border border-neutral-200 flex items-center justify-between cursor-pointer text-sm"
             />
             <DatePickerField
               value={filters.due_to || ""}
               onChange={(v) => setFilter("due_to", v)}
               placeholder="To"
+              align="left"
               triggerClassName="w-36 h-11 px-3 bg-white rounded border border-neutral-200 flex items-center justify-between cursor-pointer text-sm"
             />
           </div>
@@ -667,9 +913,13 @@ const Tasks: React.FC = () => {
 
         {/* Content */}
         {loading ? (
-          <div className="py-20 text-center text-neutral-400 text-sm">Loading tasks…</div>
+          <div className="py-20 text-center text-neutral-400 text-sm">
+            Loading tasks…
+          </div>
         ) : tasks.length === 0 ? (
-          <div className="py-20 text-center text-neutral-400 text-sm">No tasks found.</div>
+          <div className="py-20 text-center text-neutral-400 text-sm">
+            No tasks found.
+          </div>
         ) : view === "list" ? (
           <div className="rounded-lg border border-neutral-100 overflow-hidden">
             <table className="w-full border-collapse">
@@ -677,36 +927,80 @@ const Tasks: React.FC = () => {
                 <tr className="h-12 bg-neutral-100 text-neutral-900 text-sm font-weight-600 text-left">
                   <th className="px-4">TASK</th>
                   <th className="px-4">DEPARTMENT</th>
-                  <th className="px-4">ASSIGNED TO</th>
-                  <th className="px-4">CLAIM</th>
+                  <th className="px-4 w-[125px]">ASSIGNED TO</th>
+                  <th className="px-4 w-[180px]">CLAIM</th>
                   <th className="px-4">VEHICLE</th>
-                  <th className="px-4">DUE DATE</th>
-                  <th className="px-4">STATUS</th>
+                  <th className="px-4 w-[140px]">DUE DATE</th>
+                  <th className="px-4 w-[113px]">STATUS</th>
                   <th className="px-4">PRIORITY</th>
                   <th className="px-4 w-10" />
                 </tr>
               </thead>
               <tbody>
                 {tasks.map((t) => (
-                  <tr key={t.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50 align-top">
-                    <td className="px-4 py-4 max-w-[320px]">
-                      <div className="text-neutral-900 text-sm font-weight-600">{t.title}</div>
+                  <tr
+                    key={t.id}
+                    className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50 align-top"
+                  >
+                    <td className="px-4 py-4 max-w-[300px]">
+                      <div className="text-neutral-900 text-sm font-weight-600">
+                        {t.title}
+                      </div>
                       {t.description && (
-                        <div className="text-neutral-500 text-xs font-weight-400 mt-1 line-clamp-2">{t.description}</div>
+                        <div className="text-neutral-500 text-xs font-weight-400 mt-1 line-clamp-2">
+                          {t.description}
+                        </div>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">{t.department || "—"}</td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">{t.assigned_user || "—"}</td>
+                    <td className="px-4 py-4 text-sm text-neutral-700 ">
+                      {t.department || "—"}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-neutral-700 ">
+                      {t.assigned_user || "—"}
+                    </td>
                     <td className="px-4 py-4 text-sm">
                       {t.claim_reference ? (
-                        <button onClick={() => openClaim(t)} className="text-blue-500 hover:underline">{t.claim_reference}</button>
-                      ) : "—"}
+                        <button
+                          onClick={() => openClaim(t)}
+                          className="text-blue-300 hover:underline"
+                        >
+                          {t.claim_reference}
+                        </button>
+                      ) : (
+                        "—"
+                      )}
                     </td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">{t.vehicle_registration || "—"}</td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">{formatDate(t.due_date)}</td>
-                    <td className="px-4 py-4"><Badge text={t.is_overdue && (t.status || "").toLowerCase() !== "completed" ? "Overdue" : t.status} cls={statusBadge(t.is_overdue && (t.status || "").toLowerCase() !== "completed" ? "Overdue" : t.status)} /></td>
-                    <td className="px-4 py-4"><Badge text={t.priority} cls={priorityBadge(t.priority)} /></td>
-                    <td className="px-4 py-4"><QuickActions task={t} onAction={handleAction} /></td>
+                    <td className="px-4 py-4 text-sm text-neutral-700">
+                      {t.vehicle_registration || "—"}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-neutral-700">
+                      {formatDue(t)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <Badge
+                        text={
+                          t.is_overdue &&
+                          (t.status || "").toLowerCase() !== "completed"
+                            ? "Overdue"
+                            : t.status
+                        }
+                        cls={statusBadge(
+                          t.is_overdue &&
+                            (t.status || "").toLowerCase() !== "completed"
+                            ? "Overdue"
+                            : t.status,
+                        )}
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <Badge
+                        text={t.priority}
+                        cls={priorityBadge(t.priority)}
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <QuickActions task={t} onAction={handleAction} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -715,28 +1009,67 @@ const Tasks: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {tasks.map((t) => (
-              <div key={t.id} className="rounded-lg border border-neutral-200 p-5 flex flex-col gap-3 hover:shadow-sm transition">
+              <div
+                key={t.id}
+                className="rounded-lg border border-neutral-200 p-5 flex flex-col gap-3 hover:shadow-sm transition"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="text-neutral-900 text-base font-weight-600">{t.title}</div>
-                    {t.description && <div className="text-neutral-500 text-sm mt-1 line-clamp-2">{t.description}</div>}
+                    <div className="text-neutral-900 text-base font-weight-600">
+                      {t.title}
+                    </div>
+                    {t.description && (
+                      <div className="text-neutral-500 text-sm mt-1 line-clamp-2">
+                        {t.description}
+                      </div>
+                    )}
                   </div>
                   <QuickActions task={t} onAction={handleAction} />
                 </div>
                 <div className="text-sm">
                   {t.claim_reference && (
-                    <span className="text-blue-500 cursor-pointer hover:underline mr-2" onClick={() => openClaim(t)}>{t.claim_reference}</span>
+                    <span
+                      className="text-blue-500 cursor-pointer hover:underline mr-2"
+                      onClick={() => openClaim(t)}
+                    >
+                      {t.claim_reference}
+                    </span>
                   )}
-                  <span className="text-neutral-600">{t.vehicle_registration || ""}</span>
+                  <span className="text-neutral-600">
+                    {t.vehicle_registration || ""}
+                  </span>
                 </div>
-                <div className="text-sm text-neutral-700">Assigned to: <span className="font-weight-600">{t.assigned_user || "—"}</span></div>
-                <div className="text-sm text-neutral-700">Department: <span className="font-weight-600">{t.department || "—"}</span></div>
+                <div className="text-sm text-neutral-700">
+                  Assigned to:{" "}
+                  <span className="font-weight-600">
+                    {t.assigned_user || "—"}
+                  </span>
+                </div>
+                <div className="text-sm text-neutral-700">
+                  Department:{" "}
+                  <span className="font-weight-600">{t.department || "—"}</span>
+                </div>
                 <div className="flex items-center justify-between pt-2">
                   <div className="flex items-center gap-2">
-                    <Badge text={t.is_overdue && (t.status || "").toLowerCase() !== "completed" ? "Overdue" : t.status} cls={statusBadge(t.is_overdue && (t.status || "").toLowerCase() !== "completed" ? "Overdue" : t.status)} />
+                    <Badge
+                      text={
+                        t.is_overdue &&
+                        (t.status || "").toLowerCase() !== "completed"
+                          ? "Overdue"
+                          : t.status
+                      }
+                      cls={statusBadge(
+                        t.is_overdue &&
+                          (t.status || "").toLowerCase() !== "completed"
+                          ? "Overdue"
+                          : t.status,
+                      )}
+                    />
                     <Badge text={t.priority} cls={priorityBadge(t.priority)} />
                   </div>
-                  <span className="text-neutral-600 text-xs">Due Date: <span className="font-weight-600">{formatDate(t.due_date)}</span></span>
+                  <span className="text-neutral-600 text-xs">
+                    Due: <span className="font-weight-600">{formatDue(t)}</span>
+                  </span>
                 </div>
               </div>
             ))}
@@ -762,7 +1095,10 @@ const Tasks: React.FC = () => {
         open={drawerOpen}
         editing={editing}
         claims={claims}
-        onClose={() => { setDrawerOpen(false); setEditing(null); }}
+        onClose={() => {
+          setDrawerOpen(false);
+          setEditing(null);
+        }}
         onSaved={refresh}
       />
     </>

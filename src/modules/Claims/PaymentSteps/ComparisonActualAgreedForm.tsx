@@ -171,7 +171,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const [statusOpen, setStatusOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   // Latest system-derived rates, used as fallback when saved values are null
-  const computedRatesRef = useRef({ repair: "0.00", recovery: "0.00", engineer: "0.00", plating: "0.00", cdFee: "0.00", admin: "0.00" });
+  const computedRatesRef = useRef({ repair: "0.00", recovery: "0.00", engineer: "0.00", plating: "0.00", cdFee: "0.00", admin: "0.00", hire: "0.00" });
 
   const formik = useFormik({
     initialValues: {
@@ -230,13 +230,12 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     if (paymentFormRef) paymentFormRef.current = formik;
   }, [formik]);
 
-  // Pre-populate fields when system data loads. All rate fields hold BASE rates;
-  // the band top-up is applied in the calc and only to hire & admin.
+  // Pre-populate fields when system data loads. The hire & admin rates hold the
+  // band-topped-up value (set in the band effect below); the others hold base.
   useEffect(() => {
     if (system.hire_days === 0 && system.hire_rate_per_day === 0) return;
     const isBhr = formik.values.abi_rate_band === "35";
     formik.setFieldValue("agreed_hire_days", system.hire_days);
-    formik.setFieldValue("agreed_hire_rate", +(system.hire_rate_per_day).toFixed(2));
     formik.setFieldValue("agreed_storage_days", system.storage_days);
     formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day).toFixed(2));
     formik.setFieldValue("agreed_cdw_days", system.cdw_days);
@@ -267,17 +266,20 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     const plating = (system.plating).toFixed(2);
     // C&D Fee is BHR-only — its value for the BHR band, 0 for ABI bands
     const cdFee = (isBhr ? system.cd_fee : 0).toFixed(2);
+    // Hire rate IS topped up by the band (10/20/35), same as admin
+    const hire = (system.hire_rate_per_day * mult).toFixed(2);
     // BHR admin is a flat 60 (no uplift); ABI bands keep abi admin × band mult
     const admin = (isBhr ? system.bhr_admin_fee : system.admin_fee * mult).toFixed(2);
-    computedRatesRef.current = { repair, recovery, engineer, plating, cdFee, admin };
+    computedRatesRef.current = { repair, recovery, engineer, plating, cdFee, admin, hire };
     formik.setFieldValue("agreed_repair_rate", repair);
     formik.setFieldValue("agreed_recovery_rate", recovery);
     formik.setFieldValue("agreed_engineer_rate", engineer);
     formik.setFieldValue("agreed_plating_rate", plating);
     formik.setFieldValue("agreed_cd_fee", cdFee);
+    formik.setFieldValue("agreed_hire_rate", hire);
     formik.setFieldValue("agreed_admin", admin);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [system.repair, system.recovery, system.engineer_fee, system.plating, system.cd_fee, system.admin_fee, system.bhr_admin_fee, formik.values.abi_rate_band]);
+  }, [system.repair, system.recovery, system.engineer_fee, system.plating, system.cd_fee, system.admin_fee, system.bhr_admin_fee, system.hire_rate_per_day, formik.values.abi_rate_band]);
 
   // Load saved form data
   useEffect(() => {
@@ -290,7 +292,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           settlement_status: s.settlement_status ?? "",
           abi_rate_band: s.abi_rate_band ?? "10",
           agreed_hire_days: s.agreed_hire_days ?? "",
-          agreed_hire_rate: s.agreed_hire_rate ?? "",
+          agreed_hire_rate: s.agreed_hire_rate ?? computedRatesRef.current.hire,
           agreed_storage_days: s.agreed_storage_days ?? "",
           agreed_storage_rate: s.agreed_storage_rate ?? "",
           agreed_cdw_days: s.agreed_cdw_days ?? "",
@@ -423,8 +425,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const agreedHireDays =
     formik.values.agreed_hire_days !== "" ? toF(formik.values.agreed_hire_days) : system.hire_days;
   const agreedHireRate =
-    formik.values.agreed_hire_rate !== "" ? toF(formik.values.agreed_hire_rate) : system.hire_rate_per_day;
-  const agreedHire = agreedHireDays * agreedHireRate * rateMult;
+    formik.values.agreed_hire_rate !== "" ? toF(formik.values.agreed_hire_rate) : system.hire_rate_per_day * rateMult;
+  // Hire rate already includes the band top-up (like admin), so no extra mult here
+  const agreedHire = agreedHireDays * agreedHireRate;
 
   const hasStorageAdj =
     formik.values.agreed_storage_days !== "" || formik.values.agreed_storage_rate !== "";

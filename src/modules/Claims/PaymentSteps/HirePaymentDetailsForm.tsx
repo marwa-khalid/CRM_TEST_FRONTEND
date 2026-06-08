@@ -307,6 +307,12 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
     [totalExclVAT, paymentAmt]
   );
 
+  // Payments Received Total mirrors the Payment Amount (they display the same amount)
+  useEffect(() => {
+    formik.setFieldValue("payments_received_total", formik.values.payment_amount);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formik.values.payment_amount]);
+
   const divider = <div className="self-stretch h-px bg-neutral-100" />;
 
   // Notify the manager that the amount received is less than the actual payable amount
@@ -354,9 +360,9 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
         amount_received: received,
         outstanding_difference: outstanding,
         write_off_amount: writeOff,
-        payment_reason: formik.values.payment_reason || null,
+        payment_reason: formik.values.payment_reason || "Payment reason not provided!",
       });
-      toast.success("Manager notified");
+      toast.success("Manager Notified");
     } catch (e: any) {
       toast.error(e?.response?.data?.detail || "Failed to notify manager");
     } finally {
@@ -472,8 +478,9 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
           <CurrencyField
             label="Payments Received Total"
             name="payments_received_total"
-            value={formik.values.payments_received_total}
+            value={formik.values.payment_amount}
             onChange={formik.handleChange}
+            readOnly
           />
           <CurrencyField
             label="Payment Outstanding (Incl. VAT)"
@@ -497,15 +504,27 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
             }
             onChange={formik.handleChange}
           />
+          {formik.values.write_off_amount !== "" && (
+           
+              <CurrencyField
+                label="Write Off (Exc. VAT)"
+                name="write_off_amount"
+                value={formik.values.write_off_amount}
+                onChange={formik.handleChange}
+                readOnly
+              />
+          )}
         </div>
-        <div>
-          <button
-            type="button"
-            onClick={handleWriteOff}
-            className="h-9 px-4 py-2 text-blue-500 bg-blue-100 hover:bg-blue-200 rounded text-sm font-weight-500 transition-colors"
-          >
-            Write Off
-          </button>
+        <div className="flex flex-col gap-4">
+          <div>
+            <button
+              type="button"
+              onClick={handleWriteOff}
+              className="h-9 px-4 py-2 text-blue-500 bg-blue-100 hover:bg-blue-200 rounded text-sm font-weight-500 transition-colors"
+            >
+              Write Off
+            </button>
+          </div>
         </div>
       </section>
     </div>

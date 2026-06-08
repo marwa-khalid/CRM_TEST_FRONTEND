@@ -1,6 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import Select from "react-select";
+import CreatableSelect from "react-select/creatable";
 import {
   Search,
   Bell,
@@ -9,13 +11,12 @@ import {
   LayoutGrid,
   MoreVertical,
   ChevronDown,
-  Inbox,
-  Clock3,
-  Hourglass,
-  AlertCircle,
-  CheckCircle2,
   UploadCloud,
+  Check,
+  X,
+  Trash2,
 } from "lucide-react";
+import NotificationsPanel, { type NotifItem, buildTaskNotifications } from "./Notifications";
 import TotalTasks from '../../assets/TaskManagement/TotalTasks.svg'
 import Pending from "../../assets/TaskManagement/Pending.svg";
 import InProgress from '../../assets/TaskManagement/InProgress.svg'
@@ -25,15 +26,20 @@ import Complete from "../../assets/TaskManagement/Complete.svg";
 import {
   listTasks,
   getTaskStats,
+  getVehicleOptions,
   createTask,
   updateTask,
-  uploadTaskFile,
+  deleteTask,
   type TaskFilters,
   type TaskPayload,
 } from "../../services/Tasks/Tasks";
 import { getClaims } from "../../services/Claims/Claims";
 import { API_BASE_URL } from "../../services/axiosConfig";
 import { CustomDatePicker } from "../Claims/Components/DatePicker";
+import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDetailsForm";
+import { ConfirmModal } from "../../components/common/ConfirmModal";
+import { SpinnerLoader } from "../../components/common/SpinnerLoader";
+import TaskAttachmentModal, { fileLogo } from "./TaskAttachmentModal";
 import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -50,14 +56,55 @@ const PRIORITIES = ["Low", "Medium", "High"];
 const DEPARTMENTS = ["Claims", "Fleet", "Recovery", "Customer Service"];
 // Sample users for now (no users endpoint wired yet)
 const SAMPLE_USERS = [
-  "Ruby ",
   "Imran Dean",
   "Hina Sadaf",
-  "John Smith",
-  "Olivia Rhye",
-  "Michael Brown",
+  "Ruby Ud Din",
+  "Akeel Rehman",
+  "Tariq Hussain",
+  "Ali Pervaiz",
+  "Alex"
 ];
-const PAGE_SIZE = 10;
+
+// Filter keys that support multi-select
+const MULTI_KEYS = [
+  "priority",
+  "status",
+  "department",
+  "assigned_user",
+  "claim_reference",
+  "vehicle_registration",
+] as const;
+type MultiKey = (typeof MULTI_KEYS)[number];
+type MultiState = Record<MultiKey, string[]>;
+
+// react-select shares the same styling as the claim forms; portal the menu so
+// it isn't clipped by the scrollable drawer body.
+const selectStyles: any = {
+  ...customStyles,
+  menuPortal: (base: any) => ({ ...base, zIndex: 80 }),
+};
+const opt = (v: string) => ({ label: v, value: v });
+const opts = (arr: string[]) => arr.map(opt);
+
+// 15-minute interval time options (editable via CreatableSelect)
+const TIME_OPTIONS = (() => {
+  const times: { label: string; value: string }[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const t = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      times.push({ label: t, value: t });
+    }
+  }
+  return times;
+})();
+const normalizeTime = (value: string) => {
+  if (!value) return "";
+  const [hour, minute] = value.split(":");
+  const h = Math.min(Math.max(Number(hour || 0), 0), 23);
+  const m = Math.min(Math.max(Number(minute || 0), 0), 59);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
+const isValidTime = (value: string) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(value);
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +131,15 @@ const formatDate = (value?: string | null): string => {
   const [y, m, d] = value.split("-");
   if (!y || !m || !d) return value;
   return `${d}-${m}-${y.slice(2)}`;
+};
+
+// Format a Date as a LOCAL "YYYY-MM-DD". Using toISOString() here would shift
+// the day by the timezone offset (e.g. picking the 9th would store the 8th).
+const toLocalISODate = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 };
 
 // Due date + time (story §6: cards show "Due Date and Time")
@@ -116,6 +172,8 @@ const DatePickerField = ({
 }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -123,6 +181,18 @@ const DatePickerField = ({
     if (open) document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
+  // Position the calendar with fixed coords, anchored under the box and clamped
+  // to the viewport so it can never overflow off-screen.
+  useLayoutEffect(() => {
+    if (!open || !ref.current) { setPos(null); return; }
+    const r = ref.current.getBoundingClientRect();
+    const w = popRef.current?.offsetWidth || 320;
+    let left = align === "right" ? r.right - w : r.left;
+    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+    // Open just below the field.
+    const top = r.bottom - 50;
+    setPos({ top, left });
+  }, [open, align]);
   return (
     <div className="relative" ref={ref}>
       <div
@@ -144,11 +214,21 @@ const DatePickerField = ({
         <img src={Vector6} alt="" className="w-4 h-4" />
       </div>
       {open && (
-        <div className={`absolute z-40 top-full mt-1 ${align === "right" ? "right-0" : "left-0"} shadow-xl rounded-lg bg-white`}>
+        <div
+          ref={popRef}
+          style={{
+            position: "fixed",
+            top: pos?.top ?? 0,
+            left: pos?.left ?? 0,
+            visibility: pos ? "visible" : "hidden",
+            zIndex: 60,
+          }}
+          className="shadow-xl rounded-lg bg-white"
+        >
           <CustomDatePicker
-            selectedDate={value ? new Date(value) : new Date()}
+            selectedDate={value ? new Date(value + "T00:00:00") : new Date()}
             onDateSelect={(date: Date) => {
-              onChange(date.toISOString().split("T")[0]);
+              onChange(toLocalISODate(date));
               setOpen(false);
             }}
           />
@@ -200,17 +280,23 @@ const SummaryCard = ({
     <div className="flex items-start justify-between">
       <span className="text-neutral-900 text-3xl font-weight-600 leading-8">{value}</span>
        <img src={Icon} alt="" />
-     
+
     </div>
     <span className="text-neutral-700 text-sm font-weight-500">{label}</span>
   </div>
 );
 
-// ─── filter dropdown ─────────────────────────────────────────────────────────────
+// ─── multi-select filter dropdown ────────────────────────────────────────────────
 
-const FilterDropdown = ({
-  label, value, options, onChange,
-}: { label: string; value: string; options: string[]; onChange: (v: string) => void }) => {
+const MultiFilterDropdown = ({
+  label, options, selected, onToggle, onClear,
+}: {
+  label: string;
+  options: string[];
+  selected: string[];
+  onToggle: (v: string) => void;
+  onClear: () => void;
+}) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -227,30 +313,49 @@ const FilterDropdown = ({
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-1.5 text-blue-500 text-sm font-weight-500 hover:opacity-80"
       >
-        {value || label}
+        {selected.length > 0 && (
+          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-blue-500 text-white text-[11px] flex items-center justify-center">
+            {selected.length}
+          </span>
+        )}
+        {label}
         <ChevronDown size={14} />
       </button>
       {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 min-w-[180px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1">
-          <button
-            type="button"
-            onClick={() => { onChange(""); setOpen(false); }}
-            className="w-full text-left px-4 py-2 text-sm text-neutral-500 hover:bg-neutral-50"
-          >
-            All {label}
-          </button>
-          {options.map((opt) => (
+        <div className="absolute z-30 top-full mt-1 left-0 min-w-[210px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1 max-h-72 overflow-auto">
+          {selected.length > 0 && (
             <button
-              key={opt}
               type="button"
-              onClick={() => { onChange(opt); setOpen(false); }}
-              className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-50 ${
-                value === opt ? "bg-blue-50 text-blue-600 font-weight-500" : "text-neutral-700"
-              }`}
+              onClick={onClear}
+              className="w-full text-left px-4 py-2 text-xs text-neutral-500 hover:bg-neutral-50 border-b border-neutral-100"
             >
-              {opt}
+              Clear {label}
             </button>
-          ))}
+          )}
+          {options.length === 0 ? (
+            <div className="px-4 py-2 text-sm text-neutral-400">No options</div>
+          ) : (
+            options.map((o) => {
+              const checked = selected.includes(o);
+              return (
+                <button
+                  key={o}
+                  type="button"
+                  onClick={() => onToggle(o)}
+                  className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm hover:bg-blue-50 text-neutral-700"
+                >
+                  <span
+                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                      checked ? "bg-blue-500 border-blue-500" : "border-neutral-300"
+                    }`}
+                  >
+                    {checked && <Check size={12} className="text-white" />}
+                  </span>
+                  <span className="truncate">{o}</span>
+                </button>
+              );
+            })
+          )}
         </div>
       )}
     </div>
@@ -275,7 +380,8 @@ const QuickActions = ({
     { key: "complete", label: "Mark as Complete" },
     { key: "reassign", label: "Reassign" },
     { key: "note", label: "Add Note" },
-    { key: "edit", label: "Edit Task" }
+    { key: "edit", label: "Edit Task" },
+    { key: "delete", label: "Delete Task", danger: true },
   ];
   return (
     <div className="relative" ref={ref}>
@@ -287,13 +393,15 @@ const QuickActions = ({
         <MoreVertical size={16} />
       </button>
       {open && (
-        <div className="absolute z-30 top-full mt-1 right-0 min-w-[170px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1">
+        <div className="absolute z-30 top-full mt-1 right-0 min-w-[180px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1">
           {items.map((it) => (
             <button
               key={it.key}
               type="button"
               onClick={() => { setOpen(false); onAction(it.key, task); }}
-              className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-blue-50"
+              className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-50 ${
+                (it as any).danger ? "text-red-600 hover:bg-red-50" : "text-neutral-700"
+              }`}
             >
               {it.label}
             </button>
@@ -330,20 +438,22 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 
 const inputCls =
   "w-full h-[52px] px-4 bg-white rounded border border-neutral-200 outline-none text-neutral-700 font-light focus:border-blue-500";
-const selectCls = inputCls + " appearance-none cursor-pointer";
 
 const AddTaskDrawer = ({
-  open, editing, claims, onClose, onSaved,
+  open, editing, claims, vehicleRegs, onClose, onSaved,
 }: {
   open: boolean;
   editing: any | null;
   claims: { id: number; ref: string }[];
+  vehicleRegs: string[];
   onClose: () => void;
   onSaved: () => void;
 }) => {
   const [form, setForm] = useState<any>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [attachmentOpen, setAttachmentOpen] = useState(false);
+
+  const claimOptions = claims.map((c) => ({ label: c.ref, value: String(c.id) }));
 
   useEffect(() => {
     if (open) {
@@ -388,10 +498,23 @@ const AddTaskDrawer = ({
     }
   };
 
+  const selectProps = {
+    styles: selectStyles,
+    menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
+    components: { DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null },
+  } as any;
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
+      {saving && <SpinnerLoader />}
+      {attachmentOpen && (
+        <TaskAttachmentModal
+          onClose={() => setAttachmentOpen(false)}
+          onUploaded={(path) => set("attachment_path", path)}
+        />
+      )}
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-[520px] h-full bg-white shadow-xl flex flex-col font-['Stack_Sans_Headline']">
+      <div className="relative w-full max-w-[600px] h-full bg-white shadow-xl flex flex-col font-['Stack_Sans_Headline']">
         {/* Header */}
         <div className="h-16 px-6 flex items-center justify-between border-b border-neutral-100 shrink-0">
           <h2 className="text-black text-lg font-weight-600">
@@ -417,7 +540,7 @@ const AddTaskDrawer = ({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+        <div className="flex-1 always-scrollbar p-6 flex flex-col gap-5">
           <Field label="Task Title">
             <input className={inputCls} placeholder="Enter Title" value={form.title}
               onChange={(e) => set("title", e.target.value)} />
@@ -430,19 +553,25 @@ const AddTaskDrawer = ({
           </Field>
 
           <Field label="Assigned User">
-            <select className={selectCls} value={form.assigned_user}
-              onChange={(e) => set("assigned_user", e.target.value)}>
-              <option value="">Value</option>
-              {SAMPLE_USERS.map((u) => <option key={u} value={u}>{u}</option>)}
-            </select>
+            <Select
+              options={opts(SAMPLE_USERS)}
+              value={form.assigned_user ? opt(form.assigned_user) : null}
+              onChange={(o: any) => set("assigned_user", o?.value || "")}
+              placeholder="Select user"
+              isClearable
+              {...selectProps}
+            />
           </Field>
 
           <Field label="Department">
-            <select className={selectCls} value={form.department}
-              onChange={(e) => set("department", e.target.value)}>
-              <option value="">Value</option>
-              {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
+            <Select
+              options={opts(DEPARTMENTS)}
+              value={form.department ? opt(form.department) : null}
+              onChange={(o: any) => set("department", o?.value || "")}
+              placeholder="Select department"
+              isClearable
+              {...selectProps}
+            />
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
@@ -450,84 +579,115 @@ const AddTaskDrawer = ({
               <DatePickerField value={form.due_date} onChange={(v) => set("due_date", v)} />
             </Field>
             <Field label="Due Time">
-              <input type="time" className={inputCls} value={form.due_time}
-                onChange={(e) => set("due_time", e.target.value)} />
+              <CreatableSelect
+                options={TIME_OPTIONS}
+                value={form.due_time ? { label: form.due_time, value: form.due_time } : null}
+                onChange={(o: any) => set("due_time", o?.value || "")}
+                onCreateOption={(input: string) => {
+                  if (isValidTime(input)) set("due_time", normalizeTime(input));
+                  else toast.error("Please enter time in HH:mm format");
+                }}
+                placeholder="Select or type time"
+                isSearchable
+                {...selectProps}
+              />
             </Field>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Priority">
-              <select className={selectCls} value={form.priority}
-                onChange={(e) => set("priority", e.target.value)}>
-                {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
+              <Select
+                options={opts(PRIORITIES)}
+                value={form.priority ? opt(form.priority) : null}
+                onChange={(o: any) => set("priority", o?.value || "")}
+                placeholder="Select priority"
+                {...selectProps}
+              />
             </Field>
             <Field label="Status">
-              <select className={selectCls} value={form.status}
-                onChange={(e) => set("status", e.target.value)}>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <Select
+                options={opts(STATUSES)}
+                value={form.status ? opt(form.status) : null}
+                onChange={(o: any) => set("status", o?.value || "")}
+                placeholder="Select status"
+                {...selectProps}
+              />
             </Field>
           </div>
 
           <Field label="Claim Reference">
-            <select className={selectCls} value={form.claim_id}
-              onChange={(e) => {
-                const id = e.target.value;
-                const c = claims.find((x) => String(x.id) === id);
-                set("claim_id", id);
-                set("claim_reference", c?.ref ?? "");
-              }}>
-              <option value="">Value</option>
-              {claims.map((c) => <option key={c.id} value={c.id}>{c.ref}</option>)}
-            </select>
+            <Select
+              options={claimOptions}
+              value={form.claim_id ? claimOptions.find((c) => c.value === String(form.claim_id)) ?? null : null}
+              onChange={(o: any) => {
+                set("claim_id", o?.value || "");
+                set("claim_reference", o?.label || "");
+              }}
+              placeholder="Select claim"
+              isClearable
+              isSearchable
+              {...selectProps}
+            />
           </Field>
 
           <Field label="Vehicle Reg.">
-            <input className={inputCls} placeholder="Value" value={form.vehicle_registration}
-              onChange={(e) => set("vehicle_registration", e.target.value)} />
+            <CreatableSelect
+              options={opts(vehicleRegs)}
+              value={form.vehicle_registration ? opt(form.vehicle_registration) : null}
+              onChange={(o: any) => set("vehicle_registration", o?.value || "")}
+              onCreateOption={(input: string) => set("vehicle_registration", input.trim())}
+              placeholder="Select or add registration"
+              formatCreateLabel={(input: string) => `Add "${input}"`}
+              isClearable
+              isSearchable
+              {...selectProps}
+            />
           </Field>
 
           <Field label="Attachment Upload">
-            <label className="border border-dashed border-neutral-300 rounded-lg p-8 flex flex-col items-center gap-2 cursor-pointer hover:border-blue-400">
-              <UploadCloud size={28} className="text-blue-400" />
-              <span className="text-neutral-700 text-sm font-weight-600 text-center break-all px-2">
-                {uploading
-                  ? "Uploading…"
-                  : form.attachment_path
-                    ? form.attachment_path.split("/").pop() || "File attached"
-                    : "Choose a file or Drag & Drop here"}
-              </span>
-              <span className="text-neutral-400 text-xs">JPG, PNG, PDF, CSV Supported</span>
-              <input
-                type="file"
-                className="hidden"
-                accept=".jpg,.jpeg,.png,.pdf,.csv"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setUploading(true);
-                  try {
-                    const { data } = await uploadTaskFile(file);
-                    set("attachment_path", data.path);
-                    toast.success("File uploaded");
-                  } catch {
-                    toast.error("Upload failed");
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-              />
-            </label>
-            {form.attachment_path && !uploading && (
-              <a
-                href={`${API_BASE_URL.replace(/\/$/, "")}${form.attachment_path}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 text-xs hover:underline mt-1 inline-block"
+            {form.attachment_path ? (
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-neutral-200">
+                <img src={fileLogo(form.attachment_path)} alt="" className="w-9 h-9" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-neutral-800 truncate">
+                    {form.attachment_path.split("/").pop()}
+                  </div>
+                  <a
+                    href={`${API_BASE_URL.replace(/\/$/, "")}${form.attachment_path}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 text-xs hover:underline"
+                  >
+                    View attachment
+                  </a>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* <button
+                    type="button"
+                    onClick={() => setAttachmentOpen(true)}
+                    className="text-blue-500 text-xs hover:underline"
+                  >
+                    Replace
+                  </button> */}
+                  <button
+                    type="button"
+                    onClick={() => set("attachment_path", "")}
+                    className="text-neutral-400 hover:text-red-500"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAttachmentOpen(true)}
+                className="w-full border border-dashed border-neutral-300 rounded-lg p-8 flex flex-col items-center gap-2 cursor-pointer hover:border-blue-400"
               >
-                View attachment
-              </a>
+                <UploadCloud size={28} className="text-blue-400" />
+                <span className="text-neutral-700 text-sm font-weight-600">Add Attachment</span>
+                <span className="text-neutral-400 text-xs">JPG, PNG, PDF, CSV Supported</span>
+              </button>
             )}
           </Field>
         </div>
@@ -541,7 +701,6 @@ const AddTaskDrawer = ({
 const Pagination = ({
   page, totalPages, onChange,
 }: { page: number; totalPages: number; onChange: (p: number) => void }) => {
-  if (totalPages <= 1) return null;
   const pages: (number | string)[] = [];
   const max = Math.min(totalPages, 8);
   for (let i = 1; i <= max; i++) pages.push(i);
@@ -555,7 +714,7 @@ const Pagination = ({
       {pages.map((p, i) =>
         typeof p === "number" ? (
           <button key={i} onClick={() => onChange(p)}
-            className={`w-9 h-9 border border-neutral-200 -ml-px ${p === page ? "bg-blue-100 text-black" : "bg-white text-neutral-600"}`}>
+            className={`w-9 h-9 border border-neutral-200 -ml-px ${p === page ? "bg-blue-100 text-black font-weight-600" : "bg-white text-neutral-600"}`}>
             {p}
           </button>
         ) : (
@@ -572,6 +731,15 @@ const Pagination = ({
 
 // ─── main ────────────────────────────────────────────────────────────────────────
 
+const seedMulti = (init?: TaskFilters): MultiState => ({
+  priority: init?.priority ? [init.priority] : [],
+  status: init?.status ? [init.status] : [],
+  department: init?.department ? [init.department] : [],
+  assigned_user: init?.assigned_user ? [init.assigned_user] : [],
+  claim_reference: init?.claim_reference ? [init.claim_reference] : [],
+  vehicle_registration: init?.vehicle_registration ? [init.vehicle_registration] : [],
+});
+
 const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) => {
   const navigate = useNavigate();
 
@@ -581,7 +749,11 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"list" | "card">("list");
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<TaskFilters>(initialFilters ?? {});
+  const [multi, setMulti] = useState<MultiState>(seedMulti(initialFilters));
+  const [dateRange, setDateRange] = useState({
+    due_from: initialFilters?.due_from || "",
+    due_to: initialFilters?.due_to || "",
+  });
   const [loading, setLoading] = useState(false);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -589,17 +761,71 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
   const [claims, setClaims] = useState<{ id: number; ref: string }[]>([]);
   const [vehicleRegs, setVehicleRegs] = useState<string[]>([]);
 
-  // Overdue notifications
+  // selection + delete
+  const [selected, setSelected] = useState<number[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+
+  // Notifications
   const [notifOpen, setNotifOpen] = useState(false);
   const [overdueTasks, setOverdueTasks] = useState<any[]>([]);
+  const [dueToday, setDueToday] = useState<any[]>([]);
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // List view shows 10 per page, card view shows 9 per page
+  const pageSize = view === "card" ? 9 : 10;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const buildParams = (): TaskFilters => ({
+    priority: multi.priority.join(",") || undefined,
+    status: multi.status.join(",") || undefined,
+    department: multi.department.join(",") || undefined,
+    assigned_user: multi.assigned_user.join(",") || undefined,
+    claim_reference: multi.claim_reference.join(",") || undefined,
+    vehicle_registration: multi.vehicle_registration.join(",") || undefined,
+    due_from: dateRange.due_from || undefined,
+    due_to: dateRange.due_to || undefined,
+  });
 
   const fetchOverdue = () => {
     listTasks({ status: "Overdue", page_size: 50 })
       .then(({ data }) => setOverdueTasks(data?.items ?? []))
       .catch(() => setOverdueTasks([]));
+  };
+
+  const fetchDueToday = () => {
+    const today = new Date().toISOString().split("T")[0];
+    listTasks({ due_from: today, due_to: today, page_size: 50 })
+      .then(({ data }) =>
+        setDueToday(
+          (data?.items ?? []).filter(
+            (t: any) => !["Completed", "Rejected"].includes(t.status),
+          ),
+        ),
+      )
+      .catch(() => setDueToday([]));
+  };
+
+  // Build the notification feed: real task alerts + static placeholders
+  const notifications = useMemo<NotifItem[]>(
+    () => buildTaskNotifications(overdueTasks, dueToday),
+    [overdueTasks, dueToday],
+  );
+
+  const unreadCount = notifications.filter((n) => n.unread && !readIds.has(n.id)).length;
+
+  const markAllRead = () => setReadIds(new Set(notifications.map((n) => n.id)));
+  const handleNotifClick = (n: NotifItem) => {
+    setReadIds((prev) => new Set(prev).add(n.id));
+    if (n.taskId) {
+      const task = [...overdueTasks, ...dueToday].find((t) => t.id === n.taskId);
+      if (task) {
+        setEditing(task);
+        setDrawerOpen(true);
+      }
+    }
+    setNotifOpen(false);
   };
 
   const fetchStats = () => {
@@ -608,7 +834,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
 
   const fetchTasks = () => {
     setLoading(true);
-    listTasks({ ...filters, search, page, page_size: PAGE_SIZE })
+    listTasks({ ...buildParams(), search, page, page_size: pageSize })
       .then(({ data }) => {
         setTasks(data?.items ?? []);
         setTotal(data?.total ?? 0);
@@ -636,20 +862,16 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
 
   useEffect(() => { fetchStats(); }, []);
 
-  // Distinct vehicle registrations for the Vehicle Reg. filter dropdown
-  useEffect(() => {
-    listTasks({ page_size: 100 })
-      .then(({ data }) => {
-        const regs = Array.from(
-          new Set((data?.items ?? []).map((t: any) => t.vehicle_registration).filter(Boolean)),
-        ) as string[];
-        setVehicleRegs(regs);
-      })
+  // Distinct vehicle registrations (tenant-wide) for the Vehicle Reg. dropdown + filter
+  const fetchVehicleOptions = () => {
+    getVehicleOptions()
+      .then(({ data }) => setVehicleRegs(Array.isArray(data) ? data : []))
       .catch(() => {});
-  }, []);
+  };
+  useEffect(() => { fetchVehicleOptions(); }, []);
 
-  // Overdue notifications: prime the list on mount; close panel on outside click
-  useEffect(() => { fetchOverdue(); }, []);
+  // Notifications: prime the lists on mount; close panel on outside click
+  useEffect(() => { fetchOverdue(); fetchDueToday(); }, []);
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
@@ -663,14 +885,34 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
     const t = setTimeout(fetchTasks, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filters, page]);
+  }, [search, multi, dateRange, page, pageSize]);
 
-  const setFilter = (key: keyof TaskFilters, value: string) => {
+  // ----- filter handlers -----
+  const toggleFilter = (key: MultiKey, value: string) => {
     setPage(1);
-    setFilters((f) => ({ ...f, [key]: value || undefined }));
+    setMulti((m) => {
+      const arr = m[key];
+      return { ...m, [key]: arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value] };
+    });
+  };
+  const clearFilter = (key: MultiKey) => {
+    setPage(1);
+    setMulti((m) => ({ ...m, [key]: [] }));
+  };
+  const removeFilter = (key: MultiKey, value: string) => {
+    setPage(1);
+    setMulti((m) => ({ ...m, [key]: m[key].filter((v) => v !== value) }));
+  };
+  const clearAllFilters = () => {
+    setPage(1);
+    setMulti(seedMulti());
+  };
+  const setDate = (key: "due_from" | "due_to", value: string) => {
+    setPage(1);
+    setDateRange((d) => ({ ...d, [key]: value }));
   };
 
-  const refresh = () => { fetchTasks(); fetchStats(); fetchOverdue(); };
+  const refresh = () => { fetchTasks(); fetchStats(); fetchOverdue(); fetchDueToday(); fetchVehicleOptions(); };
 
   const handleAction = async (action: string, task: any) => {
     try {
@@ -689,6 +931,9 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
         if (user !== null) { await updateTask(task.id, { assigned_user: user }); toast.success("Task reassigned"); refresh(); }
       } else if (action === "open_claim") {
         if (task.claim_id) navigate(`/add-claim/${task.claim_id}`);
+        else toast.info("No linked claim");
+      } else if (action === "delete") {
+        setDeleteTarget(task);
       }
     } catch {
       toast.error("Action failed");
@@ -699,8 +944,47 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
     if (task.claim_id) navigate(`/add-claim/${task.claim_id}`);
   };
 
-  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, total);
+  // ----- selection -----
+  const allSelected = tasks.length > 0 && tasks.every((t) => selected.includes(t.id));
+  const toggleAll = () => {
+    const ids = tasks.map((t) => t.id);
+    setSelected((s) =>
+      allSelected ? s.filter((id) => !ids.includes(id)) : Array.from(new Set([...s, ...ids])),
+    );
+  };
+  const toggleOne = (id: number) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const confirmDeleteSingle = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteTask(deleteTarget.id);
+      toast.success("Task deleted");
+      setSelected((s) => s.filter((id) => id !== deleteTarget.id));
+      refresh();
+    } catch {
+      toast.error("Failed to delete task");
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+  const confirmDeleteBulk = async () => {
+    try {
+      await Promise.all(selected.map((id) => deleteTask(id)));
+      toast.success(`${selected.length} task(s) deleted`);
+      setSelected([]);
+      refresh();
+    } catch {
+      toast.error("Failed to delete tasks");
+    } finally {
+      setBulkConfirm(false);
+    }
+  };
+
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, total);
+
+  const activePills = MULTI_KEYS.flatMap((k) => multi[k].map((v) => ({ key: k, value: v })));
 
   return (
     <>
@@ -714,80 +998,28 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
               type="button"
               onClick={() => {
                 setNotifOpen((o) => !o);
-                if (!notifOpen) fetchOverdue();
+                if (!notifOpen) {
+                  fetchOverdue();
+                  fetchDueToday();
+                }
               }}
               className="relative text-neutral-500 hover:text-neutral-700"
             >
               <Bell size={20} />
-              {stats.overdue > 0 && (
+              {unreadCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-weight-600 rounded-full flex items-center justify-center">
-                  {stats.overdue}
+                  {unreadCount}
                 </span>
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg border border-neutral-200 shadow-xl z-50 font-['Stack_Sans_Headline']">
-                <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
-                  <span className="text-sm font-weight-600 text-neutral-900">
-                    Overdue Tasks
-                  </span>
-                  <span className="text-xs text-red-500 font-weight-600">
-                    {stats.overdue}
-                  </span>
-                </div>
-                <div className="max-h-80 overflow-auto">
-                  {overdueTasks.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-neutral-400 text-sm">
-                      No overdue tasks
-                    </div>
-                  ) : (
-                    overdueTasks.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          setEditing(t);
-                          setDrawerOpen(true);
-                          setNotifOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-3 border-b border-neutral-50 last:border-0 hover:bg-red-50"
-                      >
-                        <div className="flex items-start gap-2">
-                          <AlertCircle
-                            size={16}
-                            className="text-red-500 mt-0.5 shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <div className="text-sm font-weight-600 text-neutral-900 truncate">
-                              {t.title}
-                            </div>
-                            <div className="text-xs text-neutral-500">
-                              Due {formatDue(t)}
-                              {t.assigned_user ? ` · ${t.assigned_user}` : ""}
-                            </div>
-                            {t.claim_reference && (
-                              <div className="text-xs text-blue-500">
-                                {t.claim_reference}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-                {stats.overdue > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilter("status", "Overdue");
-                      setNotifOpen(false);
-                    }}
-                    className="w-full px-4 py-2.5 text-center text-sm text-blue-500 font-weight-500 hover:bg-blue-50 border-t border-neutral-100"
-                  >
-                    View all overdue
-                  </button>
-                )}
+              <div className="absolute right-0 top-full mt-2 z-50">
+                <NotificationsPanel
+                  items={notifications}
+                  readIds={readIds}
+                  onMarkAllRead={markAllRead}
+                  onItemClick={handleNotifClick}
+                />
               </div>
             )}
           </div>
@@ -826,14 +1058,20 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
             <div className="flex items-center rounded border border-neutral-200 overflow-hidden">
               <button
                 type="button"
-                onClick={() => setView("list")}
+                onClick={() => {
+                  setView("list");
+                  setPage(1);
+                }}
                 className={`px-3 py-2.5 flex items-center gap-1.5 text-sm ${view === "list" ? "bg-blue-500 text-white" : "bg-white text-neutral-600"}`}
               >
                 <ListIcon size={16} />
               </button>
               <button
                 type="button"
-                onClick={() => setView("card")}
+                onClick={() => {
+                  setView("card");
+                  setPage(1);
+                }}
                 className={`px-3 py-2.5 flex items-center gap-1.5 text-sm ${view === "card" ? "bg-blue-500 text-white" : "bg-white text-neutral-600"}`}
               >
                 <LayoutGrid size={16} />
@@ -853,78 +1091,157 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-6 flex-wrap mb-5">
+        <div className="flex items-center gap-6 flex-wrap mb-3">
           <div className="flex items-center gap-12 flex-wrap">
-            <FilterDropdown
+            <MultiFilterDropdown
               label="Priority"
-              value={filters.priority || ""}
               options={PRIORITIES}
-              onChange={(v) => setFilter("priority", v)}
+              selected={multi.priority}
+              onToggle={(v) => toggleFilter("priority", v)}
+              onClear={() => clearFilter("priority")}
             />
-            <FilterDropdown
+            <MultiFilterDropdown
               label="Status"
-              value={filters.status || ""}
               options={STATUSES}
-              onChange={(v) => setFilter("status", v)}
+              selected={multi.status}
+              onToggle={(v) => toggleFilter("status", v)}
+              onClear={() => clearFilter("status")}
             />
-            <FilterDropdown
+            <MultiFilterDropdown
               label="Department"
-              value={filters.department || ""}
               options={DEPARTMENTS}
-              onChange={(v) => setFilter("department", v)}
+              selected={multi.department}
+              onToggle={(v) => toggleFilter("department", v)}
+              onClear={() => clearFilter("department")}
             />
-            <FilterDropdown
+            <MultiFilterDropdown
               label="Assigned to"
-              value={filters.assigned_user || ""}
               options={SAMPLE_USERS}
-              onChange={(v) => setFilter("assigned_user", v)}
+              selected={multi.assigned_user}
+              onToggle={(v) => toggleFilter("assigned_user", v)}
+              onClear={() => clearFilter("assigned_user")}
             />
-            <FilterDropdown
+            <MultiFilterDropdown
               label="Claim"
-              value={filters.claim_reference || ""}
               options={claims.map((c) => c.ref)}
-              onChange={(v) => setFilter("claim_reference", v)}
+              selected={multi.claim_reference}
+              onToggle={(v) => toggleFilter("claim_reference", v)}
+              onClear={() => clearFilter("claim_reference")}
             />
-            <FilterDropdown
+            <MultiFilterDropdown
               label="Vehicle Reg."
-              value={filters.vehicle_registration || ""}
               options={vehicleRegs}
-              onChange={(v) => setFilter("vehicle_registration", v)}
+              selected={multi.vehicle_registration}
+              onToggle={(v) => toggleFilter("vehicle_registration", v)}
+              onClear={() => clearFilter("vehicle_registration")}
             />
           </div>
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-neutral-700 text-sm">Date Range</span>
             <DatePickerField
-              value={filters.due_from || ""}
-              onChange={(v) => setFilter("due_from", v)}
+              value={dateRange.due_from}
+              onChange={(v) => setDate("due_from", v)}
               placeholder="From"
-              align="left"
+              align="right"
               triggerClassName="w-36 h-11 px-3 bg-white rounded border border-neutral-200 flex items-center justify-between cursor-pointer text-sm"
             />
             <DatePickerField
-              value={filters.due_to || ""}
-              onChange={(v) => setFilter("due_to", v)}
+              value={dateRange.due_to}
+              onChange={(v) => setDate("due_to", v)}
               placeholder="To"
-              align="left"
+              align="right"
               triggerClassName="w-36 h-11 px-3 bg-white rounded border border-neutral-200 flex items-center justify-between cursor-pointer text-sm"
             />
+            {(dateRange.due_from || dateRange.due_to) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPage(1);
+                  setDateRange({ due_from: "", due_to: "" });
+                }}
+                title="Clear date range"
+                className="flex items-center gap-1.5 h-11 px-3.5 rounded-full bg-blue-50 text-blue-500 text-sm font-weight-500 hover:bg-red-50 hover:text-red-500 transition-colors"
+              >
+                <X size={15} /> Clear
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Active filter pills */}
+        {activePills.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mb-5">
+            {activePills.map(({ key, value }) => (
+              <span
+                key={`${key}-${value}`}
+                className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white rounded-full border border-neutral-200 text-sm text-neutral-700"
+              >
+                {value}
+                <button
+                  type="button"
+                  onClick={() => removeFilter(key, value)}
+                  className="text-neutral-400 hover:text-neutral-700"
+                >
+                  <X size={14} />
+                </button>
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="text-blue-500 text-sm font-weight-500 hover:underline ml-1"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+
+        {/* Bulk action bar */}
+        {selected.length > 0 && (
+          <div className="flex items-center justify-between mb-3 px-4 py-2.5 bg-blue-50 rounded border border-blue-100">
+            <span className="text-sm text-neutral-700">
+              {selected.length} selected
+            </span>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setSelected([])}
+                className="text-neutral-500 text-sm hover:underline"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkConfirm(true)}
+                className="flex items-center gap-1.5 text-red-600 text-sm font-weight-500 hover:underline"
+              >
+                <Trash2 size={15} /> Delete selected
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
-        {loading ? (
-          <div className="py-20 text-center text-neutral-400 text-sm">
-            Loading tasks…
-          </div>
-        ) : tasks.length === 0 ? (
-          <div className="py-20 text-center text-neutral-400 text-sm">
-            No tasks found.
-          </div>
+        {loading && <SpinnerLoader />}
+        {tasks.length === 0 ? (
+          !loading && (
+            <div className="py-20 text-center text-neutral-400 text-sm">
+              No tasks found.
+            </div>
+          )
         ) : view === "list" ? (
           <div className="rounded-lg border border-neutral-100 overflow-hidden">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="h-12 bg-neutral-100 text-neutral-900 text-sm font-weight-600 text-left">
+                  <th className="px-4 w-10">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-blue-500 cursor-pointer align-middle"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                    />
+                  </th>
                   <th className="px-4">TASK</th>
                   <th className="px-4">DEPARTMENT</th>
                   <th className="px-4 w-[125px]">ASSIGNED TO</th>
@@ -942,6 +1259,14 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                     key={t.id}
                     className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50 align-top"
                   >
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-blue-500 cursor-pointer align-middle mt-0.5"
+                        checked={selected.includes(t.id)}
+                        onChange={() => toggleOne(t.id)}
+                      />
+                    </td>
                     <td className="px-4 py-4 max-w-[300px]">
                       <div className="text-neutral-900 text-sm font-weight-600">
                         {t.title}
@@ -1049,7 +1374,9 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                   Department:{" "}
                   <span className="font-weight-600">{t.department || "—"}</span>
                 </div>
-                <div className="flex items-center justify-between pt-2">
+                {/* Separator between details and status/priority */}
+                <div className="h-px bg-neutral-100 w-full mt-1" />
+                <div className="flex items-center justify-between pt-1">
                   <div className="flex items-center gap-2">
                     <Badge
                       text={
@@ -1095,12 +1422,33 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
         open={drawerOpen}
         editing={editing}
         claims={claims}
+        vehicleRegs={vehicleRegs}
         onClose={() => {
           setDrawerOpen(false);
           setEditing(null);
         }}
         onSaved={refresh}
       />
+
+      {deleteTarget && (
+        <ConfirmModal
+          title="Delete Task"
+          message={`Are you sure you want to delete "${deleteTarget.title}"?`}
+          confirmLabel="Delete"
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={confirmDeleteSingle}
+        />
+      )}
+
+      {bulkConfirm && (
+        <ConfirmModal
+          title="Delete Tasks"
+          message={`Are you sure you want to delete ${selected.length} selected task(s)?`}
+          confirmLabel="Delete"
+          onCancel={() => setBulkConfirm(false)}
+          onConfirm={confirmDeleteBulk}
+        />
+      )}
     </>
   );
 };

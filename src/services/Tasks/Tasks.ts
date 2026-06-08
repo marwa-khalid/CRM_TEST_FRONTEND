@@ -43,6 +43,8 @@ export const listTasks = (params: TaskFilters = {}) =>
 
 export const getTaskStats = () => axiosInstance.get("/tasks/stats");
 
+export const getVehicleOptions = () => axiosInstance.get("/tasks/vehicle-options");
+
 export const createTask = (payload: TaskPayload) =>
   axiosInstance.post("/tasks/", payload);
 

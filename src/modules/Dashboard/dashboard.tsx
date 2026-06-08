@@ -29,9 +29,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { getClaims } from "../../services/Claims/Claims";
 import Tasks from "../TaskManagement/Tasks";
 import TasksDashboard from "../TaskManagement/TasksDashboard";
+import TasksCalendar from "../TaskManagement/TasksCalendar";
 import type { TaskFilters } from "../../services/Tasks/Tasks";
 
-type ActivePage = "claims" | "settings" | "tasks" | "dashboard";
+type ActivePage = "claims" | "settings" | "tasks" | "dashboard" | "calendar";
 
 const CASE_ACTIVITY_ROUTE = "/case-activity";
 const DOCUMENT_LIBRARY_ROUTE = "/document-library";
@@ -213,6 +214,8 @@ const Dashboard: React.FC = () => {
       setActivePage("tasks");
     } else if (name === "Dashboard") {
       setActivePage("dashboard");
+    } else if (name === "Calendar") {
+      setActivePage("calendar");
     }
   };
 
@@ -235,7 +238,8 @@ const Dashboard: React.FC = () => {
             const isSelected =
               (item.name === "Claims" && activePage === "claims") ||
               (item.name === "Tasks" && activePage === "tasks") ||
-              (item.name === "Dashboard" && activePage === "dashboard");
+              (item.name === "Dashboard" && activePage === "dashboard") ||
+              (item.name === "Calendar" && activePage === "calendar");
 
             return (
               <button
@@ -496,6 +500,8 @@ const Dashboard: React.FC = () => {
         {activePage === "tasks" && <Tasks initialFilters={taskFilter} />}
 
         {activePage === "dashboard" && <TasksDashboard onOpen={goToTasks} />}
+
+        {activePage === "calendar" && <TasksCalendar onOpen={goToTasks} />}
       </main>
     </div>
   );

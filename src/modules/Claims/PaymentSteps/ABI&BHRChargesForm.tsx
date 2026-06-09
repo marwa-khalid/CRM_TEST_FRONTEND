@@ -42,6 +42,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
   // ABI base rates (read-only, from hire records)
   const [abiDailyRate, setAbiDailyRate] = useState(0);
+  const [abiHireSum, setAbiHireSum] = useState(0); // Σ(each vehicle's rate × its days)
   const [abiExtraCharges, setAbiExtraCharges] = useState(0);
   const [abiAdminFee, setAbiAdminFee] = useState(0);
   const [bhrAdminFee, setBhrAdminFee] = useState(0);
@@ -155,15 +156,19 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             sum + toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far),
           0,
         );
-        // Total ABI hire = sum of each vehicle's (its own days × its own rate),
-        // since different vehicle categories have different daily rates.
-        const abiHireSum = records.reduce((sum: number, r: any) => {
+        // ABI daily rate (display) = sum of each vehicle's daily rate.
+        const abiRateSum = records.reduce(
+          (sum: number, r: any) => sum + toF(r.abi_hire_charge_per_day),
+          0,
+        );
+        // ABI hire charge = sum of each vehicle's (its own rate × its own days),
+        // since different categories have different daily rates.
+        const abiHire = records.reduce((sum: number, r: any) => {
           const d = toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far);
           return sum + d * toF(r.abi_hire_charge_per_day);
         }, 0);
-        // Blended per-day rate so daily × days = the summed hire across vehicles
-        // (every downstream value — 10%, 20%, BHR — derives from this rate).
-        setAbiDailyRate(days > 0 ? abiHireSum / days : toF(first.abi_hire_charge_per_day));
+        setAbiDailyRate(abiRateSum);
+        setAbiHireSum(abiHire);
         setAbiExtraCharges(toF(first.abi_extra_charges_per_day));
         setAbiAdminFee(toF(first.abi_administration_fee));
         setBhrAdminFee(toF(first.bhr_administration_fee));
@@ -255,33 +260,30 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
   const daysExpired = useMemo(() => (rd ? diffDays(rd) : null), [rd]);
 
+  // Hire = Σ(rateᵢ × daysᵢ); extra charge and admin are added on their own.
   // 0-30 section
   const totalHire030 = useMemo(
-    () => ((abiDailyRate + abiExtraCharges) * noOfDays)  + abiAdminFee,
-    [abiDailyRate, abiExtraCharges, abiAdminFee, noOfDays]
+    () => abiHireSum + (abiExtraCharges * noOfDays) + abiAdminFee,
+    [abiHireSum, abiExtraCharges, abiAdminFee, noOfDays]
   );
 
   // 31-60 section (+10%)
-  const rate3160 = abiDailyRate * 1.1;
+  const rate3160 = abiDailyRate * 1.1;      // displayed daily rate (rate sum × 1.1)
   const extra3160 = abiExtraCharges * 1.1;
   const admin3160 = abiAdminFee * 1.1;
-  const totalHire3160 = ((rate3160 + extra3160) * noOfDays)  + admin3160;
-console.log(rate3160)
-console.log(extra3160)
-console.log(admin3160);
+  const totalHire3160 = (abiHireSum * 1.1) + (extra3160 * noOfDays) + admin3160;
 
   // 61+ section (+20%)
-  const rate61plus = abiDailyRate * 1.2;
+  const rate61plus = abiDailyRate * 1.2;    // displayed daily rate (rate sum × 1.2)
   const extra61plus = abiExtraCharges * 1.2;
   const admin61plus = abiAdminFee * 1.2;
-  const totalHire61plus = ((rate61plus + extra61plus) * noOfDays)  + admin61plus;
-console.log(rate61plus)
+  const totalHire61plus = (abiHireSum * 1.2) + (extra61plus * noOfDays) + admin61plus;
 
   // 90+ BHR (+35%)
-  const bhrDailyRate = abiDailyRate * 1.35;
+  const bhrDailyRate = abiDailyRate * 1.35; // displayed daily rate (rate sum × 1.35)
   const bhrExtra = abiExtraCharges * 1.35;
   const bhrAdmin = bhrAdminFee; // BHR administration fee from hire records (not surged)
-  const totalHire90 = ((bhrDailyRate + bhrExtra ) * noOfDays) + bhrAdmin;
+  const totalHire90 = (abiHireSum * 1.35) + (bhrExtra * noOfDays) + bhrAdmin;
 
   // Billed Breakdown total (Credit Hire already includes admin)
   const totalOutlay =

@@ -60,3 +60,7 @@ export const uploadTaskFile = (file: File) => {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
+
+// Returns a short-lived presigned URL for viewing an attachment (S3 key).
+export const getAttachmentUrl = (key: string) =>
+  axiosInstance.get("/tasks/attachment-url", { params: { key } });

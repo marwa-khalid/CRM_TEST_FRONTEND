@@ -27,6 +27,7 @@ import {
   listTasks,
   getTaskStats,
   getVehicleOptions,
+  getAttachmentUrl,
   createTask,
   updateTask,
   deleteTask,
@@ -34,7 +35,6 @@ import {
   type TaskPayload,
 } from "../../services/Tasks/Tasks";
 import { getClaims } from "../../services/Claims/Claims";
-import { API_BASE_URL } from "../../services/axiosConfig";
 import { CustomDatePicker } from "../Claims/Components/DatePicker";
 import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDetailsForm";
 import { ConfirmModal } from "../../components/common/ConfirmModal";
@@ -652,14 +652,20 @@ const AddTaskDrawer = ({
                   <div className="text-sm text-neutral-800 truncate">
                     {form.attachment_path.split("/").pop()}
                   </div>
-                  <a
-                    href={`${API_BASE_URL.replace(/\/$/, "")}${form.attachment_path}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const { data } = await getAttachmentUrl(form.attachment_path);
+                        if (data?.url) window.open(data.url, "_blank", "noopener,noreferrer");
+                      } catch {
+                        toast.error("Could not open attachment");
+                      }
+                    }}
                     className="text-blue-500 text-xs hover:underline"
                   >
                     View attachment
-                  </a>
+                  </button>
                 </div>
                 <div className="flex items-center gap-3">
                   {/* <button

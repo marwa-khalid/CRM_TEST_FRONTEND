@@ -329,13 +329,22 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
             sum + toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far),
           0,
         );
-        const rate = toF(first.abi_hire_charge_per_day);
+        // Total hire cost = sum of each vehicle's (its own days × its own rate),
+        // since different vehicle categories have different daily rates.
+        const hireCosts = records.reduce((sum: number, r: any) => {
+          const d = toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far);
+          const rt = toF(r.abi_hire_charge_per_day);
+          return sum + d * rt;
+        }, 0);
+        // Blended per-day rate so days × rate stays equal to the summed cost
+        // (keeps the single-rate band/agreed logic working for multi-vehicle hires).
+        const rate = days > 0 ? hireCosts / days : toF(first.abi_hire_charge_per_day);
         setSystem((prev) => ({
           ...prev,
           hire_days: days,
           hire_rate_per_day: rate,
           extra_charges_per_day: toF(first.abi_extra_charges_per_day),
-          hire_costs: days * rate,
+          hire_costs: hireCosts,
           admin_fee: toF(first.abi_administration_fee),
           bhr_admin_fee: toF(first.bhr_administration_fee) || 60, // BHR admin is a flat 60
           cdw: toF(first.cdw_charges),

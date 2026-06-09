@@ -149,18 +149,25 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         const records: any[] = Array.isArray(data) ? data : [];
         const first = records[0];
         if (!first) return;
-        setAbiDailyRate(toF(first.abi_hire_charge_per_day));
+        // Total days = sum of every vehicle's total hire days
+        const days = records.reduce(
+          (sum: number, r: any) =>
+            sum + toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far),
+          0,
+        );
+        // Total ABI hire = sum of each vehicle's (its own days × its own rate),
+        // since different vehicle categories have different daily rates.
+        const abiHireSum = records.reduce((sum: number, r: any) => {
+          const d = toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far);
+          return sum + d * toF(r.abi_hire_charge_per_day);
+        }, 0);
+        // Blended per-day rate so daily × days = the summed hire across vehicles
+        // (every downstream value — 10%, 20%, BHR — derives from this rate).
+        setAbiDailyRate(days > 0 ? abiHireSum / days : toF(first.abi_hire_charge_per_day));
         setAbiExtraCharges(toF(first.abi_extra_charges_per_day));
         setAbiAdminFee(toF(first.abi_administration_fee));
         setBhrAdminFee(toF(first.bhr_administration_fee));
-        // Total days = sum of every vehicle's total hire days
-        setNoOfDays(
-          records.reduce(
-            (sum: number, r: any) =>
-              sum + toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far),
-            0,
-          ),
-        );
+        setNoOfDays(days);
       })
       .catch(() => {});
   }, [claimId]);

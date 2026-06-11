@@ -69,10 +69,11 @@ const Login = () => {
       return;
     }
 
-    const loginData = await loginResponse.json();
+    await loginResponse.json();
 
     localStorage.removeItem(`attempts_${email}`);
-    localStorage.setItem("pendingLoginUser", JSON.stringify(loginData));
+    // Only the email is needed for the OTP step. The auth token is set as an
+    // httpOnly cookie by the server on /verify-otp — never stored in localStorage.
     localStorage.setItem("pendingLoginEmail", email);
 
     // 2. Ask backend to send OTP

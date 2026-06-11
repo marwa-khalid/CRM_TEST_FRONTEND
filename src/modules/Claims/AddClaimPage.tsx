@@ -137,7 +137,7 @@ const AddClaimPage = () => {
 
   return (
     <div className="flex flex-col h-screen w-full bg-white overflow-hidden">
-      <Header onNext={handleSaveAndNext} />
+      <Header onNext={handleSaveAndNext} claimId={claimId} />
 
       <div className="flex flex-1 overflow-hidden pt-6">
         <div className="pl-10 h-full">

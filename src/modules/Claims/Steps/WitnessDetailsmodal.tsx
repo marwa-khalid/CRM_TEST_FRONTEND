@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useCaseReference } from "../../../hooks/useCaseReference";
 import Select from "react-select";
 import { X, ChevronLeft } from "lucide-react";
 import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
@@ -30,7 +31,7 @@ export const WitnessDetailsModal = ({
   const [deepLink, setDeepLink] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const claimRef = localStorage.getItem("CaseReference");
+  const claimRef = useCaseReference(claimId); // per-claim ref (was localStorage)
 
   const [witness, setWitness] = useState(
     initialData || {

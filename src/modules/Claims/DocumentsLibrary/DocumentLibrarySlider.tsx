@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useCaseReference } from "../../../hooks/useCaseReference";
 import DownloadIcon from "../../../assets/AutoClaim_icon/downloadd2.svg";
 import ShareIcon from "../../../assets/AutoClaim_icon/Vulnerable.svg";
 import PDFIcon from "../../../assets/FileTypes/PDF.svg";
@@ -28,6 +29,7 @@ interface Props {
   document: any;
   allDocuments?: any[];
   initialTab?: "File Preview" | "Meta Data" | "Version History" | "Audit Log";
+  claimId?: string;
 }
 
 const DocumentLibrarySlider: React.FC<Props> = ({
@@ -36,6 +38,7 @@ const DocumentLibrarySlider: React.FC<Props> = ({
   document,
   allDocuments = [],
   initialTab = "File Preview",
+  claimId = "",
 }) => {
   const [previewData, setPreviewData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("File Preview");
@@ -53,7 +56,7 @@ const DocumentLibrarySlider: React.FC<Props> = ({
   const [shareUrl, setShareUrl] = useState("");
   const [selectedEmailFiles, setSelectedEmailFiles] = useState<File[]>([]);
   
-  const claimId = localStorage.getItem("claimId");
+  const caseReference = useCaseReference(claimId); // per-claim ref (was localStorage)
 
   useEffect(() => {
     if (isOpen && document?.id) {
@@ -502,7 +505,7 @@ const formatDateTime = (dateStr?: string) => {
                     [
                       "Case ID",
                       document.claim_id === parseInt(claimId)
-                        ?  localStorage.getItem("CaseReference")
+                        ?  caseReference
                         : "USER-202605-0015",
                      ,
                     ],

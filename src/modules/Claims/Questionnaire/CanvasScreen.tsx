@@ -101,7 +101,7 @@ const CanvasScreen = ({
   const queryClaimId = searchParams.get("claim_id");
 
   const finalToken = token || queryToken || "";
-  const claimId = queryClaimId || localStorage.getItem("claimId") || "";
+  const claimId = queryClaimId || "";
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 

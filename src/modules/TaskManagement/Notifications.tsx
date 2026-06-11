@@ -17,8 +17,8 @@ export type NotifTab =
   | "Claims"
   | "Mentions"
   | "Fleet"
-  | "Recovery"
-  | "System";
+  | "System"
+  | "High Priority";
 
 export interface NotifItem {
   id: string;
@@ -27,9 +27,12 @@ export interface NotifItem {
   title: string;
   description: string;
   time: string;
-  group: "Today" | "Yesterday";
+  group: "Today" | "Yesterday" | "Earlier";
+  ts?: number; // epoch ms of the event — for sorting + grouping
   unread: boolean;
   taskId?: number;
+  notif_id?: number; // backend notification row id (for mark-as-read)
+  claim_id?: number | null; // linked claim (click-through)
 }
 
 // ─── feed builders (shared by Tasks screen + Dashboard) ──────────────────────────
@@ -59,7 +62,46 @@ export const daysOverdue = (due?: string | null): number => {
   return Math.max(1, Math.round((today.getTime() - d) / 86400000));
 };
 
-// Non-task categories (Claims, Mentions, Fleet, Recovery, System) will be wired
+const _sameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+// Today / Yesterday / Earlier from an epoch-ms timestamp.
+export const groupOf = (ms?: number): "Today" | "Yesterday" | "Earlier" => {
+  if (!ms || isNaN(ms)) return "Earlier";
+  const d = new Date(ms);
+  const now = new Date();
+  if (_sameDay(d, now)) return "Today";
+  const y = new Date(now);
+  y.setDate(now.getDate() - 1);
+  if (_sameDay(d, y)) return "Yesterday";
+  return "Earlier";
+};
+
+// Relative bucket label: Today → Yesterday → "N days ago" → "N weeks ago" →
+// "N months ago" → "N years ago".
+export const groupLabel = (ms?: number): string => {
+  if (!ms || isNaN(ms)) return "Earlier";
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const days = Math.max(0, Math.round((now.getTime() - d.getTime()) / 86400000));
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
+  if (days < 28) {
+    const w = Math.floor(days / 7);
+    return `${w} week${w > 1 ? "s" : ""} ago`;
+  }
+  if (days < 365) {
+    const mo = Math.max(1, Math.floor(days / 30));
+    return `${mo} month${mo > 1 ? "s" : ""} ago`;
+  }
+  const y = Math.max(1, Math.floor(days / 365));
+  return `${y} year${y > 1 ? "s" : ""} ago`;
+};
+
+// Non-task categories (Claims, Mentions, Fleet, System) will be wired
 // to their own modules later. Empty for now — only real task notifications show.
 export const STATIC_NOTIFS: NotifItem[] = [];
 
@@ -68,21 +110,24 @@ export const buildTaskNotifications = (overdue: any[], dueToday: any[]): NotifIt
   const real: NotifItem[] = [];
   overdue.forEach((t) => {
     const days = daysOverdue(t.due_date);
+    const ts = parseTs(t.updated_at || t.created_at);
     real.push({
       id: `overdue-${t.id}`,
-      tab: "Tasks",
+      tab: "High Priority",
       category: "High Priority",
       title: `Overdue Task: ${t.title}`,
       description: `${days} day${days === 1 ? "" : "s"} overdue${
         t.claim_reference ? " · " + t.claim_reference : ""
       }. ${t.assigned_user ? "Assigned to " + String(t.assigned_user).trim() + "." : "Escalated to manager."}`,
       time: timeAgo(t.updated_at || t.created_at) || "Today",
-      group: "Today",
+      group: groupOf(ts),
+      ts: isNaN(ts) ? undefined : ts,
       unread: true,
       taskId: t.id,
     });
   });
   dueToday.forEach((t) => {
+    const ts = parseTs(t.created_at || t.updated_at);
     real.push({
       id: `due-${t.id}`,
       tab: "Tasks",
@@ -92,7 +137,8 @@ export const buildTaskNotifications = (overdue: any[], dueToday: any[]): NotifIt
         t.vehicle_registration ? " · " + t.vehicle_registration : ""
       }. Due today.`,
       time: timeAgo(t.created_at || t.updated_at) || "Today",
-      group: "Today",
+      group: groupOf(ts),
+      ts: isNaN(ts) ? undefined : ts,
       unread: true,
       taskId: t.id,
     });
@@ -100,14 +146,15 @@ export const buildTaskNotifications = (overdue: any[], dueToday: any[]): NotifIt
   return [...real, ...STATIC_NOTIFS];
 };
 
+// Categories per the story (section 9). Fleet is kept but has no triggers yet.
 const TABS: { key: string; label: string }[] = [
   { key: "All", label: "All" },
   { key: "Claims", label: "Claims" },
-  { key: "Tasks", label: "Tasks" },
   { key: "Fleet", label: "Fleet" },
+  { key: "Tasks", label: "Tasks" },
+  { key: "System", label: "System Alerts" },
   { key: "Mentions", label: "Mentions" },
-  { key: "System", label: "System" },
-  { key: "Recovery", label: "Recovery" },
+  { key: "High Priority", label: "High Priority" },
 ];
 
 // category → icon + colour
@@ -117,7 +164,6 @@ const META: Record<string, { Icon: any; color: string; bg: string }> = {
   Task: { Icon: ClipboardList, color: "text-blue-500", bg: "bg-blue-50" },
   Mention: { Icon: AtSign, color: "text-blue-500", bg: "bg-blue-50" },
   Fleet: { Icon: Truck, color: "text-blue-500", bg: "bg-blue-50" },
-  Recovery: { Icon: RefreshCw, color: "text-blue-500", bg: "bg-blue-50" },
   "System Alert": { Icon: Settings, color: "text-neutral-500", bg: "bg-neutral-100" },
 };
 
@@ -168,14 +214,29 @@ const Notifications: React.FC<{
   const [tab, setTab] = React.useState("All");
 
   const unreadCount = items.filter((n) => n.unread && !readIds.has(n.id)).length;
-  const visible = tab === "All" ? items : items.filter((n) => n.tab === tab);
-  const today = visible.filter((n) => n.group === "Today");
-  const yesterday = visible.filter((n) => n.group === "Yesterday");
+  const visible = (tab === "All" ? items : items.filter((n) => n.tab === tab))
+    .slice()
+    .sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0)); // most recent first
+  // Bucket into dynamic, recency-ordered groups by relative age
+  // (Today → Yesterday → N days ago → N weeks ago → N months ago → …).
+  // visible is already sorted newest-first, so first-seen order = recency order.
+  const groups: { label: string; rows: NotifItem[] }[] = [];
+  const groupIndex = new Map<string, number>();
+  for (const n of visible) {
+    const label = groupLabel(n.ts);
+    let idx = groupIndex.get(label);
+    if (idx === undefined) {
+      idx = groups.length;
+      groupIndex.set(label, idx);
+      groups.push({ label, rows: [] });
+    }
+    groups[idx].rows.push(n);
+  }
 
   const Section = ({ label, rows }: { label: string; rows: NotifItem[] }) =>
     rows.length === 0 ? null : (
       <>
-        <div className="px-4 py-1.5 bg-blue-50 text-neutral-600 text-xs font-weight-500">
+        <div className="px-4 py-1.5 bg-blue-100 text-neutral-600 text-[14px] font-weight-500">
           {label}
         </div>
         {rows.map((n) => (
@@ -232,8 +293,9 @@ const Notifications: React.FC<{
           </div>
         ) : (
           <>
-            <Section label="Today" rows={today} />
-            <Section label="Yesterday" rows={yesterday} />
+            {groups.map((g) => (
+              <Section key={g.label} label={g.label} rows={g.rows} />
+            ))}
           </>
         )}
       </div>

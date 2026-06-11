@@ -28,6 +28,7 @@ import FileIcon from '../../assets/case_activity/file.svg'
 import { Link, useNavigate } from "react-router-dom";
 import { getClaims } from "../../services/Claims/Claims";
 import Tasks from "../TaskManagement/Tasks";
+import { useCurrentUser } from "../../context/AuthContext";
 import TasksDashboard from "../TaskManagement/TasksDashboard";
 import TasksCalendar from "../TaskManagement/TasksCalendar";
 import type { TaskFilters } from "../../services/Tasks/Tasks";
@@ -38,6 +39,7 @@ const CASE_ACTIVITY_ROUTE = "/case-activity";
 const DOCUMENT_LIBRARY_ROUTE = "/document-library";
 
 const Dashboard: React.FC = () => {
+  const { user: authUser } = useCurrentUser();
   const navigate = useNavigate();
 
   const [activePage, setActivePage] = useState<ActivePage>("claims");
@@ -289,10 +291,10 @@ const Dashboard: React.FC = () => {
         <div className="border-t border-neutral-100 p-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-weight-600">
-              MK
+              {(authUser?.name || "?").charAt(0).toUpperCase()}
             </div>
             <span className="text-black text-base font-weight-500">
-              Marwa Khalid{" "}
+              {authUser?.name || "User"}
             </span>
           </div>
           <div className="text-neutral-300 text-sm">↕</div>

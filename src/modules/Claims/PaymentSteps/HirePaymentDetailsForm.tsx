@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useCaseReference } from "../../../hooks/useCaseReference";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import {
@@ -112,7 +113,7 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
 // ─── main component ──────────────────────────────────────────────────────────
 
 const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
-  const claimRef = localStorage.getItem("CaseReference") || "";
+  const claimRef = useCaseReference(claimId); // per-claim ref (was localStorage)
 
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [showReceivedPicker, setShowReceivedPicker] = useState(false);

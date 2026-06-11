@@ -17,11 +17,16 @@ import {
   Trash2,
 } from "lucide-react";
 import NotificationsPanel, { type NotifItem, buildTaskNotifications } from "./Notifications";
+import { getNotifications, markNotificationRead, markAllNotificationsRead } from "../../services/Notifications/Notifications";
 import TotalTasks from '../../assets/TaskManagement/TotalTasks.svg'
 import Pending from "../../assets/TaskManagement/Pending.svg";
 import InProgress from '../../assets/TaskManagement/InProgress.svg'
 import Overdue from '../../assets/TaskManagement/Overdue.svg'
 import Complete from "../../assets/TaskManagement/Complete.svg";
+import ToggleOn from "../../assets/TaskManagement/ToggleOn.svg";
+import ToggleOff from "../../assets/TaskManagement/ToggleOff.svg";
+import ChevronBlue from "../../assets/TaskManagement/chevronblue.svg";
+import ChevronGrey from "../../assets/TaskManagement/chevrongrey.svg";
 
 import {
   listTasks,
@@ -31,6 +36,7 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  reassignTask,
   type TaskFilters,
   type TaskPayload,
 } from "../../services/Tasks/Tasks";
@@ -40,6 +46,7 @@ import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDeta
 import { ConfirmModal } from "../../components/common/ConfirmModal";
 import { SpinnerLoader } from "../../components/common/SpinnerLoader";
 import TaskAttachmentModal, { fileLogo } from "./TaskAttachmentModal";
+import TaskDetailSlider from "./TaskDetailSlider";
 import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -85,6 +92,13 @@ const selectStyles: any = {
 };
 const opt = (v: string) => ({ label: v, value: v });
 const opts = (arr: string[]) => arr.map(opt);
+
+// Custom selection box (not a native checkbox) — blue dot when checked.
+const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
+  <div onClick={onChange} className="cursor-pointer shrink-0 p-0.5" role="checkbox" aria-checked={checked}>
+    <div className={`w-5 h-5 rounded ${checked ? "bg-blue-600 border-[6px] border-blue-200" : "bg-neutral-300"}`} />
+  </div>
+);
 
 // 15-minute interval time options (editable via CreatableSelect)
 const TIME_OPTIONS = (() => {
@@ -377,6 +391,7 @@ const QuickActions = ({
     return () => document.removeEventListener("mousedown", h);
   }, []);
   const items = [
+    { key: "viewDetail", label: "View Detail" },
     { key: "complete", label: "Mark as Complete" },
     { key: "reassign", label: "Reassign" },
     { key: "note", label: "Add Note" },
@@ -452,7 +467,6 @@ const AddTaskDrawer = ({
   const [form, setForm] = useState<any>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [attachmentOpen, setAttachmentOpen] = useState(false);
-
   const claimOptions = claims.map((c) => ({ label: c.ref, value: String(c.id) }));
 
   useEffect(() => {
@@ -505,7 +519,7 @@ const AddTaskDrawer = ({
   } as any;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50 flex justify-end  font-['Stack_Sans_Headline']">
       {saving && <SpinnerLoader />}
       {attachmentOpen && (
         <TaskAttachmentModal
@@ -542,14 +556,21 @@ const AddTaskDrawer = ({
         {/* Body */}
         <div className="flex-1 always-scrollbar p-6 flex flex-col gap-5">
           <Field label="Task Title">
-            <input className={inputCls} placeholder="Enter Title" value={form.title}
-              onChange={(e) => set("title", e.target.value)} />
+            <input
+              className={inputCls}
+              placeholder="Enter Title"
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+            />
           </Field>
 
           <Field label="Description/Notes">
-            <textarea className="w-full min-h-[110px] px-4 py-3 bg-white rounded border border-neutral-200 outline-none text-neutral-700 font-light resize-none focus:border-blue-500"
-              placeholder="Add text" value={form.description}
-              onChange={(e) => set("description", e.target.value)} />
+            <textarea
+              className="w-full min-h-[110px] px-4 py-3 bg-white rounded border border-neutral-200 outline-none text-neutral-700 font-light resize-none focus:border-blue-500"
+              placeholder="Add text"
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+            />
           </Field>
 
           <Field label="Assigned User">
@@ -576,12 +597,19 @@ const AddTaskDrawer = ({
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Due Date">
-              <DatePickerField value={form.due_date} onChange={(v) => set("due_date", v)} />
+              <DatePickerField
+                value={form.due_date}
+                onChange={(v) => set("due_date", v)}
+              />
             </Field>
             <Field label="Due Time">
               <CreatableSelect
                 options={TIME_OPTIONS}
-                value={form.due_time ? { label: form.due_time, value: form.due_time } : null}
+                value={
+                  form.due_time
+                    ? { label: form.due_time, value: form.due_time }
+                    : null
+                }
                 onChange={(o: any) => set("due_time", o?.value || "")}
                 onCreateOption={(input: string) => {
                   if (isValidTime(input)) set("due_time", normalizeTime(input));
@@ -618,7 +646,13 @@ const AddTaskDrawer = ({
           <Field label="Claim Reference">
             <Select
               options={claimOptions}
-              value={form.claim_id ? claimOptions.find((c) => c.value === String(form.claim_id)) ?? null : null}
+              value={
+                form.claim_id
+                  ? (claimOptions.find(
+                      (c) => c.value === String(form.claim_id),
+                    ) ?? null)
+                  : null
+              }
               onChange={(o: any) => {
                 set("claim_id", o?.value || "");
                 set("claim_reference", o?.label || "");
@@ -633,9 +667,15 @@ const AddTaskDrawer = ({
           <Field label="Vehicle Reg.">
             <CreatableSelect
               options={opts(vehicleRegs)}
-              value={form.vehicle_registration ? opt(form.vehicle_registration) : null}
+              value={
+                form.vehicle_registration
+                  ? opt(form.vehicle_registration)
+                  : null
+              }
               onChange={(o: any) => set("vehicle_registration", o?.value || "")}
-              onCreateOption={(input: string) => set("vehicle_registration", input.trim())}
+              onCreateOption={(input: string) =>
+                set("vehicle_registration", input.trim())
+              }
               placeholder="Select or add registration"
               formatCreateLabel={(input: string) => `Add "${input}"`}
               isClearable
@@ -647,7 +687,11 @@ const AddTaskDrawer = ({
           <Field label="Attachment Upload">
             {form.attachment_path ? (
               <div className="flex items-center gap-3 p-3 rounded-lg border border-neutral-200">
-                <img src={fileLogo(form.attachment_path)} alt="" className="w-9 h-9" />
+                <img
+                  src={fileLogo(form.attachment_path)}
+                  alt=""
+                  className="w-9 h-9"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-neutral-800 truncate">
                     {form.attachment_path.split("/").pop()}
@@ -656,8 +700,15 @@ const AddTaskDrawer = ({
                     type="button"
                     onClick={async () => {
                       try {
-                        const { data } = await getAttachmentUrl(form.attachment_path);
-                        if (data?.url) window.open(data.url, "_blank", "noopener,noreferrer");
+                        const { data } = await getAttachmentUrl(
+                          form.attachment_path,
+                        );
+                        if (data?.url)
+                          window.open(
+                            data.url,
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
                       } catch {
                         toast.error("Could not open attachment");
                       }
@@ -691,8 +742,12 @@ const AddTaskDrawer = ({
                 className="w-full border border-dashed border-neutral-300 rounded-lg p-8 flex flex-col items-center gap-2 cursor-pointer hover:border-blue-400"
               >
                 <UploadCloud size={28} className="text-blue-400" />
-                <span className="text-neutral-700 text-sm font-weight-600">Add Attachment</span>
-                <span className="text-neutral-400 text-xs">JPG, PNG, PDF, CSV Supported</span>
+                <span className="text-neutral-700 text-sm font-weight-600">
+                  Add Attachment
+                </span>
+                <span className="text-neutral-400 text-xs">
+                  JPG, PNG, PDF, CSV Supported
+                </span>
               </button>
             )}
           </Field>
@@ -746,6 +801,145 @@ const seedMulti = (init?: TaskFilters): MultiState => ({
   vehicle_registration: init?.vehicle_registration ? [init.vehicle_registration] : [],
 });
 
+// ─── Reassign Task modal ─────────────────────────────────────────────────────────
+
+const ReassignModal = ({
+  task, onClose, onDone,
+}: { task: any; onClose: () => void; onDone: () => void }) => {
+  const [newAssignee, setNewAssignee] = useState("");
+  const [reason, setReason] = useState("");
+  const [notifyNew, setNotifyNew] = useState(true);
+  const [notifyPrev, setNotifyPrev] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const ddRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ddRef.current && !ddRef.current.contains(e.target as Node)) setNewOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const submit = async () => {
+    if (!newAssignee) { toast.error("Select a new assignee"); return; }
+    setSaving(true);
+    try {
+      await reassignTask(task.id, {
+        new_assignee: newAssignee,
+        reason: reason || undefined,
+        notify_new: notifyNew,
+        notify_previous: notifyPrev,
+      });
+      toast.success("Task reassigned");
+      onDone();
+    } catch {
+      toast.error("Failed to reassign task");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const labelCls = "self-stretch text-neutral-700 text-sm font-weight-500";
+  const boxCls =
+    "self-stretch px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 flex justify-between items-center";
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/30 flex items-center justify-center p-4 font-['Stack_Sans_Headline']">
+      {saving && <SpinnerLoader />}
+      <div className="w-[797px] max-w-full p-6 bg-white rounded-lg outline outline-1 outline-neutral-100 flex flex-col gap-6">
+        <div className="flex items-center gap-6">
+          <div className="text-black text-xl font-weight-600 leading-5">Reassign Task</div>
+        </div>
+        <div className="h-px bg-neutral-100" />
+
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-5">
+            {/* Current assignee (read-only) */}
+            <div className="flex-1 flex flex-col gap-2">
+              <div className={labelCls}>Current Assignee</div>
+              <div className={boxCls}>
+                <span className="text-neutral-300 text-base font-light leading-4">
+                  {task.assigned_user || "—"}
+                </span>
+                <img src={ChevronGrey} alt="" />
+              </div>
+            </div>
+            {/* New assignee */}
+            <div className="flex-1 flex flex-col gap-2 relative" ref={ddRef}>
+              <div className={labelCls}>New Assignee</div>
+              <div className={`${boxCls} cursor-pointer`} onClick={() => setNewOpen((o) => !o)}>
+                <span className={`text-base font-light leading-4 ${newAssignee ? "text-neutral-700" : "text-neutral-300"}`}>
+                  {newAssignee || "Select"}
+                </span>
+                <img src={ChevronBlue} alt="" />
+              </div>
+              {newOpen && (
+                <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white rounded outline outline-1 outline-neutral-200 shadow-lg max-h-56 overflow-auto">
+                  {SAMPLE_USERS.map((u) => (
+                    <div
+                      key={u}
+                      onClick={() => { setNewAssignee(u); setNewOpen(false); }}
+                      className="px-5 py-3 text-sm text-neutral-700 hover:bg-blue-50 cursor-pointer"
+                    >
+                      {u}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Reason */}
+          <div className="flex flex-col gap-2">
+            <div className={labelCls}>Reassignment Reason</div>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Enter Reason"
+              className="self-stretch h-24 px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 text-neutral-700 text-base font-light resize-none placeholder:text-neutral-300 focus:outline-blue-500"
+            />
+          </div>
+
+          {/* Toggles */}
+          <div className="flex items-center gap-5">
+            <div className="w-40 text-black text-sm font-weight-500">Notify New Assignee</div>
+            <button type="button" onClick={() => setNotifyNew((v) => !v)}>
+              <img src={notifyNew ? ToggleOn : ToggleOff} alt="" />
+            </button>
+          </div>
+          <div className="flex items-center gap-5">
+            <div className="text-black text-sm font-weight-500">Notify Previous Assignee</div>
+            <button type="button" onClick={() => setNotifyPrev((v) => !v)}>
+              <img src={notifyPrev ? ToggleOn : ToggleOff} alt="" />
+            </button>
+          </div>
+        </div>
+
+        <div className="h-px bg-neutral-100" />
+        <div className="flex justify-end items-center gap-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-blue-500 text-blue-500 text-base font-weight-500 leading-4"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={saving}
+            className="px-6 py-4 bg-blue-500 rounded text-white text-base font-weight-500 leading-4 disabled:opacity-60"
+          >
+            Reassign
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) => {
   const navigate = useNavigate();
 
@@ -754,6 +948,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"list" | "card">("list");
+  const [selectMode, setSelectMode] = useState(false);
   const [search, setSearch] = useState("");
   const [multi, setMulti] = useState<MultiState>(seedMulti(initialFilters));
   const [dateRange, setDateRange] = useState({
@@ -770,12 +965,39 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
   // selection + delete
   const [selected, setSelected] = useState<number[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<any | null>(null);
+  const [detailTask, setDetailTask] = useState<any | null>(null);
   const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [bulkMenu, setBulkMenu] = useState<null | "reassign" | "status">(null);
+
+  const bulkMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!bulkMenu) return;
+    const h = (e: MouseEvent) => {
+      if (bulkMenuRef.current && !bulkMenuRef.current.contains(e.target as Node)) setBulkMenu(null);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [bulkMenu]);
+
+  const bulkUpdate = async (patch: Partial<TaskPayload>) => {
+    if (selected.length === 0) return;
+    try {
+      await Promise.all(selected.map((id) => updateTask(id, patch)));
+      toast.success(`${selected.length} task(s) updated`);
+      setSelected([]);
+      setBulkMenu(null);
+      refresh();
+    } catch {
+      toast.error("Bulk update failed");
+    }
+  };
 
   // Notifications
   const [notifOpen, setNotifOpen] = useState(false);
   const [overdueTasks, setOverdueTasks] = useState<any[]>([]);
   const [dueToday, setDueToday] = useState<any[]>([]);
+  const [dbNotifs, setDbNotifs] = useState<NotifItem[]>([]); // real backend notifications (mentions, etc.)
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -813,17 +1035,27 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
       .catch(() => setDueToday([]));
   };
 
-  // Build the notification feed: real task alerts + static placeholders
+  const fetchDbNotifs = () => {
+    getNotifications()
+      .then(({ data }) => setDbNotifs(Array.isArray(data) ? data : []))
+      .catch(() => setDbNotifs([]));
+  };
+
+  // Notification feed = real backend notifications (mentions…) + task alerts.
   const notifications = useMemo<NotifItem[]>(
-    () => buildTaskNotifications(overdueTasks, dueToday),
-    [overdueTasks, dueToday],
+    () => [...dbNotifs, ...buildTaskNotifications(overdueTasks, dueToday)],
+    [dbNotifs, overdueTasks, dueToday],
   );
 
   const unreadCount = notifications.filter((n) => n.unread && !readIds.has(n.id)).length;
 
-  const markAllRead = () => setReadIds(new Set(notifications.map((n) => n.id)));
+  const markAllRead = () => {
+    setReadIds(new Set(notifications.map((n) => n.id)));
+    markAllNotificationsRead().then(fetchDbNotifs).catch(() => {});
+  };
   const handleNotifClick = (n: NotifItem) => {
     setReadIds((prev) => new Set(prev).add(n.id));
+    if (n.notif_id) markNotificationRead(n.notif_id).then(fetchDbNotifs).catch(() => {});
     if (n.taskId) {
       const task = [...overdueTasks, ...dueToday].find((t) => t.id === n.taskId);
       if (task) {
@@ -877,7 +1109,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
   useEffect(() => { fetchVehicleOptions(); }, []);
 
   // Notifications: prime the lists on mount; close panel on outside click
-  useEffect(() => { fetchOverdue(); fetchDueToday(); }, []);
+  useEffect(() => { fetchOverdue(); fetchDueToday(); fetchDbNotifs(); }, []);
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
@@ -918,11 +1150,13 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
     setDateRange((d) => ({ ...d, [key]: value }));
   };
 
-  const refresh = () => { fetchTasks(); fetchStats(); fetchOverdue(); fetchDueToday(); fetchVehicleOptions(); };
+  const refresh = () => { fetchTasks(); fetchStats(); fetchOverdue(); fetchDueToday(); fetchVehicleOptions(); fetchDbNotifs(); };
 
   const handleAction = async (action: string, task: any) => {
     try {
-      if (action === "complete") {
+      if (action === "viewDetail") {
+        setDetailTask(task);
+      } else if (action === "complete") {
         await updateTask(task.id, { status: "Completed" });
         toast.success("Task marked complete");
         refresh();
@@ -933,8 +1167,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
         const note = window.prompt("Add note", task.notes || "");
         if (note !== null) { await updateTask(task.id, { notes: note }); toast.success("Note added"); refresh(); }
       } else if (action === "reassign") {
-        const user = window.prompt("Reassign to", task.assigned_user || "");
-        if (user !== null) { await updateTask(task.id, { assigned_user: user }); toast.success("Task reassigned"); refresh(); }
+        setReassignTarget(task);
       } else if (action === "open_claim") {
         if (task.claim_id) navigate(`/add-claim/${task.claim_id}`);
         else toast.info("No linked claim");
@@ -1007,6 +1240,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                 if (!notifOpen) {
                   fetchOverdue();
                   fetchDueToday();
+                  fetchDbNotifs();
                 }
               }}
               className="relative text-neutral-500 hover:text-neutral-700"
@@ -1060,6 +1294,13 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
             />
           </div>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSelectMode((s) => { if (s) setSelected([]); return !s; })}
+              className={`text-sm font-weight-500 ${selectMode ? "text-blue-600" : "text-neutral-600 hover:text-blue-600"}`}
+            >
+              {selectMode ? "Cancel" : "Select"}
+            </button>
             {/* View toggle CTA */}
             <div className="flex items-center rounded border border-neutral-200 overflow-hidden">
               <button
@@ -1204,25 +1445,67 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
 
         {/* Bulk action bar */}
         {selected.length > 0 && (
-          <div className="flex items-center justify-between mb-3 px-4 py-2.5 bg-blue-50 rounded border border-blue-100">
-            <span className="text-sm text-neutral-700">
-              {selected.length} selected
-            </span>
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => setSelected([])}
-                className="text-neutral-500 text-sm hover:underline"
-              >
-                Clear
-              </button>
+          <div className="flex items-center justify-between mb-3 px-4 py-3 bg-blue-50 rounded">
+            <span className="text-sm text-neutral-700">{selected.length} Selected</span>
+            <div ref={bulkMenuRef} className="flex items-center gap-6 text-sm">
               <button
                 type="button"
                 onClick={() => setBulkConfirm(true)}
-                className="flex items-center gap-1.5 text-red-600 text-sm font-weight-500 hover:underline"
+                className="flex items-center gap-1.5 text-neutral-700 hover:text-red-600"
               >
-                <Trash2 size={15} /> Delete selected
+                <Trash2 size={15} /> Delete
               </button>
+              <button
+                type="button"
+                onClick={() => bulkUpdate({ status: "Completed" })}
+                className="flex items-center gap-1.5 text-neutral-700 hover:text-green-600"
+              >
+                <Check size={15} /> Mark as Complete
+              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setBulkMenu((m) => (m === "reassign" ? null : "reassign"))}
+                  className="flex items-center gap-1.5 text-neutral-700"
+                >
+                  Reassign <ChevronDown size={14} />
+                </button>
+                {bulkMenu === "reassign" && (
+                  <div className="absolute right-0 top-full mt-1 w-44 max-h-56 overflow-auto bg-white border border-neutral-200 rounded shadow-lg z-30">
+                    {SAMPLE_USERS.map((u) => (
+                      <div
+                        key={u}
+                        onClick={() => bulkUpdate({ assigned_user: u })}
+                        className="px-4 py-2 text-neutral-700 hover:bg-blue-50 cursor-pointer"
+                      >
+                        {u}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setBulkMenu((m) => (m === "status" ? null : "status"))}
+                  className="flex items-center gap-1.5 text-neutral-700"
+                >
+                  Change Status <ChevronDown size={14} />
+                </button>
+                {bulkMenu === "status" && (
+                  <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-neutral-200 rounded shadow-lg z-30">
+                    {STATUSES.map((s) => (
+                      <div
+                        key={s}
+                        onClick={() => bulkUpdate({ status: s })}
+                        className="px-4 py-2 text-neutral-700 hover:bg-blue-50 cursor-pointer"
+                      >
+                        {s}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -1240,23 +1523,20 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
             <table className="w-full border-collapse">
               <thead>
                 <tr className="h-12 bg-neutral-100 text-neutral-900 text-sm font-weight-600 text-left">
-                  <th className="px-4 w-10">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 accent-blue-500 cursor-pointer align-middle"
-                      checked={allSelected}
-                      onChange={toggleAll}
-                    />
-                  </th>
+                  {selectMode && (
+                    <th className="px-4 w-10">
+                      <Checkbox checked={allSelected} onChange={toggleAll} />
+                    </th>
+                  )}
                   <th className="px-4">TASK</th>
-                  <th className="px-4">DEPARTMENT</th>
+                  <th className="px-4 w-[100px]">DEPARTMENT</th>
                   <th className="px-4 w-[125px]">ASSIGNED TO</th>
-                  <th className="px-4 w-[180px]">CLAIM</th>
+                  <th className="px-4 w-[179px]">CLAIM</th>
                   <th className="px-4">VEHICLE</th>
-                  <th className="px-4 w-[140px]">DUE DATE</th>
+                  <th className="px-4 w-[100px]">DUE DATE</th>
                   <th className="px-4 w-[113px]">STATUS</th>
-                  <th className="px-4">PRIORITY</th>
-                  <th className="px-4 w-10" />
+                  <th className="px-4 w-[70px]">PRIORITY</th>
+                  <th className="px-4 w-5" />
                 </tr>
               </thead>
               <tbody>
@@ -1265,23 +1545,23 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                     key={t.id}
                     className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50 align-top"
                   >
-                    <td className="px-4 py-4">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 accent-blue-500 cursor-pointer align-middle mt-0.5"
-                        checked={selected.includes(t.id)}
-                        onChange={() => toggleOne(t.id)}
-                      />
-                    </td>
-                    <td className="px-4 py-4 max-w-[300px]">
-                      <div className="text-neutral-900 text-sm font-weight-600">
+                    {selectMode && (
+                      <td className="px-4 py-4">
+                        <Checkbox checked={selected.includes(t.id)} onChange={() => toggleOne(t.id)} />
+                      </td>
+                    )}
+                    <td className="px-4 py-4 ">
+                      <div
+                        className="text-neutral-900 text-sm font-weight-600 cursor-pointer hover:text-blue-600"
+                        onClick={() => setDetailTask(t)}
+                      >
                         {t.title}
                       </div>
-                      {t.description && (
+                      {/* {t.description && (
                         <div className="text-neutral-500 text-xs font-weight-400 mt-1 line-clamp-2">
                           {t.description}
                         </div>
-                      )}
+                      )} */}
                     </td>
                     <td className="px-4 py-4 text-sm text-neutral-700 ">
                       {t.department || "—"}
@@ -1342,67 +1622,80 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
             {tasks.map((t) => (
               <div
                 key={t.id}
-                className="rounded-lg border border-neutral-200 p-5 flex flex-col gap-3 hover:shadow-sm transition"
+                className={`rounded-lg border p-5 flex gap-2.5 hover:shadow-sm transition ${
+                  selected.includes(t.id) ? "border-blue-500 ring-1 ring-blue-500" : "border-neutral-200"
+                }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-neutral-900 text-base font-weight-600">
-                      {t.title}
-                    </div>
-                    {t.description && (
-                      <div className="text-neutral-500 text-sm mt-1 line-clamp-2">
-                        {t.description}
+                {selectMode && (
+                  <div className="mt-0.5">
+                    <Checkbox checked={selected.includes(t.id)} onChange={() => toggleOne(t.id)} />
+                  </div>
+                )}
+                {/* single column so everything stays vertically aligned */}
+                <div className="flex-1 min-w-0 flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div
+                        className="text-neutral-900 text-base font-weight-600 cursor-pointer hover:text-blue-600"
+                        onClick={() => setDetailTask(t)}
+                      >
+                        {t.title}
                       </div>
-                    )}
-                  </div>
-                  <QuickActions task={t} onAction={handleAction} />
-                </div>
-                <div className="text-sm">
-                  {t.claim_reference && (
-                    <span
-                      className="text-blue-500 cursor-pointer hover:underline mr-2"
-                      onClick={() => openClaim(t)}
-                    >
-                      {t.claim_reference}
-                    </span>
-                  )}
-                  <span className="text-neutral-600">
-                    {t.vehicle_registration || ""}
-                  </span>
-                </div>
-                <div className="text-sm text-neutral-700">
-                  Assigned to:{" "}
-                  <span className="font-weight-600">
-                    {t.assigned_user || "—"}
-                  </span>
-                </div>
-                <div className="text-sm text-neutral-700">
-                  Department:{" "}
-                  <span className="font-weight-600">{t.department || "—"}</span>
-                </div>
-                {/* Separator between details and status/priority */}
-                <div className="h-px bg-neutral-100 w-full mt-1" />
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      text={
-                        t.is_overdue &&
-                        (t.status || "").toLowerCase() !== "completed"
-                          ? "Overdue"
-                          : t.status
-                      }
-                      cls={statusBadge(
-                        t.is_overdue &&
-                          (t.status || "").toLowerCase() !== "completed"
-                          ? "Overdue"
-                          : t.status,
+                      {t.description && (
+                        <div className="text-neutral-500 text-sm mt-1 line-clamp-2">
+                          {t.description}
+                        </div>
                       )}
-                    />
-                    <Badge text={t.priority} cls={priorityBadge(t.priority)} />
+                    </div>
+                    <QuickActions task={t} onAction={handleAction} />
                   </div>
-                  <span className="text-neutral-600 text-xs">
-                    Due: <span className="font-weight-600">{formatDue(t)}</span>
-                  </span>
+                  <div className="text-sm">
+                    {t.claim_reference && (
+                      <span
+                        className="text-blue-500 cursor-pointer hover:underline mr-2"
+                        onClick={() => openClaim(t)}
+                      >
+                        {t.claim_reference}
+                      </span>
+                    )}
+                    <span className="text-neutral-600">
+                      {t.vehicle_registration || ""}
+                    </span>
+                  </div>
+                  <div className="text-sm text-neutral-700">
+                    Assigned to:{" "}
+                    <span className="font-weight-600">{t.assigned_user || "—"}</span>
+                  </div>
+                  <div className="text-sm text-neutral-700">
+                    Department:{" "}
+                    <span className="font-weight-600">{t.department || "—"}</span>
+                  </div>
+                  {/* footer pinned to the bottom so status/priority always sit at the end */}
+                  <div className="mt-auto">
+                    <div className="h-px bg-neutral-100 w-full" />
+                    <div className="flex items-center justify-between pt-3">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          text={
+                            t.is_overdue &&
+                            (t.status || "").toLowerCase() !== "completed"
+                              ? "Overdue"
+                              : t.status
+                          }
+                          cls={statusBadge(
+                            t.is_overdue &&
+                              (t.status || "").toLowerCase() !== "completed"
+                              ? "Overdue"
+                              : t.status,
+                          )}
+                        />
+                        <Badge text={t.priority} cls={priorityBadge(t.priority)} />
+                      </div>
+                      <span className="text-neutral-600 text-xs">
+                        Due: <span className="font-weight-600">{formatDue(t)}</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1439,17 +1732,36 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
       {deleteTarget && (
         <ConfirmModal
           title="Delete Task"
-          message={`Are you sure you want to delete "${deleteTarget.title}"?`}
+          message={`Are you sure you want to delete this task?`}
           confirmLabel="Delete"
           onCancel={() => setDeleteTarget(null)}
           onConfirm={confirmDeleteSingle}
         />
       )}
 
+      {reassignTarget && (
+        <ReassignModal
+          task={reassignTarget}
+          onClose={() => setReassignTarget(null)}
+          onDone={() => { setReassignTarget(null); refresh(); }}
+        />
+      )}
+
+      {detailTask && (
+        <TaskDetailSlider
+          key={detailTask.id}
+          task={detailTask}
+          onClose={() => setDetailTask(null)}
+          onEdit={() => { setEditing(detailTask); setDrawerOpen(true); setDetailTask(null); }}
+          onReassign={() => setReassignTarget(detailTask)}
+          onRefresh={refresh}
+        />
+      )}
+
       {bulkConfirm && (
         <ConfirmModal
           title="Delete Tasks"
-          message={`Are you sure you want to delete ${selected.length} selected task(s)?`}
+          message={`Are you sure you want to delete these tasks?`}
           confirmLabel="Delete"
           onCancel={() => setBulkConfirm(false)}
           onConfirm={confirmDeleteBulk}

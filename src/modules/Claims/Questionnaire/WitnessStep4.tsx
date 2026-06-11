@@ -56,7 +56,7 @@ const Step4Signature = () => {
   const queryClaimId = searchParams.get("claim_id");
 
   const finalToken = token || queryToken || "";
-  const claimId = queryClaimId || localStorage.getItem("claimId") || "";
+  const claimId = queryClaimId || "";
 
   const buildAnswers = (signatureImage: string) => {
     const witnessDetails = formData.witnessDetails || {};

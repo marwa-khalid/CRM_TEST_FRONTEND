@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useCurrentUser } from "../../../context/AuthContext";
+import { getUsers, type SystemUser } from "../../../services/Notifications/Notifications";
 import attachmentt from "../../../assets/AutoClaim_icon/attachment.svg";
 import Option1 from "../../../assets/RichTextOptions/Option1.svg";
 import Option2 from "../../../assets/RichTextOptions/Option2.svg";
@@ -125,6 +127,31 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
 }) => {
   const [showNoteBox, setShowNoteBox] = useState(false);
   const [noteText, setNoteText] = useState("");
+
+  // @-mention tagging in the note box.
+  const [mentionUsers, setMentionUsers] = useState<SystemUser[]>([]);
+  const [mention, setMention] = useState<{ open: boolean; query: string }>({ open: false, query: "" });
+  useEffect(() => {
+    getUsers().then(({ data }) => setMentionUsers(Array.isArray(data) ? data : [])).catch(() => {});
+  }, []);
+  const handleNoteChange = (value: string) => {
+    setNoteText(value);
+    const m = value.match(/@([A-Za-z0-9._-]*)$/); // an @-token at the caret
+    setMention(m ? { open: true, query: m[1] } : { open: false, query: "" });
+  };
+  const insertMention = (u: SystemUser) => {
+    setNoteText((prev) => prev.replace(/@([A-Za-z0-9._-]*)$/, `@${u.name} `));
+    setMention({ open: false, query: "" });
+  };
+  const mentionMatches = mention.open
+    ? mentionUsers
+        .filter(
+          (u) =>
+            (u.name || "").toLowerCase().includes(mention.query.toLowerCase()) ||
+            (u.email || "").toLowerCase().includes(mention.query.toLowerCase()),
+        )
+        .slice(0, 6)
+    : [];
   const [replyingToId, setReplyingToId] = useState<number | string | null>(
     null,
   );
@@ -135,8 +162,8 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
     parentNoteId?: number | string;
   } | null>(null);
   const [selectedEmailFiles, setSelectedEmailFiles] = useState<File[]>([]);
-  const currentUser =
-    currentUserProp || JSON.parse(localStorage.getItem("activeUser") || "{}");
+  const { user: authUser } = useCurrentUser();
+  const currentUser = currentUserProp || authUser || {};
   const [emailActionModal, setEmailActionModal] = useState<{
     open: boolean;
     type: "reply" | "forward";
@@ -215,10 +242,13 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
         return UpdateIcon;
     }
   };
+  // Display name = the part of the logged-in user's email before "@".
   const userName =
-    currentUser?.first_name && currentUser?.last_name
+    currentUser?.name ||
+    (currentUser?.email ? String(currentUser.email).split("@")[0] : "") ||
+    (currentUser?.first_name && currentUser?.last_name
       ? `${currentUser.first_name} ${currentUser.last_name}`
-      : currentUser?.name || currentUser?.email || "John Doe";
+      : "User");
 
   const userRole = currentUser?.role || "Claim Handler";
 
@@ -316,9 +346,15 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
   };
 
   const renderNoteHtml = (value = "") => {
-    const html = hasHtmlTags(value)
+    let html = hasHtmlTags(value)
       ? sanitizeNoteHtml(value)
       : escapeHtml(value).replace(/\n/g, "<br />");
+
+    // Highlight @mentions in blue so tagged users stand out from normal text.
+    html = html.replace(
+      /@([A-Za-z0-9._-]+)/g,
+      '<span class="text-blue-500 font-weight-500">@$1</span>',
+    );
 
     return { __html: html };
   };
@@ -444,7 +480,7 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
               <div className="self-stretch flex justify-between items-center">
                 <div className="flex justify-start items-start gap-2">
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 text-sm font-weight-500">
-                    {getInitials(note.createdByName)=="Unknown User"? "Marwa Khalid":getInitials(note.createdByName)}
+                    {getInitials(note.createdByName) === "Unknown User" ? getInitials(userName) : getInitials(note.createdByName)}
                   </div>
 
                   <div className="w-24 flex flex-col justify-start items-start">
@@ -926,14 +962,36 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
         <h3 className="text-black text-xl font-weight-600 leading-5">
           Add Note
         </h3>
-        {renderRichTextBox({
-          value: noteText,
-          onChange: setNoteText,
-          placeholder: "Enter Text",
-          onSubmit: handleSubmitNote,
-          files: noteFiles,
-          onFilesChange: setNoteFiles,
-        })}
+        <div className="relative">
+          {renderRichTextBox({
+            value: noteText,
+            onChange: handleNoteChange,
+            placeholder: "Enter Text — type @ to tag someone",
+            onSubmit: handleSubmitNote,
+            files: noteFiles,
+            onFilesChange: setNoteFiles,
+          })}
+          {mention.open && mentionMatches.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 bottom-full mb-2 max-h-56 overflow-auto bg-white border border-neutral-200 rounded-lg shadow-xl">
+              {mentionMatches.map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => insertMention(u)}
+                  className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-blue-50"
+                >
+                  <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-500 text-xs font-weight-600 flex items-center justify-center shrink-0">
+                    {(u.name || "?").charAt(0).toUpperCase()}
+                  </span>
+                  <span className="flex flex-col min-w-0">
+                    <span className="text-sm text-blue-500 font-weight-500 truncate">@{u.name}</span>
+                    <span className="text-xs text-neutral-400 truncate">{u.email}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   };

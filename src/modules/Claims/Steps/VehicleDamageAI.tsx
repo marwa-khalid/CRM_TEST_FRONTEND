@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "react-toastify";
+import { useCaseReference } from "../../../hooks/useCaseReference";
 import {
   aiAnalyze,
   getLatestVehicleDamageReport,
@@ -35,6 +36,7 @@ const DamageSummaryRow = ({
 
 export const VehicleDamageAI = ({ formRef, claimId }: any) => {
   const claimID = claimId;
+  const caseReference = useCaseReference(claimId); // per-claim ref (was localStorage)
 useEffect(() => {
   const loadSavedReport = async () => {
     try {
@@ -200,7 +202,7 @@ useEffect(() => {
       if (aiResult?.report_id) return aiResult.report_id;
       if (aiResult?.reportId) return aiResult.reportId;
 
-      const claimRef = localStorage.getItem("CaseReference") || "CLAIM";
+      const claimRef = caseReference || "CLAIM";
       return `RPT-${claimRef.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()}-${Date.now()
         .toString()
         .slice(-6)}`;
@@ -227,7 +229,7 @@ useEffect(() => {
           aiResult?.images?.[0]?.generated_at ||
           new Date().toISOString(),
 
-        claim_reference: localStorage.getItem("CaseReference") || "",
+        claim_reference: caseReference || "",
         uploaded_by: user?.email || "Claim Handler",
         source_name: "Claim Portal",
         assessment_type: assessmentType,
@@ -312,7 +314,7 @@ useEffect(() => {
           }}
           onClose={() => setOpen(false)}
           selectedType={assessmentType}
-          claimReference={localStorage.getItem("CaseReference") || ""}
+          claimReference={caseReference || ""}
           clientName={
             JSON.parse(localStorage.getItem("activeUser") || "{}")?.email || ""
           }

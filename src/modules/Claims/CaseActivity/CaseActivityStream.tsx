@@ -126,8 +126,8 @@ const CaseActivityStream = () => {
   const searchParams = new URLSearchParams(location.search);
   const routeClaimId =
     (location.state as any)?.claimId ||
-    searchParams.get("claimId") ||
-    localStorage.getItem("claimId");
+    searchParams.get("claim_id") ||
+    searchParams.get("claimId");
   const isAllCasesView =
     (location.state as any)?.scope === "all" ||
     searchParams.get("scope") === "all" ||

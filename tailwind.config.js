@@ -29,6 +29,9 @@ export default {
           200: "#a2cfff", // example lighter shade
           100:"#d9ebff"
         },
+        yellow: {
+          100: "#FFF1D7",
+        },
         stormGray: "#717680",
         brand: {
           solid: "#414651",

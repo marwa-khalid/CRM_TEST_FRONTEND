@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom"; // Import navigation hook
 import Vector from "../../../assets/AutoClaim_icon/Vector.svg";
 import Vector4 from "../../../assets/AutoClaim_icon/Vector-4.svg";
 import FileIcon from '../../../assets/case_activity/file.svg'
+import { useCaseReference } from "../../../hooks/useCaseReference";
 
-const Header = ({ onNext }) => {
+const Header = ({ onNext, claimId }: { onNext?: any; claimId?: string | number }) => {
   const navigate = useNavigate();
-const caseReference= localStorage.getItem("CaseReference")
+  // Per-claim reference (replaces the old single global localStorage value).
+  const caseReference = useCaseReference(claimId);
+  const claimQuery = claimId ? `?claim_id=${claimId}` : "";
   // Navigation Handlers
   const goToDashboard = () => navigate("/dashboard");
 
@@ -27,7 +30,7 @@ const caseReference= localStorage.getItem("CaseReference")
 
         <div
           className="ActivityLogContainer flex justify-start items-center gap-1 cursor-pointer group"
-          onClick={() => navigate("/case-activity")}
+          onClick={() => navigate(`/case-activity${claimQuery}`)}
         >
           <img src={Vector4} alt="" />
           <div className="ActivityLogText text-blue-300 text-xs font-weight-600 font-['Stack_Sans_Headline'] group-hover:underline">
@@ -36,7 +39,7 @@ const caseReference= localStorage.getItem("CaseReference")
         </div>
         <div
           className="ActivityLogContainer flex justify-start items-center gap-1 cursor-pointer group"
-          onClick={() => navigate("/document-library")}
+          onClick={() => navigate(`/document-library${claimQuery}`)}
         >
           <img src={FileIcon} alt="" />
           <div className="ActivityLogText text-blue-300 text-xs font-weight-600 font-['Stack_Sans_Headline'] group-hover:underline">

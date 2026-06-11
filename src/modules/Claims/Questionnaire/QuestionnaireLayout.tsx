@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import type { ReactNode } from "react";
 import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useCaseReference } from "../../../hooks/useCaseReference";
 import { Check } from "lucide-react";
 import logo from "../../../assets/AutoClaim_icon/logo.svg";
 import CheckCircle from "../../../assets/AutoClaim_icon/Complete.svg";
@@ -116,7 +117,8 @@ const QuestionnaireLayoutContent = () => {
   const pdfStep4Ref = useRef(null);
   const pdfRef = useRef<HTMLDivElement>(null);
 
-  const reference = localStorage.getItem("CaseReference");
+  // Per-claim reference from the URL's claim_id (was a global localStorage value).
+  const reference = useCaseReference(new URLSearchParams(location.search).get("claim_id"));
 
   const basePath = token ? `/questionnaire/${token}` : "/questionnaire";
 
@@ -245,7 +247,7 @@ const questionLabels = [
     }
   };
     const finalToken = token || queryToken || "";
-    const claimId = queryClaimId || localStorage.getItem("claimId") || "";
+    const claimId = queryClaimId || "";
     const buildAnswers = (sketchImage: string) => {
       const witnessDetails = formData.witnessDetails || {};
       const questionnaire = formData.questionnaire || {};

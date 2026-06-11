@@ -141,24 +141,10 @@ export const ClientDetailsForm = ({ formRef, claimId }: any) => {
            response = await createClient(payloadToSend);
         }
         if (response?.id) setClientId(String(response.id));
-       
 
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const yearMonth = `${year}${month}`;
-
-      // 2. Clean Surname (Remove spaces and uppercase)
-      const cleanSurname = response.surname.replace(/\s+/g, "").toUpperCase();
-
-      // 3. Format Claim ID to 4 digits (e.g., 22 -> 0022)
-      const paddedId = String(claimId).padStart(4, "0");
-
-      // 4. Create the final reference
-      const caseReference = `${cleanSurname}-${yearMonth}-${paddedId}`;
-
-      // 5. Store in Local Storage
-      localStorage.setItem("CaseReference", caseReference);
+        // Case reference is derived server-side per claim
+        // (GET /claims/{id}/reference, read via useCaseReference) — no longer
+        // computed here or stored in localStorage.
         toast.success("Client details saved successfully");
       } catch (error) {
         toast.error("Error saving client details");

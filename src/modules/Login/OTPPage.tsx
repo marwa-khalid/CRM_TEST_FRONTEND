@@ -9,8 +9,10 @@ import union from "../../assets/images/union.svg";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../services/axiosConfig.ts";
 import { registerSession } from "../../services/AccountSettings/AccountSettings";
+import { useCurrentUser } from "../../context/AuthContext";
 
 const OTPPage = () => {
+  const { refresh } = useCurrentUser();
   const [otp, setOtp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isResending, setIsResending] = useState(false);
@@ -49,6 +51,7 @@ const OTPPage = () => {
 
       const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
+        credentials: "include", // required so the Set-Cookie auth token is stored
         headers: {
           "Content-Type": "application/json",
         },
@@ -65,28 +68,15 @@ const OTPPage = () => {
         return;
       }
 
-      const pendingUser = localStorage.getItem("pendingLoginUser");
-
-      if (!pendingUser) {
-        setErrorMessage("Login session missing. Please login again.");
-        return;
-      }
-
-      const parsedPendingUser = JSON.parse(pendingUser);
-
-      localStorage.setItem("access_token", parsedPendingUser.access_token);
-      if (parsedPendingUser.refresh_token) {
-        localStorage.setItem("refresh_token", parsedPendingUser.refresh_token);
-      }
-      const { access_token, refresh_token, ...userInfo } = parsedPendingUser;
-      localStorage.setItem("user", JSON.stringify(userInfo));
-
+      // The httpOnly auth cookie is set by /auth/verify-otp — no token in
+      // localStorage anymore. Just clean up the pending-login state.
       localStorage.removeItem("pendingLoginUser");
       localStorage.removeItem("pendingLoginEmail");
       localStorage.removeItem("activeUser");
       localStorage.removeItem("pendingOTP");
 
       await registerSession({ device_info: navigator.userAgent }).catch(() => {});
+      await refresh(); // load identity from /auth/me into AuthContext
 
       navigate("/single-signon");
     } catch (error) {

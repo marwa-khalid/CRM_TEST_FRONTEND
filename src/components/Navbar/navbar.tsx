@@ -3,13 +3,14 @@ import { ChevronDown, Settings, Bell, Menu, X, LogOut } from "lucide-react";
 import logoImage from "../../assets/images/Logo.png";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
+import { useCurrentUser } from "../../context/AuthContext";
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const user = localStorage.getItem("user_name");
-  const userInitial = user ? user.charAt(0).toUpperCase() : "";
+  const { user, logout } = useCurrentUser();
+  const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : "";
   const dispatch = useDispatch();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -37,12 +38,8 @@ const Header: React.FC = () => {
     };
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("activeUser");
-    localStorage.removeItem("user_name");
+  const handleLogout = async () => {
+    await logout(); // clears the httpOnly cookie (server) + legacy localStorage
     dispatch({ type: "RESET_STORE" });
     navigate("/login");
   };

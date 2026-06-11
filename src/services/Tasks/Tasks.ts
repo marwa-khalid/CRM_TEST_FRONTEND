@@ -53,6 +53,23 @@ export const updateTask = (id: number, payload: Partial<TaskPayload>) =>
 
 export const deleteTask = (id: number) => axiosInstance.delete(`/tasks/${id}`);
 
+export interface ReassignPayload {
+  new_assignee: string;
+  reason?: string;
+  notify_new: boolean;
+  notify_previous: boolean;
+}
+export const reassignTask = (id: number, payload: ReassignPayload) =>
+  axiosInstance.post(`/tasks/${id}/reassign`, payload);
+
+// task notes + history
+export const getTaskNotes = (id: number) => axiosInstance.get(`/tasks/${id}/notes`);
+export const addTaskNote = (id: number, text: string) =>
+  axiosInstance.post(`/tasks/${id}/notes`, { text });
+export const deleteTaskNote = (noteId: number) =>
+  axiosInstance.delete(`/tasks/notes/${noteId}`);
+export const getTaskHistory = (id: number) => axiosInstance.get(`/tasks/${id}/history`);
+
 export const uploadTaskFile = (file: File) => {
   const fd = new FormData();
   fd.append("file", file);

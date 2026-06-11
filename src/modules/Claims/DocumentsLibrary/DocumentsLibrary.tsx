@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChevronLeft, Check, Mail } from "lucide-react";
 import { toast } from "react-toastify";
 import EmailAttachmentModal from "./EmailAttachmentModal";
@@ -37,7 +38,8 @@ const DocumentsLibrary = () => {
   const [photos, setPhotos] = useState<any[]>([]);
   const [isPhotosLoading, setIsPhotosLoading] = useState(false);
   const [hoveredPhoto, setHoveredPhoto] = useState<any>(null);
-  const claimId = localStorage.getItem("claimId");
+  const [searchParams] = useSearchParams();
+  const claimId = searchParams.get("claim_id") || searchParams.get("claimId") || "";
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string | number>>(new Set());
@@ -341,6 +343,7 @@ Regards`;
         document={selectedDocument}
         allDocuments={documents}
         initialTab={sliderInitialTab}
+        claimId={claimId}
       />
 
       <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] inline-flex justify-between items-center">

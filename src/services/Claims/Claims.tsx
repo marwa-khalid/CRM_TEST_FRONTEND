@@ -207,5 +207,23 @@ export const downloadCSV = async (id: string) => {
 }
 
 export const notifyManager = (id: any) => {
-  return axiosInstance.post(`/claims/${id}/notify-manager/${JSON.parse(localStorage.getItem("activeUser")).email}`);
+  // Recipient is derived server-side from the auth cookie (no localStorage).
+  return axiosInstance.post(`/claims/${id}/notify-manager`);
 }
+
+// Per-claim case reference (e.g. SURNAME-YYYYMM-00019), derived server-side.
+// Cached per claim id so repeated reads don't refetch.
+const _caseRefCache = new Map<string, string>();
+export const getCaseReference = async (claimId: string | number): Promise<string> => {
+  const key = String(claimId ?? "");
+  if (!key) return "";
+  if (_caseRefCache.has(key)) return _caseRefCache.get(key)!;
+  try {
+    const { data } = await axiosInstance.get(`/claims/${key}/reference`);
+    const ref = data?.reference || "";
+    _caseRefCache.set(key, ref);
+    return ref;
+  } catch {
+    return "";
+  }
+};

@@ -136,7 +136,7 @@ function StatusBadge({ status }: { status: VehicleStatus }) {
 
   return (
     <span
-      className={`inline-flex items-center justify-center rounded px-2 py-1 text-xs font-weight-400 font-normal ${statusData.className}`}
+      className={`inline-flex h-fit w-fit shrink-0 items-center justify-center rounded px-2 py-1 text-xs font-weight-400 font-normal leading-4 ${statusData.className}`}
     >
       {statusData.label}
     </span>
@@ -145,12 +145,13 @@ function StatusBadge({ status }: { status: VehicleStatus }) {
 
 function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
   return (
-    <div className="flex min-h-32 flex-1 justify-between rounded-lg border border-neutral-200 p-4">
+    <div className="flex min-h-32 flex-1 items-start justify-between rounded-lg border border-neutral-200 p-4">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-weight-500 text-black">
             {vehicle.registration}
           </h3>
+
           <p className="text-xs font-weight-400 font-normal text-neutral-700">
             {vehicle.model}
           </p>
@@ -161,6 +162,7 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
             <p className="text-xs font-weight-400 font-normal text-neutral-700">
               {vehicle.hireInfo}
             </p>
+
             {vehicle.customer && (
               <p className="text-xs font-weight-400 font-normal text-neutral-500">
                 {vehicle.customer}

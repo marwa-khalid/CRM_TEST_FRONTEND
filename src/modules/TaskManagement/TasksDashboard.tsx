@@ -23,6 +23,7 @@ import Clock from "../../assets/Dashboard/Clock.svg";
 import Urgent from "../../assets/Dashboard/Urgent.svg";
 import Pound from "../../assets/Dashboard/Pound.svg";
 import Cars from "../../assets/Dashboard/Cars.svg";
+import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
 
 import { listTasks, type TaskFilters } from "../../services/Tasks/Tasks";
 import { SpinnerLoader } from "../../components/common/SpinnerLoader";
@@ -31,13 +32,15 @@ import NotificationsPanel, {
   type NotifItem,
   buildTaskNotifications,
 } from "./Notifications";
-import { getNotifications, markNotificationRead, markAllNotificationsRead } from "../../services/Notifications/Notifications";
+import { getNotifications, markNotificationRead, markAllNotificationsRead, markAllNotificationsUnread } from "../../services/Notifications/Notifications";
 import { getDashboard, getDashboardTrends, getDashboardIncome } from "../../services/Dashboard/Dashboard";
 import { CustomDatePicker } from "../Claims/Components/DatePicker";
 import MissingDocumentsSlider from "./MissingDocumentsSlider";
+import StorageRecoverySlider from "./StorageRecoverySlider";
 import Select from "react-select";
 import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDetailsForm";
 import FleetOperations from "./FleetDummy";
+import PlateExpiry from "./PlateExpiryDummy";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,8 +61,6 @@ const overdueDays = (due?: string | null): number => {
 };
 
 // ─── static dashboard data (hard-coded per design) ───────────────────────────────
-
-const PERIODS = ["WTD", "MTD", "YTD", "Custom"];
 
 const fmtMoney = (n: any) => "£" + Math.round(Number(n) || 0).toLocaleString();
 const fmtNum = (n: any) => (Number(n) || 0).toLocaleString();
@@ -306,20 +307,20 @@ const HBars: React.FC<{ rows: { label: string; amount: number }[] }> = ({ rows }
   );
 };
 
-// Donut (collection %).
-const Donut: React.FC<{ pct: number }> = ({ pct }) => {
+// Collection donut: two arcs — Actual Collection (dark) over Billed (light).
+const CollectionDonut: React.FC<{ actual: number; billed: number }> = ({ actual, billed }) => {
   const r = 52, c = 2 * Math.PI * r;
-  const off = c * (1 - Math.max(0, Math.min(100, pct)) / 100);
+  const total = (actual || 0) + (billed || 0);
+  const darkLen = total > 0 ? (actual / total) * c : 0;
   return (
-    <div className="relative w-36 h-36">
+    <div className="w-44 h-44 shrink-0">
       <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
-        <circle cx="70" cy="70" r={r} fill="none" stroke="#E5E7EB" strokeWidth="16" />
-        <circle cx="70" cy="70" r={r} fill="none" stroke="#2563EB" strokeWidth="16" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round" />
+        <circle cx="70" cy="70" r={r} fill="none" stroke="#A3CFFF" strokeWidth="22" />
+        <circle
+          cx="70" cy="70" r={r} fill="none" stroke="#2563EB" strokeWidth="22"
+          strokeDasharray={`${darkLen} ${c - darkLen}`}
+        />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-weight-600 text-neutral-900">{pct}%</span>
-        <span className="text-[11px] text-neutral-400">Collected</span>
-      </div>
     </div>
   );
 };
@@ -442,19 +443,33 @@ const Column = ({
 // ─── period tabs ─────────────────────────────────────────────────────────────────
 
 const PeriodTabs = ({ active, onChange }: { active: string; onChange: (p: string) => void }) => (
-  <div className="inline-flex items-center bg-neutral-100 rounded p-1 gap-1">
-    {PERIODS.map((p) => (
-      <button
-        key={p}
-        type="button"
-        onClick={() => onChange(p)}
-        className={`px-4 py-1.5 rounded text-sm ${
-          active === p ? "bg-blue-500 text-white" : "text-neutral-600 hover:text-neutral-900"
-        }`}
-      >
-        {p}
-      </button>
-    ))}
+  <div className="inline-flex items-center gap-2 font-['Stack_Sans_Headline']">
+    {/* WTD / MTD / YTD grouped in one outlined pill */}
+    <div className="rounded outline outline-1 outline-offset-[-1px] outline-blue-200 flex items-center gap-1">
+      {["WTD", "MTD", "YTD"].map((p) => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          className={`px-4 py-2 rounded text-sm leading-4 ${
+            active === p ? "bg-blue-300 text-white" : "text-blue-500"
+          }`}
+        >
+          {p}
+        </button>
+      ))}
+    </div>
+    {/* Custom as its own outlined box with a calendar icon */}
+    <button
+      type="button"
+      onClick={() => onChange("Custom")}
+      className={`px-3 py-2 rounded outline outline-1 outline-offset-[-1px] outline-blue-200 flex items-center gap-2 text-sm leading-4 ${
+        active === "Custom" ? "bg-blue-300 text-white" : "text-blue-500"
+      }`}
+    >
+      <img src={Vector6} alt="" className="w-3.5 h-3.5" />
+      Custom
+    </button>
   </div>
 );
 
@@ -465,10 +480,13 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const me = user?.name || ""; // logged-in user's name (email-before-@)
   const [dash, setDash] = useState<any>(null); // real dashboard aggregates
   const [missingOpen, setMissingOpen] = useState(false);
-  useEffect(() => {
-    getDashboard().then(({ data }) => setDash(data)).catch(() => setDash(null));
-  }, []);
+  const [srOpen, setSrOpen] = useState<null | "storage" | "recovery">(null);
+  const [collPeriod, setCollPeriod] = useState<"MTD" | "YTD" | "All Time">("YTD");
   const [period, setPeriod] = useState("WTD");
+  // Re-fetch the headline aggregates whenever the global period filter changes.
+  useEffect(() => {
+    getDashboard(period).then(({ data }) => setDash(data)).catch(() => setDash(null));
+  }, [period]);
   const [incomePeriod, setIncomePeriod] = useState("YTD");
   const [incomeType, setIncomeType] = useState("all"); // Net Income breakdown filter
   const [incomeFrom, setIncomeFrom] = useState("");
@@ -538,9 +556,16 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
     [dbNotifs, overdue, dueToday],
   );
   const unreadCount = notifications.filter((n) => n.unread && !readIds.has(n.id)).length;
+  const allRead = notifications.length > 0 && unreadCount === 0;
+  // Double-check toggle: if everything's already read, flip all back to unread.
   const markAllRead = () => {
-    setReadIds(new Set(notifications.map((n) => n.id)));
-    markAllNotificationsRead().then(fetchDbNotifs).catch(() => {});
+    if (allRead) {
+      setReadIds(new Set());
+      markAllNotificationsUnread().then(fetchDbNotifs).catch(() => {});
+    } else {
+      setReadIds(new Set(notifications.map((n) => n.id)));
+      markAllNotificationsRead().then(fetchDbNotifs).catch(() => {});
+    }
   };
   const handleNotifClick = (n: NotifItem) => {
     setReadIds((prev) => new Set(prev).add(n.id));
@@ -579,8 +604,13 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
     getDashboardTrends(hirePeriod).then(({ data }) => setHireTrend(data?.hire_trend || [])).catch(() => {});
   }, [hirePeriod]);
   const debtorsAge = dash?.debtors_age || [];
-  const collection = dash?.collection_ytd || { pct: 0, collected: 0, outstanding: 0 };
-  const storageRecovery = dash?.storage_recovery || { storage: 0, recovery: 0 };
+  const collection = dash?.collection_ytd || {
+    pct: 0, collected: 0, outstanding: 0, rate: 0, actual_collection: 0, billed: 0,
+  };
+  const storageRecovery = dash?.storage_recovery || {
+    storage: { total: 0, count: 0 },
+    recovery: { total: 0, count: 0 },
+  };
 
   return (
     <>
@@ -643,10 +673,21 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 {statValue(c)}
               </div>
               <div className="text-neutral-500 text-xs">{c.label}</div>
-              <div
-                className={`text-[11px] ${trendUp(c) ? "text-green-500" : "text-red-500"}`}
-              >
-                {trendText(c)}
+              <div className="mt-2 h-px w-full bg-neutral-200" />
+              <div className="mt-2 flex items-center gap-3">
+                <span
+                  className={`rounded px-2 py-1 text-sm font-weight-600 ${
+                    trendUp(c)
+                      ? "bg-green-100 text-green-500"
+                      : "bg-red-100 text-red-500"
+                  }`}
+                >
+                  {trendText(c).split("%")[0]}%
+                </span>
+
+                <span className="text-[14px] font-weight-500 text-neutral-500">
+                  vs last month
+                </span>
               </div>
             </div>
           ))}
@@ -661,21 +702,31 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
             {ATTENTION.map((a) => (
               <div
                 key={a.label}
-                onClick={a.key === "missing_documents" ? () => setMissingOpen(true) : undefined}
+                onClick={
+                  a.key === "missing_documents"
+                    ? () => setMissingOpen(true)
+                    : undefined
+                }
                 className={`flex-1 rounded-lg border ${a.tint} p-4 flex flex-col gap-2 ${
-                  a.key === "missing_documents" ? "cursor-pointer hover:shadow-sm" : ""
+                  a.key === "missing_documents"
+                    ? "cursor-pointer hover:shadow-sm"
+                    : ""
                 }`}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
                   <img src={a.Icon} alt="" />
-                  <span className="text-neutral-900 text-2xl font-weight-600">
-                    {attnValue(a)}
-                  </span>
-                  <span className="text-neutral-700 text-sm font-weight-500">
-                    {a.label}
-                  </span>
+                  <div className="flex flex-col">
+                    {" "}
+                    <span className="text-neutral-900 text-[24px] font-weight-600">
+                      {attnValue(a)}
+                    </span>
+                    <span className="text-neutral-700 text-[14px] font-weight-500">
+                      {a.label}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-neutral-500 text-xs">{a.note}</p>
+                <div className="my-2 h-px w-full bg-neutral-200" />
+                <p className="text-neutral-500 text-[14px]">{a.note}</p>
               </div>
             ))}
             {/* <button
@@ -714,17 +765,30 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                   return (
                     <div key={which} className="relative">
                       <div
-                        onClick={() => setCalOpen((o) => (o === which ? null : which))}
+                        onClick={() =>
+                          setCalOpen((o) => (o === which ? null : which))
+                        }
                         className="h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600 flex items-center gap-2 cursor-pointer min-w-[120px] justify-between"
                       >
-                        <span className={val ? "text-neutral-700" : "text-neutral-400"}>{val || (which === "from" ? "From" : "To")}</span>
+                        <span
+                          className={
+                            val ? "text-neutral-700" : "text-neutral-400"
+                          }
+                        >
+                          {val || (which === "from" ? "From" : "To")}
+                        </span>
                         <CalendarIcon size={14} className="text-neutral-400" />
                       </div>
                       {calOpen === which && (
                         <div className="absolute top-full left-0 z-50 mt-1 shadow-xl rounded-lg bg-white">
                           <CustomDatePicker
-                            selectedDate={val ? new Date(val + "T00:00:00") : new Date()}
-                            onDateSelect={(d: Date) => { set(toLocalISO(d)); setCalOpen(null); }}
+                            selectedDate={
+                              val ? new Date(val + "T00:00:00") : new Date()
+                            }
+                            onDateSelect={(d: Date) => {
+                              set(toLocalISO(d));
+                              setCalOpen(null);
+                            }}
                           />
                         </div>
                       )}
@@ -739,7 +803,10 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 value={INCOME_TYPE_OPTIONS.find((o) => o.value === incomeType)}
                 onChange={(o: any) => setIncomeType(o?.value || "all")}
                 styles={customStyles}
-                components={{ DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null }}
+                components={{
+                  DropdownIndicator: BlueDropdownIndicator,
+                  IndicatorSeparator: () => null,
+                }}
                 isSearchable={false}
                 placeholder="Income Type"
               />
@@ -752,13 +819,19 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
               return (
                 <div
                   key={c.key}
-                  style={{ flexGrow: Math.max(val, 1), flexBasis: 0, minWidth: 110 }}
+                  style={{
+                    flexGrow: Math.max(val, 1),
+                    flexBasis: 0,
+                    minWidth: 110,
+                  }}
                   className="flex flex-col gap-2 pr-4"
                 >
                   <div className="text-neutral-900 text-xl font-weight-600 whitespace-nowrap">
                     {fmtMoney(val)}
                   </div>
-                  <div className="text-neutral-500 text-xs whitespace-nowrap">{c.label}</div>
+                  <div className="text-neutral-500 text-xs whitespace-nowrap">
+                    {c.label}
+                  </div>
                 </div>
               );
             })}
@@ -770,7 +843,12 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
               return (
                 <div
                   key={c.key}
-                  style={{ flexGrow: Math.max(val, 1), flexBasis: 0, minWidth: 110, background: c.color }}
+                  style={{
+                    flexGrow: Math.max(val, 1),
+                    flexBasis: 0,
+                    minWidth: 110,
+                    background: c.color,
+                  }}
                 />
               );
             })}
@@ -810,10 +888,16 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 </button>
               ))}
             </div>
-            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600">
+            <button
+              type="button"
+              className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600"
+            >
               Referrer <ChevronDown size={14} />
             </button>
-            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600">
+            <button
+              type="button"
+              className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600"
+            >
               Status <ChevronDown size={14} />
             </button>
           </div>
@@ -845,10 +929,16 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 </button>
               ))}
             </div>
-            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600">
+            <button
+              type="button"
+              className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600"
+            >
               Referrer <ChevronDown size={14} />
             </button>
-            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600">
+            <button
+              type="button"
+              className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600"
+            >
               Status <ChevronDown size={14} />
             </button>
           </div>
@@ -879,91 +969,64 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
             </div>
             <HBars rows={debtorsAge} />
           </div>
-          <div className="rounded-lg border border-neutral-200 p-5">
-            <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-4">
-              Collection Performance YTD
-            </h2>
-            <div className="flex items-center gap-6">
-              <Donut pct={collection.pct} />
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-3 h-3 rounded-full bg-blue-600 shrink-0" />
-                  <div>
-                    <div className="text-neutral-900 text-lg font-weight-600">{fmtMoney(collection.collected)}</div>
-                    <div className="text-neutral-500 text-xs">Collected</div>
-                  </div>
+          <div className="rounded-lg border border-neutral-200 px-4 py-6 flex flex-col gap-10">
+            <div className="flex flex-col gap-5">
+              <h2 className="text-black text-xl font-weight-600 leading-5">
+                Collection Performance YTD
+              </h2>
+              <div className="flex items-center gap-5">
+                <div className="rounded outline outline-1 outline-blue-200 flex items-center gap-1">
+                  {(["MTD", "YTD", "All Time"] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCollPeriod(p)}
+                      className={`px-4 py-2 rounded text-sm leading-4 ${
+                        collPeriod === p ? "bg-blue-300 text-white" : "text-blue-500"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <span className="w-3 h-3 rounded-full bg-neutral-200 shrink-0" />
-                  <div>
-                    <div className="text-neutral-900 text-lg font-weight-600">{fmtMoney(collection.outstanding)}</div>
-                    <div className="text-neutral-500 text-xs">Outstanding</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Storage & Recovery + Operational Insights */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="rounded-lg border border-neutral-200 p-5">
-            <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-4">
-              Storage &amp; Recovery
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-lg border border-neutral-100 p-4">
-                <div className="text-neutral-900 text-2xl font-weight-600">
-                  {fmtMoney(storageRecovery.storage)}
-                </div>
-                <div className="text-neutral-500 text-xs mt-1">
-                  Storage Charges
-                </div>
-              </div>
-              <div className="rounded-lg border border-neutral-100 p-4">
-                <div className="text-neutral-900 text-2xl font-weight-600">
-                  {fmtMoney(storageRecovery.recovery)}
-                </div>
-                <div className="text-neutral-500 text-xs mt-1">
-                  Recovery Charges
+                <div className="p-2 rounded flex items-center gap-2 text-blue-500 text-sm">
+                  Payment <ChevronDown size={14} />
                 </div>
               </div>
             </div>
-          </div>
-          <div className="rounded-lg border border-neutral-200 p-5">
-            <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-4">
-              Operational Insights
-            </h2>
-            <div className="flex flex-col divide-y divide-neutral-100">
-              {[
-                {
-                  label: "Active Claims",
-                  value: fmtNum(dash?.stats?.claims_reported ?? 0),
-                },
-                {
-                  label: "Vehicles",
-                  value: fmtNum(dash?.stats?.vehicles ?? 0),
-                },
-                {
-                  label: "Urgent Alerts",
-                  value: fmtNum(dash?.stats?.urgent_alerts ?? 0),
-                },
-                {
-                  label: "Outstanding Debtors",
-                  value: fmtNum(dash?.stats?.outstanding_debtors_count ?? 0),
-                },
-                // { label: "Collection Rate", value: `${collection.pct}%` },
-              ].map((r) => (
-                <div
-                  key={r.label}
-                  className="flex items-center justify-between py-2.5"
-                >
-                  <span className="text-neutral-500 text-sm">{r.label}</span>
-                  <span className="text-neutral-900 text-sm font-weight-600">
-                    {r.value}
-                  </span>
+            <div className="flex items-center justify-between gap-8">
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-1">
+                  <div className="text-black text-2xl font-weight-600 leading-6">
+                    {collection.rate ?? 0}%
+                  </div>
+                  <div className="text-neutral-500 text-sm font-weight-500">Collection rate</div>
                 </div>
-              ))}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full shrink-0" style={{ background: "#2563EB" }} />
+                      <span className="text-black text-sm font-weight-600 w-36">Agreed Amount</span>
+                    </div>
+                    <span className="text-black text-sm font-weight-600">
+                      {fmtMoney(collection.actual_collection)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full shrink-0" style={{ background: "#A3CFFF" }} />
+                      <span className="text-black text-sm font-weight-600 w-36">Actual Amount</span>
+                    </div>
+                    <span className="text-black text-sm font-weight-600">
+                      {fmtMoney(collection.billed)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <CollectionDonut
+                actual={collection.actual_collection || 0}
+                billed={collection.billed || 0}
+              />
             </div>
           </div>
         </div>
@@ -1010,9 +1073,9 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
             ))}
           </div>
         </div> */}
-<FleetOperations/>
+        <FleetOperations />
         {/* Plate Expiry (static mock) */}
-        <div className="rounded-lg border border-neutral-200 p-5">
+        {/* <div className="rounded-lg border border-neutral-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-neutral-900 text-[20px] font-weight-600">
               Plate Expiry
@@ -1052,10 +1115,99 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
               </div>
             ))}
           </div>
+        </div> */}
+        <PlateExpiry />
+        {/* Storage & Recovery + Operational Insights */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="rounded-lg border border-neutral-200 px-4 py-6 flex flex-col gap-6">
+            <h2 className="text-black text-xl font-weight-600 leading-5">
+              Storage &amp; Recovery
+            </h2>
+            <div className="flex flex-col gap-1">
+              {[
+                {
+                  type: "storage" as const,
+                  label: "Standard Storage",
+                  data: storageRecovery.storage,
+                },
+                {
+                  type: "recovery" as const,
+                  label: "Recovery Active",
+                  data: storageRecovery.recovery,
+                },
+              ].map((row, i) => (
+                <React.Fragment key={row.type}>
+                  {i > 0 && <div className="h-px bg-neutral-100 w-full" />}
+                  <div className="p-3 rounded-lg flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex flex-col gap-1">
+                        <div className="text-neutral-700 text-sm">
+                          {row.label}
+                        </div>
+                        <div className="text-neutral-700 text-xs">
+                          {row.data.count} Vehicles
+                        </div>
+                      </div>
+                      <div className="text-black text-2xl font-weight-600 leading-6">
+                        {fmtMoney(row.data.total)}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSrOpen(row.type)}
+                      className="h-8 px-3 py-2 bg-blue-100 rounded inline-flex justify-center items-center text-blue-600 text-sm leading-4 self-start"
+                    >
+                      View All
+                    </button>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-lg border border-neutral-200 px-4 py-6 flex flex-col gap-6">
+            <h2 className="text-black text-xl font-weight-600 leading-5">
+              Operational Insights
+            </h2>
+            <div className="flex flex-col gap-3">
+              {[
+                {
+                  label: "New Claims",
+                  value: fmtNum(dash?.stats?.claims_reported ?? 0),
+                },
+                {
+                  label: "Approved Claims",
+                  value: fmtNum(dash?.stats?.approved_claims ?? 0),
+                },
+                {
+                  label: "Vehicle Hires",
+                  value: fmtNum(dash?.stats?.vehicles ?? 0),
+                },
+                {
+                  label: "Avg Resolution Time",
+                  value: `${fmtNum(dash?.stats?.avg_resolution_days ?? 0)} Days`,
+                },
+              ].map((r, i) => (
+                <React.Fragment key={r.label}>
+                  {i > 0 && <div className="h-px bg-neutral-100 w-full" />}
+                  <div className="py-1 flex justify-between items-start">
+                    <span className="text-neutral-700 text-sm">{r.label}</span>
+                    <span className="text-black text-2xl font-weight-600 leading-6">
+                      {r.value}
+                    </span>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {missingOpen && <MissingDocumentsSlider onClose={() => setMissingOpen(false)} />}
+      {missingOpen && (
+        <MissingDocumentsSlider onClose={() => setMissingOpen(false)} />
+      )}
+      {srOpen && (
+        <StorageRecoverySlider type={srOpen} onClose={() => setSrOpen(null)} />
+      )}
     </>
   );
 };

@@ -159,11 +159,11 @@ const TABS: { key: string; label: string }[] = [
 
 // category → icon + colour
 const META: Record<string, { Icon: any; color: string; bg: string }> = {
-  "High Priority": { Icon: AlertCircle, color: "text-red-500", bg: "bg-red-50" },
-  Claim: { Icon: FileText, color: "text-blue-500", bg: "bg-blue-50" },
-  Task: { Icon: ClipboardList, color: "text-blue-500", bg: "bg-blue-50" },
-  Mention: { Icon: AtSign, color: "text-blue-500", bg: "bg-blue-50" },
-  Fleet: { Icon: Truck, color: "text-blue-500", bg: "bg-blue-50" },
+  "High Priority": { Icon: AlertCircle, color: "text-red-500", bg: "bg-red-100" },
+  Claim: { Icon: FileText, color: "text-blue-500", bg: "bg-blue-100" },
+  Task: { Icon: ClipboardList, color: "text-blue-500", bg: "bg-blue-100" },
+  Mention: { Icon: AtSign, color: "text-blue-500", bg: "bg-blue-100" },
+  Fleet: { Icon: Truck, color: "text-blue-500", bg: "bg-blue-100" },
   "System Alert": { Icon: Settings, color: "text-neutral-500", bg: "bg-neutral-100" },
 };
 
@@ -178,7 +178,7 @@ const Row = ({
       type="button"
       onClick={onClick}
       className={`w-full text-left px-4 py-3 border-b border-neutral-50 last:border-0 flex gap-3 hover:bg-neutral-50 ${
-        unread ? "bg-blue-50/30" : "bg-white"
+        unread ? "bg-blue-100/30" : "bg-white"
       }`}
     >
       <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${meta.bg}`}>
@@ -214,6 +214,7 @@ const Notifications: React.FC<{
   const [tab, setTab] = React.useState("All");
 
   const unreadCount = items.filter((n) => n.unread && !readIds.has(n.id)).length;
+  const allRead = items.length > 0 && unreadCount === 0;
   const visible = (tab === "All" ? items : items.filter((n) => n.tab === tab))
     .slice()
     .sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0)); // most recent first
@@ -260,8 +261,8 @@ const Notifications: React.FC<{
         <button
           type="button"
           onClick={onMarkAllRead}
-          title="Mark all as read"
-          className="text-neutral-400 hover:text-blue-500"
+          title={allRead ? "Mark all as unread" : "Mark all as read"}
+          className={allRead ? "text-blue-500" : "text-neutral-400 hover:text-blue-500"}
         >
           <CheckCheck size={18} />
         </button>

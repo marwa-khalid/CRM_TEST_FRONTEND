@@ -265,7 +265,7 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
       } catch (err: any) {
         if (err?.response?.status !== 404) {
           console.error(err);
-          toast.error("Unable to load engineer details");
+          // toast.error("Unable to load engineer details");
         }
       } finally {
         setLoading(false);

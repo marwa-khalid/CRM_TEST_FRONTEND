@@ -223,7 +223,7 @@ const DatePickerField = ({
               : "text-neutral-300 font-light"
           }
         >
-          {value || placeholder}
+          {value ? formatDate(value) : placeholder}
         </span>
         <img src={Vector6} alt="" className="w-4 h-4" />
       </div>
@@ -414,8 +414,8 @@ const QuickActions = ({
               key={it.key}
               type="button"
               onClick={() => { setOpen(false); onAction(it.key, task); }}
-              className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-50 ${
-                (it as any).danger ? "text-red-600 hover:bg-red-50" : "text-neutral-700"
+              className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-100 ${
+                (it as any).danger ? "text-red-600 hover:bg-red-100" : "text-neutral-700"
               }`}
             >
               {it.label}
@@ -1296,7 +1296,12 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setSelectMode((s) => { if (s) setSelected([]); return !s; })}
+              onClick={() =>
+                setSelectMode((s) => {
+                  if (s) setSelected([]);
+                  return !s;
+                })
+              }
               className={`text-sm font-weight-500 ${selectMode ? "text-blue-600" : "text-neutral-600 hover:text-blue-600"}`}
             >
               {selectMode ? "Cancel" : "Select"}
@@ -1338,7 +1343,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-6 flex-wrap mb-3">
+        <div className="flex items-start gap-6 flex-wrap mb-3">
           <div className="flex items-center gap-12 flex-wrap">
             <MultiFilterDropdown
               label="Priority"
@@ -1383,22 +1388,24 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
               onClear={() => clearFilter("vehicle_registration")}
             />
           </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <span className="text-neutral-700 text-sm">Date Range</span>
-            <DatePickerField
-              value={dateRange.due_from}
-              onChange={(v) => setDate("due_from", v)}
-              placeholder="From"
-              align="right"
-              triggerClassName="w-36 h-11 px-3 bg-white rounded border border-neutral-200 flex items-center justify-between cursor-pointer text-sm"
-            />
-            <DatePickerField
-              value={dateRange.due_to}
-              onChange={(v) => setDate("due_to", v)}
-              placeholder="To"
-              align="right"
-              triggerClassName="w-36 h-11 px-3 bg-white rounded border border-neutral-200 flex items-center justify-between cursor-pointer text-sm"
-            />
+          <div className="ml-auto flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-700 text-sm">Date Range</span>
+              <DatePickerField
+                value={dateRange.due_from}
+                onChange={(v) => setDate("due_from", v)}
+                placeholder="From"
+                align="right"
+                triggerClassName="w-36 h-11 px-3 bg-white rounded border border-neutral-200 flex items-center justify-between cursor-pointer text-sm"
+              />
+              <DatePickerField
+                value={dateRange.due_to}
+                onChange={(v) => setDate("due_to", v)}
+                placeholder="To"
+                align="right"
+                triggerClassName="w-36 h-11 px-3 bg-white rounded border border-neutral-200 flex items-center justify-between cursor-pointer text-sm"
+              />
+            </div>
             {(dateRange.due_from || dateRange.due_to) && (
               <button
                 type="button"
@@ -1407,9 +1414,9 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                   setDateRange({ due_from: "", due_to: "" });
                 }}
                 title="Clear date range"
-                className="flex items-center gap-1.5 h-11 px-3.5 rounded-full bg-blue-50 text-blue-500 text-sm font-weight-500 hover:bg-red-50 hover:text-red-500 transition-colors"
+                className="flex items-center gap-1.5 h-[24px] px-3.5 rounded bg-blue-100 text-blue-500 text-[12px] font-weight-500 hover:bg-red-100 hover:text-red-500 transition-colors"
               >
-                <X size={15} /> Clear
+                <X size={15} /> Clear Date Filter
               </button>
             )}
           </div>
@@ -1445,28 +1452,32 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
 
         {/* Bulk action bar */}
         {selected.length > 0 && (
-          <div className="flex items-center justify-between mb-3 px-4 py-3 bg-blue-50 rounded">
-            <span className="text-sm text-neutral-700">{selected.length} Selected</span>
+          <div className="flex items-center justify-between mb-3 px-4 py-3 bg-blue-100 text-blue-500 rounded">
+            <span className="text-sm text-blue-500">
+              {selected.length} Selected
+            </span>
             <div ref={bulkMenuRef} className="flex items-center gap-6 text-sm">
               <button
                 type="button"
                 onClick={() => setBulkConfirm(true)}
-                className="flex items-center gap-1.5 text-neutral-700 hover:text-red-600"
+                className="flex items-center gap-1.5  hover:text-red-600"
               >
                 <Trash2 size={15} /> Delete
               </button>
               <button
                 type="button"
                 onClick={() => bulkUpdate({ status: "Completed" })}
-                className="flex items-center gap-1.5 text-neutral-700 hover:text-green-600"
+                className="flex items-center gap-1.5 hover:text-green-600"
               >
                 <Check size={15} /> Mark as Complete
               </button>
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setBulkMenu((m) => (m === "reassign" ? null : "reassign"))}
-                  className="flex items-center gap-1.5 text-neutral-700"
+                  onClick={() =>
+                    setBulkMenu((m) => (m === "reassign" ? null : "reassign"))
+                  }
+                  className="flex items-center gap-1.5"
                 >
                   Reassign <ChevronDown size={14} />
                 </button>
@@ -1487,8 +1498,10 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setBulkMenu((m) => (m === "status" ? null : "status"))}
-                  className="flex items-center gap-1.5 text-neutral-700"
+                  onClick={() =>
+                    setBulkMenu((m) => (m === "status" ? null : "status"))
+                  }
+                  className="flex items-center gap-1.5 "
                 >
                   Change Status <ChevronDown size={14} />
                 </button>
@@ -1547,7 +1560,10 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                   >
                     {selectMode && (
                       <td className="px-4 py-4">
-                        <Checkbox checked={selected.includes(t.id)} onChange={() => toggleOne(t.id)} />
+                        <Checkbox
+                          checked={selected.includes(t.id)}
+                          onChange={() => toggleOne(t.id)}
+                        />
                       </td>
                     )}
                     <td className="px-4 py-4 ">
@@ -1623,12 +1639,17 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
               <div
                 key={t.id}
                 className={`rounded-lg border p-5 flex gap-2.5 hover:shadow-sm transition ${
-                  selected.includes(t.id) ? "border-blue-500 ring-1 ring-blue-500" : "border-neutral-200"
+                  selected.includes(t.id)
+                    ? "border-blue-500 ring-1 ring-blue-500"
+                    : "border-neutral-200"
                 }`}
               >
                 {selectMode && (
                   <div className="mt-0.5">
-                    <Checkbox checked={selected.includes(t.id)} onChange={() => toggleOne(t.id)} />
+                    <Checkbox
+                      checked={selected.includes(t.id)}
+                      onChange={() => toggleOne(t.id)}
+                    />
                   </div>
                 )}
                 {/* single column so everything stays vertically aligned */}
@@ -1664,11 +1685,15 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                   </div>
                   <div className="text-sm text-neutral-700">
                     Assigned to:{" "}
-                    <span className="font-weight-600">{t.assigned_user || "—"}</span>
+                    <span className="font-weight-600">
+                      {t.assigned_user || "—"}
+                    </span>
                   </div>
                   <div className="text-sm text-neutral-700">
                     Department:{" "}
-                    <span className="font-weight-600">{t.department || "—"}</span>
+                    <span className="font-weight-600">
+                      {t.department || "—"}
+                    </span>
                   </div>
                   {/* footer pinned to the bottom so status/priority always sit at the end */}
                   <div className="mt-auto">
@@ -1689,10 +1714,14 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                               : t.status,
                           )}
                         />
-                        <Badge text={t.priority} cls={priorityBadge(t.priority)} />
+                        <Badge
+                          text={t.priority}
+                          cls={priorityBadge(t.priority)}
+                        />
                       </div>
                       <span className="text-neutral-600 text-xs">
-                        Due: <span className="font-weight-600">{formatDue(t)}</span>
+                        Due:{" "}
+                        <span className="font-weight-600">{formatDue(t)}</span>
                       </span>
                     </div>
                   </div>
@@ -1743,7 +1772,10 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
         <ReassignModal
           task={reassignTarget}
           onClose={() => setReassignTarget(null)}
-          onDone={() => { setReassignTarget(null); refresh(); }}
+          onDone={() => {
+            setReassignTarget(null);
+            refresh();
+          }}
         />
       )}
 
@@ -1752,7 +1784,11 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
           key={detailTask.id}
           task={detailTask}
           onClose={() => setDetailTask(null)}
-          onEdit={() => { setEditing(detailTask); setDrawerOpen(true); setDetailTask(null); }}
+          onEdit={() => {
+            setEditing(detailTask);
+            setDrawerOpen(true);
+            setDetailTask(null);
+          }}
           onReassign={() => setReassignTarget(detailTask)}
           onRefresh={refresh}
         />

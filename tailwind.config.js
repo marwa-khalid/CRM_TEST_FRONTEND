@@ -21,16 +21,19 @@ export default {
           100: "#EEEEEE",
         },
         green: {
+          100: "#D9FFD9",
           500: "#37BF37",
+          700: "#159215",
         },
         blue: {
           500: "#0352FD",
           300: "#286CFF",
           200: "#a2cfff", // example lighter shade
-          100:"#d9ebff"
+          100: "#d9ebff",
         },
         yellow: {
           100: "#FFF1D7",
+          500: "#E69500",
         },
         stormGray: "#717680",
         brand: {

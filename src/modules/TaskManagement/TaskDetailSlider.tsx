@@ -1,11 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import {
-  updateTask, uploadTaskFile, getAttachmentUrl,
+  updateTask, getAttachmentUrl,
   getTaskNotes, addTaskNote, deleteTaskNote, getTaskHistory,
 } from "../../services/Tasks/Tasks";
+import Delete from '../../assets/TaskManagement/Delete.svg'
+import Download from "../../assets/TaskManagement/Download.svg";
+
 import { getUsers } from "../../services/Notifications/Notifications";
-import { fileLogo } from "./TaskAttachmentModal";
+import TaskAttachmentModal, { fileLogo } from "./TaskAttachmentModal";
+import { ConfirmModal } from "../../components/common/ConfirmModal";
 import upload from '../../assets/TaskManagement/upload.svg'
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -37,7 +41,7 @@ const priorityCls = (p?: string) => {
 const statusCls = (s?: string) => {
   const v = (s || "").toLowerCase();
   if (v === "completed") return "bg-green-500";
-  if (v === "in progress") return "bg-amber-500";
+  if (v === "in progress") return "bg-yellow-500";
   if (v === "overdue") return "bg-red-500";
   if (v === "awaiting response") return "bg-blue-500";
   if (v === "rejected") return "bg-neutral-500";
@@ -97,26 +101,22 @@ const DetailsTab = ({ task, onReassign }: { task: any; onReassign: () => void })
 
 // ─── Tab 2: attachments ────────────────────────────────────────────────────────────
 const AttachmentsTab = ({ task, onUpdated }: { task: any; onUpdated: (t: any) => void }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const files: string[] = (task.attachment_path || "").split(",").map((s: string) => s.trim()).filter(Boolean);
 
   const save = async (paths: string[]) => {
     const { data } = await updateTask(task.id, { attachment_path: paths.join(",") });
     onUpdated(data);
   };
-  const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setBusy(true);
-    try {
-      const { data } = await uploadTaskFile(f);
-      await save([...files, data.path]);
-      toast.success("Attachment added");
-    } catch { toast.error("Upload failed"); } finally { setBusy(false); if (inputRef.current) inputRef.current.value = ""; }
+  const onUploaded = async (path: string) => {
+    try { await save([...files, path]); } catch { toast.error("Failed to attach file"); }
   };
-  const remove = async (p: string) => {
-    try { await save(files.filter((x) => x !== p)); toast.success("Attachment removed"); } catch { toast.error("Failed"); }
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+    try { await save(files.filter((x) => x !== removeTarget)); toast.success("Attachment removed"); }
+    catch { toast.error("Failed"); }
+    finally { setRemoveTarget(null); }
   };
   const open = async (p: string) => {
     try { const { data } = await getAttachmentUrl(p); window.open(data?.url || data, "_blank"); } catch { toast.error("Could not open"); }
@@ -124,35 +124,78 @@ const AttachmentsTab = ({ task, onUpdated }: { task: any; onUpdated: (t: any) =>
 
   return (
     <div className="flex flex-col gap-6">
+      {modalOpen && (
+        <TaskAttachmentModal
+          onClose={() => setModalOpen(false)}
+          onUploaded={onUploaded}
+        />
+      )}
       <div className="flex flex-col gap-4">
-        <div className="text-neutral-900 text-base font-weight-600">Upload Attachment</div>
-        <button type="button" onClick={() => inputRef.current?.click()} disabled={busy}
-          className="p-8 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col items-center gap-3 hover:bg-neutral-50">
-         <img src={upload} alt="" /><div className="flex flex-col items-center gap-1">
-            <span className="text-blue-500 text-sm font-weight-500">{busy ? "Uploading…" : "Click to upload or drag and drop"}</span>
-            <span className="text-neutral-500 text-xs">JPG, PNG, PDF, CSV Supported</span>
+        <div className="text-neutral-900 text-base font-weight-600">
+          Upload Attachment
+        </div>
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className="p-8 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col items-center gap-3 hover:bg-neutral-50"
+        >
+          <img src={upload} alt="" />
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-blue-500 text-sm font-weight-500">
+              Click to upload or drag and drop
+            </span>
+            <span className="text-neutral-500 text-xs">
+              JPG, PNG, PDF, CSV Supported
+            </span>
           </div>
         </button>
-        <input ref={inputRef} type="file" hidden onChange={onPick} />
       </div>
       <div className="flex flex-col gap-3">
-        <div className="text-neutral-700 text-base font-weight-600">Attached Files ({files.length})</div>
-        {files.length === 0 && <div className="text-neutral-400 text-sm">No attachments yet.</div>}
+        <div className="text-neutral-700 text-base font-weight-600">
+          Attached Files ({files.length})
+        </div>
+        {files.length === 0 && (
+          <div className="text-neutral-400 text-sm">No attachments yet.</div>
+        )}
         {files.map((p) => (
-          <div key={p} className="p-3 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex items-center gap-3">
+          <div
+            key={p}
+            className="p-3 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex items-center gap-3"
+          >
             <img src={fileLogo(p)} alt="" className="w-10 h-10" />
             <div className="flex-1 min-w-0">
-              <div className="text-black text-sm font-weight-500 line-clamp-1">{baseName(p)}</div>
+              <div className="text-black text-sm font-weight-500 line-clamp-1">
+                {baseName(p)}
+              </div>
             </div>
-            <button type="button" onClick={() => open(p)} title="Download" className="text-neutral-500 hover:text-blue-500">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <button
+              type="button"
+              onClick={() => open(p)}
+              title="Download"
+              className="text-neutral-500 hover:text-blue-500"
+            >
+              <img src={Download} alt="" />{" "}
             </button>
-            <button type="button" onClick={() => remove(p)} title="Remove" className="text-neutral-500 hover:text-red-500">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5h6v2m-7 0v12a1 1 0 001 1h6a1 1 0 001-1V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <button
+              type="button"
+              onClick={() => setRemoveTarget(p)}
+              title="Remove"
+              className="text-neutral-500 hover:text-red-500"
+            >
+              <img src={Delete} alt="" />{" "}
             </button>
           </div>
         ))}
       </div>
+      {removeTarget && (
+        <ConfirmModal
+          title="Remove Attachment"
+          message="Are you sure you want to remove this attachment?"
+          confirmLabel="Remove"
+          onCancel={() => setRemoveTarget(null)}
+          onConfirm={confirmRemove}
+        />
+      )}
     </div>
   );
 };
@@ -251,8 +294,7 @@ const NotesTab = ({ task }: { task: any }) => {
               <div className="flex items-center gap-3">
                 <span className="text-neutral-500 text-sm">{fmtNoteTime(n.created_at)}</span>
                 <button type="button" onClick={() => remove(n.id)} className="text-neutral-300 hover:text-red-500">
-                  <svg width="14" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5h6v2m-7 0v12a1 1 0 001 1h6a1 1 0 001-1V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </button>
+                <img src={Delete} alt="" /></button>
               </div>
             </div>
             <div className="text-neutral-700 text-sm" dangerouslySetInnerHTML={renderNote(n.text)} />

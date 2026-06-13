@@ -38,7 +38,7 @@ const StorageRecoverySlider = ({
   return (
     <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-[1316px] max-w-full bg-white h-full flex flex-col p-10 gap-5">
+      <div className="w-[900px] max-w-full bg-white h-full flex flex-col p-10 gap-5">
         {/* header */}
         <div className="flex justify-between items-start">
           <div className="text-black text-2xl font-weight-600 leading-6">{title}</div>
@@ -60,7 +60,7 @@ const StorageRecoverySlider = ({
 
         {/* grid of vehicle cards */}
         <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-3">
             {group.items.map((it, i) => (
               <div
                 key={`${it.claim_id}-${i}`}

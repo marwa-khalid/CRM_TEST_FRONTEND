@@ -41,6 +41,8 @@ const clean = (params: Record<string, any>) =>
 export const listTasks = (params: TaskFilters = {}) =>
   axiosInstance.get("/tasks/", { params: clean(params) });
 
+export const getTask = (id: number) => axiosInstance.get(`/tasks/${id}`);
+
 export const getTaskStats = () => axiosInstance.get("/tasks/stats");
 
 export const getVehicleOptions = () => axiosInstance.get("/tasks/vehicle-options");

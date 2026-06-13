@@ -6,7 +6,6 @@ import {
   ClipboardList,
   AtSign,
   Truck,
-  RefreshCw,
   Settings,
 } from "lucide-react";
 
@@ -31,6 +30,7 @@ export interface NotifItem {
   ts?: number; // epoch ms of the event — for sorting + grouping
   unread: boolean;
   taskId?: number;
+  task_id?: number;
   notif_id?: number; // backend notification row id (for mark-as-read)
   claim_id?: number | null; // linked claim (click-through)
 }
@@ -159,17 +159,29 @@ const TABS: { key: string; label: string }[] = [
 
 // category → icon + colour
 const META: Record<string, { Icon: any; color: string; bg: string }> = {
-  "High Priority": { Icon: AlertCircle, color: "text-red-500", bg: "bg-red-100" },
+  "High Priority": {
+    Icon: AlertCircle,
+    color: "text-blue-500",
+    bg: "bg-blue-100",
+  },
   Claim: { Icon: FileText, color: "text-blue-500", bg: "bg-blue-100" },
   Task: { Icon: ClipboardList, color: "text-blue-500", bg: "bg-blue-100" },
   Mention: { Icon: AtSign, color: "text-blue-500", bg: "bg-blue-100" },
   Fleet: { Icon: Truck, color: "text-blue-500", bg: "bg-blue-100" },
-  "System Alert": { Icon: Settings, color: "text-neutral-500", bg: "bg-neutral-100" },
+  "System Alert": { Icon: Settings, color: "text-blue-500", bg: "bg-blue-100" },
 };
 
 const Row = ({
-  item, read, onClick,
-}: { item: NotifItem; read: boolean; onClick: () => void }) => {
+  item,
+  read,
+  onClick,
+  showCategory,
+}: {
+  item: NotifItem;
+  read: boolean;
+  onClick: () => void;
+  showCategory: boolean;
+}) => {
   const meta = META[item.category] || META["System Alert"];
   const Icon = meta.Icon;
   const unread = item.unread && !read;
@@ -181,15 +193,19 @@ const Row = ({
         unread ? "bg-blue-100/30" : "bg-white"
       }`}
     >
-      <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${meta.bg}`}>
+      <span
+        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${meta.bg}`}
+      >
         <Icon size={16} className={meta.color} />
       </span>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <span className="px-2 py-[2px] rounded border border-neutral-200 text-[10px] font-weight-500 text-neutral-600 shrink-0">
-            {item.category}
-          </span>
-          <div className="flex flex-col items-end gap-1 shrink-0">
+          {showCategory && (
+            <span className="px-2 py-[2px] rounded border border-neutral-200 text-[10px] font-weight-500 text-neutral-600 shrink-0">
+              {item.category}
+            </span>
+          )}
+          <div className="flex flex-col items-end gap-1 shrink-0 ml-auto">
             <span className="text-[11px] text-neutral-400">{item.time}</span>
             {unread && <span className="w-2 h-2 rounded-full bg-blue-500" />}
           </div>
@@ -241,7 +257,13 @@ const Notifications: React.FC<{
           {label}
         </div>
         {rows.map((n) => (
-          <Row key={n.id} item={n} read={readIds.has(n.id)} onClick={() => onItemClick(n)} />
+          <Row
+            key={n.id}
+            item={n}
+            read={readIds.has(n.id)}
+            onClick={() => onItemClick(n)}
+            showCategory={tab === "All"}
+          />
         ))}
       </>
     );

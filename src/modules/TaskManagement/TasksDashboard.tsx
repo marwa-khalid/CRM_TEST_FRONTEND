@@ -2,14 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   Bell,
-  ClipboardList,
-  Car,
-  PoundSterling,
-  Percent,
-  AlertTriangle,
-  ChevronRight,
   ChevronDown,
-  Clock12,
   Calendar as CalendarIcon,
 } from "lucide-react";
 import PendingFollowups from '../../assets/Dashboard/PendingFollowups.svg'
@@ -26,14 +19,19 @@ import Cars from "../../assets/Dashboard/Cars.svg";
 import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
 
 import { listTasks, type TaskFilters } from "../../services/Tasks/Tasks";
-import { SpinnerLoader } from "../../components/common/SpinnerLoader";
 import { useCurrentUser } from "../../context/AuthContext";
 import NotificationsPanel, {
   type NotifItem,
   buildTaskNotifications,
 } from "./Notifications";
 import { getNotifications, markNotificationRead, markAllNotificationsRead, markAllNotificationsUnread } from "../../services/Notifications/Notifications";
-import { getDashboard, getDashboardTrends, getDashboardIncome } from "../../services/Dashboard/Dashboard";
+import {
+  getDashboard,
+  getDashboardCollection,
+  getDashboardIncome,
+  getDashboardTrends,
+  getTrendOptions,
+} from "../../services/Dashboard/Dashboard";
 import { CustomDatePicker } from "../Claims/Components/DatePicker";
 import MissingDocumentsSlider from "./MissingDocumentsSlider";
 import StorageRecoverySlider from "./StorageRecoverySlider";
@@ -148,6 +146,13 @@ const INCOME_TYPE_OPTIONS = [
   { value: "engineer", label: "Engineer Fee" },
 ];
 
+const COLLECTION_PAYMENT_OPTIONS = [
+  { value: "paid", label: "Paid" },
+  { value: "pending", label: "Pending" },
+] as const;
+
+type CollectionPaymentStatus = (typeof COLLECTION_PAYMENT_OPTIONS)[number]["value"];
+
 // ─── data-driven SVG/CSS charts (no chart library) ───────────────────────────────
 
 type Pt = { label: string; value: number };
@@ -173,9 +178,11 @@ const cardinalPath = (pts: { x: number; y: number }[]) => {
 };
 
 // Smooth line chart with Y-axis, dotted gridlines, dot markers + hover tooltip.
-const LineChart: React.FC<{ points: Pt[] }> = ({ points }) => {
+type SeriesLabels = { current: string; previous: string };
+
+const LineChart: React.FC<{ points: Pt[]; compare?: Pt[]; labels?: SeriesLabels }> = ({ points, compare, labels }) => {
   const [hover, setHover] = useState<number | null>(null);
-  const max = niceMax(Math.max(5, ...points.map((p) => p.value)));
+  const max = niceMax(Math.max(5, ...points.map((p) => p.value), ...(compare?.map((p) => p.value) || [])));
   const STEPS = 6;
   const ticks = Array.from({ length: STEPS + 1 }, (_, i) => Math.round((max / STEPS) * i));
   const n = Math.max(1, points.length - 1);
@@ -183,6 +190,8 @@ const LineChart: React.FC<{ points: Pt[] }> = ({ points }) => {
   const Y = (v: number) => 100 - (v / max) * 100;
   const coords = points.map((p, i) => ({ x: X(i), y: Y(p.value), v: p.value, label: p.label }));
   const path = cardinalPath(coords);
+  const cmpCoords = (compare || []).map((p, i) => ({ x: X(i), y: Y(p.value), v: p.value }));
+  const cmpPath = compare && compare.length ? cardinalPath(cmpCoords) : "";
   const H = 224;
 
   return (
@@ -200,8 +209,18 @@ const LineChart: React.FC<{ points: Pt[] }> = ({ points }) => {
             <div key={t} className="absolute left-0 right-0 border-t border-dashed border-neutral-200" style={{ top: `${Y(t)}%` }} />
           ))}
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
+            {cmpPath && (
+              <path d={cmpPath} fill="none" stroke="#9CA3AF" strokeWidth="2" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
+            )}
             <path d={path} fill="none" stroke="#0352FD" strokeWidth="2" vectorEffect="non-scaling-stroke" />
           </svg>
+          {/* comparison dots (grey) */}
+          {cmpCoords.map((c, i) => (
+            <div key={`c${i}`} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${c.x}%`, top: `${c.y}%` }}>
+              <div className="w-2 h-2 rounded-full bg-neutral-400 border-2 border-white" />
+            </div>
+          ))}
+          {/* current dots (blue) with tooltip */}
           {coords.map((c, i) => (
             <div
               key={i}
@@ -213,7 +232,14 @@ const LineChart: React.FC<{ points: Pt[] }> = ({ points }) => {
               <div className="w-2.5 h-2.5 rounded-full bg-blue-600 border-2 border-white shadow cursor-pointer" />
               {hover === i && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap bg-neutral-900 text-white text-[11px] px-2 py-1 rounded shadow-lg">
-                  {c.label}: <span className="font-weight-600">{c.v}</span>
+                  {compare && compare.length ? (
+                    <div className="flex flex-col gap-0.5">
+                      <span>{labels?.current || "Current"}: <span className="font-weight-600">{c.v}</span></span>
+                      <span>{labels?.previous || "Previous"}: <span className="font-weight-600">{compare[i]?.value ?? 0}</span></span>
+                    </div>
+                  ) : (
+                    <>{c.label}: <span className="font-weight-600">{c.v}</span></>
+                  )}
                 </div>
               )}
             </div>
@@ -233,13 +259,35 @@ const LineChart: React.FC<{ points: Pt[] }> = ({ points }) => {
   );
 };
 
+// Legend for the two trend series (current vs comparison).
+const TrendLegend: React.FC<{ labels?: SeriesLabels; prevColor: string; curColor: string }> = ({ labels, prevColor, curColor }) =>
+  labels ? (
+    <div className="flex items-center justify-center gap-5 mt-4 text-xs text-neutral-500">
+      <span className="flex items-center gap-2">
+        <span className="w-2.5 h-2.5 rounded-full" style={{ background: prevColor }} />
+        {labels.previous}
+      </span>
+      <span className="flex items-center gap-2">
+        <span className="w-2.5 h-2.5 rounded-full" style={{ background: curColor }} />
+        {labels.current}
+      </span>
+    </div>
+  ) : null;
+
 // Compact money tick (£3k / £950).
 const fmtTick = (v: number) => (v >= 1000 ? `£${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `£${v}`);
 
 // Vertical bars with Y-axis, dotted gridlines + hover tooltip.
-const BarChart: React.FC<{ points: Pt[] }> = ({ points }) => {
+const BarChart: React.FC<{
+  points: Pt[];
+  compare?: Pt[];
+  labels?: SeriesLabels;
+  tickFormatter?: (value: number) => string;
+  valueFormatter?: (value: number) => string;
+}> = ({ points, compare, labels, tickFormatter = fmtTick, valueFormatter = fmtMoney }) => {
   const [hover, setHover] = useState<number | null>(null);
-  const max = niceMax(Math.max(5, ...points.map((p) => p.value)));
+  const hasCompare = !!(compare && compare.length);
+  const max = niceMax(Math.max(5, ...points.map((p) => p.value), ...(compare?.map((p) => p.value) || [])));
   const STEPS = 6;
   const ticks = Array.from({ length: STEPS + 1 }, (_, i) => Math.round((max / STEPS) * i));
   const Y = (v: number) => 100 - (v / max) * 100;
@@ -249,7 +297,7 @@ const BarChart: React.FC<{ points: Pt[] }> = ({ points }) => {
       <div className="flex">
         <div className="relative w-11 shrink-0" style={{ height: H }}>
           {ticks.map((t) => (
-            <span key={t} className="absolute right-1.5 -translate-y-1/2 text-[10px] text-neutral-400" style={{ top: `${Y(t)}%` }}>{fmtTick(t)}</span>
+            <span key={t} className="absolute right-1.5 -translate-y-1/2 text-[10px] text-neutral-400" style={{ top: `${Y(t)}%` }}>{tickFormatter(t)}</span>
           ))}
         </div>
         <div className="relative flex-1" style={{ height: H }}>
@@ -260,17 +308,30 @@ const BarChart: React.FC<{ points: Pt[] }> = ({ points }) => {
             {points.map((p, i) => (
               <div
                 key={i}
-                className="flex-1 h-full flex items-end justify-center relative"
+                className="flex-1 h-full flex items-end justify-center gap-0.5 relative"
                 onMouseEnter={() => setHover(i)}
                 onMouseLeave={() => setHover(null)}
               >
+                {hasCompare && (
+                  <div
+                    className="w-full max-w-[12px] rounded-t bg-blue-200"
+                    style={{ height: `${Math.max(1, ((compare![i]?.value || 0) / max) * 100)}%` }}
+                  />
+                )}
                 <div
-                  className="w-full max-w-[24px] rounded-t bg-blue-500 hover:bg-blue-600 transition-colors"
+                  className={`w-full ${hasCompare ? "max-w-[12px]" : "max-w-[24px]"} rounded-t bg-blue-500 hover:bg-blue-600 transition-colors`}
                   style={{ height: `${Math.max(1, (p.value / max) * 100)}%` }}
                 />
                 {hover === i && (
                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap bg-neutral-900 text-white text-[11px] px-2 py-1 rounded shadow-lg z-10">
-                    {p.label}: <span className="font-weight-600">{fmtMoney(p.value)}</span>
+                    {hasCompare ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span>{labels?.current || "Current"}: <span className="font-weight-600">{valueFormatter(p.value)}</span></span>
+                        <span>{labels?.previous || "Previous"}: <span className="font-weight-600">{valueFormatter(compare![i]?.value || 0)}</span></span>
+                      </div>
+                    ) : (
+                      <>{p.label}: <span className="font-weight-600">{valueFormatter(p.value)}</span></>
+                    )}
                   </div>
                 )}
               </div>
@@ -321,18 +382,6 @@ const CollectionDonut: React.FC<{ actual: number; billed: number }> = ({ actual,
           strokeDasharray={`${darkLen} ${c - darkLen}`}
         />
       </svg>
-    </div>
-  );
-};
-
-// Stacked proportion bar (net income breakdown).
-const SegBar: React.FC<{ parts: { value: number; color: string }[] }> = ({ parts }) => {
-  const total = Math.max(1, parts.reduce((s, p) => s + p.value, 0));
-  return (
-    <div className="flex h-3 rounded-full overflow-hidden bg-neutral-100">
-      {parts.map((p, i) => (
-        <div key={i} style={{ width: `${(p.value / total) * 100}%`, background: p.color }} />
-      ))}
     </div>
   );
 };
@@ -440,6 +489,63 @@ const Column = ({
   );
 };
 
+// ─── trend filter dropdown (Referrer / Status) ───────────────────────────────────
+
+const TrendFilter = ({
+  label, value, options, onChange,
+}: { label: string; value: string; options: string[]; onChange: (v: string) => void }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-2 h-9 px-3 rounded border text-sm ${
+          value ? "border-blue-300 text-blue-600" : "border-neutral-200 text-neutral-600"
+        }`}
+      >
+        {value || label} <ChevronDown size={14} />
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1 right-0 min-w-[170px] max-h-60 overflow-auto bg-white rounded-lg border border-neutral-200 shadow-lg py-1">
+          <button
+            type="button"
+            onClick={() => { onChange(""); setOpen(false); }}
+            className={`w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 ${
+              !value ? "text-blue-600 font-weight-500" : "text-neutral-700"
+            }`}
+          >
+            All {label}s
+          </button>
+          {options.map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => { onChange(o); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 ${
+                value === o ? "text-blue-600 font-weight-500" : "text-neutral-700"
+              }`}
+            >
+              {o}
+            </button>
+          ))}
+          {options.length === 0 && (
+            <div className="px-3 py-2 text-xs text-neutral-400">No options</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── period tabs ─────────────────────────────────────────────────────────────────
 
 const PeriodTabs = ({ active, onChange }: { active: string; onChange: (p: string) => void }) => (
@@ -482,11 +588,23 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const [missingOpen, setMissingOpen] = useState(false);
   const [srOpen, setSrOpen] = useState<null | "storage" | "recovery">(null);
   const [collPeriod, setCollPeriod] = useState<"MTD" | "YTD" | "All Time">("YTD");
+  const [collectionPayment, setCollectionPayment] = useState<CollectionPaymentStatus | null>(null);
+  const [collectionPerf, setCollectionPerf] = useState<any>(null);
   const [period, setPeriod] = useState("WTD");
-  // Re-fetch the headline aggregates whenever the global period filter changes.
+  // Headline aggregates are all-time totals; the selected period is kept for the UI.
   useEffect(() => {
     getDashboard(period).then(({ data }) => setDash(data)).catch(() => setDash(null));
   }, [period]);
+  useEffect(() => {
+    if (!collectionPayment) {
+      setCollectionPerf(null);
+      return;
+    }
+    const apiPeriod = collPeriod === "All Time" ? "ALL" : collPeriod;
+    getDashboardCollection(apiPeriod, collectionPayment)
+      .then(({ data }) => setCollectionPerf(data || null))
+      .catch(() => setCollectionPerf(null));
+  }, [collPeriod, collectionPayment]);
   const [incomePeriod, setIncomePeriod] = useState("YTD");
   const [incomeType, setIncomeType] = useState("all"); // Net Income breakdown filter
   const [incomeFrom, setIncomeFrom] = useState("");
@@ -510,8 +628,16 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   }, [calOpen]);
   const [trendPeriod, setTrendPeriod] = useState("YTD");
   const [trendMode, setTrendMode] = useState("YoY");
+  const [trendRef, setTrendRef] = useState("");
+  const [trendStatus, setTrendStatus] = useState("");
   const [hirePeriod, setHirePeriod] = useState("YTD");
   const [hireMode, setHireMode] = useState("YoY");
+  const [hireRef, setHireRef] = useState("");
+  const [hireStatus, setHireStatus] = useState("");
+  const [trendOptions, setTrendOptions] = useState<{ referrers: string[]; statuses: string[] }>({
+    referrers: [],
+    statuses: [],
+  });
 
   // notifications
   const [notifOpen, setNotifOpen] = useState(false);
@@ -590,21 +716,42 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const trendUp = (c: any) => (trendOf(c) ? trendOf(c).up : c.up);
   const trendText = (c: any) =>
     trendOf(c) ? `${trendOf(c).up ? "+" : "-"}${trendOf(c).pct}% vs last month` : c.trend;
-  const incomeValue = (c: any) => fmtMoney(incomeBreakdown?.[c.key] ?? 0);
   const breakdown = incomeBreakdown || {};
   const shownCards =
     incomeType === "all" ? INCOME_CARDS : INCOME_CARDS.filter((c) => c.key === incomeType);
   // Trend series re-fetched per the chart's period filter.
   const [claimsTrend, setClaimsTrend] = useState<Pt[]>([]);
+  const [claimsTrendPrev, setClaimsTrendPrev] = useState<Pt[]>([]);
+  const [trendLabels, setTrendLabels] = useState<SeriesLabels>();
   const [hireTrend, setHireTrend] = useState<Pt[]>([]);
+  const [hireTrendPrev, setHireTrendPrev] = useState<Pt[]>([]);
+  const [hireLabels, setHireLabels] = useState<SeriesLabels>();
   useEffect(() => {
-    getDashboardTrends(trendPeriod).then(({ data }) => setClaimsTrend(data?.claims_trend || [])).catch(() => {});
-  }, [trendPeriod]);
+    getDashboardTrends(trendPeriod, trendMode, trendRef, trendStatus)
+      .then(({ data }) => {
+        setClaimsTrend(data?.claims_trend || []);
+        setClaimsTrendPrev(data?.claims_trend_prev || []);
+        setTrendLabels(data?.series_labels);
+      }).catch(() => {});
+  }, [trendPeriod, trendMode, trendRef, trendStatus]);
   useEffect(() => {
-    getDashboardTrends(hirePeriod).then(({ data }) => setHireTrend(data?.hire_trend || [])).catch(() => {});
-  }, [hirePeriod]);
+    getDashboardTrends(hirePeriod, hireMode, hireRef, hireStatus)
+      .then(({ data }) => {
+        setHireTrend(data?.hire_trend || []);
+        setHireTrendPrev(data?.hire_trend_prev || []);
+        setHireLabels(data?.series_labels);
+      }).catch(() => {});
+  }, [hirePeriod, hireMode, hireRef, hireStatus]);
+  useEffect(() => {
+    getTrendOptions()
+      .then(({ data }) => setTrendOptions({
+        referrers: Array.isArray(data?.referrers) ? data.referrers : [],
+        statuses: Array.isArray(data?.statuses) ? data.statuses : [],
+      }))
+      .catch(() => {});
+  }, []);
   const debtorsAge = dash?.debtors_age || [];
-  const collection = dash?.collection_ytd || {
+  const collection = collectionPerf || dash?.collection_ytd || {
     pct: 0, collected: 0, outstanding: 0, rate: 0, actual_collection: 0, billed: 0,
   };
   const storageRecovery = dash?.storage_recovery || {
@@ -888,26 +1035,11 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600"
-            >
-              Referrer <ChevronDown size={14} />
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600"
-            >
-              Status <ChevronDown size={14} />
-            </button>
+            <TrendFilter label="Referrer" value={trendRef} options={trendOptions.referrers} onChange={setTrendRef} />
+            <TrendFilter label="Status" value={trendStatus} options={trendOptions.statuses} onChange={setTrendStatus} />
           </div>
-          <LineChart points={claimsTrend} />
-          <div className="flex items-center justify-center gap-2 mt-4 text-xs text-neutral-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-neutral-300" />
-            {claimsTrend.length > 0
-              ? `${claimsTrend[0].label} to ${claimsTrend[claimsTrend.length - 1].label} ${new Date().getFullYear()}`
-              : ""}
-          </div>
+          <LineChart points={claimsTrend} compare={claimsTrendPrev} labels={trendLabels} />
+          <TrendLegend labels={trendLabels} prevColor="#9CA3AF" curColor="#0352FD" />
         </div>
 
         {/* Hire Trend */}
@@ -929,26 +1061,17 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600"
-            >
-              Referrer <ChevronDown size={14} />
-            </button>
-            <button
-              type="button"
-              className="flex items-center gap-2 h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600"
-            >
-              Status <ChevronDown size={14} />
-            </button>
+            <TrendFilter label="Referrer" value={hireRef} options={trendOptions.referrers} onChange={setHireRef} />
+            <TrendFilter label="Status" value={hireStatus} options={trendOptions.statuses} onChange={setHireStatus} />
           </div>
-          <BarChart points={hireTrend} />
-          <div className="flex items-center justify-center gap-2 mt-4 text-xs text-neutral-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-neutral-300" />
-            {hireTrend.length > 0
-              ? `${hireTrend[0].label} to ${hireTrend[hireTrend.length - 1].label} ${new Date().getFullYear()}`
-              : ""}
-          </div>
+          <BarChart
+            points={hireTrend}
+            compare={hireTrendPrev}
+            labels={hireLabels}
+            tickFormatter={fmtNum}
+            valueFormatter={(value) => `${fmtNum(value)} vehicle${value === 1 ? "" : "s"}`}
+          />
+          <TrendLegend labels={hireLabels} prevColor="#BFDBFE" curColor="#0352FD" />
         </div>
 
         {/* Debtors Age + Collection Performance */}
@@ -972,7 +1095,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
           <div className="rounded-lg border border-neutral-200 px-4 py-6 flex flex-col gap-10">
             <div className="flex flex-col gap-5">
               <h2 className="text-black text-xl font-weight-600 leading-5">
-                Collection Performance YTD
+                Collection Performance {collPeriod}
               </h2>
               <div className="flex items-center gap-5">
                 <div className="rounded outline outline-1 outline-blue-200 flex items-center gap-1">
@@ -989,8 +1112,19 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                     </button>
                   ))}
                 </div>
-                <div className="p-2 rounded flex items-center gap-2 text-blue-500 text-sm">
-                  Payment <ChevronDown size={14} />
+                <div className="w-32">
+                  <Select
+                    options={COLLECTION_PAYMENT_OPTIONS}
+                    value={COLLECTION_PAYMENT_OPTIONS.find((o) => o.value === collectionPayment) || null}
+                    onChange={(o: any) => setCollectionPayment(o?.value || null)}
+                    styles={customStyles}
+                    components={{
+                      DropdownIndicator: BlueDropdownIndicator,
+                      IndicatorSeparator: () => null,
+                    }}
+                    isSearchable={false}
+                    placeholder="Payment"
+                  />
                 </div>
               </div>
             </div>

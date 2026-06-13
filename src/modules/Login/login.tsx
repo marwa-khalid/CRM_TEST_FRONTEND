@@ -36,6 +36,7 @@ const Login = () => {
     // 1. Validate email + password against backend
     const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -79,6 +80,7 @@ const Login = () => {
     // 2. Ask backend to send OTP
     const otpResponse = await fetch(`${API_BASE_URL}/auth/send-otp`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },

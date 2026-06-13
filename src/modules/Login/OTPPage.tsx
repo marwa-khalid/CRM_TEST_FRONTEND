@@ -131,6 +131,7 @@ const OTPPage = () => {
 
       const response = await fetch(`${API_BASE_URL}/auth/send-otp`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },

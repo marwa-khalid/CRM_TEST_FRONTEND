@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import LoginPage from './modules/Login/login';
 import Dashboard from './modules/Dashboard/dashboard';
 import MainLayout from './Layout/layout';
@@ -23,34 +23,34 @@ import QuestionnaireLayout from "./modules/Claims/Questionnaire/QuestionnaireLay
 import Step1Witness from './modules/Claims/Questionnaire/WitnessStep1';
 import Step2Questions from './modules/Claims/Questionnaire/WitnessStep2';
 import Step3SketchPreview from './modules/Claims/Questionnaire/WitnessStep3';
-import Step4Canvas from './modules/Claims/Questionnaire/CanvasScreen';
 import CaseActivityStream from './modules/Claims/CaseActivity/CaseActivityStream';
 import DocumentLibrary from './modules/Claims/DocumentsLibrary/DocumentsLibrary';
 import Step4Signature from './modules/Claims/Questionnaire/WitnessStep4';
 import { useInactivityTimer } from './hooks/useInactivityTimer';
 import SessionExpired from './modules/Login/SessionExpired';
 import { logSessionExpiry } from './services/AccountSettings/AccountSettings';
+import { useCurrentUser } from './context/AuthContext';
 
 const AppInner: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [sessionExpired, setSessionExpired] = useState(false);
+  const { user, logout } = useCurrentUser();
 
-  // Re-evaluated on every navigation so it stays fresh
-  const isAuthenticated = !!localStorage.getItem("access_token");
+  const isAuthenticated = !!user;
 
   const handleExpire = useCallback(async () => {
     try {
       await logSessionExpiry();
-    } catch {}
+    } catch {
+      /* ignore */
+    }
     setSessionExpired(true);
   }, []);
 
   useInactivityTimer(handleExpire, isAuthenticated);
 
-  const handleRelogin = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+  const handleRelogin = async () => {
+    await logout();
     setSessionExpired(false);
     navigate("/login");
   };

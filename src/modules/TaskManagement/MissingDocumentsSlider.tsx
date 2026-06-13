@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getMissingDocuments } from "../../services/Dashboard/Dashboard";
 
 interface MissingDoc {
@@ -12,6 +13,7 @@ const cleanLabel = (l: string) =>
   (l || "").replace(/\s*(Received On|Completed On)\s*/gi, " ").replace(/\s+/g, " ").trim();
 
 const MissingDocumentsSlider = ({ onClose }: { onClose: () => void }) => {
+  const navigate = useNavigate();
   const [items, setItems] = useState<MissingDoc[]>([]);
   const [query, setQuery] = useState("");
 
@@ -24,6 +26,11 @@ const MissingDocumentsSlider = ({ onClose }: { onClose: () => void }) => {
   const shown = query.trim()
     ? items.filter((i) => (i.claim_reference || "").toLowerCase().includes(query.trim().toLowerCase()))
     : items;
+
+  const openClaim = (claimId: number) => {
+    onClose();
+    navigate(`/add-claim/${claimId}`);
+  };
 
   return (
     <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
@@ -65,7 +72,13 @@ const MissingDocumentsSlider = ({ onClose }: { onClose: () => void }) => {
               <div className="text-neutral-700 text-sm font-weight-500">{cleanLabel(it.label)}</div>
               <div className="text-sm shrink-0">
                 <span className="text-neutral-700">Case: </span>
-                <span className="text-neutral-700 font-weight-600">{it.claim_reference}</span>
+                <button
+                  type="button"
+                  onClick={() => openClaim(it.claim_id)}
+                  className="text-blue-500 font-weight-600 hover:underline"
+                >
+                  {it.claim_reference}
+                </button>
               </div>
             </div>
           ))}

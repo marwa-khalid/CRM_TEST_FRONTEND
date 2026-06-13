@@ -7,7 +7,6 @@ import { useFormik } from "formik";
 import * as Yup from 'yup'
 import { createStorageRecovery, getStorageRecoveryProvider, updateStorageRecovery } from "../../../services/StorageRecovery/StorageRecovery";
 import { StorageProviderModal } from "./StorageProviderModal";
-import { parseCalendarDate } from "../../../common/common";
 import { RecoveryProviderModal } from "./RecoveryProviderModal";
 
 export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
@@ -119,7 +118,9 @@ export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
     };
     if (claimId) {
       fetchData().catch((err) => {
-        if (err?.response?.status !== 404) toast.error("Failed to load storage recovery details");
+        if (err?.response?.status !== 404) {
+          // toast.error("Failed to load storage recovery details");
+        }
       });
     }
   }, [claimId]);

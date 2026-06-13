@@ -29,7 +29,8 @@ const fmtNoteTime = (iso?: string) => {
   return d.toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 };
 
-const TABS = ["Task Details", "Attachments", "Notes", "Task History"];
+const TABS = ["Task Details", "Attachments", "Notes", "Task History"] as const;
+export type TaskDetailTab = (typeof TABS)[number];
 
 const priorityCls = (p?: string) => {
   const v = (p || "").toLowerCase();
@@ -60,7 +61,7 @@ const baseName = (p: string) => p.split("/").pop() || p;
 const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="w-48 flex flex-col gap-2">
     <div className="text-neutral-700 text-sm font-weight-500">{label}</div>
-    <div className="text-neutral-700 text-sm font-weight-400">{children}</div>
+    <div className="text-neutral-700 text-sm font-weight-400 font-light">{children}</div>
   </div>
 );
 
@@ -70,7 +71,7 @@ const DetailsTab = ({ task, onReassign }: { task: any; onReassign: () => void })
       <div className="w-48 flex flex-col gap-2">
         <div className="text-neutral-700 text-sm font-weight-500">Assigned To</div>
         <div className="flex flex-col gap-1">
-          <span className="text-neutral-700 text-sm">{task.assigned_user || "—"}</span>
+          <span className="text-neutral-700 text-sm font-weight-400 font-light">{task.assigned_user || "—"}</span>
           <button type="button" onClick={onReassign} className="text-blue-500 text-xs text-left">Reassign</button>
         </div>
       </div>
@@ -94,7 +95,7 @@ const DetailsTab = ({ task, onReassign }: { task: any; onReassign: () => void })
     <Field label="Vehicle Reg">{task.vehicle_registration || "—"}</Field>
     <div className="flex flex-col gap-2">
       <div className="text-neutral-700 text-sm font-weight-500">Description</div>
-      <div className="text-neutral-700 text-sm font-weight-400 whitespace-pre-line">{task.description || "—"}</div>
+      <div className="text-neutral-700 text-sm font-weight-400 font-light whitespace-pre-line">{task.description || "—"}</div>
     </div>
   </div>
 );
@@ -266,7 +267,7 @@ const NotesTab = ({ task }: { task: any }) => {
           {mention.open && matches.length > 0 && (
             <div className="absolute z-20 left-4 bottom-full mb-1 w-64 max-h-56 overflow-auto bg-white border border-neutral-200 rounded-lg shadow-xl">
               {matches.map((u) => (
-                <button key={u.id} type="button" onClick={() => insertMention(u)} className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-blue-50">
+                <button key={u.id} type="button" onClick={() => insertMention(u)} className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-blue-100">
                   <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-500 text-xs font-weight-600 flex items-center justify-center shrink-0">{(u.name || "?").charAt(0).toUpperCase()}</span>
                   <span className="flex flex-col min-w-0">
                     <span className="text-sm text-blue-500 font-weight-500 truncate">@{u.name}</span>
@@ -335,17 +336,22 @@ const HistoryTab = ({ task }: { task: any }) => {
 };
 
 const TaskDetailSlider = ({
-  task, onClose, onEdit, onReassign, onRefresh,
+  task, onClose, onEdit, onReassign, onRefresh, initialTab = "Task Details",
 }: {
   task: any;
   onClose: () => void;
   onEdit: () => void;
   onReassign: () => void;
   onRefresh: () => void;
+  initialTab?: TaskDetailTab;
 }) => {
-  const [tab, setTab] = useState("Task Details");
+  const [tab, setTab] = useState<TaskDetailTab>(initialTab);
   const [t, setT] = useState(task);
   const onUpdated = (u: any) => { setT(u); onRefresh(); };
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab, task.id]);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end font-['Stack_Sans_Headline']">

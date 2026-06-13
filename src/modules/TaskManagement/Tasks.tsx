@@ -15,6 +15,7 @@ import {
   Check,
   X,
   Trash2,
+  Paperclip,
 } from "lucide-react";
 import NotificationsPanel, { type NotifItem, buildTaskNotifications } from "./Notifications";
 import { getNotifications, markNotificationRead, markAllNotificationsRead } from "../../services/Notifications/Notifications";
@@ -30,6 +31,7 @@ import ChevronGrey from "../../assets/TaskManagement/chevrongrey.svg";
 
 import {
   listTasks,
+  getTask,
   getTaskStats,
   getVehicleOptions,
   getAttachmentUrl,
@@ -46,7 +48,7 @@ import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDeta
 import { ConfirmModal } from "../../components/common/ConfirmModal";
 import { SpinnerLoader } from "../../components/common/SpinnerLoader";
 import TaskAttachmentModal, { fileLogo } from "./TaskAttachmentModal";
-import TaskDetailSlider from "./TaskDetailSlider";
+import TaskDetailSlider, { type TaskDetailTab } from "./TaskDetailSlider";
 import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -162,6 +164,15 @@ const formatDue = (t: any): string => {
   if (d === "—") return d;
   return t.due_time ? `${d} ${t.due_time}` : d;
 };
+
+const attachmentFiles = (task: any): string[] =>
+  String(task?.attachment_path || "")
+    .split(",")
+    .map((path) => path.trim())
+    .filter(Boolean);
+
+const attachmentText = (count: number) =>
+  `${count} file${count === 1 ? "" : "s"} attached`;
 
 const Badge = ({ text, cls }: { text: string; cls: string }) => (
   <span className={`px-2 py-1 rounded text-[10px] font-weight-600 uppercase ${cls}`}>
@@ -967,6 +978,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [reassignTarget, setReassignTarget] = useState<any | null>(null);
   const [detailTask, setDetailTask] = useState<any | null>(null);
+  const [detailInitialTab, setDetailInitialTab] = useState<TaskDetailTab>("Task Details");
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [bulkMenu, setBulkMenu] = useState<null | "reassign" | "status">(null);
 
@@ -1053,17 +1065,56 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
     setReadIds(new Set(notifications.map((n) => n.id)));
     markAllNotificationsRead().then(fetchDbNotifs).catch(() => {});
   };
-  const handleNotifClick = (n: NotifItem) => {
+  const openTaskDetail = (task: any, tab: TaskDetailTab = "Task Details") => {
+    setDrawerOpen(false);
+    setEditing(null);
+    setDetailInitialTab(tab);
+    setDetailTask(task);
+  };
+
+  const AttachmentSummary = ({ task, className = "" }: { task: any; className?: string }) => {
+    const count = attachmentFiles(task).length;
+    if (!count) return null;
+
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          openTaskDetail(task, "Attachments");
+        }}
+        className={`inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-blue-500 transition-colors ${className}`}
+        title="View task attachments"
+      >
+        <Paperclip size={14} strokeWidth={1.8} />
+        <span>{attachmentText(count)}</span>
+      </button>
+    );
+  };
+
+  const handleNotifClick = async (n: NotifItem) => {
     setReadIds((prev) => new Set(prev).add(n.id));
     if (n.notif_id) markNotificationRead(n.notif_id).then(fetchDbNotifs).catch(() => {});
-    if (n.taskId) {
-      const task = [...overdueTasks, ...dueToday].find((t) => t.id === n.taskId);
-      if (task) {
-        setEditing(task);
-        setDrawerOpen(true);
+    setNotifOpen(false);
+
+    const taskId = n.taskId ?? n.task_id;
+    if (taskId) {
+      const cachedTask = [...overdueTasks, ...dueToday, ...tasks].find(
+        (t) => t.id === taskId,
+      );
+
+      if (cachedTask) {
+        openTaskDetail(cachedTask);
+        return;
+      }
+
+      try {
+        const { data } = await getTask(taskId);
+        openTaskDetail(data);
+      } catch {
+        toast.error("Could not open task details");
       }
     }
-    setNotifOpen(false);
   };
 
   const fetchStats = () => {
@@ -1155,7 +1206,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
   const handleAction = async (action: string, task: any) => {
     try {
       if (action === "viewDetail") {
-        setDetailTask(task);
+        openTaskDetail(task);
       } else if (action === "complete") {
         await updateTask(task.id, { status: "Completed" });
         toast.success("Task marked complete");
@@ -1414,7 +1465,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                   setDateRange({ due_from: "", due_to: "" });
                 }}
                 title="Clear date range"
-                className="flex items-center gap-1.5 h-[24px] px-3.5 rounded bg-blue-100 text-blue-500 text-[12px] font-weight-500 hover:bg-red-100 hover:text-red-500 transition-colors"
+                className="flex items-center gap-1.5 h-[24px] px-3.5 rounded bg-blue-100 text-blue-500 text-[12px] font-weight-500 transition-colors"
               >
                 <X size={15} /> Clear Date Filter
               </button>
@@ -1569,10 +1620,11 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                     <td className="px-4 py-4 ">
                       <div
                         className="text-neutral-900 text-sm font-weight-600 cursor-pointer hover:text-blue-600"
-                        onClick={() => setDetailTask(t)}
+                        onClick={() => openTaskDetail(t)}
                       >
                         {t.title}
                       </div>
+                      <AttachmentSummary task={t} className="mt-1" />
                       {/* {t.description && (
                         <div className="text-neutral-500 text-xs font-weight-400 mt-1 line-clamp-2">
                           {t.description}
@@ -1658,7 +1710,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                     <div className="min-w-0">
                       <div
                         className="text-neutral-900 text-base font-weight-600 cursor-pointer hover:text-blue-600"
-                        onClick={() => setDetailTask(t)}
+                        onClick={() => openTaskDetail(t)}
                       >
                         {t.title}
                       </div>
@@ -1667,6 +1719,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                           {t.description}
                         </div>
                       )}
+                      <AttachmentSummary task={t} className="mt-1" />
                     </div>
                     <QuickActions task={t} onAction={handleAction} />
                   </div>
@@ -1781,8 +1834,9 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
 
       {detailTask && (
         <TaskDetailSlider
-          key={detailTask.id}
+          key={`${detailTask.id}-${detailInitialTab}`}
           task={detailTask}
+          initialTab={detailInitialTab}
           onClose={() => setDetailTask(null)}
           onEdit={() => {
             setEditing(detailTask);

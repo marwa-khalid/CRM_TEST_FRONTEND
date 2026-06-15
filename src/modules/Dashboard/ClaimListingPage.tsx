@@ -893,11 +893,14 @@ const TableHeader = ({
 const TableCell = ({
   children,
   className = "",
+  onClick,
 }: {
   children?: React.ReactNode;
   className?: string;
+  onClick?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
 }) => (
   <td
+    onClick={onClick}
     className={`px-4 py-3 text-neutral-700 text-sm font-weight-400 ${className}`}
   >
     {children}

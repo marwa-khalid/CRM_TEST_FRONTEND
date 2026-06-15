@@ -5,13 +5,17 @@ import background from "../../assets/images/background.png";
 import group2 from "../../assets/images/group-2608221.svg";
 import Fleet from "../../assets/images/Fleet.svg";
 import { useNavigate } from "react-router-dom";
+import { useCurrentUser } from "../../context/AuthContext";
 import subtract1 from '../../assets/images/subtract-1.svg'
 import union from '../../assets/images/union.svg'
 import ArrowRight from '../../assets/images/ArrowRight.svg'
 
 const SingleSignOn = () => {
   const navigate = useNavigate();
-  const email = JSON.parse(localStorage.getItem("user")).email;
+  // Email comes from the auth context (cookie-based); fall back to the email
+  // captured during login. The old localStorage "user" no longer exists.
+  const { user } = useCurrentUser();
+  const email = user?.email || localStorage.getItem("pendingLoginEmail") || "";
   const [scale, setScale] = useState(1);
   const containerRef = useRef(null);
 

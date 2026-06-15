@@ -362,12 +362,11 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         </div>
 
         <div className="w-full grid grid-cols-2 gap-5">
-          <TextField
+          {/* Auto-generated + stored by the backend (e.g. INV-202606-0022) — not editable. */}
+          <ReadonlyField
             label="Invoice Number"
-            name="invoice_number"
-            value={formik.values.invoice_number}
-            onChange={formik.handleChange}
-            placeholder="Enter invoice number"
+            value={formik.values.invoice_number || ""}
+            symbol=""
           />
           <ReadonlyField
             label="Number of Hired Days"

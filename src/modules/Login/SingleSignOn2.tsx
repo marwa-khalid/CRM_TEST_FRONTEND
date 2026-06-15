@@ -6,9 +6,11 @@ import group2 from "../../assets/images/group-2608221.svg";
 import fleet2 from "../../assets/images/fleet2.svg";
 import claim from "../../assets/images/claim.svg";
 import { useNavigate } from "react-router-dom";
+import { useCurrentUser } from "../../context/AuthContext";
 const SingleSignOn2 = () => {
   const [password, setPassword] = useState("");
-const email = JSON.parse(localStorage.getItem("user")).email;
+  const { user } = useCurrentUser();
+  const email = user?.email || localStorage.getItem("pendingLoginEmail") || "";
   const navigate = useNavigate();
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

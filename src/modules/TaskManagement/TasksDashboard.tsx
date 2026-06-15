@@ -199,14 +199,14 @@ const LineChart: React.FC<{ points: Pt[]; compare?: Pt[]; labels?: SeriesLabels 
       <div className="flex">
         {/* Y axis labels */}
         <div className="relative w-8 shrink-0" style={{ height: H }}>
-          {ticks.map((t) => (
-            <span key={t} className="absolute right-1.5 -translate-y-1/2 text-[10px] text-neutral-400" style={{ top: `${Y(t)}%` }}>{t}</span>
+          {ticks.map((t, i) => (
+            <span key={i} className="absolute right-1.5 -translate-y-1/2 text-[10px] text-neutral-400" style={{ top: `${Y(t)}%` }}>{t}</span>
           ))}
         </div>
         {/* Plot */}
         <div className="relative flex-1" style={{ height: H }}>
-          {ticks.map((t) => (
-            <div key={t} className="absolute left-0 right-0 border-t border-dashed border-neutral-200" style={{ top: `${Y(t)}%` }} />
+          {ticks.map((t, i) => (
+            <div key={i} className="absolute left-0 right-0 border-t border-dashed border-neutral-200" style={{ top: `${Y(t)}%` }} />
           ))}
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
             {cmpPath && (
@@ -296,13 +296,13 @@ const BarChart: React.FC<{
     <div>
       <div className="flex">
         <div className="relative w-11 shrink-0" style={{ height: H }}>
-          {ticks.map((t) => (
-            <span key={t} className="absolute right-1.5 -translate-y-1/2 text-[10px] text-neutral-400" style={{ top: `${Y(t)}%` }}>{tickFormatter(t)}</span>
+          {ticks.map((t, i) => (
+            <span key={i} className="absolute right-1.5 -translate-y-1/2 text-[10px] text-neutral-400" style={{ top: `${Y(t)}%` }}>{tickFormatter(t)}</span>
           ))}
         </div>
         <div className="relative flex-1" style={{ height: H }}>
-          {ticks.map((t) => (
-            <div key={t} className="absolute left-0 right-0 border-t border-dashed border-neutral-200" style={{ top: `${Y(t)}%` }} />
+          {ticks.map((t, i) => (
+            <div key={i} className="absolute left-0 right-0 border-t border-dashed border-neutral-200" style={{ top: `${Y(t)}%` }} />
           ))}
           <div className="absolute inset-0 flex items-end gap-3 px-2">
             {points.map((p, i) => (
@@ -1083,10 +1083,8 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
               </h2>
               <span className="text-neutral-900 text-[20px] font-weight-600">
                 {fmtMoney(
-                  debtorsAge.reduce(
-                    (s: number, r: any) => s + (Number(r.amount) || 0),
-                    0,
-                  ),
+                  dash?.debtors_total ??
+                    debtorsAge.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0),
                 )}
               </span>
             </div>

@@ -23,6 +23,8 @@
     "formik": "^2.4.6",
     "framer-motion": "^12.23.12",
     "html2pdf.js": "^0.12.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "konva": "^8.4.3",
     "leaflet": "^1.9.4",
     "leaflet-geosearch": "^4.2.0",
@@ -55,6 +57,7 @@
     "tailwind-variants": "^3.1.0",
     "use-image": "^1.1.4",
     "vite-tsconfig-paths": "^5.1.4",
+    "xlsx": "^0.18.5",
     "yup": "^1.7.0"
   },
   "devDependencies": {

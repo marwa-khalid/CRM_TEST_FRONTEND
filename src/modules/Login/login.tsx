@@ -21,17 +21,6 @@ const Login = () => {
   setErrorMessage("");
   setLoading(true);
 
-  const lockoutData = localStorage.getItem(`lockout_${email}`);
-  if (lockoutData) {
-    const { lockedUntil } = JSON.parse(lockoutData);
-    if (Date.now() < lockedUntil) {
-      navigate("/account-locked");
-      return;
-    } else {
-      localStorage.removeItem(`lockout_${email}`);
-    }
-  }
-
   try {
     // 1. Validate email + password against backend
     const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -46,33 +35,20 @@ const Login = () => {
       }),
     });
 
+    // Brute-force lockout is enforced server-side: 423 Locked → show the
+    // Account Locked screen. The backend owns the attempt count + lock window.
+    if (loginResponse.status === 423) {
+      navigate("/account-locked");
+      return;
+    }
+
     if (!loginResponse.ok) {
-      const currentAttempts =
-        Number(localStorage.getItem(`attempts_${email}`)) || 0;
-      const newAttempts = currentAttempts + 1;
-
-      if (newAttempts >= 5) {
-        const lockDuration = 5 * 60 * 1000;
-        const lockedUntil = Date.now() + lockDuration;
-
-        localStorage.setItem(
-          `lockout_${email}`,
-          JSON.stringify({ lockedUntil }),
-        );
-        localStorage.removeItem(`attempts_${email}`);
-        navigate("/account-locked");
-        return;
-      } else {
-        localStorage.setItem(`attempts_${email}`, newAttempts.toString());
-      }
-
       setErrorMessage("Invalid Credentials");
       return;
     }
 
     await loginResponse.json();
 
-    localStorage.removeItem(`attempts_${email}`);
     // Only the email is needed for the OTP step. The auth token is set as an
     // httpOnly cookie by the server on /verify-otp — never stored in localStorage.
     localStorage.setItem("pendingLoginEmail", email);

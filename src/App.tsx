@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import LoginPage from './modules/Login/login';
-import Dashboard from './modules/Dashboard/dashboard';
+import ClaimListingPage from "./modules/Dashboard/ClaimListingPage";
 import MainLayout from './Layout/layout';
 import { ToastContainer } from 'react-toastify';
 import OTPPage from './modules/Login/OTPPage';
@@ -18,6 +18,7 @@ import EmailTemplates2 from './modules/Login/EmailTemplates2';
 import EmailTemplates3 from './modules/Login/EmailTemplates3';
 import SendMail from './modules/Login/SendMail';
 import AddClaimPage from "./modules/Claims/AddClaimPage";
+import ClaimsList from "./modules/Claims/ClaimsList";
 import {AccidentSketch} from './modules/Login/Canvas';
 import QuestionnaireLayout from "./modules/Claims/Questionnaire/QuestionnaireLayout";
 import Step1Witness from './modules/Claims/Questionnaire/WitnessStep1';
@@ -74,7 +75,7 @@ const AppInner: React.FC = () => {
         <Route path="/email-templates2" element={<EmailTemplates2 />} />
         <Route path="/email-templates3" element={<EmailTemplates3 />} />
         <Route path="/send-mail" element={<SendMail />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<ClaimListingPage />} />
         <Route path="/add-claim/:claimId?" element={<AddClaimPage />} />
         <Route path="/canvas" element={<AccidentSketch />} />
         <Route path="/case-activity" element={<CaseActivityStream />} />
@@ -97,7 +98,8 @@ const AppInner: React.FC = () => {
 
         {/* Protected routes with layout */}
         <Route element={<MainLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<ClaimListingPage />} />
+          <Route path="/claims" element={<ClaimsList />} />
           <Route path="/add-claim" element={<AddClaimPage />} />
           <Route path="/settings" element={<AccountSettings />} />
         </Route>

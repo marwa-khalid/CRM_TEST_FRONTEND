@@ -177,6 +177,7 @@ const AccountLocked = () => {
             <div className="flex items-start justify-start gap-[24px]">
               {/* Reset Password Button */}
               <button
+                type="button"
                 onClick={() => navigate("/auth/reset-password")}
                 className="flex items-center justify-center w-[240px] px-[40px] py-[16px] bg-white rounded-[4px] border border-primary group hover:bg-primary transition-all duration-200"
               >
@@ -188,6 +189,7 @@ const AccountLocked = () => {
               {/* Back to Login Button */}
 
                 <button
+                  type="button"
                   onClick={() => navigate("/login")}
                   className="flex items-center justify-center w-[240px] px-[40px] py-[16px] bg-white rounded-[4px] border border-primary group hover:bg-primary transition-all duration-200"
                 >

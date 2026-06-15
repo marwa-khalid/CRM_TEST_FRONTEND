@@ -196,6 +196,11 @@ export const deleteClaim = async (id: number) => {
   }
 }
 
+// Partial update — only case_status_id (backend uses exclude_unset, so other
+// fields are untouched). Used by the claims-list bulk "Change Status" action.
+export const updateClaimStatus = (id: number, caseStatusId: number) =>
+  axiosInstance.put(`/claims/${id}`, { case_status_id: caseStatusId });
+
 export const downloadCSV = async (id: string) => {
   try {
     const response = await axiosInstance.get(`/claims/claims-list-csv?tenant_id=${id}`);

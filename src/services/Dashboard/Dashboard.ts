@@ -14,9 +14,18 @@ export const getDashboardTrends = (
   mode?: string,
   referrer?: string,
   status?: string,
+  start?: string,
+  end?: string,
 ) =>
   axiosInstance.get("/dashboard/trends", {
-    params: { period, mode, referrer: referrer || undefined, status: status || undefined },
+    params: {
+      period,
+      mode,
+      referrer: referrer || undefined,
+      status: status || undefined,
+      start: start || undefined,
+      end: end || undefined,
+    },
   });
 
 // Referrer + status options for the trend filters.

@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import { getABIBHRCharges, saveABIBHRCharges, generatePaymentPack } from "../../../services/ABIBHRCharges/ABIBHRCharges";
-import { getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharges";
+import { getPlatingTotal } from "../../../services/PlatingCharges/PlatingCharges";
 import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { gettingEnginerDetails } from "../../../services/EngineeringDetails/engineeringDetails";
 import { getHireRecords } from "../../../services/HireDetail/HireDetails";
+import { getHireProvidedVehicles } from "../../../services/Vehicle/vehicle";
+import VehicleCards, { type ClaimVehicle } from "./VehicleCards";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import Plus from "../../../assets/AutoClaim_icon/Plus.svg";
@@ -53,6 +55,17 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [recoveryCharges, setRecoveryCharges] = useState(0);
   const [engineerCharges, setEngineerCharges] = useState(0);
   const [platingCharges, setPlatingCharges] = useState(0);
+
+  // Per-vehicle hire records + the vehicle switcher cards. The Payment Pack
+  // Charges sections show the selected vehicle; the Billed Breakdown stays total.
+  const [hireRecords, setHireRecords] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<ClaimVehicle[]>([]);
+  const [activeVehicle, setActiveVehicle] = useState(0);
+  useEffect(() => {
+    if (!claimId) return;
+    getHireProvidedVehicles(claimId).then((vs) => setVehicles(Array.isArray(vs) ? vs : []));
+  }, [claimId]);
+  const perVehicle = vehicles.length >= 2;
 
   // Date picker visibility state
   const [showRaisedPicker, setShowRaisedPicker] = useState(false);
@@ -148,6 +161,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     getHireRecords(claimId)
       .then(({ data }: any) => {
         const records: any[] = Array.isArray(data) ? data : [];
+        setHireRecords(records);
         const first = records[0];
         if (!first) return;
         // Total days = sum of every vehicle's total hire days
@@ -190,7 +204,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       })
       .catch(() => {});
 
-    getPlatingCharges(claimId)
+    getPlatingTotal(claimId)
       .then(({ data }: any) => {
         setPlatingCharges(toF(data?.total_plating_cost));
       })
@@ -254,34 +268,43 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
   const daysExpired = useMemo(() => (rd ? diffDays(rd) : null), [rd]);
 
-  // abiDailyRate holds the ABI hire (Σ rateᵢ × daysᵢ). Extra & admin on their own.
-  // 0-30 section
-  const totalHire030 = useMemo(
-    () => abiDailyRate + (abiExtraCharges * noOfDays) + abiAdminFee,
-    [abiDailyRate, abiExtraCharges, abiAdminFee, noOfDays]
-  );
+  // ── Payment Pack Charges sections — values for the SELECTED vehicle ──────────
+  // (For one vehicle, the per-vehicle value equals the total, so nothing changes.)
+  const selRec = hireRecords[activeVehicle];
+  const vDays = perVehicle && selRec
+    ? toF(selRec.final_total_no_of_hire_days ?? selRec.no_of_days_hire_so_far)
+    : noOfDays;
+  const vAbiHire = perVehicle && selRec
+    ? vDays * toF(selRec.abi_hire_charge_per_day)   // this vehicle's ABI hire
+    : abiDailyRate;                                  // Σ across vehicles (single-vehicle)
+  const vExtra = perVehicle && selRec ? toF(selRec.abi_extra_charges_per_day) : abiExtraCharges;
+
+  // 0-30 section (selected vehicle)
+  const totalHire030 = vAbiHire + (vExtra * vDays) + abiAdminFee;
 
   // 31-60 section (+10%)
-  const rate3160 = abiDailyRate * 1.1;      // ABI hire +10%
-  const extra3160 = abiExtraCharges * 1.1;
+  const rate3160 = vAbiHire * 1.1;
+  const extra3160 = vExtra * 1.1;
   const admin3160 = abiAdminFee * 1.1;
-  const totalHire3160 = rate3160 + (extra3160 * noOfDays) + admin3160;
+  const totalHire3160 = rate3160 + (extra3160 * vDays) + admin3160;
 
   // 61+ section (+20%)
-  const rate61plus = abiDailyRate * 1.2;    // ABI hire +20%
-  const extra61plus = abiExtraCharges * 1.2;
+  const rate61plus = vAbiHire * 1.2;
+  const extra61plus = vExtra * 1.2;
   const admin61plus = abiAdminFee * 1.2;
-  const totalHire61plus = rate61plus + (extra61plus * noOfDays) + admin61plus;
+  const totalHire61plus = rate61plus + (extra61plus * vDays) + admin61plus;
 
   // 90+ BHR (+35%)
-  const bhrDailyRate = abiDailyRate * 1.35; // ABI hire +35%
-  const bhrExtra = abiExtraCharges * 1.35;
+  const bhrDailyRate = vAbiHire * 1.35;
+  const bhrExtra = vExtra * 1.35;
   const bhrAdmin = bhrAdminFee; // BHR administration fee from hire records (not surged)
-  const totalHire90 = bhrDailyRate + (bhrExtra * noOfDays) + bhrAdmin;
+  const totalHire90 = bhrDailyRate + (bhrExtra * vDays) + bhrAdmin;
 
-  // Billed Breakdown total (Credit Hire already includes admin)
+  // ── Billed Breakdown — totals across ALL vehicles (shown once, not per card) ──
+  // Credit Hire = Σ(ABI rate × days). Plating is the per-vehicle sum (separate).
+  const creditHireTotal = abiDailyRate + (abiExtraCharges * noOfDays) + abiAdminFee;
   const totalOutlay =
-    totalHire030 + abiAdminFee + storageCharges + recoveryCharges + engineerCharges + platingCharges;
+    creditHireTotal + abiAdminFee + storageCharges + recoveryCharges + engineerCharges + platingCharges;
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -401,6 +424,13 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           Payment Pack Charges
         </h2>
 
+        {/* Vehicle switcher — sections below show the selected vehicle (2+ only) */}
+        <VehicleCards
+          vehicles={vehicles}
+          activeIndex={activeVehicle}
+          onSelect={setActiveVehicle}
+        />
+
         {/* 0–30 Days */}
         <div className="self-stretch flex flex-col gap-4 mt-2">
           <h3 className="text-black text-base font-weight-600">
@@ -408,8 +438,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           </h3>
           <div className="self-stretch h-px bg-neutral-100" />
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Daily Rate (ABI)" value={fmt(abiDailyRate)} />
-            <ReadonlyField label="Extra Charges" value={fmt(abiExtraCharges)} />
+            <ReadonlyField label="Daily Rate (ABI)" value={fmt(vAbiHire)} />
+            <ReadonlyField label="Extra Charges" value={fmt(vExtra)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Admin Charges" value={fmt(abiAdminFee)} />
@@ -485,7 +515,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         </h2>
         <div className="self-stretch h-px bg-neutral-100" />
         <div className="w-full grid grid-cols-2 gap-5">
-          <ReadonlyField label="Credit Hire" value={fmt(totalHire030)} />
+          <ReadonlyField label="Credit Hire" value={fmt(creditHireTotal)} />
           <ReadonlyField label="Admin Charges" value={fmt(abiAdminFee)} />
         </div>
         <div className="w-full grid grid-cols-2 gap-5">

@@ -20,6 +20,7 @@ export interface ClaimFormPayload {
   client_going_abroad_date: string | null;
   date: string;
   abroad_date?: string;
+  rejection_reason?: string | null;
 }
 
 interface LookupItem {
@@ -51,7 +52,8 @@ export const ClaimsApi = {
         client_going_abroad: payload.client_going_abroad,
         client_going_abroad_date: payload.client_going_abroad_date,
         date: payload.date,
-        abroad_date: payload.abroad_date
+        abroad_date: payload.abroad_date,
+        rejection_reason: payload.rejection_reason ?? null
       });
       return response.data;
     } catch (error) {
@@ -130,7 +132,8 @@ export const ClaimsApi = {
         client_going_abroad: payload.client_going_abroad,
         client_going_abroad_date: payload.client_going_abroad_date,
         date: payload.date,
-        abroad_date: payload.abroad_date
+        abroad_date: payload.abroad_date,
+        rejection_reason: payload.rejection_reason ?? null
       });
       return response.data;
     } catch (error) {

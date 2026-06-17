@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
@@ -6,6 +6,8 @@ import {
   getPlatingCharges,
   savePlatingCharges,
 } from "../../../services/PlatingCharges/PlatingCharges";
+import { getHireProvidedVehicles } from "../../../services/Vehicle/vehicle";
+import VehicleCards, { type ClaimVehicle } from "./VehicleCards";
 import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 
 const validationSchema = Yup.object({
@@ -19,32 +21,65 @@ const validationSchema = Yup.object({
 
 const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
 
+  const EMPTY = {
+    private_hire_plating_fee: "" as string | number,
+    private_hire_mot_cost: "" as string | number,
+    total_plating_cost: "" as string | number,
+    automatic: "" as string | number,
+    estate: "" as string | number,
+    additional_premium: "" as string | number,
+    additional_driver_charges: "" as string | number,
+  };
+  const fromData = (d: any) => ({
+    private_hire_plating_fee: d?.private_hire_plating_fee ?? "",
+    private_hire_mot_cost: d?.private_hire_mot_cost ?? "",
+    total_plating_cost: d?.total_plating_cost ?? "",
+    automatic: d?.automatic ?? "",
+    estate: d?.estate ?? "",
+    additional_premium: d?.additional_premium ?? "",
+    additional_driver_charges: d?.additional_driver_charges ?? "",
+  });
+
   const [loading, setLoading] = useState(true);
+  // Vehicle switcher cards (shown only when the claim has 2+ vehicles).
+  const [vehicles, setVehicles] = useState<ClaimVehicle[]>([]);
+  const [activeVehicle, setActiveVehicle] = useState(0);
+  // Per-vehicle edited values, so switching cards keeps each vehicle separate.
+  const cacheRef = useRef<Record<string, any>>({});
+  useEffect(() => {
+    if (!claimId) return;
+    getHireProvidedVehicles(claimId).then((vs) => setVehicles(Array.isArray(vs) ? vs : []));
+  }, [claimId]);
+
+  // Plating is per vehicle only when there are 2+ vehicles; otherwise it stays
+  // per-claim (vehicle id null) so existing single-vehicle data still loads.
+  const perVehicle = vehicles.length >= 2;
+  const currentVehicleId: number | null = perVehicle ? (vehicles[activeVehicle]?.id ?? null) : null;
+  const cacheKey = (vid: number | null) => (vid == null ? "claim" : String(vid));
 
   const formik = useFormik({
-    initialValues: {
-      private_hire_plating_fee: "" as string | number,
-      private_hire_mot_cost: "" as string | number,
-      total_plating_cost: "" as string | number,
-      automatic: "" as string | number,
-      estate: "" as string | number,
-      additional_premium: "" as string | number,
-      additional_driver_charges: "" as string | number,
-    },
+    initialValues: { ...EMPTY },
     validationSchema,
-    onSubmit: async (values) => {
+    onSubmit: async () => {
       if (!claimId) return;
+      // Stash the active vehicle's edits, then persist every visited vehicle.
+      cacheRef.current[cacheKey(currentVehicleId)] = formik.values;
       try {
-        await savePlatingCharges({
-          claim_id: Number(claimId),
-          private_hire_plating_fee: toNum(values.private_hire_plating_fee),
-          private_hire_mot_cost: toNum(values.private_hire_mot_cost),
-          total_plating_cost: toNum(values.total_plating_cost),
-          automatic: toNum(values.automatic),
-          estate: toNum(values.estate),
-          additional_premium: toNum(values.additional_premium),
-          additional_driver_charges: toNum(values.additional_driver_charges),
-        });
+        await Promise.all(
+          Object.entries(cacheRef.current).map(([key, vals]: any) =>
+            savePlatingCharges({
+              claim_id: Number(claimId),
+              client_vehicle_id: key === "claim" ? null : Number(key),
+              private_hire_plating_fee: toNum(vals.private_hire_plating_fee),
+              private_hire_mot_cost: toNum(vals.private_hire_mot_cost),
+              total_plating_cost: toNum(vals.total_plating_cost),
+              automatic: toNum(vals.automatic),
+              estate: toNum(vals.estate),
+              additional_premium: toNum(vals.additional_premium),
+              additional_driver_charges: toNum(vals.additional_driver_charges),
+            }),
+          ),
+        );
         toast.success("Plating & additional charges saved");
       } catch {
         toast.error("Failed to save charges");
@@ -58,25 +93,28 @@ const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
     if (paymentFormRef) paymentFormRef.current = formik;
   }, [formik]);
 
-  // Load existing data
+  // Load the active vehicle's plating (from cache if edited, else backend).
   useEffect(() => {
     if (!claimId) { setLoading(false); return; }
-    getPlatingCharges(claimId)
-      .then(({ data }) => {
-        if (!data) return;
-        formik.setValues({
-          private_hire_plating_fee: data.private_hire_plating_fee ?? "",
-          private_hire_mot_cost: data.private_hire_mot_cost ?? "",
-          total_plating_cost: data.total_plating_cost ?? "",
-          automatic: data.automatic ?? "",
-          estate: data.estate ?? "",
-          additional_premium: data.additional_premium ?? "",
-          additional_driver_charges: data.additional_driver_charges ?? "",
-        });
-      })
-      .catch(() => {})
+    const key = cacheKey(currentVehicleId);
+    if (cacheRef.current[key]) {
+      formik.setValues(cacheRef.current[key]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    getPlatingCharges(claimId, currentVehicleId ?? undefined)
+      .then(({ data }) => formik.setValues(fromData(data)))
+      .catch(() => formik.setValues({ ...EMPTY }))
       .finally(() => setLoading(false));
-  }, [claimId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claimId, currentVehicleId]);
+
+  // Switch vehicle: stash current edits first so they aren't lost.
+  const handleSelectVehicle = (i: number) => {
+    cacheRef.current[cacheKey(currentVehicleId)] = formik.values;
+    setActiveVehicle(i);
+  };
 
   // Auto-calculate total plating cost
   useEffect(() => {
@@ -91,6 +129,13 @@ const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
       <h1 className="self-stretch text-black text-2xl font-weight-600 leading-6">
         Plating &amp; Additional Charges
       </h1>
+
+      {/* Vehicle switcher — outside both boxes; only shows for 2+ vehicles */}
+      <VehicleCards
+        vehicles={vehicles}
+        activeIndex={activeVehicle}
+        onSelect={handleSelectVehicle}
+      />
 
       {/* Hire Vehicle Plating Charges */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">

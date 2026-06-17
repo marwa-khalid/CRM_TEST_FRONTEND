@@ -28,7 +28,8 @@ import {
   type ClaimFormPayload,
 } from "../../../services/Claims/Claims";
 import {
-  closeFile
+  closeFile,
+  getCaseStatuses,
 } from "../../../services/Lookups/Generaldetails";
 import { CustomDatePicker } from "../Components/DatePicker";
 
@@ -121,7 +122,20 @@ const GeneralDetailsForm = ({ formRef, claimId, onClaimCreated }: any) => {
   const [fileClosedOn, setFileClosedOn] = useState<any>(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closureReason, setClosureReason] = useState("");
+  // Rejection reason is captured in a popup when the status is set to "Rejected".
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectDraft, setRejectDraft] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+  // Case statuses loaded from the backend so ALL options show (not a hardcoded subset).
+  const [caseStatusOptions, setCaseStatusOptions] = useState<{ value: number; label: string }[]>([]);
+  useEffect(() => {
+    getCaseStatuses()
+      .then((r: any) => {
+        const rows = Array.isArray(r?.data) ? r.data : [];
+        setCaseStatusOptions(rows.map((cs: any) => ({ value: cs.id, label: cs.label })));
+      })
+      .catch(() => setCaseStatusOptions([]));
+  }, []);
      const datepickerRef = useRef<HTMLDivElement>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
   
@@ -213,6 +227,7 @@ useEffect(() => {
       source_id: null,
       source_staff_user_id: null,
       case_status_id: null,
+      rejection_reason: "",
       credit_hire_accepted: "No",
       non_fault_accident: "NO",
       any_passengers: "NO",
@@ -449,23 +464,20 @@ useEffect(() => {
                 Case Status
               </label>
               <Select
-                options={[
-                  { value: 1, label: "Accepted" },
-                  { value: 2, label: "TBC" },
-                  { value: 3, label: "Claim Rejected" },
-                  { value: 4, label: "Claim Cancelled" },
-                ]}
-                value={[
-                  { value: 1, label: "Accepted" },
-                  { value: 2, label: "TBC" },
-                  { value: 3, label: "Claim Rejected" },
-                  { value: 4, label: "Claim Cancelled" },
-                ].find(
-                  (option) => option.value === formik.values.case_status_id,
-                )} // Controlled from step1Data
-                onChange={(val) =>
-                  formik.setFieldValue("case_status_id", val.value)
-                }
+                options={caseStatusOptions}
+                value={
+                  caseStatusOptions.find(
+                    (option) => option.value === formik.values.case_status_id,
+                  ) || null
+                } // Controlled from step1Data
+                onChange={(val) => {
+                  formik.setFieldValue("case_status_id", val?.value ?? null);
+                  // Pop up the rejection-reason box when the status becomes Rejected.
+                  if ((val?.label || "").toLowerCase() === "rejected") {
+                    setRejectDraft(formik.values.rejection_reason || "");
+                    setRejectModalOpen(true);
+                  }
+                }}
                 placeholder="Select Status"
                 styles={customStyles}
                 components={{
@@ -474,6 +486,37 @@ useEffect(() => {
                 }}
               />
             </div>
+
+            {/* 5b. Rejection Reason — opens in a popup when the status is "Rejected" */}
+            {(
+              caseStatusOptions
+                .find((o) => o.value === formik.values.case_status_id)
+                ?.label || ""
+            ).toLowerCase() === "rejected" && (
+              <div className="flex flex-col gap-2">
+                <label className="text-neutral-700 text-[14px] font-weight-500">
+                  Rejection Reason
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejectDraft(formik.values.rejection_reason || "");
+                    setRejectModalOpen(true);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded border border-neutral-200 text-[14px] outline-none hover:border-blue-500"
+                >
+                  {formik.values.rejection_reason ? (
+                    <span className="block truncate text-neutral-700">
+                      {formik.values.rejection_reason}
+                    </span>
+                  ) : (
+                    <span className="text-neutral-300">
+                      Add rejection reason...
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
 
             {/* 6. Credit Hire Accepted? (Radio) */}
             <div className="flex flex-col gap-2">
@@ -795,6 +838,46 @@ useEffect(() => {
           </div>
         </div>
       </div>
+
+      {/* Rejection Reason Modal */}
+      {rejectModalOpen && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex justify-center items-center z-50">
+          <div className="ModalInput p-6 bg-white rounded-lg shadow-xl inline-flex flex-col gap-5">
+            <div className="d-flex flex-col gap-2">
+              <h2 className="text-xl font-weight-600">Rejection Reason</h2>
+              <small className="text-neutral-700 font-weight-400">
+                Please provide a reason for rejecting this claim
+              </small>
+            </div>
+
+            <textarea
+              className="w-96 h-40 p-4 border border-gray-200 rounded-lg outline-none focus:border-blue-200 focus:ring-2 focus:ring-blue-200"
+              placeholder="Reason..."
+              value={rejectDraft}
+              onChange={(e) => setRejectDraft(e.target.value)}
+            />
+            <div className="flex justify-end gap-4">
+              <button
+                type="button"
+                onClick={() => setRejectModalOpen(false)}
+                className="px-6 py-3 border border-blue-500 text-blue-500 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  formik.setFieldValue("rejection_reason", rejectDraft);
+                  setRejectModalOpen(false);
+                }}
+                className="px-6 py-3 bg-blue-500 text-white rounded"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Close File Modal */}
       {showCloseModal && (

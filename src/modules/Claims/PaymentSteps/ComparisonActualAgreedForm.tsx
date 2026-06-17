@@ -10,6 +10,8 @@ import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/St
 import { gettingEnginerDetails } from "../../../services/EngineeringDetails/engineeringDetails";
 import { getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharges";
 import { getRepairData } from "../../../services/RepairAndCost/RepairAndCost";
+import { getHireProvidedVehicles } from "../../../services/Vehicle/vehicle";
+import VehicleCards, { type ClaimVehicle } from "./VehicleCards";
 import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -170,6 +172,36 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const [system, setSystem] = useState<SystemValues>(EMPTY_SYSTEM);
   const [statusOpen, setStatusOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Hire vehicle switcher cards (between Settlement Status and System Calculated).
+  // The per-vehicle hire figure changes with the selected card; the Totals and
+  // Summary stay as the claim-wide totals (shown once).
+  const [hireRecords, setHireRecords] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<ClaimVehicle[]>([]);
+  const [activeVehicle, setActiveVehicle] = useState(0);
+  // Every saved row for the claim (one per vehicle), used to sum agreed hire
+  // across vehicles for the Totals while the manual block shows the selected one.
+  const [savedAll, setSavedAll] = useState<any[]>([]);
+  // Per-vehicle agreed hire { days, rate } (rate already band-topped-up), keyed by
+  // hire-vehicle id. Ref is the source of truth; storeVersion forces a re-render of
+  // the (display-once) Totals when the store changes.
+  const hireStoreRef = useRef<Record<string, { days: number; rate: number }>>({});
+  const [storeVersion, setStoreVersion] = useState(0);
+  const bumpStore = () => setStoreVersion((v) => v + 1);
+  useEffect(() => {
+    if (!claimId) return;
+    getHireProvidedVehicles(claimId).then((vs) => setVehicles(Array.isArray(vs) ? vs : []));
+  }, [claimId]);
+  const perVehicle = vehicles.length >= 2;
+  const currentVehicleId: number | null = perVehicle ? (vehicles[activeVehicle]?.id ?? null) : null;
+  // This vehicle's own system hire (days + base per-day rate, before band uplift),
+  // taken from its hire record by index. Used for per-vehicle defaults.
+  const vehSysHire = (i: number) => {
+    const r = hireRecords[i];
+    return {
+      days: toF(r?.final_total_no_of_hire_days ?? r?.no_of_days_hire_so_far),
+      baseRate: toF(r?.abi_hire_charge_per_day),
+    };
+  };
   // Latest system-derived rates, used as fallback when saved values are null
   const computedRatesRef = useRef({ repair: "0.00", recovery: "0.00", engineer: "0.00", plating: "0.00", cdFee: "0.00", admin: "0.00", hire: "0.00" });
 
@@ -196,28 +228,55 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     },
     onSubmit: async (values) => {
       if (!claimId) return;
+      const num = (v: any) => (v !== "" ? Number(v) : null);
+      // Claim-level fields are identical on every row (counted once in totals).
+      const base = {
+        claim_id: Number(claimId),
+        settlement_status: values.settlement_status || null,
+        abi_rate_band: values.abi_rate_band || null,
+        agreed_storage_days: num(values.agreed_storage_days),
+        agreed_storage_rate: num(values.agreed_storage_rate),
+        agreed_cdw_days: num(values.agreed_cdw_days),
+        agreed_cdw_rate: num(values.agreed_cdw_rate),
+        agreed_additional_fees: num(values.agreed_additional_fees),
+        agreed_penalties: num(values.agreed_penalties),
+        agreed_repair_rate: num(values.agreed_repair_rate),
+        agreed_recovery_rate: num(values.agreed_recovery_rate),
+        agreed_engineer_rate: num(values.agreed_engineer_rate),
+        agreed_plating_rate: num(values.agreed_plating_rate),
+        agreed_cd_fee: num(values.agreed_cd_fee),
+        agreed_admin: num(values.agreed_admin),
+        vat_recovered: values.vat_recovered,
+        reason_for_reduction: values.reason_for_reduction || null,
+      };
       try {
-        await saveComparisonSettlement({
-          claim_id: Number(claimId),
-          settlement_status: values.settlement_status || null,
-          abi_rate_band: values.abi_rate_band || null,
-          agreed_hire_days: values.agreed_hire_days !== "" ? Number(values.agreed_hire_days) : null,
-          agreed_hire_rate: values.agreed_hire_rate !== "" ? Number(values.agreed_hire_rate) : null,
-          agreed_storage_days: values.agreed_storage_days !== "" ? Number(values.agreed_storage_days) : null,
-          agreed_storage_rate: values.agreed_storage_rate !== "" ? Number(values.agreed_storage_rate) : null,
-          agreed_cdw_days: values.agreed_cdw_days !== "" ? Number(values.agreed_cdw_days) : null,
-          agreed_cdw_rate: values.agreed_cdw_rate !== "" ? Number(values.agreed_cdw_rate) : null,
-          agreed_additional_fees: values.agreed_additional_fees !== "" ? Number(values.agreed_additional_fees) : null,
-          agreed_penalties: values.agreed_penalties !== "" ? Number(values.agreed_penalties) : null,
-          agreed_repair_rate: values.agreed_repair_rate !== "" ? Number(values.agreed_repair_rate) : null,
-          agreed_recovery_rate: values.agreed_recovery_rate !== "" ? Number(values.agreed_recovery_rate) : null,
-          agreed_engineer_rate: values.agreed_engineer_rate !== "" ? Number(values.agreed_engineer_rate) : null,
-          agreed_plating_rate: values.agreed_plating_rate !== "" ? Number(values.agreed_plating_rate) : null,
-          agreed_cd_fee: values.agreed_cd_fee !== "" ? Number(values.agreed_cd_fee) : null,
-          agreed_admin: values.agreed_admin !== "" ? Number(values.agreed_admin) : null,
-          vat_recovered: values.vat_recovered,
-          reason_for_reduction: values.reason_for_reduction || null,
-        });
+        if (perVehicle) {
+          // Persist the live card's hire first, then save one row per vehicle.
+          if (currentVehicleId != null) {
+            hireStoreRef.current[String(currentVehicleId)] = {
+              days: toF(values.agreed_hire_days),
+              rate: toF(values.agreed_hire_rate),
+            };
+          }
+          await Promise.all(
+            vehicles.map((v) => {
+              const st = hireStoreRef.current[String(v.id)];
+              return saveComparisonSettlement({
+                ...base,
+                hire_vehicle_id: v.id ?? null,
+                agreed_hire_days: st ? st.days : null,
+                agreed_hire_rate: st ? st.rate : null,
+              });
+            }),
+          );
+        } else {
+          await saveComparisonSettlement({
+            ...base,
+            hire_vehicle_id: null,
+            agreed_hire_days: num(values.agreed_hire_days),
+            agreed_hire_rate: num(values.agreed_hire_rate),
+          });
+        }
         toast.success("Comparison settlement saved");
       } catch {
         toast.error("Failed to save");
@@ -235,7 +294,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   useEffect(() => {
     if (system.hire_days === 0 && system.hire_rate_per_day === 0) return;
     const isBhr = formik.values.abi_rate_band === "35";
-    formik.setFieldValue("agreed_hire_days", system.hire_days);
+    // When there are 2+ vehicles, hire days come per-vehicle (handled below); the
+    // claim-sum default would otherwise overwrite the selected card's value.
+    if (!perVehicle) formik.setFieldValue("agreed_hire_days", system.hire_days);
     formik.setFieldValue("agreed_storage_days", system.storage_days);
     formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day).toFixed(2));
     formik.setFieldValue("agreed_cdw_days", system.cdw_days);
@@ -276,7 +337,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     formik.setFieldValue("agreed_engineer_rate", engineer);
     formik.setFieldValue("agreed_plating_rate", plating);
     formik.setFieldValue("agreed_cd_fee", cdFee);
-    formik.setFieldValue("agreed_hire_rate", hire);
+    // For 2+ vehicles the hire rate is the SELECTED vehicle's base × band mult
+    // (set in the per-vehicle effect); the claim-blended rate would be wrong here.
+    if (!perVehicle) formik.setFieldValue("agreed_hire_rate", hire);
     formik.setFieldValue("agreed_admin", admin);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [system.repair, system.recovery, system.engineer_fee, system.plating, system.cd_fee, system.admin_fee, system.bhr_admin_fee, system.hire_rate_per_day, formik.values.abi_rate_band]);
@@ -286,7 +349,12 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     if (!claimId) { setLoading(false); return; }
     getComparisonSettlement(claimId)
       .then(({ data }: any) => {
-        const s = data?.saved;
+        const all: any[] = Array.isArray(data?.saved_all) ? data.saved_all : [];
+        setSavedAll(all);
+        // Claim-level fields live on the claim-level row, or (for multi-vehicle
+        // claims that only have per-vehicle rows) on any saved row — they're
+        // replicated across all vehicle rows on save.
+        const s = data?.saved ?? all[0];
         if (!s) return;
         formik.setValues({
           settlement_status: s.settlement_status ?? "",
@@ -313,6 +381,68 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
       .finally(() => setLoading(false));
   }, [claimId]);
 
+  // ── Per-vehicle agreed hire (only when 2+ hire vehicles) ──────────────────
+  // Seed the store for every vehicle from its saved row, or its own system hire
+  // (days + base rate × band). Re-runs on band change so unsaved defaults track
+  // the band. The selected vehicle is edited live in formik, so its store entry
+  // is whatever was last stashed; we never overwrite it here once visited.
+  useEffect(() => {
+    if (!perVehicle) return;
+    const mult = 1 + toF(formik.values.abi_rate_band) / 100;
+    const store = hireStoreRef.current;
+    vehicles.forEach((v, i) => {
+      const key = String(v.id);
+      // The selected card is edited live in formik — never overwrite its store.
+      if (key === (currentVehicleId != null ? String(currentVehicleId) : null)) return;
+      const saved = savedAll.find((r) => String(r.hire_vehicle_id) === key);
+      if (saved && saved.agreed_hire_days != null) {
+        store[key] = { days: toF(saved.agreed_hire_days), rate: toF(saved.agreed_hire_rate) };
+      } else {
+        // No saved row: default days from system (keep any edited days), and
+        // re-derive the rate from this vehicle's base × band so it tracks the band.
+        const sys = vehSysHire(i);
+        store[key] = { days: store[key]?.days ?? sys.days, rate: round2(sys.baseRate * mult) };
+      }
+    });
+    bumpStore();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perVehicle, vehicles.length, hireRecords.length, savedAll, formik.values.abi_rate_band]);
+
+  // Load the selected vehicle's hire into formik on card switch. Restores its
+  // stored days/rate (saved or last-edited), else its system default.
+  useEffect(() => {
+    if (!perVehicle || currentVehicleId == null) return;
+    const mult = 1 + toF(formik.values.abi_rate_band) / 100;
+    const stored = hireStoreRef.current[String(currentVehicleId)];
+    const sys = vehSysHire(activeVehicle);
+    formik.setFieldValue("agreed_hire_days", stored ? stored.days : sys.days);
+    formik.setFieldValue("agreed_hire_rate", stored ? round2(stored.rate) : round2(sys.baseRate * mult));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentVehicleId, perVehicle]);
+
+  // On band change, reset the SELECTED vehicle's hire rate to its base × band
+  // (matches the single-vehicle behaviour where changing the band re-derives it).
+  useEffect(() => {
+    if (!perVehicle || currentVehicleId == null) return;
+    const mult = 1 + toF(formik.values.abi_rate_band) / 100;
+    const sys = vehSysHire(activeVehicle);
+    formik.setFieldValue("agreed_hire_rate", round2(sys.baseRate * mult));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formik.values.abi_rate_band]);
+
+  // Switch card: stash the current vehicle's live hire so its total contribution
+  // and a later return to the card keep the edited values.
+  const handleSelectVehicle = (i: number) => {
+    if (perVehicle && currentVehicleId != null) {
+      hireStoreRef.current[String(currentVehicleId)] = {
+        days: toF(formik.values.agreed_hire_days),
+        rate: toF(formik.values.agreed_hire_rate),
+      };
+      bumpStore();
+    }
+    setActiveVehicle(i);
+  };
+
   // Load system values from each source screen (mirrors ABI&BHR approach)
   useEffect(() => {
     if (!claimId) return;
@@ -321,6 +451,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     getHireRecords(claimId)
       .then(({ data }: any) => {
         const records: any[] = Array.isArray(data) ? data : [];
+        setHireRecords(records);
         const first = records[0];
         if (!first) return;
         // Total days = sum of every vehicle's total hire days
@@ -411,7 +542,14 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   );
 
   // Actual (system) line items
-  const actualHire = system.hire_costs;
+  const actualHire = system.hire_costs;  // Σ across vehicles — used in the Totals
+  // Per-vehicle hire for the System Calculated block (the selected card). For a
+  // single vehicle this equals the total, so nothing changes.
+  const selHireRec = hireRecords[activeVehicle];
+  const hireDisplay = perVehicle && selHireRec
+    ? toF(selHireRec.final_total_no_of_hire_days ?? selHireRec.no_of_days_hire_so_far) *
+      toF(selHireRec.abi_hire_charge_per_day)
+    : actualHire;
   const actualAdmin = system.admin_fee;
   const actualStorage = system.storage;
   const actualRepair = system.repair;
@@ -437,6 +575,30 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     formik.values.agreed_hire_rate !== "" ? toF(formik.values.agreed_hire_rate) : system.hire_rate_per_day * rateMult;
   // Hire rate already includes the band top-up (like admin), so no extra mult here
   const agreedHire = agreedHireDays * agreedHireRate;
+
+  // Hire is summed across every vehicle for the (display-once) Totals; the selected
+  // card uses the live formik value, the others come from the per-vehicle store.
+  // storeVersion is referenced so edits to other cards re-trigger this calc.
+  void storeVersion;
+  const selKey = currentVehicleId != null ? String(currentVehicleId) : null;
+  const totalAgreedHire = perVehicle
+    ? vehicles.reduce((sum, v, i) => {
+        const key = String(v.id);
+        if (key === selKey) return sum + agreedHire;
+        const st = hireStoreRef.current[key];
+        const days = st ? st.days : vehSysHire(i).days;
+        const rate = st ? st.rate : round2(vehSysHire(i).baseRate * rateMult);
+        return sum + days * rate;
+      }, 0)
+    : agreedHire;
+  const totalAgreedHireDays = perVehicle
+    ? vehicles.reduce((sum, v, i) => {
+        const key = String(v.id);
+        if (key === selKey) return sum + agreedHireDays;
+        const st = hireStoreRef.current[key];
+        return sum + (st ? st.days : vehSysHire(i).days);
+      }, 0)
+    : agreedHireDays;
 
   const hasStorageAdj =
     formik.values.agreed_storage_days !== "" || formik.values.agreed_storage_rate !== "";
@@ -475,8 +637,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const agreedAdditional = toF(formik.values.agreed_additional_fees);
   const agreedPenalties = toF(formik.values.agreed_penalties);
 
+  // Totals use the summed hire across vehicles; everything else is claim-level (once).
   const agreedExclVAT = round2(
-    round2(agreedHire) + round2(agreedAdmin) + round2(agreedStorage) + round2(agreedRepair) +
+    round2(totalAgreedHire) + round2(agreedAdmin) + round2(agreedStorage) + round2(agreedRepair) +
     round2(agreedRecovery) + round2(agreedPlating) + round2(agreedEngineer) + round2(agreedCdw) +
     round2(agreedCdFee) + round2(agreedAdditional) + round2(agreedPenalties),
   );
@@ -487,7 +650,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   // Summary
   const totalDiff = agreedInclVAT - actualInclVAT;
   const overallPct = actualInclVAT > 0 ? (totalDiff / actualInclVAT) * 100 : 0;
-  const reductionInHireDays = system.hire_days - agreedHireDays;
+  const reductionInHireDays = system.hire_days - totalAgreedHireDays;
 
   // ─── render ───────────────────────────────────────────────────────────────
 
@@ -555,6 +718,13 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         </div>
       </section>
 
+      {/* ── Vehicle switcher — between Settlement Status and System Calculated ── */}
+      <VehicleCards
+        vehicles={vehicles}
+        activeIndex={activeVehicle}
+        onSelect={handleSelectVehicle}
+      />
+
       {/* ── Section 2: System Calculated Settlement ── */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
         <h2 className="text-black text-xl font-weight-600 leading-5">
@@ -563,7 +733,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
         <div className="flex flex-col gap-4">
           {divider}
           <div className="grid grid-cols-2 gap-5">
-            <ReadField label="Hire Costs" value={actualHire} />
+            <ReadField label="Hire Costs" value={hireDisplay} />
             <ReadField label="Admin Fee" value={actualAdmin} />
           </div>
           <div className="grid grid-cols-2 gap-5">
@@ -850,7 +1020,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           <div className="h-px bg-neutral-100" />
           <TableRow
             label="Hire Costs"
-            actual={actualHire}
+            actual={hireDisplay}
             agreed={agreedHire}
           />
           <div className="h-px bg-neutral-100" />

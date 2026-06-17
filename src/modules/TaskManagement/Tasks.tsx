@@ -43,6 +43,7 @@ import {
   type TaskPayload,
 } from "../../services/Tasks/Tasks";
 import { getClaims } from "../../services/Claims/Claims";
+import { useAssignees } from "./useAssignees";
 import { CustomDatePicker } from "../Claims/Components/DatePicker";
 import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDetailsForm";
 import { ConfirmModal } from "../../components/common/ConfirmModal";
@@ -63,17 +64,6 @@ const STATUSES = [
 ];
 const PRIORITIES = ["Low", "Medium", "High"];
 const DEPARTMENTS = ["Claims", "Fleet", "Recovery", "Customer Service"];
-// Sample users for now (no users endpoint wired yet)
-const SAMPLE_USERS = [
-  "Imran Dean",
-  "Hina Sadaf",
-  "Ruby Ud Din",
-  "Akeel Rehman",
-  "Tariq Hussain",
-  "Ali Pervaiz",
-  "Alex"
-];
-
 // Filter keys that support multi-select
 const MULTI_KEYS = [
   "priority",
@@ -465,7 +455,7 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 const inputCls =
   "w-full h-[52px] px-4 bg-white rounded border border-neutral-200 outline-none text-neutral-700 font-light focus:border-blue-500";
 
-const AddTaskDrawer = ({
+export const AddTaskDrawer = ({
   open, editing, claims, vehicleRegs, onClose, onSaved,
 }: {
   open: boolean;
@@ -478,6 +468,7 @@ const AddTaskDrawer = ({
   const [form, setForm] = useState<any>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [attachmentOpen, setAttachmentOpen] = useState(false);
+  const assignees = useAssignees();
   const claimOptions = claims.map((c) => ({ label: c.ref, value: String(c.id) }));
 
   useEffect(() => {
@@ -586,7 +577,7 @@ const AddTaskDrawer = ({
 
           <Field label="Assigned User">
             <Select
-              options={opts(SAMPLE_USERS)}
+              options={opts(assignees)}
               value={form.assigned_user ? opt(form.assigned_user) : null}
               onChange={(o: any) => set("assigned_user", o?.value || "")}
               placeholder="Select user"
@@ -818,6 +809,7 @@ const ReassignModal = ({
   task, onClose, onDone,
 }: { task: any; onClose: () => void; onDone: () => void }) => {
   const [newAssignee, setNewAssignee] = useState("");
+  const assignees = useAssignees();
   const [reason, setReason] = useState("");
   const [notifyNew, setNotifyNew] = useState(true);
   const [notifyPrev, setNotifyPrev] = useState(false);
@@ -888,7 +880,7 @@ const ReassignModal = ({
               </div>
               {newOpen && (
                 <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white rounded outline outline-1 outline-neutral-200 shadow-lg max-h-56 overflow-auto">
-                  {SAMPLE_USERS.map((u) => (
+                  {assignees.map((u) => (
                     <div
                       key={u}
                       onClick={() => { setNewAssignee(u); setNewOpen(false); }}
@@ -953,6 +945,7 @@ const ReassignModal = ({
 
 const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) => {
   const navigate = useNavigate();
+  const assignees = useAssignees();
 
   const [stats, setStats] = useState<any>({ total: 0, pending: 0, in_progress: 0, overdue: 0, completed: 0 });
   const [tasks, setTasks] = useState<any[]>([]);
@@ -1419,7 +1412,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
             />
             <MultiFilterDropdown
               label="Assigned to"
-              options={SAMPLE_USERS}
+              options={assignees}
               selected={multi.assigned_user}
               onToggle={(v) => toggleFilter("assigned_user", v)}
               onClear={() => clearFilter("assigned_user")}
@@ -1534,7 +1527,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                 </button>
                 {bulkMenu === "reassign" && (
                   <div className="absolute right-0 top-full mt-1 w-44 max-h-56 overflow-auto bg-white border border-neutral-200 rounded shadow-lg z-30">
-                    {SAMPLE_USERS.map((u) => (
+                    {assignees.map((u) => (
                       <div
                         key={u}
                         onClick={() => bulkUpdate({ assigned_user: u })}

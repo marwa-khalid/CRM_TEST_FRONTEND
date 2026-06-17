@@ -40,6 +40,35 @@ export const getVehicleDetail = async (id: any) => {
   return response.data;
 };
 
+// Client vehicles for a claim — the claimant's own vehicles from the Vehicle
+// Details screen. Returns [] on failure.
+export const getClaimVehicles = async (claimId: any) => {
+  try {
+    const response = await axiosInstance.get(`/client-vehicles/claim/${claimId}`);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch {
+    return [];
+  }
+};
+
+// Hire (provided) vehicles for a claim — from the Hire Details screen. This is
+// the source for the payment-screen vehicle switcher cards (kept separate from
+// the client vehicles above). Mapped to a common { id, registration } shape.
+export const getHireProvidedVehicles = async (claimId: any) => {
+  try {
+    const response = await axiosInstance.get(`/hire-vehicle-provided/${claimId}`);
+    const list = Array.isArray(response.data) ? response.data : [];
+    return list.map((v: any) => ({
+      id: v.id,
+      registration: v.hire_vehicle_registration ?? null,
+      make: v.make ?? null,
+      model: v.model ?? null,
+    }));
+  } catch {
+    return [];
+  }
+};
+
 
 export const updateVehicle = async (data: any, id: any) => {
   const response = await axiosInstance.put(`/client-vehicles/${id}`, data);

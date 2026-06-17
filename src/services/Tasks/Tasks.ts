@@ -12,6 +12,9 @@ export interface TaskFilters {
   due_to?: string;
   page?: number;
   page_size?: number;
+  // When true, returns every task in the tenant (system-wide), ignoring the
+  // logged-in user filter. Used by the Dashboard task overview cards.
+  all_users?: boolean;
 }
 
 export interface TaskPayload {

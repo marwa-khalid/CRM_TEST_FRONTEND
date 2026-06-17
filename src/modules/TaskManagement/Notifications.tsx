@@ -200,9 +200,15 @@ const Row = ({
       </span>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          {showCategory && (
+          {/* On a specific tab the category pill is hidden, so the title takes
+              its place on the top row — keeps the layout aligned (no empty band). */}
+          {showCategory ? (
             <span className="px-2 py-[2px] rounded border border-neutral-200 text-[10px] font-weight-500 text-neutral-600 shrink-0">
               {item.category}
+            </span>
+          ) : (
+            <span className="flex-1 min-w-0 truncate text-sm font-weight-600 text-neutral-900">
+              {item.title}
             </span>
           )}
           <div className="flex flex-col items-end gap-1 shrink-0 ml-auto">
@@ -210,9 +216,11 @@ const Row = ({
             {unread && <span className="w-2 h-2 rounded-full bg-blue-500" />}
           </div>
         </div>
-        <div className="text-sm font-weight-600 text-neutral-900 mt-1 truncate">
-          {item.title}
-        </div>
+        {showCategory && (
+          <div className="text-sm font-weight-600 text-neutral-900 mt-1 truncate">
+            {item.title}
+          </div>
+        )}
         <div className="text-xs text-neutral-500 mt-0.5 line-clamp-2">
           {item.description}
         </div>

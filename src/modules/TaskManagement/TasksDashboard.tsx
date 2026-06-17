@@ -440,7 +440,10 @@ const Column = ({
     setLoading(true);
     // "All Tasks" shows the remainder — everything that ISN'T already in the
     // Overdue / Critical / Pending-Followups columns, so nothing repeats.
-    const params = col.key === "all" ? { page_size: 100 } : { ...filter, page_size: 10 };
+    // Dashboard cards are a system-wide overview (all users), not just mine.
+    const params = col.key === "all"
+      ? { page_size: 100, all_users: true }
+      : { ...filter, page_size: 10, all_users: true };
     listTasks(params)
       .then(({ data }) => {
         let rows = data?.items ?? [];
@@ -579,6 +582,49 @@ const PeriodTabs = ({ active, onChange }: { active: string; onChange: (p: string
   </div>
 );
 
+// Reusable From/To date range picker shown when a graph's period is "Custom".
+// Self-contained: owns its open/click-outside state so each graph is independent.
+const CustomRange = ({
+  from, to, onFrom, onTo,
+}: { from: string; to: string; onFrom: (v: string) => void; onTo: (v: string) => void }) => {
+  const [open, setOpen] = useState<null | "from" | "to">(null);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null); };
+    if (open) document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  return (
+    <div ref={ref} className="flex items-center gap-2">
+      {(["from", "to"] as const).map((which) => {
+        const val = which === "from" ? from : to;
+        const set = which === "from" ? onFrom : onTo;
+        return (
+          <div key={which} className="relative">
+            <div
+              onClick={() => setOpen((o) => (o === which ? null : which))}
+              className="h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600 flex items-center gap-2 cursor-pointer min-w-[120px] justify-between"
+            >
+              <span className={val ? "text-neutral-700" : "text-neutral-400"}>
+                {val || (which === "from" ? "From" : "To")}
+              </span>
+              <CalendarIcon size={14} className="text-neutral-400" />
+            </div>
+            {open === which && (
+              <div className="absolute top-full left-0 z-50 mt-1 shadow-xl rounded-lg bg-white">
+                <CustomDatePicker
+                  selectedDate={val ? new Date(val + "T00:00:00") : new Date()}
+                  onDateSelect={(d: Date) => { set(toLocalISO(d)); setOpen(null); }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpen }) => {
@@ -630,10 +676,14 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const [trendMode, setTrendMode] = useState("YoY");
   const [trendRef, setTrendRef] = useState("");
   const [trendStatus, setTrendStatus] = useState("");
+  const [trendFrom, setTrendFrom] = useState("");
+  const [trendTo, setTrendTo] = useState("");
   const [hirePeriod, setHirePeriod] = useState("YTD");
   const [hireMode, setHireMode] = useState("YoY");
   const [hireRef, setHireRef] = useState("");
   const [hireStatus, setHireStatus] = useState("");
+  const [hireFrom, setHireFrom] = useState("");
+  const [hireTo, setHireTo] = useState("");
   const [trendOptions, setTrendOptions] = useState<{ referrers: string[]; statuses: string[] }>({
     referrers: [],
     statuses: [],
@@ -727,21 +777,24 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const [hireTrendPrev, setHireTrendPrev] = useState<Pt[]>([]);
   const [hireLabels, setHireLabels] = useState<SeriesLabels>();
   useEffect(() => {
-    getDashboardTrends(trendPeriod, trendMode, trendRef, trendStatus)
+    // A Custom range only fetches once both dates are picked.
+    if (trendPeriod === "Custom" && !(trendFrom && trendTo)) return;
+    getDashboardTrends(trendPeriod, trendMode, trendRef, trendStatus, trendFrom, trendTo)
       .then(({ data }) => {
         setClaimsTrend(data?.claims_trend || []);
         setClaimsTrendPrev(data?.claims_trend_prev || []);
         setTrendLabels(data?.series_labels);
       }).catch(() => {});
-  }, [trendPeriod, trendMode, trendRef, trendStatus]);
+  }, [trendPeriod, trendMode, trendRef, trendStatus, trendFrom, trendTo]);
   useEffect(() => {
-    getDashboardTrends(hirePeriod, hireMode, hireRef, hireStatus)
+    if (hirePeriod === "Custom" && !(hireFrom && hireTo)) return;
+    getDashboardTrends(hirePeriod, hireMode, hireRef, hireStatus, hireFrom, hireTo)
       .then(({ data }) => {
         setHireTrend(data?.hire_trend || []);
         setHireTrendPrev(data?.hire_trend_prev || []);
         setHireLabels(data?.series_labels);
       }).catch(() => {});
-  }, [hirePeriod, hireMode, hireRef, hireStatus]);
+  }, [hirePeriod, hireMode, hireRef, hireStatus, hireFrom, hireTo]);
   useEffect(() => {
     getTrendOptions()
       .then(({ data }) => setTrendOptions({
@@ -1023,6 +1076,9 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
           </h2>
           <div className="flex items-center flex-wrap gap-3 mb-6">
             <PeriodTabs active={trendPeriod} onChange={setTrendPeriod} />
+            {trendPeriod === "Custom" && (
+              <CustomRange from={trendFrom} to={trendTo} onFrom={setTrendFrom} onTo={setTrendTo} />
+            )}
             <div className="flex items-center bg-neutral-100 rounded-md p-0.5 text-sm">
               {["YoY", "MoM"].map((m) => (
                 <button
@@ -1049,6 +1105,9 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
           </h2>
           <div className="flex items-center flex-wrap gap-3 mb-6">
             <PeriodTabs active={hirePeriod} onChange={setHirePeriod} />
+            {hirePeriod === "Custom" && (
+              <CustomRange from={hireFrom} to={hireTo} onFrom={setHireFrom} onTo={setHireTo} />
+            )}
             <div className="flex items-center bg-neutral-100 rounded-md p-0.5 text-sm">
               {["YoY", "MoM"].map((m) => (
                 <button

@@ -11,7 +11,6 @@ import {
   HelpCircle,
   Search,
   MoreVertical,
-  Bell,
   Upload,
   ChevronDown,
   Check,
@@ -37,6 +36,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getClaims, deleteClaim, updateClaimStatus } from "../../services/Claims/Claims";
 import { getCaseStatuses } from "../../services/Lookups/Generaldetails";
 import { ConfirmModal } from "../../components/common/ConfirmModal";
+import NotificationBell from "../../components/Notifications/NotificationBell";
 import { CustomDatePicker } from "../Claims/Components/DatePicker";
 import Tasks from "../TaskManagement/Tasks";
 import { useCurrentUser } from "../../context/AuthContext";
@@ -183,6 +183,7 @@ const Dashboard: React.FC = () => {
       date: formatDate(claim.incident_date || claim.accident_date || claim.date),
       assigned: claim.handler || claim.assigned_to || claim.handler_name || "—",
       status: claim.case_status || claim.status || "—",
+      reason: claim.rejection_reason || claim.reason || "",
       priority: claim.priority || "—",
     };
   };
@@ -196,10 +197,13 @@ const Dashboard: React.FC = () => {
     () => [...new Set(tableRows.map((r) => r.type).filter((v) => v && v !== "—"))].sort(),
     [tableRows],
   );
-  const statusOptions = useMemo(
-    () => [...new Set(tableRows.map((r) => r.status).filter((v) => v && v !== "—"))].sort(),
-    [tableRows],
-  );
+  // Status filter shows every configured case status (not just those present in
+  // the current rows); falls back to the data-derived set until the list loads.
+  const statusOptions = useMemo(() => {
+    const all = caseStatuses.map((cs) => cs.label).filter(Boolean);
+    if (all.length) return all;
+    return [...new Set(tableRows.map((r) => r.status).filter((v) => v && v !== "—"))].sort();
+  }, [caseStatuses, tableRows]);
   const priorityOptions = useMemo(
     () => [...new Set(tableRows.map((r) => r.priority).filter((v) => v && v !== "—"))].sort(),
     [tableRows],
@@ -291,9 +295,9 @@ const Dashboard: React.FC = () => {
   };
 
   // ── export (Excel / PDF) ────────────────────────────────────────────────────
-  const EXPORT_COLS = ["Client", "Claim No.", "Type", "Incident Date", "Assigned To", "Status", "Priority"];
+  const EXPORT_COLS = ["Client", "Claim No.", "Type", "Incident Date", "Assigned To", "Reason", "Status", "Priority"];
   const exportRowsData = () =>
-    filteredRows.map((r) => [r.client, r.claimNo, r.type, r.date, r.assigned, r.status, r.priority]);
+    filteredRows.map((r) => [r.client, r.claimNo, r.type, r.date, r.assigned, r.reason || "", r.status, r.priority]);
   const exportExcel = () => {
     setExportMenu(false);
     const ws = XLSX.utils.aoa_to_sheet([EXPORT_COLS, ...exportRowsData()]);
@@ -305,7 +309,14 @@ const Dashboard: React.FC = () => {
     setExportMenu(false);
     const doc = new jsPDF({ orientation: "landscape" });
     doc.text("Claims", 14, 14);
-    autoTable(doc, { head: [EXPORT_COLS], body: exportRowsData(), startY: 20, styles: { fontSize: 8 } });
+    autoTable(doc, {
+      head: [EXPORT_COLS],
+      body: exportRowsData(),
+      startY: 20,
+      styles: { fontSize: 8 },
+      // Header uses the app's blue-100 (#d9ebff) with dark text, matching the theme.
+      headStyles: { fillColor: [217, 235, 255], textColor: [23, 23, 23] },
+    });
     doc.save("Claims.pdf");
   };
 
@@ -448,7 +459,7 @@ const Dashboard: React.FC = () => {
 
               <div className="flex items-center gap-6 text-neutral-500">
                 <Search size={20} />
-                <Bell size={20} />
+                <NotificationBell onOpenTask={() => goToTasks()} />
               </div>
             </div>
 
@@ -595,6 +606,7 @@ const Dashboard: React.FC = () => {
                         <TableHeader>TYPE</TableHeader>
                         <TableHeader>INCIDENT DATE</TableHeader>
                         <TableHeader>ASSIGNED TO</TableHeader>
+                        <TableHeader>REASON</TableHeader>
                         <TableHeader>STATUS</TableHeader>
                         <TableHeader>PRIORITY</TableHeader>
                         <TableHeader className="w-10" />
@@ -603,7 +615,7 @@ const Dashboard: React.FC = () => {
 
                     <tbody>
                       {pageRows.length === 0 && (
-                        <tr><td colSpan={selectMode ? 9 : 8} className="px-4 py-10 text-center text-neutral-400 text-sm">No claims found.</td></tr>
+                        <tr><td colSpan={selectMode ? 10 : 9} className="px-4 py-10 text-center text-neutral-400 text-sm">No claims found.</td></tr>
                       )}
                       {pageRows.map((claim, index) => (
                         <tr
@@ -624,6 +636,19 @@ const Dashboard: React.FC = () => {
                           <TableCell>{claim.type}</TableCell>
                           <TableCell>{claim.date}</TableCell>
                           <TableCell>{claim.assigned}</TableCell>
+
+                          <TableCell>
+                            {claim.reason ? (
+                              <span
+                                className="block max-w-[220px] text-neutral-600 text-sm line-clamp-2"
+                                title={claim.reason}
+                              >
+                                {claim.reason}
+                              </span>
+                            ) : (
+                              <span className="text-neutral-300">—</span>
+                            )}
+                          </TableCell>
 
                           <TableCell>
                             <StatusBadge status={claim.status} />

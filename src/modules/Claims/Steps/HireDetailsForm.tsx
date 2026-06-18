@@ -341,12 +341,15 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           actual_vehicle_category: r.actual_vehicle_category_id ?? "",
           abi_hire_charge_per_day: Number(r.abi_hire_charge_per_day ?? 0),
           extra_charge_per_day: Number(r.abi_extra_charges_per_day ?? 0),
-          administration_fee: Number(r.abi_administration_fee ?? 37),
+          // Admin fee is charged once per claim — only the first vehicle carries
+          // it; every subsequent vehicle is forced to 0 (ABI + BHR).
+          administration_fee: idx === 0 ? Number(r.abi_administration_fee ?? 37) : 0,
           bhr_hire_charge_per_day: Number(r.bhr_hire_charge_per_day ?? 0),
           bhr_extra_charge_per_day: Number(r.bhr_extra_charges_per_day ?? 0),
-          bhr_administration_fee: Number(r.bhr_administration_fee ?? 60),
+          bhr_administration_fee: idx === 0 ? Number(r.bhr_administration_fee ?? 60) : 0,
           cdw_per_day: Number(r.cdw_charges ?? 15),
-          collection_and_delivery_fee: Number(r.collection_delivery_fee ?? 60),
+          // Collection & Delivery fee is charged once per claim — first vehicle only.
+          collection_and_delivery_fee: idx === 0 ? Number(r.collection_delivery_fee ?? 60) : 0,
           no_of_days_hired: Number(r.no_of_days_hire_so_far ?? 0),
           total_no_of_days_hired: Number(r.final_total_no_of_hire_days ?? 0),
           total_abi_hire_charge: Number(r.total_abi_hire_charge ?? 0),
@@ -414,18 +417,23 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       );
     }
 
+    // Admin fee and Collection & Delivery fee count once per claim → only the
+    // first vehicle (tab 0) includes them.
+    const abiAdmin = activeVehicleTab === 0 ? Number(vehicle.administration_fee) : 0;
+    const bhrAdmin = activeVehicleTab === 0 ? Number(vehicle.bhr_administration_fee) : 0;
+    const cdFee = activeVehicleTab === 0 ? Number(vehicle.collection_and_delivery_fee) : 0;
     const abiTotal =
       (Number(vehicle.abi_hire_charge_per_day) +
         Number(vehicle.extra_charge_per_day)) *
         finalDays +
-      Number(vehicle.administration_fee);
+      abiAdmin;
     const bhrTotal =
       (Number(vehicle.bhr_hire_charge_per_day) +
         Number(vehicle.bhr_extra_charge_per_day)) *
         finalDays +
-      Number(vehicle.bhr_administration_fee) +
+      bhrAdmin +
       15 * finalDays +
-      Number(vehicle.collection_and_delivery_fee);
+      cdFee;
 
     formik.setFieldValue(
       `thirdPartyVehicles[${activeVehicleTab}].no_of_days_hired`,
@@ -682,7 +690,8 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         ...formik.initialValues.thirdPartyVehicles[0],
         hireOutDate: todayStr,
         hire_vehicle_status_id: 1, // New record starts as On Hire
-        administration_fee: 0, // Subsequent records have 0 admin fee
+        administration_fee: 0, // Subsequent records have 0 admin fee (ABI)
+        bhr_administration_fee: 0, // Subsequent records have 0 admin fee (BHR)
         collection_and_delivery_fee: 0, // Subsequent records have 0 collection fee
   actionsCompleted: {
     onHire: true, // new one starts ON
@@ -1733,6 +1742,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               <InputField
                 label="Extra Charges Per Day"
                 value={currentVehicle.extra_charge_per_day.toString()}
+                decimal
                 onChange={(e) =>
                   formik.setFieldValue(
                     `thirdPartyVehicles[${activeVehicleTab}].extra_charge_per_day`,
@@ -1753,7 +1763,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               />
               <InputField
                 label="Administration Fee"
-                value={currentVehicle.administration_fee.toString()}
+                value={Number(activeVehicleTab === 0 ? currentVehicle.administration_fee : 0).toFixed(2)}
                 disabled
               />
               <InputField
@@ -1775,6 +1785,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               <InputField
                 label="Extra Charges Per Day"
                 value={currentVehicle.bhr_extra_charge_per_day.toString()}
+                decimal
                 onChange={(e) =>
                   formik.setFieldValue(
                     `thirdPartyVehicles[${activeVehicleTab}].bhr_extra_charge_per_day`,
@@ -1784,7 +1795,9 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               />
               <InputField
                 label="Administration Fee"
-                value={currentVehicle.bhr_administration_fee.toString()}
+                value={Number(activeVehicleTab === 0 ? currentVehicle.bhr_administration_fee : 0).toFixed(2)}
+                disabled={activeVehicleTab !== 0}
+                decimal
                 onChange={(e) =>
                   formik.setFieldValue(
                     `thirdPartyVehicles[${activeVehicleTab}].bhr_administration_fee`,
@@ -1799,7 +1812,9 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               />
               <InputField
                 label="Collection & Delivery Fee"
-                value={currentVehicle.collection_and_delivery_fee.toString()}
+                value={Number(activeVehicleTab === 0 ? currentVehicle.collection_and_delivery_fee : 0).toFixed(2)}
+                disabled={activeVehicleTab !== 0}
+                decimal
                 onChange={(e) =>
                   formik.setFieldValue(
                     `thirdPartyVehicles[${activeVehicleTab}].collection_and_delivery_fee`,
@@ -1942,7 +1957,8 @@ const InputField: React.FC<{
   value: string;
   onChange?: any;
   disabled?: boolean;
-}> = ({ label, value, onChange, disabled }) => (
+  decimal?: boolean;
+}> = ({ label, value, onChange, disabled, decimal }) => (
   <div className="flex flex-col gap-2 w-full">
     <label className="text-slate-700 text-sm font-weight-400">{label}</label>
     <input
@@ -1950,7 +1966,14 @@ const InputField: React.FC<{
       value={value}
       onChange={onChange}
       disabled={disabled}
-      className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles} ${disabled ? "bg-slate-50" : "bg-white"}`}
+      onBlur={(e) => {
+        // Currency fields format to 2 decimals on blur (e.g. "3" → "3.00"),
+        // matching the other screens.
+        if (decimal && !disabled && e.target.value !== "" && !isNaN(parseFloat(e.target.value))) {
+          onChange?.({ target: { value: parseFloat(e.target.value).toFixed(2) } });
+        }
+      }}
+      className={`w-full h-[52px] px-5 rounded border border-gray-200 ${inputStyles} ${disabled ? "bg-slate-50 text-neutral-500 cursor-not-allowed" : "bg-white text-neutral-700"}`}
     />
   </div>
 );

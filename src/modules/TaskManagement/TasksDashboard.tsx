@@ -4,6 +4,7 @@ import {
   Bell,
   ChevronDown,
   Calendar as CalendarIcon,
+  X,
 } from "lucide-react";
 import PendingFollowups from '../../assets/Dashboard/PendingFollowups.svg'
 import Overdue from '../../assets/Dashboard/Overdue.svg'
@@ -61,6 +62,9 @@ const overdueDays = (due?: string | null): number => {
 // ─── static dashboard data (hard-coded per design) ───────────────────────────────
 
 const fmtMoney = (n: any) => "£" + Math.round(Number(n) || 0).toLocaleString();
+// 2-decimal money (e.g. £2,132.78) — used where the exact pennies matter.
+const fmtMoney2 = (n: any) =>
+  "£" + (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtNum = (n: any) => (Number(n) || 0).toLocaleString();
 const toLocalISO = (d: Date) => {
   const y = d.getFullYear();
@@ -88,8 +92,9 @@ const STAT_CARDS = [
     iconBg: "bg-blue-100",
   },
   {
-    key: "outstanding_debtors_count",
+    key: "outstanding_debtors_billed",
     label: "Outstanding Debtors",
+    money: true,
     trend: "-3.1% vs last month",
     up: false,
     Icon: Clock,
@@ -259,6 +264,93 @@ const LineChart: React.FC<{ points: Pt[]; compare?: Pt[]; labels?: SeriesLabels 
   );
 };
 
+// Prettier line chart used ONLY for the Claims Trend: gradient area fill under a
+// smooth line, hollow markers, and a clean white tooltip (instead of black).
+const ClaimsTrendChart: React.FC<{ points: Pt[]; compare?: Pt[]; labels?: SeriesLabels }> = ({ points, compare, labels }) => {
+  const [hover, setHover] = useState<number | null>(null);
+  const max = niceMax(Math.max(5, ...points.map((p) => p.value), ...(compare?.map((p) => p.value) || [])));
+  const STEPS = 4;
+  const ticks = Array.from({ length: STEPS + 1 }, (_, i) => Math.round((max / STEPS) * i));
+  const n = Math.max(1, points.length - 1);
+  const X = (i: number) => (i / n) * 100;
+  const Y = (v: number) => 100 - (v / max) * 100;
+  const coords = points.map((p, i) => ({ x: X(i), y: Y(p.value), v: p.value, label: p.label }));
+  const path = cardinalPath(coords);
+  const areaPath = coords.length
+    ? `${path} L ${coords[coords.length - 1].x},100 L ${coords[0].x},100 Z`
+    : "";
+  const cmpCoords = (compare || []).map((p, i) => ({ x: X(i), y: Y(p.value), v: p.value }));
+  const cmpPath = compare && compare.length ? cardinalPath(cmpCoords) : "";
+  const H = 240;
+
+  return (
+    <div>
+      <div className="flex">
+        <div className="relative w-8 shrink-0" style={{ height: H }}>
+          {ticks.map((t, i) => (
+            <span key={i} className="absolute right-1.5 -translate-y-1/2 text-[10px] text-neutral-400" style={{ top: `${Y(t)}%` }}>{t}</span>
+          ))}
+        </div>
+        <div className="relative flex-1" style={{ height: H }}>
+          {ticks.map((t, i) => (
+            <div key={i} className="absolute left-0 right-0 border-t border-neutral-100" style={{ top: `${Y(t)}%` }} />
+          ))}
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full overflow-visible">
+            <defs>
+              <linearGradient id="claimsTrendFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#0352FD" stopOpacity="0.18" />
+                <stop offset="100%" stopColor="#0352FD" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {areaPath && <path d={areaPath} fill="url(#claimsTrendFill)" stroke="none" />}
+            {cmpPath && (
+              <path d={cmpPath} fill="none" stroke="#CBD5E1" strokeWidth="2" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+            )}
+            <path d={path} fill="none" stroke="#0352FD" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {cmpCoords.map((c, i) => (
+            <div key={`c${i}`} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${c.x}%`, top: `${c.y}%` }}>
+              <div className="w-2 h-2 rounded-full bg-neutral-300 border-2 border-white" />
+            </div>
+          ))}
+          {coords.map((c, i) => (
+            <div
+              key={i}
+              className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
+              style={{ left: `${c.x}%`, top: `${c.y}%` }}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+            >
+              <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white shadow cursor-pointer transition-transform hover:scale-125" />
+              {hover === i && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap bg-white text-neutral-700 text-[11px] px-3 py-2 rounded-lg shadow-xl border border-neutral-100 z-20">
+                  <div className="text-neutral-400 mb-1">{c.label}</div>
+                  {compare && compare.length ? (
+                    <div className="flex flex-col gap-1">
+                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" />{labels?.current || "Current"}: <span className="font-weight-600 text-neutral-900">Claims {c.v}</span></span>
+                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-neutral-300" />{labels?.previous || "Previous"}: <span className="font-weight-600 text-neutral-900">Claims {compare[i]?.value ?? 0}</span></span>
+                    </div>
+                  ) : (
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /><span className="font-weight-600 text-neutral-900">Claims {c.v}</span></span>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex mt-2">
+        <div className="w-8 shrink-0" />
+        <div className="relative flex-1 h-4">
+          {coords.map((c, i) => (
+            <span key={i} className="absolute -translate-x-1/2 text-[11px] text-neutral-400" style={{ left: `${c.x}%` }}>{c.label}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Legend for the two trend series (current vs comparison).
 const TrendLegend: React.FC<{ labels?: SeriesLabels; prevColor: string; curColor: string }> = ({ labels, prevColor, curColor }) =>
   labels ? (
@@ -323,14 +415,24 @@ const BarChart: React.FC<{
                   style={{ height: `${Math.max(1, (p.value / max) * 100)}%` }}
                 />
                 {hover === i && (
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap bg-neutral-900 text-white text-[11px] px-2 py-1 rounded shadow-lg z-10">
+                  <div
+                    className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap bg-white text-neutral-700 text-[11px] px-3 py-2 rounded-lg shadow-xl border border-neutral-100 z-20"
+                    style={{
+                      // Sit just above the top of the (taller) bar, not the top of the column.
+                      bottom: `calc(${Math.max(
+                        (p.value / max) * 100,
+                        hasCompare ? ((compare![i]?.value || 0) / max) * 100 : 0,
+                      )}% + 8px)`,
+                    }}
+                  >
+                    <div className="text-neutral-400 mb-1">{p.label}</div>
                     {hasCompare ? (
-                      <div className="flex flex-col gap-0.5">
-                        <span>{labels?.current || "Current"}: <span className="font-weight-600">{valueFormatter(p.value)}</span></span>
-                        <span>{labels?.previous || "Previous"}: <span className="font-weight-600">{valueFormatter(compare![i]?.value || 0)}</span></span>
+                      <div className="flex flex-col gap-1">
+                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" />{labels?.current || "Current"}: <span className="font-weight-600 text-neutral-900">{valueFormatter(p.value)}</span></span>
+                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-200" />{labels?.previous || "Previous"}: <span className="font-weight-600 text-neutral-900">{valueFormatter(compare![i]?.value || 0)}</span></span>
                       </div>
                     ) : (
-                      <>{p.label}: <span className="font-weight-600">{valueFormatter(p.value)}</span></>
+                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /><span className="font-weight-600 text-neutral-900">{valueFormatter(p.value)}</span></span>
                     )}
                   </div>
                 )}
@@ -440,10 +542,11 @@ const Column = ({
     setLoading(true);
     // "All Tasks" shows the remainder — everything that ISN'T already in the
     // Overdue / Critical / Pending-Followups columns, so nothing repeats.
-    // Dashboard cards are a system-wide overview (all users), not just mine.
+    // Dashboard task cards are user-specific (only the logged-in user's tasks),
+    // same scoping as the Task Management list.
     const params = col.key === "all"
-      ? { page_size: 100, all_users: true }
-      : { ...filter, page_size: 10, all_users: true };
+      ? { page_size: 100 }
+      : { ...filter, page_size: 10 };
     listTasks(params)
       .then(({ data }) => {
         let rows = data?.items ?? [];
@@ -576,7 +679,13 @@ const PeriodTabs = ({ active, onChange }: { active: string; onChange: (p: string
         active === "Custom" ? "bg-blue-300 text-white" : "text-blue-500"
       }`}
     >
-      <img src={Vector6} alt="" className="w-3.5 h-3.5" />
+      <img
+        src={Vector6}
+        alt=""
+        className="w-3.5 h-3.5"
+        // Invert to white when the button is active (blue bg) so the icon stays visible.
+        style={active === "Custom" ? { filter: "brightness(0) invert(1)" } : undefined}
+      />
       Custom
     </button>
   </div>
@@ -608,7 +717,7 @@ const CustomRange = ({
               <span className={val ? "text-neutral-700" : "text-neutral-400"}>
                 {val || (which === "from" ? "From" : "To")}
               </span>
-              <CalendarIcon size={14} className="text-neutral-400" />
+              <img src={Vector6} alt="" className="w-3.5 h-3.5" />
             </div>
             {open === which && (
               <div className="absolute top-full left-0 z-50 mt-1 shadow-xl rounded-lg bg-white">
@@ -621,6 +730,56 @@ const CustomRange = ({
           </div>
         );
       })}
+      {(from || to) && (
+        <button
+          type="button"
+          onClick={() => { onFrom(""); onTo(""); }}
+          title="Clear date range"
+          className="flex items-center gap-1.5 h-9 px-3 rounded bg-blue-100 text-blue-500 text-[12px] font-weight-500 hover:bg-blue-200 transition-colors"
+        >
+          <X size={15} /> Clear Date Filter
+        </button>
+      )}
+    </div>
+  );
+};
+
+// Borderless label + chevron dropdown (matches the Figma "Aging ▾" filter trigger).
+const MiniDropdown: React.FC<{
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+}> = ({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    if (open) document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="p-2 rounded flex items-center gap-2 text-blue-500 text-sm leading-4 font-['Stack_Sans_Headline'] hover:bg-blue-50"
+      >
+        {value}
+        <ChevronDown size={14} className="text-blue-500" />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 z-30 mt-1 min-w-[150px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1">
+          {options.map((o) => (
+            <div
+              key={o}
+              onClick={() => { onChange(o); setOpen(false); }}
+              className={`px-4 py-2 text-sm cursor-pointer hover:bg-blue-50 ${value === o ? "text-blue-600 font-weight-600" : "text-neutral-700"}`}
+            >
+              {o}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -634,6 +793,11 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const [missingOpen, setMissingOpen] = useState(false);
   const [srOpen, setSrOpen] = useState<null | "storage" | "recovery">(null);
   const [collPeriod, setCollPeriod] = useState<"MTD" | "YTD" | "All Time">("YTD");
+  // Debtors Age Analysis filters (see Figma). Period changes the "Current …" label;
+  // Aging narrows to a single bucket; Status is a display filter.
+  const [debtorsPeriod, setDebtorsPeriod] = useState("MTD");
+  const [debtorsAging, setDebtorsAging] = useState("Aging");
+  const [debtorsStatus, setDebtorsStatus] = useState("All Status");
   const [collectionPayment, setCollectionPayment] = useState<CollectionPaymentStatus | null>(null);
   const [collectionPerf, setCollectionPerf] = useState<any>(null);
   const [period, setPeriod] = useState("WTD");
@@ -642,16 +806,14 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
     getDashboard(period).then(({ data }) => setDash(data)).catch(() => setDash(null));
   }, [period]);
   useEffect(() => {
-    if (!collectionPayment) {
-      setCollectionPerf(null);
-      return;
-    }
+    // Always fetch so the MTD / YTD / All-Time period works on its own; the
+    // paid/pending dropdown is an optional extra filter (undefined = all).
     const apiPeriod = collPeriod === "All Time" ? "ALL" : collPeriod;
-    getDashboardCollection(apiPeriod, collectionPayment)
+    getDashboardCollection(apiPeriod, collectionPayment || undefined)
       .then(({ data }) => setCollectionPerf(data || null))
       .catch(() => setCollectionPerf(null));
   }, [collPeriod, collectionPayment]);
-  const [incomePeriod, setIncomePeriod] = useState("YTD");
+  const [incomePeriod, setIncomePeriod] = useState("WTD");
   const [incomeType, setIncomeType] = useState("all"); // Net Income breakdown filter
   const [incomeFrom, setIncomeFrom] = useState("");
   const [incomeTo, setIncomeTo] = useState("");
@@ -672,14 +834,16 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
     if (calOpen) document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [calOpen]);
-  const [trendPeriod, setTrendPeriod] = useState("YTD");
-  const [trendMode, setTrendMode] = useState("YoY");
+  const [trendPeriod, setTrendPeriod] = useState("WTD");
+  // No comparison mode selected by default — just the current period. Picking
+  // YoY/MoM adds the comparison series.
+  const [trendMode, setTrendMode] = useState("");
   const [trendRef, setTrendRef] = useState("");
   const [trendStatus, setTrendStatus] = useState("");
   const [trendFrom, setTrendFrom] = useState("");
   const [trendTo, setTrendTo] = useState("");
-  const [hirePeriod, setHirePeriod] = useState("YTD");
-  const [hireMode, setHireMode] = useState("YoY");
+  const [hirePeriod, setHirePeriod] = useState("WTD");
+  const [hireMode, setHireMode] = useState("");
   const [hireRef, setHireRef] = useState("");
   const [hireStatus, setHireStatus] = useState("");
   const [hireFrom, setHireFrom] = useState("");
@@ -756,7 +920,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const statValue = (c: any) => {
     const v = dash?.stats?.[c.key];
     if (v == null) return "—";
-    if (c.money) return fmtMoney(v);
+    if (c.money) return fmtMoney2(v);  // show exact pennies (e.g. £2,637.78)
     if (c.pct) return `${v}%`;
     return fmtNum(v);
   };
@@ -804,6 +968,13 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
       .catch(() => {});
   }, []);
   const debtorsAge = dash?.debtors_age || [];
+  // Aging dropdown narrows to a single bucket (or all). Buckets come from the
+  // backend as "0-30 Days" / "30-60 Days" / "60-90 Days" / "90+ Days".
+  const shownDebtors = debtorsAging === "Aging"
+    ? debtorsAge
+    : debtorsAge.filter((r: any) => (r.label || "").startsWith(debtorsAging));
+  const debtorsTotal = shownDebtors.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
+  const debtorsMax = Math.max(1, ...shownDebtors.map((r: any) => Number(r.amount) || 0));
   const collection = collectionPerf || dash?.collection_ytd || {
     pct: 0, collected: 0, outstanding: 0, rate: 0, actual_collection: 0, billed: 0,
   };
@@ -1027,7 +1198,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                   className="flex flex-col gap-2 pr-4"
                 >
                   <div className="text-neutral-900 text-xl font-weight-600 whitespace-nowrap">
-                    {fmtMoney(val)}
+                    {fmtMoney2(val)}
                   </div>
                   <div className="text-neutral-500 text-xs whitespace-nowrap">
                     {c.label}
@@ -1084,7 +1255,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 <button
                   key={m}
                   type="button"
-                  onClick={() => setTrendMode(m)}
+                  onClick={() => setTrendMode(trendMode === m ? "" : m)}
                   className={`px-3 py-1.5 rounded ${trendMode === m ? "bg-white text-blue-600 shadow-sm" : "text-neutral-500"}`}
                 >
                   {m}
@@ -1094,8 +1265,8 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
             <TrendFilter label="Referrer" value={trendRef} options={trendOptions.referrers} onChange={setTrendRef} />
             <TrendFilter label="Status" value={trendStatus} options={trendOptions.statuses} onChange={setTrendStatus} />
           </div>
-          <LineChart points={claimsTrend} compare={claimsTrendPrev} labels={trendLabels} />
-          <TrendLegend labels={trendLabels} prevColor="#9CA3AF" curColor="#0352FD" />
+          <ClaimsTrendChart points={claimsTrend} compare={trendMode ? claimsTrendPrev : []} labels={trendMode ? trendLabels : undefined} />
+          <TrendLegend labels={trendMode ? trendLabels : undefined} prevColor="#9CA3AF" curColor="#0352FD" />
         </div>
 
         {/* Hire Trend */}
@@ -1113,7 +1284,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 <button
                   key={m}
                   type="button"
-                  onClick={() => setHireMode(m)}
+                  onClick={() => setHireMode(hireMode === m ? "" : m)}
                   className={`px-3 py-1.5 rounded ${hireMode === m ? "bg-white text-blue-600 shadow-sm" : "text-neutral-500"}`}
                 >
                   {m}
@@ -1125,29 +1296,81 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
           </div>
           <BarChart
             points={hireTrend}
-            compare={hireTrendPrev}
-            labels={hireLabels}
+            compare={hireMode ? hireTrendPrev : []}
+            labels={hireMode ? hireLabels : undefined}
             tickFormatter={fmtNum}
             valueFormatter={(value) => `${fmtNum(value)} vehicle${value === 1 ? "" : "s"}`}
           />
-          <TrendLegend labels={hireLabels} prevColor="#BFDBFE" curColor="#0352FD" />
+          <TrendLegend labels={hireMode ? hireLabels : undefined} prevColor="#BFDBFE" curColor="#0352FD" />
         </div>
 
         {/* Debtors Age + Collection Performance */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="rounded-lg border border-neutral-200 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-neutral-900 text-[20px] font-weight-600">
+          <div className="rounded-lg border border-neutral-200 px-4 py-6 flex flex-col gap-10 font-['Stack_Sans_Headline']">
+            {/* Header + filters */}
+            <div className="flex flex-col gap-5">
+              <h2 className="text-black text-xl font-weight-600 leading-5">
                 Debtors Age Analysis
               </h2>
-              <span className="text-neutral-900 text-[20px] font-weight-600">
-                {fmtMoney(
-                  dash?.debtors_total ??
-                    debtorsAge.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0),
-                )}
-              </span>
+              <div className="flex items-center gap-5 flex-wrap">
+                {/* Period toggle */}
+                <div className="rounded outline outline-1 outline-offset-[-1px] outline-blue-200 flex items-center gap-1">
+                  {["MTD", "YTD", "All Time"].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setDebtorsPeriod(p)}
+                      className={`px-4 py-2 rounded text-sm leading-4 ${
+                        debtorsPeriod === p ? "bg-blue-300 text-white" : "text-blue-500"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <MiniDropdown
+                  value={debtorsAging}
+                  options={["Aging", "0-30 Days", "30-60 Days", "60-90 Days", "90+ Days"]}
+                  onChange={setDebtorsAging}
+                />
+                <MiniDropdown
+                  value={debtorsStatus}
+                  options={["All Status", "Outstanding", "Partially Paid", "Paid"]}
+                  onChange={setDebtorsStatus}
+                />
+              </div>
             </div>
-            <HBars rows={debtorsAge} />
+
+            {/* Total + bars */}
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-1">
+                <div className="text-black text-2xl font-weight-600 leading-6">
+                  {fmtMoney2(debtorsTotal)}
+                </div>
+                <div className="text-neutral-500 text-sm font-weight-500">
+                  Current {debtorsPeriod}
+                </div>
+              </div>
+              <div className="flex flex-col gap-3">
+                {shownDebtors.length === 0 && (
+                  <div className="text-neutral-400 text-sm py-4 text-center">No debtors in this view.</div>
+                )}
+                {shownDebtors.map((r: any) => (
+                  <div key={r.label} className="flex flex-col gap-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-black text-sm font-weight-600">{r.label}</span>
+                      <span className="text-black text-sm font-weight-600">{fmtMoney2(r.amount)}</span>
+                    </div>
+                    <div className="w-full h-2.5 rounded-full bg-neutral-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-blue-300"
+                        style={{ width: `${Math.max(2, (Number(r.amount) / debtorsMax) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
           <div className="rounded-lg border border-neutral-200 px-4 py-6 flex flex-col gap-10">
             <div className="flex flex-col gap-5">
@@ -1180,6 +1403,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                       IndicatorSeparator: () => null,
                     }}
                     isSearchable={false}
+                    isClearable
                     placeholder="Payment"
                   />
                 </div>
@@ -1200,7 +1424,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                       <span className="text-black text-sm font-weight-600 w-36">Agreed Amount</span>
                     </div>
                     <span className="text-black text-sm font-weight-600">
-                      {fmtMoney(collection.actual_collection)}
+                      {fmtMoney2(collection.actual_collection)}
                     </span>
                   </div>
                   <div className="flex items-center gap-5">
@@ -1209,7 +1433,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                       <span className="text-black text-sm font-weight-600 w-36">Actual Amount</span>
                     </div>
                     <span className="text-black text-sm font-weight-600">
-                      {fmtMoney(collection.billed)}
+                      {fmtMoney2(collection.billed)}
                     </span>
                   </div>
                 </div>
@@ -1357,21 +1581,21 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
           </div>
           <div className="rounded-lg border border-neutral-200 px-4 py-6 flex flex-col gap-6">
             <h2 className="text-black text-xl font-weight-600 leading-5">
-              Operational Insights
+              Daily Operational Insights
             </h2>
             <div className="flex flex-col gap-3">
               {[
                 {
                   label: "New Claims",
-                  value: fmtNum(dash?.stats?.claims_reported ?? 0),
+                  value: fmtNum(dash?.stats?.claims_created_today ?? 0),
                 },
                 {
                   label: "Approved Claims",
-                  value: fmtNum(dash?.stats?.approved_claims ?? 0),
+                  value: fmtNum(dash?.stats?.approved_claims_today ?? 0),
                 },
                 {
                   label: "Vehicle Hires",
-                  value: fmtNum(dash?.stats?.vehicles ?? 0),
+                  value: fmtNum(dash?.stats?.vehicle_hires_today ?? 0),
                 },
                 {
                   label: "Avg Resolution Time",

@@ -236,6 +236,13 @@ const HireVehicleEmailActions: React.FC<HireVehicleEmailActionsProps> = ({
   );
 };
 
+// Local YYYY-MM-DD for "today" — using toISOString() would return UTC, which in
+// timezones ahead of UTC rolls back to the previous day (the "2nd becomes 1st" bug).
+const localTodayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 const HireVehicleProvided = forwardRef(
   ({ handleNext, skipNext }: PanelSolicitorDetailsProps, ref) => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -1349,7 +1356,7 @@ const HireVehicleProvided = forwardRef(
 
             const handleProvisionItems = async (item: any, push: any) => {
               if (item.label === "On Hire Vehicle") {
-                const formattedDate = new Date().toISOString().split("T")[0];
+                const formattedDate = localTodayStr();
                 const calendarDate = parseCalendarDate(formattedDate);
                 setFieldValue(
                   `hireVehicle.${activeTab}.hire_start_date`,
@@ -1373,7 +1380,7 @@ const HireVehicleProvided = forwardRef(
                   );
                 }
               } else if (item.label === "Switch Vehicle – On Hire New") {
-                const formattedDate = new Date().toISOString().split("T")[0];
+                const formattedDate = localTodayStr();
                 const calendarDate = parseCalendarDate(formattedDate);
 
                 // Set switch vehicle flag for backend
@@ -1424,7 +1431,7 @@ const HireVehicleProvided = forwardRef(
                   ...prev,
                   [activeTab]: true,
                 }));
-                const formattedDate = new Date().toISOString().split("T")[0];
+                const formattedDate = localTodayStr();
                 const calendarDate = parseCalendarDate(formattedDate);
                 setFieldValue(
                   `hireVehicle.${activeTab}.hire_end_date`,
@@ -1463,7 +1470,7 @@ const HireVehicleProvided = forwardRef(
                   ...prev,
                   [activeTab]: true,
                 }));
-                const formattedDate = new Date().toISOString().split("T")[0];
+                const formattedDate = localTodayStr();
                 const calendarDate = parseCalendarDate(formattedDate);
                 setFieldValue(
                   `hireVehicle.${activeTab}.hire_end_date`,

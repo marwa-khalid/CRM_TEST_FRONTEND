@@ -48,6 +48,10 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [abiExtraCharges, setAbiExtraCharges] = useState(0);
   const [abiAdminFee, setAbiAdminFee] = useState(0);
   const [bhrAdminFee, setBhrAdminFee] = useState(0);
+  // Actual BHR hire = Σ(each vehicle's BHR rate × its days) — used by the BHR
+  // section instead of surging the ABI rate by 35% (avoids a rounding mismatch).
+  const [bhrHireSum, setBhrHireSum] = useState(0);
+  const [bhrExtraCharges, setBhrExtraCharges] = useState(0);
   const [noOfDays, setNoOfDays] = useState(0);
 
   // Billed breakdown (auto-fetched, read-only)
@@ -176,10 +180,17 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           const d = toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far);
           return sum + d * toF(r.abi_hire_charge_per_day);
         }, 0);
+        // BHR hire = Σ(each vehicle's BHR rate × its days) — the actual BHR rate.
+        const bhrHire = records.reduce((sum: number, r: any) => {
+          const d = toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far);
+          return sum + d * toF(r.bhr_hire_charge_per_day);
+        }, 0);
         setAbiDailyRate(abiHire);
         setAbiExtraCharges(toF(first.abi_extra_charges_per_day));
         setAbiAdminFee(toF(first.abi_administration_fee));
         setBhrAdminFee(toF(first.bhr_administration_fee));
+        setBhrHireSum(bhrHire);
+        setBhrExtraCharges(toF(first.bhr_extra_charges_per_day));
         setNoOfDays(days);
       })
       .catch(() => {});
@@ -279,30 +290,44 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     : abiDailyRate;                                  // Σ across vehicles (single-vehicle)
   const vExtra = perVehicle && selRec ? toF(selRec.abi_extra_charges_per_day) : abiExtraCharges;
 
+  // Admin charges are charged ONCE per claim → only the first vehicle card shows
+  // them; every other card shows 0 (for the 0-30 / 10% / 20% and BHR sections).
+  const isFirstCard = !perVehicle || activeVehicle === 0;
+  const vAdmin = isFirstCard ? abiAdminFee : 0;
+  const vBhrAdmin = isFirstCard ? bhrAdminFee : 0;
+
   // 0-30 section (selected vehicle)
-  const totalHire030 = vAbiHire + (vExtra * vDays) + abiAdminFee;
+  const totalHire030 = vAbiHire + (vExtra * vDays) + vAdmin;
 
   // 31-60 section (+10%)
   const rate3160 = vAbiHire * 1.1;
   const extra3160 = vExtra * 1.1;
-  const admin3160 = abiAdminFee * 1.1;
+  const admin3160 = vAdmin * 1.1;
   const totalHire3160 = rate3160 + (extra3160 * vDays) + admin3160;
 
   // 61+ section (+20%)
   const rate61plus = vAbiHire * 1.2;
   const extra61plus = vExtra * 1.2;
-  const admin61plus = abiAdminFee * 1.2;
+  const admin61plus = vAdmin * 1.2;
   const totalHire61plus = rate61plus + (extra61plus * vDays) + admin61plus;
 
-  // 90+ BHR (+35%)
-  const bhrDailyRate = vAbiHire * 1.35;
-  const bhrExtra = vExtra * 1.35;
-  const bhrAdmin = bhrAdminFee; // BHR administration fee from hire records (not surged)
+  // 90+ BHR — use the ACTUAL BHR rate × days (not the ABI rate surged by 35%),
+  // which avoids a rounding mismatch (e.g. 1157.33 vs the correct 1157.34).
+  const vBhrHire = perVehicle && selRec
+    ? vDays * toF(selRec.bhr_hire_charge_per_day)
+    : bhrHireSum;
+  const vBhrExtra = perVehicle && selRec
+    ? toF(selRec.bhr_extra_charges_per_day)
+    : bhrExtraCharges;
+  const bhrDailyRate = vBhrHire;
+  const bhrExtra = vBhrExtra;
+  const bhrAdmin = vBhrAdmin; // BHR administration fee — once per claim (first card only)
   const totalHire90 = bhrDailyRate + (bhrExtra * vDays) + bhrAdmin;
 
   // ── Billed Breakdown — totals across ALL vehicles (shown once, not per card) ──
-  // Credit Hire = Σ(ABI rate × days). Plating is the per-vehicle sum (separate).
-  const creditHireTotal = abiDailyRate + (abiExtraCharges * noOfDays) + abiAdminFee;
+  // Credit Hire = Σ(ABI rate × days) only — it must NOT include the admin fee,
+  // because Total Outlay adds the admin fee separately (otherwise it's counted twice).
+  const creditHireTotal = abiDailyRate + (abiExtraCharges * noOfDays);
   const totalOutlay =
     creditHireTotal + abiAdminFee + storageCharges + recoveryCharges + engineerCharges + platingCharges;
 
@@ -442,7 +467,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             <ReadonlyField label="Extra Charges" value={fmt(vExtra)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Admin Charges" value={fmt(abiAdminFee)} />
+            <ReadonlyField label="Admin Charges" value={fmt(vAdmin)} />
             <ReadonlyField label="Total Hire Charge" value={fmt(totalHire030)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">

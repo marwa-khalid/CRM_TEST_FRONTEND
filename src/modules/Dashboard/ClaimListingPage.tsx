@@ -1,5 +1,9 @@
-import AccountSettingsContent from "./AccountSettings";
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
+import { SpinnerLoader } from "../../components/common/SpinnerLoader";
+
+// Lazy-loaded views — code-split so switching between Claims / Dashboard / Tasks
+// / Calendar / Settings shows a loader while the view's chunk loads.
+const AccountSettingsContent = lazy(() => import("./AccountSettings"));
 import {
   LayoutDashboard,
   FileText,
@@ -38,11 +42,12 @@ import { getCaseStatuses } from "../../services/Lookups/Generaldetails";
 import { ConfirmModal } from "../../components/common/ConfirmModal";
 import NotificationBell from "../../components/Notifications/NotificationBell";
 import { CustomDatePicker } from "../Claims/Components/DatePicker";
-import Tasks from "../TaskManagement/Tasks";
 import { useCurrentUser } from "../../context/AuthContext";
-import TasksDashboard from "../TaskManagement/TasksDashboard";
-import TasksCalendar from "../TaskManagement/TasksCalendar";
 import type { TaskFilters } from "../../services/Tasks/Tasks";
+
+const Tasks = lazy(() => import("../TaskManagement/Tasks"));
+const TasksDashboard = lazy(() => import("../TaskManagement/TasksDashboard"));
+const TasksCalendar = lazy(() => import("../TaskManagement/TasksCalendar"));
 
 type ActivePage = "claims" | "settings" | "tasks" | "dashboard" | "calendar";
 
@@ -271,8 +276,15 @@ const Dashboard: React.FC = () => {
 
   const confirmBulkDelete = async () => {
     try {
-      await Promise.all([...selected].map((id) => deleteClaim(id)));
-      toast.success(`${selected.size} claim(s) deleted`);
+      const results = await Promise.allSettled([...selected].map((id) => deleteClaim(id)));
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.length - ok;
+      if (ok) toast.success(`${ok} claim(s) deleted`);
+      if (failed) {
+        const rej = results.find((r) => r.status === "rejected") as any;
+        // Surfaces the payment-pack block reason (409) when present.
+        toast.error(rej?.reason?.response?.data?.detail || `${failed} claim(s) could not be deleted`);
+      }
       setSelected(new Set());
       await refetchClaims();
     } catch { toast.error("Failed to delete some claims"); }
@@ -290,7 +302,10 @@ const Dashboard: React.FC = () => {
   const confirmDeleteOne = async () => {
     if (!deleteTarget?.claim_id) { setDeleteTarget(null); return; }
     try { await deleteClaim(deleteTarget.claim_id); toast.success("Claim deleted"); await refetchClaims(); }
-    catch { toast.error("Failed to delete claim"); }
+    catch (e: any) {
+      // 409 = blocked because the payment pack has been generated.
+      toast.error(e?.response?.data?.detail || "Failed to delete claim");
+    }
     finally { setDeleteTarget(null); }
   };
 
@@ -722,17 +737,24 @@ const Dashboard: React.FC = () => {
           </>
         )}
 
-        {activePage === "settings" && (
-          <section className="flex-1 overflow-auto">
-            <AccountSettingsContent onClose={() => setActivePage("claims")} />
-          </section>
+        {activePage !== "claims" && (
+          <Suspense
+            fallback={
+              <section className="flex-1 relative min-h-[300px]">
+                <SpinnerLoader />
+              </section>
+            }
+          >
+            {activePage === "settings" && (
+              <section className="flex-1 overflow-auto">
+                <AccountSettingsContent onClose={() => setActivePage("claims")} />
+              </section>
+            )}
+            {activePage === "tasks" && <Tasks initialFilters={taskFilter} />}
+            {activePage === "dashboard" && <TasksDashboard onOpen={goToTasks} />}
+            {activePage === "calendar" && <TasksCalendar onOpen={goToTasks} />}
+          </Suspense>
         )}
-
-        {activePage === "tasks" && <Tasks initialFilters={taskFilter} />}
-
-        {activePage === "dashboard" && <TasksDashboard onOpen={goToTasks} />}
-
-        {activePage === "calendar" && <TasksCalendar onOpen={goToTasks} />}
       </main>
 
       {deleteTarget && (

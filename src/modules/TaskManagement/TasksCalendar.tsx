@@ -158,7 +158,7 @@ const TasksCalendar: React.FC<{ onOpen?: (f: any) => void }> = () => {
 
   const viewBtn = (key: "month" | "week" | "day" | "agenda", label: string) => (
     <button type="button" onClick={() => setView(key)}
-      className={`px-4 py-2 rounded text-sm ${view === key ? "bg-blue-500 text-white" : "text-blue-500 hover:bg-blue-50"}`}>
+      className={`px-4 py-1.5 rounded-md text-sm transition-colors ${view === key ? "bg-white text-blue-600 font-weight-600 shadow-sm" : "text-neutral-500 hover:text-neutral-700"}`}>
       {label}
     </button>
   );
@@ -173,79 +173,113 @@ const TasksCalendar: React.FC<{ onOpen?: (f: any) => void }> = () => {
         : "Upcoming Events";
 
   // Hour rows for the Day/Week time grid (07:00–21:00).
-  const HOURS = Array.from({ length: 15 }, (_, i) => i + 7);
+  // Full 24h grid, shown in a scrollable area that opens at ~07:00.
+  const HOURS = Array.from({ length: 24 }, (_, i) => i);
   const HOUR_PX = 48;
   const evMinutes = (t?: string | null) => {
     if (!t || !t.includes(":")) return null;
     const [h, m] = t.split(":").map(Number);
     return h * 60 + (m || 0);
   };
-  const TimeGrid = ({ cols }: { cols: Date[] }) => (
-    <div className="rounded-lg border border-neutral-200 overflow-hidden">
-      <div className="grid" style={{ gridTemplateColumns: `60px repeat(${cols.length}, 1fr)` }}>
-        <div className="bg-neutral-50 border-b border-neutral-200" />
-        {cols.map((d, i) => {
-          const isToday = sameDay(d, today);
-          return (
-            <div key={i} className={`px-2 py-2 text-center border-b border-l border-neutral-200 ${isToday ? "bg-blue-50" : "bg-neutral-50"}`}>
-              <div className="text-[11px] text-neutral-500">{WEEKDAYS[d.getDay()]}</div>
-              <div className={`text-sm font-weight-600 ${isToday ? "text-blue-600" : "text-neutral-800"}`}>{d.getDate()}</div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="grid" style={{ gridTemplateColumns: `60px repeat(${cols.length}, 1fr)` }}>
-        {/* hour labels */}
-        <div className="relative">
-          {HOURS.map((h) => (
-            <div key={h} style={{ height: HOUR_PX }} className="text-[11px] text-neutral-400 px-2 -mt-1.5 text-right border-r border-neutral-100">
-              {String(h).padStart(2, "0")}:00
-            </div>
-          ))}
+  const TimeGrid = ({ cols }: { cols: Date[] }) => {
+    const nowTop = ((today.getHours() * 60 + today.getMinutes()) / 60) * HOUR_PX;
+    const showNow = cols.some((c) => sameDay(c, today));
+    return (
+      <div className="rounded-xl border border-neutral-200 overflow-hidden bg-white shadow-sm">
+        {/* Header: big day number + weekday */}
+        <div className="grid border-b border-neutral-200" style={{ gridTemplateColumns: `56px repeat(${cols.length}, 1fr)` }}>
+          <div />
+          {cols.map((d, i) => {
+            const isToday = sameDay(d, today);
+            return (
+              <div key={i} className={`px-3 py-2 border-l border-neutral-100 ${isToday ? "border-t-2 border-t-blue-500 bg-blue-50/30" : ""}`}>
+                <div className={`text-xl font-weight-700 leading-7 ${isToday ? "text-blue-600" : "text-neutral-800"}`}>{d.getDate()}</div>
+                <div className={`text-xs ${isToday ? "text-blue-600 font-weight-500" : "text-neutral-500"}`}>
+                  {d.toLocaleDateString(undefined, { weekday: "long" })}
+                </div>
+              </div>
+            );
+          })}
         </div>
-        {cols.map((d, ci) => {
-          const dayKey = toKey(d);
-          const evs = events.filter((e) => e.start_date === dayKey);
-          const timed = evs.filter((e) => evMinutes(e.start_time) != null);
-          const allDay = evs.filter((e) => evMinutes(e.start_time) == null);
-          return (
-            <div key={ci} className="relative border-l border-neutral-100"
-              style={{ height: HOURS.length * HOUR_PX }}
-              onClick={(ev) => {
-                const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
-                const mins = Math.max(0, Math.round(((ev.clientY - rect.top) / HOUR_PX) * 60) + HOURS[0] * 60);
-                const hh = String(Math.floor(mins / 60)).padStart(2, "0");
-                openCreate(d, `${hh}:00`);
-              }}>
-              {HOURS.map((h) => <div key={h} style={{ height: HOUR_PX }} className="border-b border-neutral-50" />)}
-              {/* all-day events pinned at top */}
-              {allDay.map((e, idx) => (
-                <button key={e.id} type="button" onClick={(ev) => { ev.stopPropagation(); setDetailsId(e.id); }}
-                  title={e.title}
-                  className={`absolute left-1 right-1 px-1.5 py-0.5 rounded text-[11px] truncate ${eventChipCls(e.event_type, e.status)}`}
-                  style={{ top: 2 + idx * 20, zIndex: 5 }}>
-                  {e.title}
-                </button>
+        {/* Body (scrollable, opens at ~07:00) */}
+        <div
+          className="max-h-[600px] overflow-y-auto pt-3"
+          ref={(el) => { if (el && !el.dataset.scrolled) { el.scrollTop = 7 * HOUR_PX; el.dataset.scrolled = "1"; } }}
+        >
+          <div className="grid" style={{ gridTemplateColumns: `56px repeat(${cols.length}, 1fr)` }}>
+            {/* Hour numbers */}
+            <div className="relative">
+              {HOURS.map((h) => (
+                <div key={h} style={{ height: HOUR_PX }} className="relative">
+                  <span className="absolute -top-2 right-2 text-[11px] text-neutral-400">{h}</span>
+                </div>
               ))}
-              {/* timed events */}
-              {timed.map((e) => {
-                const start = (evMinutes(e.start_time) as number) - HOURS[0] * 60;
-                const top = Math.max(0, (start / 60) * HOUR_PX);
-                return (
-                  <button key={e.id} type="button" onClick={(ev) => { ev.stopPropagation(); setDetailsId(e.id); }}
-                    title={e.title}
-                    className={`absolute left-1 right-1 px-1.5 py-1 rounded text-[11px] text-left overflow-hidden ${eventChipCls(e.event_type, e.status)}`}
-                    style={{ top, height: HOUR_PX - 4, zIndex: 6 }}>
-                    <span className="font-weight-600">{e.start_time}</span> {e.title}
-                  </button>
-                );
-              })}
+              {showNow && (
+                <span className="absolute right-1 w-2 h-2 rounded-full bg-red-500 -translate-y-1/2 z-20" style={{ top: nowTop }} />
+              )}
             </div>
-          );
-        })}
+            {/* Day columns */}
+            {cols.map((d, ci) => {
+              const isToday = sameDay(d, today);
+              const dayKey = toKey(d);
+              const evs = events.filter((e) => e.start_date === dayKey);
+              const timed = evs.filter((e) => evMinutes(e.start_time) != null);
+              const allDay = evs.filter((e) => evMinutes(e.start_time) == null);
+              return (
+                <div key={ci} className={`relative border-l border-neutral-100 ${isToday ? "bg-blue-50/20" : ""}`}
+                  style={{ height: HOURS.length * HOUR_PX }}
+                  onClick={(ev) => {
+                    const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+                    const mins = Math.max(0, Math.round(((ev.clientY - rect.top) / HOUR_PX) * 60));
+                    const hh = String(Math.floor(mins / 60)).padStart(2, "0");
+                    openCreate(d, `${hh}:00`);
+                  }}>
+                  {/* hour line (solid) + half-hour line (dashed) */}
+                  {HOURS.map((h) => (
+                    <div key={h} style={{ height: HOUR_PX }} className="border-b border-neutral-100">
+                      <div className="h-1/2 border-b border-dashed border-neutral-100" />
+                    </div>
+                  ))}
+                  {/* current-time line */}
+                  {showNow && isToday && (
+                    <div className="absolute left-0 right-0 h-px bg-red-500 z-20" style={{ top: nowTop }} />
+                  )}
+                  {/* all-day events pinned at top */}
+                  {allDay.map((e, idx) => (
+                    <button key={e.id} type="button" onClick={(ev) => { ev.stopPropagation(); setDetailsId(e.id); }}
+                      title={e.title}
+                      className={`absolute left-1 right-1 px-2 py-0.5 rounded-md border-l-[3px] border-current text-[11px] font-weight-600 truncate ${eventChipCls(e.event_type, e.status)}`}
+                      style={{ top: 2 + idx * 22, zIndex: 6 }}>
+                      {e.title}
+                    </button>
+                  ))}
+                  {/* timed events (sized by duration) */}
+                  {timed.map((e) => {
+                    const start = evMinutes(e.start_time) as number;
+                    const endM = evMinutes(e.end_time);
+                    const dur = endM && endM > start ? endM - start : 60;
+                    const top = (start / 60) * HOUR_PX;
+                    const height = Math.max(22, (dur / 60) * HOUR_PX - 3);
+                    return (
+                      <button key={e.id} type="button" onClick={(ev) => { ev.stopPropagation(); setDetailsId(e.id); }}
+                        title={e.title}
+                        className={`absolute left-1 right-1 rounded-md border-l-[3px] border-current px-2 py-1 text-left overflow-hidden ${eventChipCls(e.event_type, e.status)}`}
+                        style={{ top, height, zIndex: 7 }}>
+                        <div className="text-[11px] font-weight-600 truncate leading-4">{e.title}</div>
+                        <div className="text-[10px] opacity-70 truncate leading-3">
+                          {e.start_time}{e.event_type ? ` · ${e.event_type}` : ""}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -258,7 +292,7 @@ const TasksCalendar: React.FC<{ onOpen?: (f: any) => void }> = () => {
               className={inputCls + " pl-9 w-56"} />
           </div>
           <button type="button" onClick={() => openCreate()}
-            className="h-10 px-4 rounded bg-blue-500 text-white text-sm font-weight-500 flex items-center gap-2 hover:bg-blue-600">
+            className="h-10 px-4 rounded-lg bg-blue-500 text-white text-sm font-weight-600 flex items-center gap-2 shadow-sm hover:bg-blue-600 transition-colors">
             <Plus size={16} /> Add Event
           </button>
         </div>
@@ -272,16 +306,19 @@ const TasksCalendar: React.FC<{ onOpen?: (f: any) => void }> = () => {
           <div className="flex items-center gap-3">
             {view !== "agenda" ? (
               <>
-                <button type="button" onClick={() => move(-1)} className="w-9 h-9 rounded border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50"><ChevronLeft size={18} /></button>
-                <h2 className="text-neutral-900 text-lg font-weight-600 min-w-[200px] text-center">{navTitle}</h2>
-                <button type="button" onClick={() => move(1)} className="w-9 h-9 rounded border border-neutral-200 flex items-center justify-center text-neutral-600 hover:bg-neutral-50"><ChevronRight size={18} /></button>
-                <button type="button" onClick={goToday} className="h-9 px-4 rounded border border-blue-500 text-blue-500 text-sm font-weight-500 hover:bg-blue-50">Today</button>
+                <div className="flex items-center rounded-lg border border-neutral-200 overflow-hidden">
+                  <button type="button" onClick={() => move(-1)} className="w-9 h-9 flex items-center justify-center text-neutral-500 hover:bg-neutral-50"><ChevronLeft size={18} /></button>
+                  <div className="w-px h-5 bg-neutral-200" />
+                  <button type="button" onClick={() => move(1)} className="w-9 h-9 flex items-center justify-center text-neutral-500 hover:bg-neutral-50"><ChevronRight size={18} /></button>
+                </div>
+                <h2 className="text-neutral-900 text-lg font-weight-600 min-w-[200px]">{navTitle}</h2>
+                <button type="button" onClick={goToday} className="h-9 px-4 rounded-lg border border-neutral-200 text-neutral-700 text-sm font-weight-500 hover:bg-neutral-50">Today</button>
               </>
             ) : (
               <h2 className="text-neutral-900 text-lg font-weight-600">Upcoming Events</h2>
             )}
           </div>
-          <div className="flex items-center gap-1 p-0.5 rounded border border-blue-200">
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-neutral-100">
             {viewBtn("day", "Day")}
             {viewBtn("week", "Week")}
             {viewBtn("month", "Month")}
@@ -311,34 +348,34 @@ const TasksCalendar: React.FC<{ onOpen?: (f: any) => void }> = () => {
 
         {/* MONTH VIEW */}
         {view === "month" && (
-          <div className="rounded-lg border border-neutral-200 overflow-hidden">
-            <div className="grid grid-cols-7 bg-neutral-50 border-b border-neutral-200">
-              {WEEKDAYS.map((w) => <div key={w} className="px-3 py-2 text-xs font-weight-600 text-neutral-500">{w}</div>)}
+          <div className="rounded-xl border border-neutral-200 overflow-hidden bg-white shadow-sm">
+            <div className="grid grid-cols-7 bg-neutral-50/80 border-b border-neutral-200">
+              {WEEKDAYS.map((w) => <div key={w} className="px-3 py-2.5 text-[11px] font-weight-600 uppercase tracking-wide text-neutral-400 text-center">{w}</div>)}
             </div>
             <div className="grid grid-cols-7">
               {days.map((d, i) => {
                 const inMonth = d.getMonth() === cursor.getMonth();
                 const isToday = sameDay(d, today);
+                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
                 const dayEvents = byDay[toKey(d)] || [];
                 return (
                   <div key={i} onClick={() => openCreate(d)} title="Click to add an event"
-                    className={`group relative min-h-[120px] border-b border-r border-neutral-100 p-2 flex flex-col gap-1 cursor-pointer hover:bg-blue-50/40 ${inMonth ? "bg-white" : "bg-neutral-50/50"}`}>
-                    <div className="flex items-center justify-between">
-                      <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${isToday ? "bg-blue-500 text-white font-weight-600" : inMonth ? "text-neutral-700" : "text-neutral-300"}`}>{d.getDate()}</span>
-                      <Plus size={14} className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    className={`group relative min-h-[128px] border-b border-r border-neutral-100 last:border-r-0 p-1.5 flex flex-col gap-1.5 cursor-pointer transition-colors ${isToday ? "bg-blue-50/60 ring-1 ring-inset ring-blue-200 hover:bg-blue-50" : inMonth ? `${isWeekend ? "bg-neutral-50/40" : "bg-white"} hover:bg-blue-50/40` : "bg-neutral-50/60 hover:bg-neutral-50"}`}>
+                    <div className="flex items-center justify-between px-0.5">
+                      <span className={`min-w-[28px] h-7 px-1.5 rounded-full flex items-center justify-center text-[13px] ${isToday ? "bg-blue-500 text-white font-weight-700 shadow" : inMonth ? "text-neutral-800 font-weight-600 group-hover:bg-neutral-100" : "text-neutral-300"}`}>{d.getDate()}</span>
+                      <span className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><Plus size={12} /></span>
                     </div>
                     <div className="flex flex-col gap-1">
                       {dayEvents.slice(0, 3).map((e) => (
                         <button key={e.id} type="button"
                           onClick={(ev) => { ev.stopPropagation(); setDetailsId(e.id); }}
                           title={e.title}
-                          className={`flex items-center gap-1 text-left px-1.5 py-0.5 rounded text-[11px] truncate ${eventChipCls(e.event_type, e.status)}`}>
-                          {e.source === "system" && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 shrink-0" />}
-                          {e.start_time ? `${e.start_time} ` : ""}{e.title}
+                          className={`flex items-center gap-1.5 text-left pl-2 pr-2 py-1 rounded-md border-l-[3px] border-current text-[11px] font-weight-600 truncate transition-all hover:shadow-sm hover:-translate-y-px ${eventChipCls(e.event_type, e.status)}`}>
+                          <span className="truncate">{e.start_time ? <span className="opacity-70 font-weight-500">{e.start_time} </span> : ""}{e.title}</span>
                         </button>
                       ))}
                       {dayEvents.length > 3 && (
-                        <span className="text-[11px] text-blue-500 px-1.5">+{dayEvents.length - 3} more</span>
+                        <span className="text-[11px] text-neutral-400 font-weight-500 px-1.5">+{dayEvents.length - 3} more</span>
                       )}
                     </div>
                   </div>
@@ -355,15 +392,15 @@ const TasksCalendar: React.FC<{ onOpen?: (f: any) => void }> = () => {
               <div className="text-neutral-400 text-sm py-10 text-center border border-dashed border-neutral-200 rounded-lg">No events in this period.</div>
             )}
             {agendaGroups.map((g) => (
-              <div key={g.date} className="rounded-lg border border-neutral-200 overflow-hidden">
-                <div className="px-4 py-2 bg-neutral-50 text-sm font-weight-600 text-neutral-700 border-b border-neutral-100">
+              <div key={g.date} className="rounded-xl border border-neutral-200 overflow-hidden bg-white shadow-sm">
+                <div className="px-4 py-2.5 bg-neutral-50/80 text-sm font-weight-600 text-neutral-700 border-b border-neutral-100">
                   {g.date === "No date" ? "No date" : new Date(g.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                 </div>
                 <div className="divide-y divide-neutral-50">
                   {g.rows.map((e) => (
                     <button key={e.id} type="button" onClick={() => setDetailsId(e.id)}
-                      className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-neutral-50">
-                      <span className={`w-2.5 h-2.5 rounded-full ${eventChipCls(e.event_type, e.status).split(" ")[0]}`} />
+                      className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-blue-50/40 transition-colors">
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${eventChipCls(e.event_type, e.status).split(" ")[0]}`} />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-weight-600 text-neutral-900 truncate">{e.title}</div>
                         <div className="text-xs text-neutral-500 truncate">

@@ -13,7 +13,9 @@ import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function dateToISO(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // Local YYYY-MM-DD — toISOString() returns UTC, which in timezones ahead of UTC
+  // rolls back to the previous day (selecting the 8th would store the 7th).
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 const toTwoDecimals = (v: string): string =>

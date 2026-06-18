@@ -11,7 +11,7 @@ import { getComparisonSettlement, sendComparisonDifferenceEmail } from "../../..
 import { getHireRecords } from "../../../services/HireDetail/HireDetails";
 import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { gettingEnginerDetails } from "../../../services/EngineeringDetails/engineeringDetails";
-import { getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharges";
+import { getPlatingTotal } from "../../../services/PlatingCharges/PlatingCharges";
 import { getRepairData } from "../../../services/RepairAndCost/RepairAndCost";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
@@ -207,17 +207,17 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
         const records: any[] = Array.isArray(data) ? data : [];
         const first = records[0];
         if (!first) return;
-        // Total days = sum of every vehicle's total hire days
-        const days = records.reduce(
-          (sum: number, r: any) =>
-            sum + toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far),
-          0,
-        );
-        const rate = toF(first.abi_hire_charge_per_day);
-        hireCosts = days * rate;
+        // Hire = Σ(each vehicle's own rate × its own days) — matches screens 2 & 3.
+        // (Using total days × the first vehicle's rate over-stated multi-vehicle hire.)
+        hireCosts = records.reduce((sum: number, r: any) => {
+          const d = toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far);
+          return sum + d * toF(r.abi_hire_charge_per_day);
+        }, 0);
         adminFee = toF(first.abi_administration_fee);
-        cdw = toF(first.cdw_charges);
-        cdFee = toF(first.collection_delivery_fee);
+        // CDW and C&D fee are BHR-only — not part of the ABI actual cost (= 0 here,
+        // same as the Comparison screen).
+        cdw = 0;
+        cdFee = 0;
         recalc();
       })
       .catch(() => {});
@@ -237,16 +237,19 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
       })
       .catch(() => {});
 
-    getPlatingCharges(claimId)
+    getPlatingTotal(claimId)
       .then(({ data }: any) => {
-        plating = toF(data?.total_plating_cost);
+        plating = toF(data?.total_plating_cost);  // total across all vehicles
         recalc();
       })
       .catch(() => {});
 
     getRepairData(claimId)
       .then((data: any) => {
-        repair = toF(data?.total_inc_vat);
+        // Use the EXCL-VAT repair (sub_total), same as the Comparison screen —
+        // VAT is applied once to the whole total below, so total_inc_vat here
+        // would double-count VAT on the repair.
+        repair = toF(data?.sub_total);
         recalc();
       })
       .catch(() => {});

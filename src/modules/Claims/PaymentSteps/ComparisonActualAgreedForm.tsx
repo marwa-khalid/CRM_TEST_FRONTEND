@@ -8,7 +8,7 @@ import {
 import { getHireRecords } from "../../../services/HireDetail/HireDetails";
 import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { gettingEnginerDetails } from "../../../services/EngineeringDetails/engineeringDetails";
-import { getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharges";
+import { getPlatingTotal, getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharges";
 import { getRepairData } from "../../../services/RepairAndCost/RepairAndCost";
 import { getHireProvidedVehicles } from "../../../services/Vehicle/vehicle";
 import VehicleCards, { type ClaimVehicle } from "./VehicleCards";
@@ -178,6 +178,8 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const [hireRecords, setHireRecords] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<ClaimVehicle[]>([]);
   const [activeVehicle, setActiveVehicle] = useState(0);
+  // Plating per hire vehicle (keyed by vehicle id) — each card shows its own.
+  const [platingByVehicle, setPlatingByVehicle] = useState<Record<string, number>>({});
   // Every saved row for the claim (one per vehicle), used to sum agreed hire
   // across vehicles for the Totals while the manual block shows the selected one.
   const [savedAll, setSavedAll] = useState<any[]>([]);
@@ -193,10 +195,27 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   }, [claimId]);
   const perVehicle = vehicles.length >= 2;
   const currentVehicleId: number | null = perVehicle ? (vehicles[activeVehicle]?.id ?? null) : null;
-  // This vehicle's own system hire (days + base per-day rate, before band uplift),
-  // taken from its hire record by index. Used for per-vehicle defaults.
+
+  // Load each hire vehicle's own plating, so each card shows its own value (not the sum).
+  useEffect(() => {
+    if (!claimId || vehicles.length === 0) return;
+    Promise.all(
+      vehicles.map((v) =>
+        getPlatingCharges(claimId, v.id)
+          .then(({ data }: any) => [String(v.id), toF(data?.total_plating_cost)] as [string, number])
+          .catch(() => [String(v.id), 0] as [string, number]),
+      ),
+    ).then((entries) => setPlatingByVehicle(Object.fromEntries(entries)));
+  }, [claimId, vehicles]);
+  // The hire record belonging to a given hire-vehicle id. The hire records and
+  // the vehicle cards can be returned in different orders, so match by the
+  // vehicle link (hire_vehicle_provided_id), NOT by array index.
+  const hireRecFor = (vehId: any) =>
+    hireRecords.find((r: any) => Number(r.hire_vehicle_provided_id) === Number(vehId));
+
+  // This vehicle's own system hire (days + base per-day rate, before band uplift).
   const vehSysHire = (i: number) => {
-    const r = hireRecords[i];
+    const r = hireRecFor(vehicles[i]?.id) ?? hireRecords[i];
     return {
       days: toF(r?.final_total_no_of_hire_days ?? r?.no_of_days_hire_so_far),
       baseRate: toF(r?.abi_hire_charge_per_day),
@@ -299,8 +318,16 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
     if (!perVehicle) formik.setFieldValue("agreed_hire_days", system.hire_days);
     formik.setFieldValue("agreed_storage_days", system.storage_days);
     formik.setFieldValue("agreed_storage_rate", +(system.storage_rate_per_day).toFixed(2));
-    formik.setFieldValue("agreed_cdw_days", system.cdw_days);
-    // CDW is BHR-only — 15/day for the BHR (35%) band, 0 for ABI bands
+    // CDW is BHR-only — both days and rate are 0 for the ABI bands (Base/10%/20%).
+    // For BHR, the days are the SELECTED vehicle's hire days (per card), not the
+    // claim-wide sum.
+    {
+      const sel = hireRecFor(vehicles[activeVehicle]?.id) ?? hireRecords[activeVehicle];
+      const cdwDays = perVehicle && sel
+        ? toF(sel.final_total_no_of_hire_days ?? sel.no_of_days_hire_so_far)
+        : system.cdw_days;
+      formik.setFieldValue("agreed_cdw_days", isBhr ? cdwDays : 0);
+    }
     formik.setFieldValue("agreed_cdw_rate", isBhr ? +(system.cdw).toFixed(2) : 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [system.hire_days, system.hire_rate_per_day, system.storage_days, system.storage_rate_per_day, system.cdw, system.cdw_days]);
@@ -310,9 +337,14 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   useEffect(() => {
     if (system.hire_rate_per_day === 0) return;
     const isBhr = formik.values.abi_rate_band === "35";
+    const sel = hireRecords[activeVehicle];
+    const cdwDays = perVehicle && sel
+      ? toF(sel.final_total_no_of_hire_days ?? sel.no_of_days_hire_so_far)
+      : system.cdw_days;
+    formik.setFieldValue("agreed_cdw_days", isBhr ? cdwDays : 0);
     formik.setFieldValue("agreed_cdw_rate", isBhr ? +(system.cdw).toFixed(2) : 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formik.values.abi_rate_band]);
+  }, [formik.values.abi_rate_band, activeVehicle]);
 
   // Pre-populate repair/recovery/engineer/plating rates from system × band mult.
   // Also caches the values in a ref so the saved-record loader can use them as a
@@ -408,17 +440,29 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perVehicle, vehicles.length, hireRecords.length, savedAll, formik.values.abi_rate_band]);
 
-  // Load the selected vehicle's hire into formik on card switch. Restores its
-  // stored days/rate (saved or last-edited), else its system default.
+  // Load the selected vehicle's hire into formik on card switch. Priority:
+  // live-edited (store) → its saved row → its own system default. Re-runs when the
+  // hire records / saved rows arrive so the per-vehicle value isn't left on a stale
+  // (or another vehicle's) number.
   useEffect(() => {
     if (!perVehicle || currentVehicleId == null) return;
+    const key = String(currentVehicleId);
     const mult = 1 + toF(formik.values.abi_rate_band) / 100;
-    const stored = hireStoreRef.current[String(currentVehicleId)];
+    const stored = hireStoreRef.current[key];
+    const saved = savedAll.find((r) => String(r.hire_vehicle_id) === key);
     const sys = vehSysHire(activeVehicle);
-    formik.setFieldValue("agreed_hire_days", stored ? stored.days : sys.days);
-    formik.setFieldValue("agreed_hire_rate", stored ? round2(stored.rate) : round2(sys.baseRate * mult));
+    let days: number, rate: number;
+    if (stored) {
+      days = stored.days; rate = stored.rate;
+    } else if (saved && saved.agreed_hire_days != null) {
+      days = toF(saved.agreed_hire_days); rate = toF(saved.agreed_hire_rate);
+    } else {
+      days = sys.days; rate = sys.baseRate * mult;
+    }
+    formik.setFieldValue("agreed_hire_days", days);
+    formik.setFieldValue("agreed_hire_rate", round2(rate));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentVehicleId, perVehicle]);
+  }, [currentVehicleId, perVehicle, savedAll, hireRecords.length]);
 
   // On band change, reset the SELECTED vehicle's hire rate to its base × band
   // (matches the single-vehicle behaviour where changing the band re-derives it).
@@ -513,8 +557,9 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
       })
       .catch(() => {});
 
-    // Plating
-    getPlatingCharges(claimId)
+    // Plating — use the total across all vehicles (per-vehicle plating is stored
+    // per hire vehicle, so the claim-level row is empty and would read as 0).
+    getPlatingTotal(claimId)
       .then(({ data }: any) => {
         setSystem((prev) => ({
           ...prev,
@@ -545,7 +590,7 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const actualHire = system.hire_costs;  // Σ across vehicles — used in the Totals
   // Per-vehicle hire for the System Calculated block (the selected card). For a
   // single vehicle this equals the total, so nothing changes.
-  const selHireRec = hireRecords[activeVehicle];
+  const selHireRec = hireRecFor(vehicles[activeVehicle]?.id) ?? hireRecords[activeVehicle];
   const hireDisplay = perVehicle && selHireRec
     ? toF(selHireRec.final_total_no_of_hire_days ?? selHireRec.no_of_days_hire_so_far) *
       toF(selHireRec.abi_hire_charge_per_day)
@@ -554,11 +599,24 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
   const actualStorage = system.storage;
   const actualRepair = system.repair;
   const actualRecovery = system.recovery;
-  const actualPlating = system.plating;
+  const actualPlating = system.plating;  // Σ across vehicles — used in the Totals
   const actualEngineer = system.engineer_fee;
   // CDW and C&D Fee are BHR-only charges — not part of the ABI actual settlement
   const actualCdw = 0;
   const actualCdFee = 0;
+
+  // System Calculated block displays (per card). Admin / Storage / Repair /
+  // Recovery / Engineer are charged once per claim → shown on the first card only
+  // (0 on the rest). Plating is per-vehicle → each card shows its own.
+  const isFirstCard = !perVehicle || activeVehicle === 0;
+  const adminDisplay = isFirstCard ? actualAdmin : 0;
+  const storageDisplay = isFirstCard ? actualStorage : 0;
+  const repairDisplay = isFirstCard ? actualRepair : 0;
+  const recoveryDisplay = isFirstCard ? actualRecovery : 0;
+  const engineerDisplay = isFirstCard ? actualEngineer : 0;
+  const platingDisplay = perVehicle && currentVehicleId != null
+    ? (platingByVehicle[String(currentVehicleId)] ?? 0)
+    : actualPlating;
 
   const actualExclVAT = round2(
     round2(actualHire) + round2(actualAdmin) + round2(actualStorage) + round2(actualRepair) +
@@ -734,18 +792,18 @@ const ComparisonActualAgreedForm = ({ paymentFormRef, claimId }: any) => {
           {divider}
           <div className="grid grid-cols-2 gap-5">
             <ReadField label="Hire Costs" value={hireDisplay} />
-            <ReadField label="Admin Fee" value={actualAdmin} />
+            <ReadField label="Admin Fee" value={adminDisplay} />
           </div>
           <div className="grid grid-cols-2 gap-5">
-            <ReadField label="Storage" value={actualStorage} />
-            <ReadField label="Repair" value={actualRepair} />
+            <ReadField label="Storage" value={storageDisplay} />
+            <ReadField label="Repair" value={repairDisplay} />
           </div>
           <div className="grid grid-cols-2 gap-5">
-            <ReadField label="Recovery" value={actualRecovery} />
-            <ReadField label="Plating" value={actualPlating} />
+            <ReadField label="Recovery" value={recoveryDisplay} />
+            <ReadField label="Plating" value={platingDisplay} />
           </div>
           <div className="grid grid-cols-2 gap-5">
-            <ReadField label="Engineer Fee" value={actualEngineer} />
+            <ReadField label="Engineer Fee" value={engineerDisplay} />
             <ReadField label="CDW" value={actualCdw} />
           </div>
           <div className="grid grid-cols-2 gap-5">

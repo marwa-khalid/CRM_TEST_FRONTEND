@@ -495,7 +495,7 @@ useEffect(() => {
             ).toLowerCase() === "rejected" && (
               <div className="flex flex-col gap-2">
                 <label className="text-neutral-700 text-[14px] font-weight-500">
-                  Rejection Reason
+                  Reason
                 </label>
                 <button
                   type="button"

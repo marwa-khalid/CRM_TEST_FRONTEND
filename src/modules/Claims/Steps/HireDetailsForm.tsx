@@ -422,17 +422,21 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     const abiAdmin = activeVehicleTab === 0 ? Number(vehicle.administration_fee) : 0;
     const bhrAdmin = activeVehicleTab === 0 ? Number(vehicle.bhr_administration_fee) : 0;
     const cdFee = activeVehicleTab === 0 ? Number(vehicle.collection_and_delivery_fee) : 0;
+    // While the hire is ongoing (no hire-back date yet) finalDays is 0, which would
+    // hide the per-day rate from the totals — fall back to the days hired so far so
+    // the ABI/BHR totals reflect the selected category's rate in real time.
+    const chargeableDays = vehicle.hireBackDate ? finalDays : daysSoFar;
     const abiTotal =
       (Number(vehicle.abi_hire_charge_per_day) +
         Number(vehicle.extra_charge_per_day)) *
-        finalDays +
+        chargeableDays +
       abiAdmin;
     const bhrTotal =
       (Number(vehicle.bhr_hire_charge_per_day) +
         Number(vehicle.bhr_extra_charge_per_day)) *
-        finalDays +
+        chargeableDays +
       bhrAdmin +
-      15 * finalDays +
+      15 * chargeableDays +
       cdFee;
 
     formik.setFieldValue(
@@ -549,11 +553,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       setEmailSending(true);
       if (option === "Inst Fleet to On Hire") {
         const { data } = await sendEmails(claimId, "on_hire");
-        console.log(
-          actualVehicleCategory.find(
-            (opt) => opt.value === currentVehicle.actual_vehicle_category,
-          )?.label,
-        );
+       
         const templateData = {
           ...data,
           activeUserEmail: JSON.parse(localStorage.getItem("activeUser")).email,
@@ -563,7 +563,6 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           )?.label,
         };
         setOnHireEmailData(templateData);
-        console.log("working");
         setOnHirePreviewModalOpen(true);
 
         // const subject = "New Instruction to Fleet to On Hire Vehicle (CIL)";
@@ -632,7 +631,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
   const [previewModal, setPreviewModalOpen] = useState<boolean>(false);
   const [onHirePreviewModal, setOnHirePreviewModalOpen] =
     useState<boolean>(false);
-  console.log(onHirePreviewModal);
+ 
   const testDeepLink = () => {
     setPreviewModalOpen(true);
   };

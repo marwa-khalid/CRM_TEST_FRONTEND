@@ -299,7 +299,7 @@ const Notifications: React.FC<{
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 px-2 border-b border-neutral-100 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1 px-2 border-b border-neutral-100 overflow-x-auto scrollbar-hide">
         {TABS.map((tb) => (
           <button
             key={tb.key}

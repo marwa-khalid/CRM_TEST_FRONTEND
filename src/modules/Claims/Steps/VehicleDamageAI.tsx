@@ -4,7 +4,9 @@ import { useCaseReference } from "../../../hooks/useCaseReference";
 import {
   aiAnalyze,
   getLatestVehicleDamageReport,
+  saveManualAdjustments,
 } from "../../../services/VehicleDamage/VehicleDamage";
+import { getClaimVehicles } from "../../../services/Vehicle/vehicle";
 import downloadd from "../../../assets/AutoClaim_icon/Downloadd.svg";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
@@ -53,6 +55,7 @@ useEffect(() => {
       });
 
       setAssessmentType(payload.assessmentType || "Client vehicle only");
+      setSavedAdjustments(payload.manual_adjustments || null);
       setSelectedImageIndex(payload.selectedImageIndex || 0);
       setCurrentPredictions(
         payload.images?.[payload.selectedImageIndex || 0]?.predictions || [],
@@ -75,6 +78,36 @@ useEffect(() => {
   if (claimID) loadSavedReport();
 }, [claimID]);
 
+  // --- Vehicle cards (client + third-party) for the report header ---
+  const [clientVehicle, setClientVehicle] = useState<any>(null);
+  const [thirdPartyVehicle, setThirdPartyVehicle] = useState<any>(null);
+  useEffect(() => {
+    if (!claimID) return;
+    getClaimVehicles(claimID)
+      .then((list: any[]) => {
+        const v = Array.isArray(list) ? list[0] : null;
+        if (!v) return;
+        setClientVehicle({
+          registration: v.registration ?? v.reg ?? null,
+          make: v.make ?? null,
+          model: v.model ?? null,
+          year: v.year ?? v.manufacture_year ?? null,
+          color: v.color ?? v.colour ?? null,
+        });
+        const tp = v.third_party_vehicle_detail || v.third_party_vehicle || null;
+        if (tp) {
+          setThirdPartyVehicle({
+            registration: tp.registration ?? null,
+            make: tp.make ?? null,
+            model: tp.model ?? null,
+            year: tp.year ?? null,
+            color: tp.color ?? tp.colour ?? null,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [claimID]);
+
   // --- State Management ---
   const [assessmentType, setAssessmentType] = useState("Client vehicle only");
   const [open, setOpen] = useState(false);
@@ -82,10 +115,47 @@ useEffect(() => {
   const [sliderImageIndex, setSliderImageIndex] = useState<number>(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
+  // Manual adjustments persisted with the report (prefill the slider on reopen).
+  const [savedAdjustments, setSavedAdjustments] = useState<any>(null);
+  const [savingAdjustments, setSavingAdjustments] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  // Save manual adjustments → backend rebuilds the PDF (ReportLab) and re-points
+  // the documents-library file; reflect the fresh PDF url in the open slider.
+  const handleSaveAdjustments = async (state: {
+    decisions: Record<string, "accepted" | "rejected">;
+    notes: string;
+    vehicleStatus: string;
+  }) => {
+    if (!claimID) return;
+    setSavingAdjustments(true);
+    try {
+      const res = await saveManualAdjustments({
+        claim_id: claimID,
+        decisions: state.decisions || {},
+        notes: state.notes || "",
+        vehicleStatus: state.vehicleStatus || "Roadworthy",
+      });
+      setSavedAdjustments(state);
+      const freshUrl = res?.pdf_report_url;
+      if (freshUrl) {
+        setAiResult((prev: any) => ({
+          ...(prev || {}),
+          report_pdf_url: freshUrl,
+          pdf_report_url: freshUrl,
+        }));
+      }
+      toast.success("Manual adjustments saved & report updated");
+    } catch (error) {
+      toast.error("Failed to save manual adjustments");
+    } finally {
+      setSavingAdjustments(false);
+    }
+  };
+
   // --- AI Integration Logic (from old VehicleDamage.tsx) ---
   const handleAnalyze = async () => {
     if (uploadedFiles.length === 0) {
@@ -109,6 +179,7 @@ useEffect(() => {
       );
       // Filter predictions for current image
       toast.success("AI Analysis Complete");
+      // PDF is now generated on the backend (secure ReportLab path); no frontend capture.
     } catch (error: any) {
       const message =
         error?.response?.data?.detail ||
@@ -249,6 +320,7 @@ useEffect(() => {
         ],
       };
     };
+
   return (
     <div className="MainContent w-full flex flex-col items-stretch gap-6 py-6 font-['Stack_Sans_Headline']">
       {" "}
@@ -319,6 +391,11 @@ useEffect(() => {
             JSON.parse(localStorage.getItem("activeUser") || "{}")?.email || ""
           }
           sourceName="Claim Portal"
+          clientVehicle={clientVehicle}
+          thirdPartyVehicle={thirdPartyVehicle}
+          initialAdjustments={savedAdjustments}
+          onSaveToClaim={handleSaveAdjustments}
+          saving={savingAdjustments}
         />
       )}
       {isAnalyzing && (

@@ -51,6 +51,7 @@ import { SpinnerLoader } from "../../components/common/SpinnerLoader";
 import TaskAttachmentModal, { fileLogo } from "./TaskAttachmentModal";
 import TaskDetailSlider, { type TaskDetailTab } from "./TaskDetailSlider";
 import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
+import attachmentIcon from "../../assets/TaskManagement/attachment.svg";
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -169,6 +170,19 @@ const Badge = ({ text, cls }: { text: string; cls: string }) => (
     {text}
   </span>
 );
+
+// Paperclip + blue count badge shown next to the ⋮ menu when a task has attachments.
+const AttachmentIndicator = ({ count }: { count: number }) => {
+  if (!count) return null;
+  return (
+    <div className="relative shrink-0 w-4 h-4" title={attachmentText(count)}>
+      <img src={attachmentIcon} alt="" className="w-4 h-4" />
+      <span className="absolute -top-2 -left-2 min-w-[15px] h-[15px] px-1 rounded-full bg-blue-200 text-blue-500 text-[10px] font-weight-600 flex items-center justify-center leading-none">
+        {count}
+      </span>
+    </div>
+  );
+};
 
 // Reuses the shared CustomDatePicker (same one used on the claim forms).
 // Stores/returns the date as a "YYYY-MM-DD" string.
@@ -337,7 +351,7 @@ const MultiFilterDropdown = ({
         <ChevronDown size={14} />
       </button>
       {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 min-w-[210px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1 max-h-72 overflow-auto">
+        <div className="absolute z-30 top-full mt-1 left-0 w-max min-w-[140px] max-w-[280px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1 max-h-72 overflow-auto">
           {selected.length > 0 && (
             <button
               type="button"
@@ -395,7 +409,7 @@ const QuickActions = ({
     { key: "viewDetail", label: "View Detail" },
     { key: "complete", label: "Mark as Complete" },
     { key: "reassign", label: "Reassign" },
-    { key: "note", label: "Add Note" },
+    // { key: "note", label: "Add Note" },
     { key: "edit", label: "Edit Task" },
     { key: "delete", label: "Delete Task", danger: true },
   ];
@@ -480,6 +494,12 @@ export const AddTaskDrawer = ({
   if (!open) return null;
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+  // Append a batch of uploaded files to the (comma-separated) attachment list.
+  const appendAttachments = (uploaded: { path: string; filename: string }[]) =>
+    setForm((f: any) => {
+      const cur = String(f.attachment_path || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+      return { ...f, attachment_path: [...cur, ...uploaded.map((u) => u.path)].join(",") };
+    });
 
   const handleSave = async () => {
     if (!form.title?.trim()) {
@@ -526,7 +546,7 @@ export const AddTaskDrawer = ({
       {attachmentOpen && (
         <TaskAttachmentModal
           onClose={() => setAttachmentOpen(false)}
-          onUploaded={(path) => set("attachment_path", path)}
+          onUploaded={appendAttachments}
         />
       )}
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
@@ -687,71 +707,58 @@ export const AddTaskDrawer = ({
           </Field>
 
           <Field label="Attachment Upload">
-            {form.attachment_path ? (
-              <div className="flex items-center gap-3 p-3 rounded-lg border border-neutral-200">
-                <img
-                  src={fileLogo(form.attachment_path)}
-                  alt=""
-                  className="w-9 h-9"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-neutral-800 truncate">
-                    {form.attachment_path.split("/").pop()}
+            {(() => {
+              const files = String(form.attachment_path || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+              return (
+              <div className="flex flex-col gap-3">
+                {files.map((p: string) => (
+                  <div key={p} className="flex items-center gap-3 p-3 rounded-lg border border-neutral-200">
+                    <img src={fileLogo(p)} alt="" className="w-9 h-9" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-neutral-800 truncate">
+                        {p.split("/").pop()}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const { data } = await getAttachmentUrl(p);
+                            if (data?.url)
+                              window.open(data.url, "_blank", "noopener,noreferrer");
+                          } catch {
+                            toast.error("Could not open attachment");
+                          }
+                        }}
+                        className="text-blue-500 text-xs hover:underline"
+                      >
+                        View attachment
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => set("attachment_path", files.filter((x: string) => x !== p).join(","))}
+                      className="text-neutral-400 hover:text-red-500"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const { data } = await getAttachmentUrl(
-                          form.attachment_path,
-                        );
-                        if (data?.url)
-                          window.open(
-                            data.url,
-                            "_blank",
-                            "noopener,noreferrer",
-                          );
-                      } catch {
-                        toast.error("Could not open attachment");
-                      }
-                    }}
-                    className="text-blue-500 text-xs hover:underline"
-                  >
-                    View attachment
-                  </button>
-                </div>
-                <div className="flex items-center gap-3">
-                  {/* <button
-                    type="button"
-                    onClick={() => setAttachmentOpen(true)}
-                    className="text-blue-500 text-xs hover:underline"
-                  >
-                    Replace
-                  </button> */}
-                  <button
-                    type="button"
-                    onClick={() => set("attachment_path", "")}
-                    className="text-neutral-400 hover:text-red-500"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setAttachmentOpen(true)}
+                  className="w-full border border-dashed border-neutral-300 rounded-lg p-8 flex flex-col items-center gap-2 cursor-pointer hover:border-blue-400"
+                >
+                  <UploadCloud size={28} className="text-blue-400" />
+                  <span className="text-neutral-700 text-sm font-weight-600">
+                    {files.length ? "Add More Attachments" : "Add Attachment"}
+                  </span>
+                  <span className="text-neutral-400 text-xs">
+                    JPG, PNG, PDF, CSV Supported
+                  </span>
+                </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setAttachmentOpen(true)}
-                className="w-full border border-dashed border-neutral-300 rounded-lg p-8 flex flex-col items-center gap-2 cursor-pointer hover:border-blue-400"
-              >
-                <UploadCloud size={28} className="text-blue-400" />
-                <span className="text-neutral-700 text-sm font-weight-600">
-                  Add Attachment
-                </span>
-                <span className="text-neutral-400 text-xs">
-                  JPG, PNG, PDF, CSV Supported
-                </span>
-              </button>
-            )}
+              );
+            })()}
           </Field>
         </div>
       </div>
@@ -959,7 +966,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
     due_from: initialFilters?.due_from || "",
     due_to: initialFilters?.due_to || "",
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // show the loader from first paint until tasks arrive
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -1571,7 +1578,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
         {loading && <SpinnerLoader />}
         {tasks.length === 0 ? (
           !loading && (
-            <div className="py-20 text-center text-neutral-400 text-sm">
+            <div className="py-20 text-center text-neutral-400 text-xl">
               No tasks found.
             </div>
           )
@@ -1617,7 +1624,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                       >
                         {t.title}
                       </div>
-                      <AttachmentSummary task={t} className="mt-1" />
+                      {/* <AttachmentSummary task={t} className="mt-1" /> */}
                       {/* {t.description && (
                         <div className="text-neutral-500 text-xs font-weight-400 mt-1 line-clamp-2">
                           {t.description}
@@ -1671,7 +1678,10 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                       />
                     </td>
                     <td className="px-4 py-4">
-                      <QuickActions task={t} onAction={handleAction} />
+                      <div className="flex items-center justify-end gap-4">
+                        <AttachmentIndicator count={attachmentFiles(t).length} />
+                        <QuickActions task={t} onAction={handleAction} />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1712,9 +1722,12 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
                           {t.description}
                         </div>
                       )}
-                      <AttachmentSummary task={t} className="mt-1" />
+                      {/* <AttachmentSummary task={t} className="mt-1" /> */}
                     </div>
-                    <QuickActions task={t} onAction={handleAction} />
+                    <div className="flex items-center gap-4">
+                      <AttachmentIndicator count={attachmentFiles(t).length} />
+                      <QuickActions task={t} onAction={handleAction} />
+                    </div>
                   </div>
                   <div className="text-sm">
                     {t.claim_reference && (

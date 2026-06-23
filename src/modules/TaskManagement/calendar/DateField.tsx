@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Calendar as CalendarIcon } from "lucide-react";
 import { CustomDatePicker } from "../../Claims/Components/DatePicker";
+import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 
 // Local YYYY-MM-DD (avoids the UTC off-by-one that toISOString can cause).
 const toISO = (d: Date) =>
@@ -31,10 +31,10 @@ const DateField = ({
         className="h-[52px] px-4 bg-white border border-neutral-200 rounded flex items-center justify-between cursor-pointer text-sm hover:border-blue-500"
       >
         <span className={value ? "text-neutral-700" : "text-neutral-400"}>{value || placeholder}</span>
-        <CalendarIcon size={16} className="text-neutral-400" />
+        <img src={Vector6} alt="calendar" className="w-4 h-4" />
       </div>
       {open && (
-        <div className="absolute top-full left-0 z-[70] mt-1 shadow-xl rounded-lg bg-white">
+        <div className="absolute left-0 z-[70] mt-1 bottom-[423px] shadow-xl rounded-lg bg-white">
           <CustomDatePicker
             selectedDate={value ? new Date(value + "T00:00:00") : new Date()}
             onDateSelect={(d: Date) => { onChange(toISO(d)); setOpen(false); }}

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Download, FileText } from "lucide-react";
 
 import BlackFront from "../../../assets/Black/Group.svg";
@@ -69,6 +69,14 @@ interface CollectiveReportData {
   audit_trail?: AuditTrailItem[];
 }
 
+export interface VehicleInfo {
+  registration?: string | null;
+  make?: string | null;
+  model?: string | null;
+  year?: string | number | null;
+  color?: string | null;
+}
+
 interface SliderProps {
   isOpen: boolean;
   reportData?: CollectiveReportData | null;
@@ -78,6 +86,23 @@ interface SliderProps {
   claimReference?: string;
   clientName?: string;
   sourceName?: string;
+  clientVehicle?: VehicleInfo | null;
+  thirdPartyVehicle?: VehicleInfo | null;
+  vehicleStatusOptions?: string[];
+  onSaveToClaim?: (state: ManualAdjustmentState) => void;
+  saving?: boolean;
+  /** Persisted manual adjustments to prefill the editor (accept/reject, notes, status). */
+  initialAdjustments?: Partial<ManualAdjustmentState> | null;
+  /** When true the report renders read-only (no editable Manual Adjustments). */
+  readOnly?: boolean;
+  /** Off-screen capture mode: plain block, no backdrop/fixed positioning, for html2canvas. */
+  captureMode?: boolean;
+}
+
+export interface ManualAdjustmentState {
+  decisions: Record<string, "accepted" | "rejected">;
+  notes: string;
+  vehicleStatus: string;
 }
 
 const locationConfig = [
@@ -85,16 +110,14 @@ const locationConfig = [
   { key: "Rear", label: "Rear", image: BlackRear },
   { key: "Roof", label: "Roof", image: BlackRoof },
   { key: "Nearside Front", label: "Nearside Front", image: BlackNearsideFront },
-  {
-    key: "Nearside Middle",
-    label: "Nearside Middle",
-    image: BlackNearsideMiddle,
-  },
+  { key: "Nearside Middle", label: "Nearside Middle", image: BlackNearsideMiddle },
   { key: "Nearside Rear", label: "Nearside Rear", image: BlackNearsideRear },
   { key: "Offside Front", label: "Offside Front", image: BlackOffsideFront },
   { key: "Offside Middle", label: "Offside Middle", image: BlackOffsideMiddle },
   { key: "Offside Rear", label: "Offside Rear", image: BlackOffsideRear },
 ];
+
+const VEHICLE_STATUS_OPTIONS = ["Roadworthy", "Non-Roadworthy", "Total Loss", "Under Repair"];
 
 const getSuggestedRepair = (damageType?: string) => {
   const type = String(damageType || "").toLowerCase();
@@ -110,7 +133,9 @@ const formatDateTime = (value?: string) => {
   if (!value) return "-";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString();
+  return parsed.toLocaleString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
 };
 
 const normalizeSeverity = (severity?: string) => {
@@ -130,68 +155,34 @@ const formatConfidence = (confidence: any) => {
   return `${value.toFixed(0)}%`;
 };
 
+const vehicleLine = (v?: VehicleInfo | null) => {
+  if (!v) return "";
+  const tail = [
+    [v.make, v.model].filter(Boolean).join(" "),
+    v.year,
+    v.color,
+  ].filter(Boolean).join(" , ");
+  return tail;
+};
+
 /**
- * Print-only stylesheet. Hides everything except the slider, then forces
- * the slider to render as a normal block at full scroll height so the
- * browser paints it as one continuous PDF page (no slicing, no missing
- * sections, no broken images — because the browser itself is doing the
- * rendering, exactly as it does on screen).
+ * Print-only stylesheet. Hides everything except the slider, then forces it to
+ * render as one continuous block so the browser paints it as a single PDF.
  */
 const PRINT_STYLES = `
   @media print {
-    @page {
-      size: 240mm auto;
-      margin: 10mm;
-    }
-
-    /* Hide everything by default. */
-    body * {
-      visibility: hidden;
-    }
-
-    /* Show only the slider and its descendants. */
-    [data-pdf-root],
-    [data-pdf-root] * {
-      visibility: visible;
-    }
-
-    /* Hide action buttons inside the slider. */
-    [data-pdf-hide],
-    [data-pdf-hide] * {
-      visibility: hidden !important;
-      display: none !important;
-    }
-
-    /* Un-fix the slider so the browser captures full content height. */
+    @page { size: 240mm auto; margin: 10mm; }
+    body * { visibility: hidden; }
+    [data-pdf-root], [data-pdf-root] * { visibility: visible; }
+    [data-pdf-hide], [data-pdf-hide] * { visibility: hidden !important; display: none !important; }
     [data-pdf-root] {
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
-      right: auto !important;
-      width: 100% !important;
-      max-width: none !important;
-      height: auto !important;
-      max-height: none !important;
-      overflow: visible !important;
-      box-shadow: none !important;
-      transform: none !important;
+      position: absolute !important; top: 0 !important; left: 0 !important; right: auto !important;
+      width: 100% !important; max-width: none !important; height: auto !important; max-height: none !important;
+      overflow: visible !important; box-shadow: none !important; transform: none !important;
     }
-
-    /* Hide the dark backdrop. */
-    [data-pdf-backdrop] {
-      display: none !important;
-    }
-
-    /* Un-stick the slider header. */
-    [data-pdf-root] .sticky {
-      position: static !important;
-    }
-
-    /* Prevent sections from being split across pages where possible. */
-    [data-pdf-section] {
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
+    [data-pdf-backdrop] { display: none !important; }
+    [data-pdf-root] .sticky { position: static !important; }
+    [data-pdf-section] { break-inside: avoid; page-break-inside: avoid; }
   }
 `;
 
@@ -204,6 +195,14 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
   claimReference,
   clientName,
   sourceName,
+  clientVehicle,
+  thirdPartyVehicle,
+  vehicleStatusOptions = VEHICLE_STATUS_OPTIONS,
+  onSaveToClaim,
+  saving = false,
+  readOnly = false,
+  captureMode = false,
+  initialAdjustments = null,
 }) => {
   const sliderRef = useRef<HTMLDivElement>(null);
 
@@ -230,102 +229,85 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
     );
     if (rowsFromImages.length > 0) return rowsFromImages;
     return currentImage?.predictions || [];
-  }, [
-    reportData?.predictions,
-    reportData?.all_predictions,
-    imageItems,
-    currentImage?.predictions,
-  ]);
+  }, [reportData?.predictions, reportData?.all_predictions, imageItems, currentImage?.predictions]);
 
   const total = data.length;
-  const high = data.filter(
-    (d) => normalizeSeverity(d.severity) === "High",
-  ).length;
-  const med = data.filter(
-    (d) => normalizeSeverity(d.severity) === "Medium",
-  ).length;
-  const low = data.filter(
-    (d) => normalizeSeverity(d.severity) === "Low",
-  ).length;
+  const high = data.filter((d) => normalizeSeverity(d.severity) === "High").length;
+  const med = data.filter((d) => normalizeSeverity(d.severity) === "Medium").length;
+  const low = data.filter((d) => normalizeSeverity(d.severity) === "Low").length;
 
   const reference = claimReference || "-";
-  const reportId =
-    reportData?.report_id || currentImage?.report_id || fallbackReportId;
-  const generatedAt = formatDateTime(
-    reportData?.generated_at || currentImage?.generated_at,
-  );
-  const uploadedBy =
-    reportData?.uploaded_by ||
-    currentImage?.uploaded_by ||
-    clientName ||
-    "Client";
-  const source =
-    reportData?.source_name ||
-    currentImage?.source_name ||
-    sourceName ||
-    "AI Assessment";
-  const assessmentLabel =
-    reportData?.assessment_type ||
-    currentImage?.assessment_type ||
-    selectedType ||
-    "-";
+  const reportId = reportData?.report_id || currentImage?.report_id || fallbackReportId;
+  const generatedAt = formatDateTime(reportData?.generated_at || currentImage?.generated_at);
+  const uploadedBy = reportData?.uploaded_by || currentImage?.uploaded_by || clientName || "Client";
+  const source = reportData?.source_name || currentImage?.source_name || sourceName || "Claim Portal";
+  const assessmentLabel = reportData?.assessment_type || currentImage?.assessment_type || selectedType || "-";
+
+  const showClientCard = assessmentLabel !== "Third Party Vehicle Only";
+  const showThirdPartyCard =
+    assessmentLabel === "Both" || assessmentLabel === "Third Party Vehicle Only";
 
   const auditTrail = reportData?.audit_trail?.length
     ? reportData.audit_trail
     : currentImage?.audit_trail?.length
       ? currentImage.audit_trail
-      : [
-          {
-            doneBy: uploadedBy || "System",
-            action: "Generated Collective AI Report",
-            timestamp:
-              reportData?.generated_at ||
-              currentImage?.generated_at ||
-              new Date().toISOString(),
-          },
-        ];
+      : [{
+          doneBy: uploadedBy || "System",
+          action: "Generated Collective AI Report",
+          timestamp: reportData?.generated_at || currentImage?.generated_at || new Date().toISOString(),
+        }];
 
   const sideCounts = useMemo(() => {
-    return data.reduce(
-      (acc: Record<string, number>, item: any) => {
-        const side = item.side || item.damage_side || "-";
-        acc[side] = (acc[side] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
+    return data.reduce((acc: Record<string, number>, item: any) => {
+      const side = item.side || item.damage_side || "-";
+      acc[side] = (acc[side] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
   }, [data]);
 
-  const handleDownloadPDF = () => {
-    // Give the browser one tick to apply scroll state, then open native print
-    // dialog. User picks "Save as PDF" as the destination.
-    setTimeout(() => window.print(), 50);
-  };
+  // ---- Manual Adjustments (interactive on screen, static in PDF) ----
+  const [decisions, setDecisions] = useState<Record<string, "accepted" | "rejected">>({});
+  const [notes, setNotes] = useState("");
+  const [vehicleStatus, setVehicleStatus] = useState(vehicleStatusOptions[0] || "Roadworthy");
+
+  // Prefill the editor from previously saved manual adjustments.
+  useEffect(() => {
+    if (!initialAdjustments) return;
+    if (initialAdjustments.decisions) setDecisions(initialAdjustments.decisions);
+    if (typeof initialAdjustments.notes === "string") setNotes(initialAdjustments.notes);
+    if (initialAdjustments.vehicleStatus) setVehicleStatus(initialAdjustments.vehicleStatus);
+  }, [initialAdjustments]);
+
+  const handleDownloadPDF = () => setTimeout(() => window.print(), 50);
+  const handleSave = () => onSaveToClaim?.({ decisions, notes, vehicleStatus });
 
   if (!isOpen) return null;
 
   return (
     <>
-      {/* Inject print-only styles. */}
-      <style>{PRINT_STYLES}</style>
+      {!captureMode && <style>{PRINT_STYLES}</style>}
 
-      <div
-        data-pdf-backdrop
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
-        onClick={onClose}
-      />
+      {!captureMode && (
+        <div data-pdf-backdrop className="fixed inset-0 bg-black/50 z-40 transition-opacity" onClick={onClose} />
+      )}
 
       <div
         ref={sliderRef}
         data-pdf-root
-        className={`fixed top-0 right-0 h-full w-[900px] max-w-[95vw] bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out overflow-y-auto ${
-          isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        data-capture={captureMode ? "true" : undefined}
+        className={
+          captureMode
+            ? "relative w-[960px] bg-white font-['Stack_Sans_Headline']"
+            : `fixed top-0 right-0 h-full w-[960px] max-w-[95vw] bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out overflow-y-auto font-['Stack_Sans_Headline'] ${
+                isOpen ? "translate-x-0" : "translate-x-full"
+              }`
+        }
       >
+        {/* Header */}
         <div className="px-6 py-5 bg-white shadow-sm flex justify-between items-start sticky top-0 z-10">
           <div className="flex-1 flex flex-col gap-3.5">
             <div className="flex justify-between items-start">
-              <h1 className="text-neutral-900 text-[24px] font-weight-600 font-['Stack_Sans_Headline'] leading-6">
+              <h1 className="text-neutral-900 text-[24px] font-weight-600 leading-6">
                 AI Vehicle Damage Full Report
               </h1>
 
@@ -335,67 +317,118 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
                     className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center gap-2 text-blue-600 text-sm font-weight-400 disabled:opacity-50"
                     onClick={handleDownloadPDF}
                   >
-                    <Download className="w-4 h-4" />
-                    Download PDF
+                    <Download className="w-4 h-4" /> Download PDF
                   </button>
 
-                  <button className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center gap-2 text-blue-600 text-sm font-weight-400 disabled:opacity-50">
-                    <FileText className="w-4 h-4" />
-                    Save to Claim
+                  <button
+                    className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center gap-2 text-blue-600 text-sm font-weight-400 disabled:opacity-50"
+                    onClick={handleSave}
+                    disabled={saving || !onSaveToClaim}
+                  >
+                    <FileText className="w-4 h-4" /> {saving ? "Saving..." : "Save to Claim"}
                   </button>
                 </div>
 
-                <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-gray-100 rounded-full ml-4"
-                >
+                <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full ml-4">
                   <X className="w-6 h-6 text-gray-400" />
                 </button>
               </div>
             </div>
 
             <div className="p-2 bg-blue-50 rounded flex gap-4 flex-wrap">
-              <span className="text-gray-600 text-sm">
-                Claim ID: <span className="font-weight-600">{reference}</span>
-              </span>
-              <span className="text-gray-600 text-sm">
-                Report ID: <span className="font-weight-600">{reportId}</span>
-              </span>
-              <span className="text-gray-600 text-sm">
-                Generated:{" "}
-                <span className="font-weight-600">{generatedAt}</span>
-              </span>
-              <span className="text-gray-600 text-sm">
-                Assessment Type:{" "}
-                <span className="font-weight-600">{assessmentLabel}</span>
-              </span>
+              <span className="text-gray-600 text-sm">Claim ID: <span className="font-weight-600">{reference}</span></span>
+              <span className="text-gray-600 text-sm">Report ID: <span className="font-weight-600">{reportId}</span></span>
+              <span className="text-gray-600 text-sm">Generated: <span className="font-weight-600">{generatedAt}</span></span>
+              <span className="text-gray-600 text-sm">Assessment Type: <span className="font-weight-600">{assessmentLabel}</span></span>
             </div>
 
             <div className="px-2 text-gray-500 text-[11px]">
-              Uploaded By:{" "}
-              <span className="text-blue-600 font-weight-600">
-                {uploadedBy}
-              </span>{" "}
-              • File Name:{" "}
-              <span className="font-weight-600 text-gray-700">AI Report</span> •
-              Source:{" "}
-              <span className="font-weight-600 text-gray-700">{source}</span>
+              Uploaded By: <span className="text-blue-600 font-weight-600">{uploadedBy}</span>
+              {" • "}File Name: <span className="font-weight-600 text-gray-700">AI Report</span>
+              {" • "}Source: <span className="font-weight-600 text-gray-700">{source}</span>
             </div>
           </div>
         </div>
 
         <div className="p-6 flex flex-col gap-6">
-          <div
-            data-pdf-section
-            className="p-4 rounded-lg border border-gray-100 flex flex-col gap-4"
-          >
+          {/* ---- Vehicle cards ---- */}
+          {(showClientCard || showThirdPartyCard) && (
+            <div data-pdf-section className="flex gap-6">
+              {showClientCard && (
+                <div className="flex-1 p-5 bg-blue-100 rounded-lg flex flex-col gap-1">
+                  <div className="text-black text-xl font-semibold leading-5">Client Vehicle</div>
+                  <div className="text-neutral-700 text-sm">
+                    <span className="font-normal">Reg# </span>
+                    <span className="font-semibold">
+                      {[clientVehicle?.registration, vehicleLine(clientVehicle)].filter(Boolean).join(", ") || "-"}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {showThirdPartyCard && (
+                <div className="flex-1 p-5 bg-white rounded-lg outline outline-1 outline-blue-200 flex flex-col gap-1">
+                  <div className="text-black text-xl font-semibold leading-5">Third party Vehicle</div>
+                  <div className="text-neutral-700 text-sm">
+                    <span className="font-normal">Reg# </span>
+                    <span className="font-semibold">
+                      {[thirdPartyVehicle?.registration, vehicleLine(thirdPartyVehicle)].filter(Boolean).join(", ") || "-"}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ---- Damage Summary ---- */}
+          <div data-pdf-section className="rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-100 overflow-hidden">
+            <div className="grid grid-cols-[1fr_1.2fr_1.2fr_110px_110px_120px_1.3fr] gap-2 p-4 bg-white font-semibold text-gray-800 text-sm border-b border-neutral-100">
+              <div>DAMAGE SIDE</div>
+              <div>AREA OF DAMAGE</div>
+              <div>TYPE OF DAMAGE</div>
+              <div>SEVERITY</div>
+              <div>CONFIDENCE</div>
+              <div>DAMAGED POINTS</div>
+              <div>SUGGESTED REPAIR</div>
+            </div>
+            <div className="divide-y divide-neutral-100">
+              {data.length > 0 ? (
+                data.map((det: any, idx: number) => {
+                  const severity = normalizeSeverity(det.severity);
+                  const damageType = det.damage_type || det.type_of_damage || det.type || "-";
+                  return (
+                    <div
+                      key={det.detection_id || `${det.class}-${idx}`}
+                      className="grid grid-cols-[1fr_1.2fr_1.2fr_110px_110px_120px_1.3fr] gap-2 p-4 items-center text-sm text-neutral-700 bg-white"
+                    >
+                      <div className="capitalize">{det.side || det.damage_side || "-"}</div>
+                      <div className="capitalize">{det.part || det.area_of_damage || det.area || "-"}</div>
+                      <div className="capitalize">{damageType}</div>
+                      <div>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                          severity === "High" ? "bg-red-100 text-red-700"
+                          : severity === "Medium" ? "bg-orange-100 text-orange-500"
+                          : severity === "Low" ? "bg-green-100 text-green-500"
+                          : "bg-neutral-50 text-neutral-500"
+                        }`}>{severity}</span>
+                      </div>
+                      <div>{formatConfidence(det.confidence)}</div>
+                      <div>{det.points || 1}</div>
+                      <div>{det.suggested_repair || det.repair || getSuggestedRepair(damageType)}</div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-6 text-sm text-gray-500">No damages found in this report.</div>
+              )}
+            </div>
+          </div>
+
+          {/* ---- Images with AI Detection ---- */}
+          <div data-pdf-section className="p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-100 flex flex-col gap-4">
             <div>
-              <h3 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
-                Images with AI Detection
-              </h3>
-              <p className="text-gray-500 text-sm mt-1">
-                {imageItems.length} image{imageItems.length !== 1 ? "s" : ""} •
-                Uploaded
+              <h3 className="text-black text-xl font-semibold leading-5">Images with AI Detection</h3>
+              <p className="text-neutral-700 text-sm mt-1">
+                {imageItems.length} image{imageItems.length !== 1 ? "s" : ""} • Uploaded
               </p>
             </div>
 
@@ -403,206 +436,142 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
               {imageItems.length > 0 ? (
                 <div className="grid grid-cols-6 gap-2">
                   {imageItems.map((image, index) => {
-                    const imageUrl =
-                      image.annotated_image_url ||
-                      image.original_image_url ||
-                      "";
+                    const imageUrl = image.annotated_image_url || image.original_image_url || "";
                     return (
-                      <div
-                        key={image.image_index ?? index}
-                        className="h-[155px] rounded overflow-hidden bg-white border border-neutral-200"
-                      >
+                      <div key={image.image_index ?? index} className="h-[155px] rounded overflow-hidden bg-white border border-neutral-200">
                         {imageUrl ? (
-                          <img
-                            src={imageUrl}
-                            alt={`AI Detection ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={imageUrl} alt={`AI Detection ${index + 1}`} className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">
-                            No image
-                          </div>
+                          <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">No image</div>
                         )}
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="h-40 flex items-center justify-center text-sm text-gray-500">
-                  No images available.
-                </div>
+                <div className="h-40 flex items-center justify-center text-sm text-gray-500">No images available.</div>
               )}
             </div>
 
             <div className="flex gap-4">
-              <LegendItem
-                color="bg-red-600"
-                label={`High Severity (${high})`}
-              />
-              <LegendItem
-                color="bg-orange-500"
-                label={`Medium Severity (${med})`}
-              />
-              <LegendItem
-                color="bg-green-500"
-                label={`Low Severity (${low})`}
-              />
+              <LegendItem color="bg-red-600" label={`High Severity (${high})`} />
+              <LegendItem color="bg-orange-500" label={`Medium Severity (${med})`} />
+              <LegendItem color="bg-green-500" label={`Low Severity (${low})`} />
             </div>
           </div>
 
-          <div
-            data-pdf-section
-            className="p-4 rounded-lg border border-gray-100 flex flex-col gap-4"
-          >
-            <h3 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
-              Damage Summary
-            </h3>
+          {/* ---- Manual Adjustments ---- */}
+          <div data-pdf-section className="p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col gap-6">
+            <h3 className="text-black text-xl font-semibold leading-5">Manual Adjustments</h3>
 
-            <div className="rounded-lg border border-gray-200 overflow-hidden">
-              <div className="grid grid-cols-[1fr_1.2fr_1.2fr_90px_90px_90px_1.3fr] gap-2 p-4 bg-white font-weight-600 text-gray-800 text-sm border-b">
-                <div>DAMAGE SIDE</div>
-                <div>AREA OF DAMAGE</div>
-                <div>TYPE OF DAMAGE</div>
-                <div>SEVERITY</div>
-                <div>CONFIDENCE</div>
-                <div>POINTS</div>
-                <div>SUGGESTED REPAIR</div>
-              </div>
-
-              <div className="divide-y divide-gray-100">
-                {data.length > 0 ? (
-                  data.map((det: any, idx: number) => {
-                    const severity = normalizeSeverity(det.severity);
-                    const damageType =
-                      det.damage_type || det.type_of_damage || det.type || "-";
-
-                    return (
-                      <div
-                        key={det.detection_id || `${det.class}-${idx}`}
-                        className="grid grid-cols-[1fr_1.2fr_1.2fr_90px_90px_90px_1.3fr] gap-2 p-4 items-center text-sm text-gray-700 bg-white"
-                      >
-                        <div className="capitalize">
-                          {det.side || det.damage_side || "-"}
-                        </div>
-                        <div className="capitalize">
-                          {det.part || det.area_of_damage || det.area || "-"}
-                        </div>
-                        <div className="capitalize">{damageType}</div>
-                        <div>
-                          <span
-                            className={`px-2 py-1 rounded text-xs font-weight-600 ${
-                              severity === "High"
-                                ? "bg-red-100 text-red-500"
-                                : severity === "Medium"
-                                  ? "bg-orange-100 text-orange-500"
-                                  : severity === "Low"
-                                    ? "bg-green-100 text-green-500"
-                                    : "bg-gray-50 text-gray-500"
-                            }`}
-                          >
-                            {severity}
-                          </span>
-                        </div>
-                        <div>{formatConfidence(det.confidence)}</div>
-                        <div>{det.points || 1}</div>
-                        <div className="font-weight-400">
-                          {det.suggested_repair ||
-                            det.repair ||
-                            getSuggestedRepair(damageType)}
-                        </div>
+            {data.length > 0 ? (
+              <div className="rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-100 divide-y divide-neutral-100">
+                {data.map((det: any, idx: number) => {
+                  const id = det.detection_id || `${det.class}-${idx}`;
+                  const decision = decisions[id];
+                  const code = `DMG-${String(idx + 1).padStart(3, "0")}`;
+                  const label = [det.side || det.damage_side, det.part || det.area_of_damage || det.area]
+                    .filter(Boolean).join(" - ");
+                  const type = det.damage_type || det.type_of_damage || det.type || "-";
+                  return (
+                    <div key={id} className="p-4 flex justify-between items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-neutral-700 text-sm capitalize truncate">{code} {label}</span>
+                        <span className="px-2 py-1 rounded outline outline-1 outline-offset-[-1px] outline-blue-300 text-blue-300 text-xs font-semibold capitalize shrink-0">{type}</span>
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="p-6 text-sm text-gray-500">
-                    No damages found in this report.
-                  </div>
-                )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          disabled={readOnly}
+                          onClick={() => setDecisions((p) => ({ ...p, [id]: "accepted" }))}
+                          className={`px-2 py-1 rounded outline outline-1 outline-offset-[-1px] text-xs font-semibold ${
+                            decision === "accepted" ? "bg-green-500 text-white outline-green-500" : "text-green-500 outline-green-500"
+                          }`}
+                        >Accept</button>
+                        <button
+                          type="button"
+                          disabled={readOnly}
+                          onClick={() => setDecisions((p) => ({ ...p, [id]: "rejected" }))}
+                          className={`px-2 py-1 rounded outline outline-1 outline-offset-[-1px] text-xs font-semibold ${
+                            decision === "rejected" ? "bg-red-500 text-white outline-red-500" : "text-red-500 outline-red-500"
+                          }`}
+                        >Reject</button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+            ) : (
+              <div className="text-neutral-400 text-sm">No manual adjustment data available from source report</div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <label className="text-neutral-700 text-sm font-medium">Additional Notes/ Unrelated Damage</label>
+              {readOnly ? (
+                <div className="min-h-24 px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 text-base font-light text-neutral-700 whitespace-pre-wrap">
+                  {notes || "-"}
+                </div>
+              ) : (
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Value"
+                  className="h-24 px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 text-base font-light text-neutral-700 resize-none outline-none focus:outline-blue-300"
+                />
+              )}
+            </div>
+
+            <div className="w-[490px] max-w-full flex flex-col gap-2">
+              <label className="text-neutral-700 text-sm font-medium">Vehicle Status</label>
+              {readOnly ? (
+                <div className="px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 text-base font-light text-neutral-700">
+                  {vehicleStatus}
+                </div>
+              ) : (
+                <select
+                  value={vehicleStatus}
+                  onChange={(e) => setVehicleStatus(e.target.value)}
+                  className="px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 text-base font-light text-neutral-700 outline-none focus:outline-blue-300"
+                >
+                  {vehicleStatusOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              )}
             </div>
           </div>
 
-          <div
-            data-pdf-section
-            className="p-4 rounded-lg border border-neutral-200 flex flex-col gap-5"
-          >
-            <h3 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
-              Damage By Severity
-            </h3>
-
+          {/* ---- Damage By Severity ---- */}
+          <div data-pdf-section className="p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col gap-5">
+            <h3 className="text-black text-xl font-semibold leading-5">Damage By Severity</h3>
             <div className="flex gap-5">
-              <StatBox
-                label="Total Damages"
-                count={total}
-                color="border-gray-200"
-              />
-              <StatBox
-                label="High Severity"
-                count={high}
-                color="border-red-500"
-              />
-              <StatBox
-                label="Medium Severity"
-                count={med}
-                color="border-orange-400"
-              />
-              <StatBox
-                label="Low Severity"
-                count={low}
-                color="border-green-500"
-              />
+              <StatBox label="Total Damages" count={total} color="outline-neutral-200" />
+              <StatBox label="High Severity" count={high} color="outline-red-500" />
+              <StatBox label="Medium Severity" count={med} color="outline-orange-400" />
+              <StatBox label="Low Severity" count={low} color="outline-green-500" />
             </div>
           </div>
 
-          <div
-            data-pdf-section
-            className="px-4 py-3 rounded-lg border border-neutral-200 flex flex-col justify-start items-start gap-6"
-          >
-            <div className="justify-start text-neutral-900 text-[20px] font-weight-600 font-['Stack_Sans_Headline'] leading-5">
-              Damage By Location
-            </div>
-
+          {/* ---- Damage By Location ---- */}
+          <div data-pdf-section className="px-4 py-3 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col gap-6">
+            <div className="text-black text-xl font-semibold leading-5">Damage By Location</div>
             <div className="grid grid-cols-3 w-full gap-4">
               {locationConfig.map((item) => (
-                <LocationBox
-                  key={item.key}
-                  count={sideCounts[item.key] || 0}
-                  image={item.image}
-                  label={item.label}
-                />
+                <LocationBox key={item.key} count={sideCounts[item.key] || 0} image={item.image} label={item.label} />
               ))}
             </div>
           </div>
 
-          <div
-            data-pdf-section
-            className="p-4 rounded-lg border border-gray-200 flex flex-col gap-5"
-          >
-            <h3 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
-              Audit Trail
-            </h3>
-
-            <div className="border border-gray-100 rounded-lg overflow-hidden">
-              <div className="grid grid-cols-3 gap-3 p-4 bg-white border-b font-weight-600 text-gray-800 text-sm">
-                <div>DONE BY</div>
-                <div>ACTION</div>
-                <div>TIMESTAMP</div>
+          {/* ---- Audit Trail ---- */}
+          <div data-pdf-section className="p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col gap-5">
+            <h3 className="text-black text-xl font-semibold leading-5">Audit Trail</h3>
+            <div className="rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-100 overflow-hidden">
+              <div className="grid grid-cols-3 gap-3 p-4 bg-white border-b border-neutral-100 font-semibold text-gray-800 text-sm">
+                <div>DONE BY</div><div>ACTION</div><div>TIMESTAMP</div>
               </div>
-
               {auditTrail.map((item, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-3 gap-3 p-4 text-sm text-gray-600 border-b last:border-b-0"
-                >
-                  <div className="min-w-0 break-words pr-2">
-                    {item.doneBy || "-"}
-                  </div>
-                  <div className="min-w-0 break-words pr-2">
-                    {item.action || "-"}
-                  </div>
-                  <div className="min-w-0">
-                    {formatDateTime(item.timestamp)}
-                  </div>
+                <div key={index} className="grid grid-cols-3 gap-3 p-4 text-sm text-gray-600 border-b border-neutral-100 last:border-b-0">
+                  <div className="min-w-0 break-words pr-2">{item.doneBy || "-"}</div>
+                  <div className="min-w-0 break-words pr-2">{item.action || "-"}</div>
+                  <div className="min-w-0">{formatDateTime(item.timestamp)}</div>
                 </div>
               ))}
             </div>
@@ -616,46 +585,22 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
 const LegendItem = ({ color, label }: { color: string; label: string }) => (
   <div className="flex items-center gap-1.5">
     <div className={`w-4 h-4 rounded-full ${color}`} />
-    <span className="text-gray-700 text-sm">{label}</span>
+    <span className="text-neutral-700 text-sm">{label}</span>
   </div>
 );
 
-const StatBox = ({
-  label,
-  count,
-  color,
-}: {
-  label: string;
-  count: number;
-  color: string;
-}) => (
-  <div
-    className={`flex-1 p-4 rounded-lg border ${color} bg-white flex flex-col gap-1`}
-  >
-    <div className="text-gray-700 text-2xl font-weight-600 leading-6">
-      {count}
-    </div>
+const StatBox = ({ label, count, color }: { label: string; count: number; color: string }) => (
+  <div className={`flex-1 p-4 rounded-lg outline outline-1 outline-offset-[-1px] ${color} bg-white flex flex-col gap-1`}>
+    <div className="text-gray-700 text-2xl font-weight-600 leading-6">{count}</div>
     <div className="text-gray-600 text-sm">{label}</div>
   </div>
 );
 
-const LocationBox = ({
-  count,
-  image,
-  label,
-}: {
-  count: number;
-  image: string;
-  label: string;
-}) => (
-  <div className="h-44 p-4 bg-white rounded-lg border border-neutral-200 flex flex-col justify-center items-center gap-6">
-    <div className="justify-start text-neutral-900 text-2xl font-weight-600 font-['Stack_Sans_Headline'] leading-6">
-      {count}
-    </div>
+const LocationBox = ({ count, image, label }: { count: number; image: string; label: string }) => (
+  <div className="h-44 p-4 bg-white rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col justify-center items-center gap-6">
+    <div className="text-neutral-900 text-2xl font-weight-600 leading-6">{count}</div>
     <img src={image} alt={label} />
-    <div className="justify-start text-neutral-700 text-sm font-weight-300 font-light font-['Stack_Sans_Headline'] text-center">
-      {label}
-    </div>
+    <div className="text-neutral-700 text-sm font-light text-center">{label}</div>
   </div>
 );
 

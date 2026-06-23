@@ -45,7 +45,7 @@ const TYPE_COLORS: Record<string, string> = {
   "Vehicle Return": "bg-amber-100 text-amber-600",
   Reminder: "bg-yellow-100 text-amber-600",
   "Follow-Up": "bg-orange-100 text-orange-600",
-  "Task Deadline": "bg-red-100 text-red-600",
+  "Task Deadline": "bg-amber-100 text-amber-600", // amber by default; red is reserved for OVERDUE (see calendar)
 };
 
 export const eventChipCls = (event_type?: string | null, status?: string | null): string => {

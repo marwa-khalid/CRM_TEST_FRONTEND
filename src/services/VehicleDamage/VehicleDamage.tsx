@@ -15,6 +15,9 @@ export const aiAnalyze = async (formData: FormData) => {
     formData,
     {
       headers: { "Content-Type": "multipart/form-data" },
+      // AI analysis runs many images through Roboflow and takes well over the
+      // default 30s timeout; allow up to 5 minutes so axios doesn't cancel it.
+      timeout: 300000,
     },
   );
   return response.data;
@@ -24,6 +27,23 @@ export const saveDamageDetails = async (payload: any) => {
   const response = await axiosInstance.post(
     `/vehicle-damage-reports/reports`,
     payload,
+  );
+  return response.data;
+};
+
+// Save the handler's manual adjustments; the backend regenerates the report PDF
+// (ReportLab) and re-points the documents-library file. Returns the fresh PDF url.
+export const saveManualAdjustments = async (payload: {
+  claim_id: number | string;
+  decisions: Record<string, "accepted" | "rejected">;
+  notes: string;
+  vehicleStatus: string;
+}) => {
+  const response = await axiosInstance.post(
+    `/vehicle-damage-reports/save-adjustments`,
+    payload,
+    // The server rebuilds an SVG-heavy PDF; allow well beyond the default 30s.
+    { timeout: 300000 },
   );
   return response.data;
 };
@@ -45,6 +65,8 @@ export const uploadVehicleDamageReport = async (formData: FormData) => {
       headers: {
         "Content-Type": "multipart/form-data",
       },
+      // PDF generation (SVG-heavy) can exceed the default 30s timeout.
+      timeout: 300000,
     },
   );
   return response.data;

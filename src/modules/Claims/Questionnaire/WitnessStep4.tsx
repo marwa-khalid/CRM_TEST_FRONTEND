@@ -51,6 +51,21 @@ const Step4Signature = () => {
     }
   }, []);
 
+  // Restore a previously drawn/uploaded signature onto the canvas when the user
+  // navigates back to this step (otherwise the canvas re-mounts blank).
+  useEffect(() => {
+    const saved = formData.signature?.witnessSignature;
+    if (mode === "sign" && canvasDims.w > 0 && signatureRef.current && saved) {
+      try {
+        signatureRef.current.clear();
+        signatureRef.current.fromDataURL(saved);
+      } catch {
+        /* ignore restore failures */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, canvasDims.w]);
+
   const searchParams = new URLSearchParams(location.search);
   const queryToken = searchParams.get("details");
   const queryClaimId = searchParams.get("claim_id");
@@ -167,12 +182,18 @@ const Step4Signature = () => {
               penColor="black"
               onEnd={() => {
                 if (!signatureRef.current) return;
-                const dataUrl = signatureRef.current
-                  .getTrimmedCanvas()
-                  .toDataURL("image/png");
-                // Only save if the trimmed canvas actually has content (not a blank 1px image)
-                if (dataUrl && dataUrl.length > 100) {
-                  updateStepData("signature", { witnessSignature: dataUrl });
+                // getTrimmedCanvas() throws in this lib (bundled trim-canvas bug),
+                // which silently aborted the save. Use the full canvas instead.
+                try {
+                  if (signatureRef.current.isEmpty()) return;
+                  const dataUrl = signatureRef.current
+                    .getCanvas()
+                    .toDataURL("image/png");
+                  if (dataUrl && dataUrl.length > 100) {
+                    updateStepData("signature", { witnessSignature: dataUrl });
+                  }
+                } catch (err) {
+                  console.error("Failed to capture signature", err);
                 }
               }}
               canvasProps={{

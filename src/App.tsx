@@ -4,8 +4,10 @@ import LoginPage from './modules/Login/login';
 import ClaimListingPage from "./modules/Dashboard/ClaimListingPage";
 import MainLayout from './Layout/layout';
 import { ToastContainer } from 'react-toastify';
+import ReminderWatcher from "./components/Reminders/ReminderWatcher";
 import OTPPage from './modules/Login/OTPPage';
 import AccountSettings from "./modules/Claims/AccountSettings/AccountSettingsPage";
+import TeamsCalendarExample from "./modules/CalendarExamples/TeamsCalendarExample";
 import ForgotPassword from './modules/Login/ForgotPassword';
 import AccountLocked from './modules/Login/AccountLocked';
 import ForgotPassword2 from './modules/Login/ForgotPassword2';
@@ -81,6 +83,7 @@ const AppInner: React.FC = () => {
         <Route path="/case-activity" element={<CaseActivityStream />} />
         <Route path="/document-library" element={<DocumentLibrary />} />
         <Route path="/settings" element={<AccountSettings />} />
+        <Route path="/example1" element={<TeamsCalendarExample />} />
 
         <Route path="/questionnaire/:token" element={<QuestionnaireLayout />}>
           <Route path="step-1" element={<Step1Witness />} />
@@ -104,6 +107,7 @@ const AppInner: React.FC = () => {
           <Route path="/settings" element={<AccountSettings />} />
         </Route>
       </Routes>
+      <ReminderWatcher />
     </>
   );
 };

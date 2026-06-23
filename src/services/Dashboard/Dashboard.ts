@@ -16,6 +16,8 @@ export const getDashboardTrends = (
   status?: string,
   start?: string,
   end?: string,
+  // view: "summary" | "detail" — Claims Trend YoY/MoM drill-down only.
+  view?: string,
 ) =>
   axiosInstance.get("/dashboard/trends", {
     params: {
@@ -25,6 +27,7 @@ export const getDashboardTrends = (
       status: status || undefined,
       start: start || undefined,
       end: end || undefined,
+      view: view || undefined,
     },
   });
 

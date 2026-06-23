@@ -30,6 +30,10 @@ import logout from "../../assets/AutoClaim_icon/logout.svg";
 import Vector4 from "../../assets/AutoClaim_icon/Vector-4.svg";
 import FileIcon from '../../assets/case_activity/file.svg'
 import StatFile from "../../assets/Dashboard/File.svg";
+import Pending from "../../assets/TaskManagement/Pending.svg";
+import Processing from "../../assets/TaskManagement/InProgress.svg";
+import Complete from "../../assets/TaskManagement/Complete.svg";
+
 import StatClock from "../../assets/Dashboard/Clock.svg";
 import StatCritical from "../../assets/Dashboard/Critical.svg";
 import StatUrgent from "../../assets/Dashboard/Urgent.svg";
@@ -47,7 +51,7 @@ import type { TaskFilters } from "../../services/Tasks/Tasks";
 
 const Tasks = lazy(() => import("../TaskManagement/Tasks"));
 const TasksDashboard = lazy(() => import("../TaskManagement/TasksDashboard"));
-const TasksCalendar = lazy(() => import("../TaskManagement/TasksCalendar"));
+const TasksCalendar = lazy(() => import("../CalendarExamples/TeamsCalendarExample"));
 
 type ActivePage = "claims" | "settings" | "tasks" | "dashboard" | "calendar";
 
@@ -58,9 +62,10 @@ const Dashboard: React.FC = () => {
   const { user: authUser } = useCurrentUser();
   const navigate = useNavigate();
 
-  const [activePage, setActivePage] = useState<ActivePage>("claims");
+  const [activePage, setActivePage] = useState<ActivePage>("dashboard");
   const [taskFilter, setTaskFilter] = useState<TaskFilters | undefined>(undefined);
   const [claims, setClaims] = useState<any[]>([]);
+  const [claimsLoading, setClaimsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [multi, setMulti] = useState<{ type: string[]; status: string[]; priority: string[] }>({
     type: [], status: [], priority: [],
@@ -172,6 +177,8 @@ const Dashboard: React.FC = () => {
       } catch (error) {
         console.error("Failed to fetch claims:", error);
         setClaims([]);
+      } finally {
+        setClaimsLoading(false);
       }
     };
 
@@ -344,11 +351,46 @@ const Dashboard: React.FC = () => {
   const highCount = tableRows.filter((c) => (c.priority || "").toLowerCase() === "high").length;
 
   const stats = [
-    { title: "Total Claims", value: totalClaims, icon: StatFile, iconBg: "bg-blue-100", trend: "+8.2%", up: true },
-    { title: "Pending", value: pendingCount, icon: StatClock, iconBg: "bg-red-100", trend: "+12.4%", up: true },
-    { title: "Processing", value: processingCount, icon: StatClock, iconBg: "bg-yellow-100", trend: "-2.2%", up: false },
-    { title: "Approved", value: approvedCount, icon: StatCritical, iconBg: "bg-green-100", trend: "-2.2%", up: false },
-    { title: "High Priority", value: highCount, icon: StatUrgent, iconBg: "bg-red-100", trend: "-2.2%", up: false },
+    {
+      title: "Total Claims",
+      value: totalClaims,
+      icon: StatFile,
+      iconBg: "bg-blue-100",
+      trend: "+8.2%",
+      up: true,
+    },
+    {
+      title: "Pending",
+      value: pendingCount,
+      icon: Pending,
+      iconBg: "bg-red-100",
+      trend: "+12.4%",
+      up: true,
+    },
+    {
+      title: "Processing",
+      value: processingCount,
+      icon: Processing,
+      iconBg: "bg-yellow-100",
+      trend: "-2.2%",
+      up: false,
+    },
+    {
+      title: "Approved",
+      value: approvedCount,
+      icon: Complete,
+      iconBg: "bg-green-100",
+      trend: "-2.2%",
+      up: false,
+    },
+    {
+      title: "High Priority",
+      value: highCount,
+      icon: StatUrgent,
+      iconBg: "bg-red-100",
+      trend: "-2.2%",
+      up: false,
+    },
   ];
 
   const handleSidebarClick = (name: string) => {
@@ -446,6 +488,9 @@ const Dashboard: React.FC = () => {
       <main className="flex-1 flex flex-col overflow-hidden">
         {activePage === "claims" && (
           <>
+            {/* Keep the loader up until claims are fetched so the table doesn't
+                show empty and then pop in a second later. */}
+            {claimsLoading && <SpinnerLoader />}
             <div className="h-20 px-10 py-4 border-b border-neutral-100 flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <h1 className="text-neutral-900 text-2xl font-weight-600 leading-6">
@@ -630,7 +675,7 @@ const Dashboard: React.FC = () => {
 
                     <tbody>
                       {pageRows.length === 0 && (
-                        <tr><td colSpan={selectMode ? 10 : 9} className="px-4 py-10 text-center text-neutral-400 text-sm">No claims found.</td></tr>
+                        <tr><td colSpan={selectMode ? 10 : 9} className="px-4 py-10 text-center text-neutral-400 text-xl">No claims found.</td></tr>
                       )}
                       {pageRows.map((claim, index) => (
                         <tr
@@ -752,7 +797,7 @@ const Dashboard: React.FC = () => {
             )}
             {activePage === "tasks" && <Tasks initialFilters={taskFilter} />}
             {activePage === "dashboard" && <TasksDashboard onOpen={goToTasks} />}
-            {activePage === "calendar" && <TasksCalendar onOpen={goToTasks} />}
+            {activePage === "calendar" && <TasksCalendar />}
           </Suspense>
         )}
       </main>
@@ -835,7 +880,7 @@ const MultiFilterDropdown = ({
         <ChevronDown size={14} />
       </button>
       {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 min-w-[210px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1 max-h-72 overflow-auto">
+        <div className="absolute z-30 top-full mt-1 left-0 w-max min-w-[140px] max-w-[280px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1 max-h-72 overflow-auto">
           {selected.length > 0 && (
             <button type="button" onClick={onClear} className="w-full text-left px-4 py-2 text-xs text-neutral-500 hover:bg-neutral-50 border-b border-neutral-100">
               Clear {label}
@@ -963,22 +1008,22 @@ const StatusBadge = ({ status }: { status: string }) => {
       </span>
     );
   }
-  if (s.includes("complet") || s.includes("settled") || s.includes("approved")) {
+  if (s.includes("complet") || s.includes("settled") || s.includes("approved") || s.includes("accept")) {
     return (
-      <span className="px-2 py-1 bg-green-100 rounded text-lime-700 text-[10px] font-weight-500 font-['Outfit']">
+      <span className="px-2 py-1 bg-[#DDF8D5] rounded text-[#2BAA00] text-[10px] font-weight-500 font-['Outfit']">
         {status}
       </span>
     );
   }
   if (s.includes("process") || s.includes("progress") || s.includes("pending")) {
     return (
-      <span className="px-2 py-1 bg-yellow-100 rounded text-amber-600 text-[10px] font-weight-500 font-['Outfit']">
+      <span className="px-2 py-1 bg-[#FFF6D1] rounded text-[#E69500] text-[10px] font-weight-500 font-['Outfit']">
         {status}
       </span>
     );
   }
   return (
-    <span className="px-2 py-1 bg-blue-100 rounded text-blue-700 text-[10px] font-weight-500 font-['Outfit']">
+    <span className="px-2 py-1 bg-[#FFC3C4] rounded text-[#CA0000] text-[10px] font-weight-500 font-['Outfit']">
       {status || "—"}
     </span>
   );
@@ -988,21 +1033,21 @@ const PriorityBadge = ({ priority }: { priority: string }) => {
   const p = priority?.toLowerCase() || "";
   if (p === "high") {
     return (
-      <span className="px-2 py-1 bg-red-100 rounded text-red-700 text-[10px] font-weight-500 font-['Outfit']">
+      <span className="px-2 py-1 bg-[#FFC3C4] rounded text-[#CA0000] text-[10px] font-weight-500 font-['Outfit']">
         High
       </span>
     );
   }
   if (p === "medium") {
     return (
-      <span className="px-2 py-1 bg-yellow-100 rounded text-amber-600 text-[10px] font-weight-500 font-['Outfit']">
+      <span className="px-2 py-1 bg-[#FFF6D1] rounded text-[#E69500] text-[10px] font-weight-500 font-['Outfit']">
         Medium
       </span>
     );
   }
   if (p === "low") {
     return (
-      <span className="px-2 py-1 bg-green-100 rounded text-lime-700 text-[10px] font-weight-500 font-['Outfit']">
+      <span className="px-2 py-1 bg-[#DDF8D5] rounded text-[#2BAA00] text-[10px] font-weight-500 font-['Outfit']">
         Low
       </span>
     );

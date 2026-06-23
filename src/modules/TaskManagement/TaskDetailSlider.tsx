@@ -110,8 +110,8 @@ const AttachmentsTab = ({ task, onUpdated }: { task: any; onUpdated: (t: any) =>
     const { data } = await updateTask(task.id, { attachment_path: paths.join(",") });
     onUpdated(data);
   };
-  const onUploaded = async (path: string) => {
-    try { await save([...files, path]); } catch { toast.error("Failed to attach file"); }
+  const onUploaded = async (uploaded: { path: string; filename: string }[]) => {
+    try { await save([...files, ...uploaded.map((u) => u.path)]); } catch { toast.error("Failed to attach file"); }
   };
   const confirmRemove = async () => {
     if (!removeTarget) return;

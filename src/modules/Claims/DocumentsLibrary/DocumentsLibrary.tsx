@@ -112,27 +112,30 @@ const getPaginationPages = () => {
 
   return [1, 2, 3, 4, 5, 6, 7, 8, "dots", totalPages];
 };
+  const scope = searchParams.get("scope");
   const loadDocuments = async () => {
-    if (!claimId) return;
+    const isAll = scope === "all";
+    // The "all documents" view has no claim_id; only the claim-scoped view needs one.
+    if (!isAll && !claimId) return;
     try {
       setIsPageLoading(true)
-      const data =
-        new URLSearchParams(window.location.search).get("scope") === "all"
-          ? await getAllDocumentLibrary()
-          : await getDocumentLibrary(claimId);
+      const data = isAll
+        ? await getAllDocumentLibrary()
+        : await getDocumentLibrary(claimId);
       setDocuments(data || []);
     } catch (e) {
       console.error(e);
     }
     finally {
       setIsPageLoading(false)
-      
+
     }
   };
 
   useEffect(() => {
     loadDocuments();
-  }, [claimId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claimId, scope]);
 
 const getDocumentTab = (doc: any) => {
   const category = doc.category?.toLowerCase();

@@ -60,14 +60,22 @@ export const createCalendarEvent = (payload: Partial<CalendarEvent>) =>
 export const updateCalendarEvent = (id: number, payload: Partial<CalendarEvent>) =>
   axiosInstance.put<CalendarEvent>(`/calendar-events/${id}`, payload);
 
-export const completeCalendarEvent = (id: number) =>
-  axiosInstance.post<CalendarEvent>(`/calendar-events/${id}/complete`);
+// occurrenceDate (YYYY-MM-DD) targets a single occurrence of a recurring series;
+// omit it to act on a one-off event or the whole series base.
+export const completeCalendarEvent = (id: number, occurrenceDate?: string | null) =>
+  axiosInstance.post<CalendarEvent>(`/calendar-events/${id}/complete`, null, {
+    params: occurrenceDate ? { occurrence_date: occurrenceDate } : undefined,
+  });
 
-export const cancelCalendarEvent = (id: number) =>
-  axiosInstance.post<CalendarEvent>(`/calendar-events/${id}/cancel`);
+export const cancelCalendarEvent = (id: number, occurrenceDate?: string | null) =>
+  axiosInstance.post<CalendarEvent>(`/calendar-events/${id}/cancel`, null, {
+    params: occurrenceDate ? { occurrence_date: occurrenceDate } : undefined,
+  });
 
-export const deleteCalendarEvent = (id: number) =>
-  axiosInstance.delete(`/calendar-events/${id}`);
+export const deleteCalendarEvent = (id: number, occurrenceDate?: string | null) =>
+  axiosInstance.delete(`/calendar-events/${id}`, {
+    params: occurrenceDate ? { occurrence_date: occurrenceDate } : undefined,
+  });
 
 export interface EventAudit {
   id: number;

@@ -358,10 +358,10 @@ function Claims() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={9} className="px-4 py-10 text-center text-neutral-400 text-sm">Loading claims…</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-neutral-400 text-xl">Loading claims…</td></tr>
               )}
               {!loading && pageClaims.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-10 text-center text-neutral-400 text-sm">No claims found.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-neutral-400 text-xl">No claims found.</td></tr>
               )}
               {!loading && pageClaims.map((c) => (
                 <tr

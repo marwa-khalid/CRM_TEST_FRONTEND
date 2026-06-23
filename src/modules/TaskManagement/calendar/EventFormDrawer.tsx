@@ -9,7 +9,7 @@ import {
   type CalendarEvent,
 } from "../../../services/CalendarEvents/CalendarEvents";
 import { getClaims } from "../../../services/Claims/Claims";
-import { getAttachmentUrl } from "../../../services/Tasks/Tasks";
+import { getAttachmentUrl, getVehicleOptions } from "../../../services/Tasks/Tasks";
 import { useAssignees } from "../useAssignees";
 import {
   EVENT_TYPES, DEPARTMENTS, REMINDER_OPTIONS, RECURRENCE_OPTIONS, EVENT_STATUSES,
@@ -115,10 +115,15 @@ const EventFormDrawer = ({
   const [form, setForm] = useState<any>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [claims, setClaims] = useState<{ id: number; ref: string }[]>([]);
+  const [vehicleRegs, setVehicleRegs] = useState<string[]>([]);
   const [attachmentOpen, setAttachmentOpen] = useState(false);
   const assignees = useAssignees();
 
   useEffect(() => {
+    // Vehicle reg options = client vehicles + hire-provided vehicles + task regs.
+    getVehicleOptions()
+      .then(({ data }) => setVehicleRegs(Array.isArray(data) ? data : []))
+      .catch(() => {});
     getClaims()
       .then((res: any) => {
         const arr = Array.isArray(res) ? res : res?.data ?? res?.items ?? [];
@@ -261,9 +266,15 @@ const EventFormDrawer = ({
                 value={REMINDER_OPTIONS.filter((r) =>
                   String(form.reminder || "").split(",").map((s) => s.trim()).includes(r.value)
                 )}
-                onChange={(opts: any) =>
-                  set("reminder", (opts || []).map((o: any) => o.value).join(","))
-                }
+                onChange={(opts: any) => {
+                  const vals = (opts || []).map((o: any) => o.value);
+                  // "Don't remind me" is exclusive: picking it clears the rest, and
+                  // picking a real reminder clears it.
+                  const next = vals.includes("none")
+                    ? (vals[vals.length - 1] === "none" ? ["none"] : vals.filter((v: string) => v !== "none"))
+                    : vals;
+                  set("reminder", next.join(","));
+                }}
                 styles={{
                   ...formStyles,
                   control: (b: any, s: any) => ({
@@ -276,6 +287,7 @@ const EventFormDrawer = ({
                 components={rsComponents}
                 menuPortalTarget={rsPortal}
                 isSearchable={false}
+                isClearable={false}
                 placeholder="No reminder"
               />
             </Field>
@@ -302,7 +314,18 @@ const EventFormDrawer = ({
           </Field>
 
           <Field label="Vehicle Registration">
-            <input className={inputCls} value={form.vehicle_registration} onChange={(e) => set("vehicle_registration", e.target.value)} placeholder="e.g. AB12 CDE" />
+            <CreatableSelect
+              options={vehicleRegs.map((r) => ({ label: r, value: r }))}
+              value={form.vehicle_registration ? { label: form.vehicle_registration, value: form.vehicle_registration } : null}
+              onChange={(o: any) => set("vehicle_registration", o?.value || "")}
+              onCreateOption={(input: string) => set("vehicle_registration", input.trim())}
+              styles={formStyles}
+              components={rsComponents}
+              menuPortalTarget={rsPortal}
+              isSearchable
+              placeholder="Select or add registration"
+              formatCreateLabel={(input: string) => `Add "${input}"`}
+            />
           </Field>
 
           <Field label="Description">
@@ -345,7 +368,7 @@ const EventFormDrawer = ({
                   className="w-full border border-dashed border-neutral-300 rounded-lg p-8 flex flex-col items-center gap-2 cursor-pointer hover:border-blue-400">
                   <UploadCloud size={28} className="text-blue-400" />
                   <span className="text-neutral-700 text-[14px] font-weight-600">{files.length ? "Add More Attachments" : "Add Attachment"}</span>
-                  <span className="text-neutral-400 text-xs">JPG, PNG, PDF, CSV Supported</span>
+                  <span className="text-neutral-400 text-xs">JPG, PNG, PDF, CSV, Excel, Word, PPT Supported</span>
                 </button>
               </div>
               );

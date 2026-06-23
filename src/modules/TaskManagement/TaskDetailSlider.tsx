@@ -115,7 +115,7 @@ const AttachmentsTab = ({ task, onUpdated }: { task: any; onUpdated: (t: any) =>
   };
   const confirmRemove = async () => {
     if (!removeTarget) return;
-    try { await save(files.filter((x) => x !== removeTarget)); toast.success("Attachment removed"); }
+    try { await save(files.filter((x) => x !== removeTarget)); toast.success("Attachment Deleted"); }
     catch { toast.error("Failed"); }
     finally { setRemoveTarget(null); }
   };
@@ -146,7 +146,7 @@ const AttachmentsTab = ({ task, onUpdated }: { task: any; onUpdated: (t: any) =>
               Click to upload or drag and drop
             </span>
             <span className="text-neutral-500 text-xs">
-              JPG, PNG, PDF, CSV Supported
+              JPG, PNG, PDF, CSV, Excel, Word, PPT Supported
             </span>
           </div>
         </button>

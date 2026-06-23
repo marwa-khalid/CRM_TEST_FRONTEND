@@ -24,6 +24,7 @@ export const DEPARTMENTS = [
 ];
 
 export const REMINDER_OPTIONS = [
+  { value: "none", label: "Don't remind me" },
   { value: "15m", label: "15 minutes before" },
   { value: "30m", label: "30 minutes before" },
   { value: "1h", label: "1 hour before" },

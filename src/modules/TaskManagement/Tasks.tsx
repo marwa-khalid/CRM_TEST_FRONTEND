@@ -753,7 +753,7 @@ export const AddTaskDrawer = ({
                     {files.length ? "Add More Attachments" : "Add Attachment"}
                   </span>
                   <span className="text-neutral-400 text-xs">
-                    JPG, PNG, PDF, CSV Supported
+                    JPG, PNG, PDF, CSV, Excel, Word, PPT Supported
                   </span>
                 </button>
               </div>

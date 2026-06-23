@@ -90,18 +90,21 @@ const AttachmentsTab = ({
 
   const save = async (paths: string[]) => {
     const { data } = await updateCalendarEvent(ev.id, {
+      // title is required by the shared create/update schema — send it so the
+      // attachment-only PUT validates.
+      title: ev.title,
       attachment_path: paths.join(","),
       attachment_name: paths.length ? baseName(paths[0]) : null,
     });
     onUpdated(data);
   };
   const onUploaded = async (uploaded: { path: string; filename: string }[]) => {
-    try { await save([...files, ...uploaded.map((u) => u.path)]); toast.success("Attachment added"); }
+    try { await save([...files, ...uploaded.map((u) => u.path)]); toast.success("Attachment Added"); }
     catch { toast.error("Failed to attach file"); }
   };
   const confirmRemove = async () => {
     if (!removeTarget) return;
-    try { await save(files.filter((x) => x !== removeTarget)); toast.success("Attachment removed"); }
+    try { await save(files.filter((x) => x !== removeTarget)); toast.success("Attachment Deleted"); }
     catch { toast.error("Failed"); }
     finally { setRemoveTarget(null); }
   };
@@ -125,7 +128,7 @@ const AttachmentsTab = ({
           <img src={upload} alt="" />
           <div className="flex flex-col items-center gap-1">
             <span className="text-blue-500 text-sm font-weight-500">Click to upload or drag and drop</span>
-            <span className="text-neutral-500 text-xs">JPG, PNG, PDF, CSV Supported</span>
+            <span className="text-neutral-500 text-xs">JPG, PNG, PDF, CSV, Excel, Word, PPT Supported</span>
           </div>
         </button>
       </div>
@@ -149,9 +152,9 @@ const AttachmentsTab = ({
       </div>
       {removeTarget && (
         <ConfirmModal
-          title="Remove Attachment"
-          message="Are you sure you want to remove this attachment?"
-          confirmLabel="Remove"
+          title="Delete Attachment"
+          message="Are you sure you want to delete this attachment?"
+          confirmLabel="Delete"
           onCancel={() => setRemoveTarget(null)}
           onConfirm={confirmRemove}
         />
@@ -169,14 +172,29 @@ const LinkedTab = ({ ev, onViewRecord }: { ev: CalendarEvent; onViewRecord: () =
   return (
     <div className="flex flex-col gap-6">
       <div className="flex gap-6">
-        <Field label="Claim Reference">{claimRef}</Field>
+        <Field label="Claim Reference">
+          {claimRef ? (
+            ev.claim_id ? (
+              <button
+                type="button"
+                onClick={onViewRecord}
+                className="text-blue-500 hover:underline text-left"
+                title="Open claim record"
+              >
+                {claimRef}
+              </button>
+            ) : (
+              claimRef
+            )
+          ) : undefined}
+        </Field>
         <Field label="Case Status">{ev.case_status}</Field>
       </div>
       <div className="flex gap-6">
         <Field label="Vehicle Registration">{ev.vehicle_registration}</Field>
         <Field label="Task">{ev.task_id ? `#${ev.task_id}` : undefined}</Field>
       </div>
-      {ev.claim_id && (
+      {/* {ev.claim_id && (
         <button
           type="button"
           onClick={onViewRecord}
@@ -184,7 +202,7 @@ const LinkedTab = ({ ev, onViewRecord }: { ev: CalendarEvent; onViewRecord: () =
         >
           View Claim Record
         </button>
-      )}
+      )} */}
     </div>
   );
 };
@@ -362,7 +380,12 @@ const EventDetailsDrawer = ({
             <LinkedTab ev={viewEv} onViewRecord={viewRecord} />
           )}
           {ev && tab === "Attachments" && (
-            <AttachmentsTab ev={ev} onUpdated={(u) => { setEv(u); onChanged(); }} />
+            <AttachmentsTab ev={ev} onUpdated={(u) => {
+              setEv(u);
+              onChanged();
+              // Refresh the audit so the attachment entry shows in Activity Log.
+              getCalendarEventAudit(u.id).then(({ data }) => setAudit(Array.isArray(data) ? data : [])).catch(() => {});
+            }} />
           )}
           {viewEv && tab === "Activity Log" && (
             <ActivityTab ev={viewEv} audit={audit} />
@@ -428,7 +451,7 @@ const EventDetailsDrawer = ({
           message={
             recurring
               ? `This removes only the ${occDate ? fmtLong(occDate) + " " : ""}occurrence. The rest of the recurring series stays unchanged.`
-              : "Are you sure you want to delete this event? This action cannot be undone."
+              : "Are you sure you want to delete this event?"
           }
           confirmLabel="Delete"
           onCancel={() => setConfirmDelete(false)}

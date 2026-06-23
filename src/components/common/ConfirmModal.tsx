@@ -16,7 +16,7 @@ export const ConfirmModal = ({
   onCancel,
 }: ConfirmModalProps) => (
   <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 font-['Stack_Sans_Headline']">
-    <div className="w-[400px] p-6 bg-white rounded-lg flex flex-col gap-6">
+    <div className="w-[420px] p-6 bg-white rounded-lg flex flex-col gap-6">
       <span className="text-black text-xl font-weight-600 leading-5">{title}</span>
       <p className="text-neutral-700 text-base font-normal">{message}</p>
       <div className="pt-10 flex justify-end items-center gap-4">

@@ -780,7 +780,7 @@ const TrendFilter = ({
 
 // ─── period tabs ─────────────────────────────────────────────────────────────────
 
-const PeriodTabs = ({ active, onChange }: { active: string; onChange: (p: string) => void }) => (
+const PeriodTabs = ({ active, onChange, hideCustom = false }: { active: string; onChange: (p: string) => void; hideCustom?: boolean }) => (
   <div className="inline-flex items-center gap-2 font-['Stack_Sans_Headline']">
     {/* WTD / MTD / YTD grouped in one outlined pill */}
     <div className="rounded outline outline-1 outline-offset-[-1px] outline-blue-200 flex items-center gap-1">
@@ -798,22 +798,24 @@ const PeriodTabs = ({ active, onChange }: { active: string; onChange: (p: string
       ))}
     </div>
     {/* Custom as its own outlined box with a calendar icon */}
-    <button
-      type="button"
-      onClick={() => onChange("Custom")}
-      className={`px-3 py-2 rounded outline outline-1 outline-offset-[-1px] outline-blue-200 flex items-center gap-2 text-sm leading-4 ${
-        active === "Custom" ? "bg-blue-300 text-white" : "text-blue-500"
-      }`}
-    >
-      <img
-        src={Vector6}
-        alt=""
-        className="w-3.5 h-3.5"
-        // Invert to white when the button is active (blue bg) so the icon stays visible.
-        style={active === "Custom" ? { filter: "brightness(0) invert(1)" } : undefined}
-      />
-      Custom
-    </button>
+    {!hideCustom && (
+      <button
+        type="button"
+        onClick={() => onChange("Custom")}
+        className={`px-3 py-2 rounded outline outline-1 outline-offset-[-1px] outline-blue-200 flex items-center gap-2 text-sm leading-4 ${
+          active === "Custom" ? "bg-blue-300 text-white" : "text-blue-500"
+        }`}
+      >
+        <img
+          src={Vector6}
+          alt=""
+          className="w-3.5 h-3.5"
+          // Invert to white when the button is active (blue bg) so the icon stays visible.
+          style={active === "Custom" ? { filter: "brightness(0) invert(1)" } : undefined}
+        />
+        Custom
+      </button>
+    )}
   </div>
 );
 
@@ -1136,6 +1138,19 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
 
   const open = (f: TaskFilters) => onOpen?.(f);
 
+  // The top period tabs are GLOBAL: picking WTD/MTD/YTD here drives every chart on
+  // the dashboard, overriding any per-chart selection and clearing YoY/MoM modes.
+  const applyGlobalPeriod = (p: string) => {
+    setPeriod(p);
+    setIncomePeriod(p);
+    setTrendPeriod(p); setTrendMode(""); setTrendExpanded(false);
+    setHirePeriod(p); setHireMode(""); setHireExpanded(false);
+    // Collection & Debtors have no WTD bucket — use MTD as the narrowest period.
+    const narrowed = (p === "WTD" ? "MTD" : p) as "MTD" | "YTD" | "All Time";
+    setCollPeriod(narrowed);
+    setDebtorsPeriod(narrowed);
+  };
+
   // value helpers off the real aggregates (fallback "—" until loaded)
   const statValue = (c: any) => {
     const v = dash?.stats?.[c.key];
@@ -1262,8 +1277,8 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
       </div>
 
       <section className="px-10 py-6 flex-1 overflow-auto font-['Stack_Sans_Headline'] flex flex-col gap-8">
-        {/* Period tabs */}
-        <PeriodTabs active={period} onChange={setPeriod} />
+        {/* Global period tabs — cascade WTD/MTD/YTD to every chart below. */}
+        <PeriodTabs active={period} onChange={applyGlobalPeriod} hideCustom />
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">

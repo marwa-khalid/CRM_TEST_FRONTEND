@@ -15,13 +15,12 @@ const POLL_MS = 60_000;       // re-check every minute
 const CATCHUP_MS = 90_000;    // only fire if the reminder became due within this window
 
 // Offsets to remind at for an event: the ones the user selected (comma-separated,
-// may be multiple), or all four defaults if they didn't pick any.
+// may be multiple), or all four defaults if they didn't pick any. "none" means the
+// user chose "Don't remind me" — auto reminders are turned off entirely.
 const offsetsFor = (e: CalendarEvent): number[] => {
-  const sel = String(e.reminder || "")
-    .split(",")
-    .map((s) => s.trim())
-    .map((k) => REMINDER_MIN[k])
-    .filter((n): n is number => !!n);
+  const raw = String(e.reminder || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (raw.includes("none")) return [];
+  const sel = raw.map((k) => REMINDER_MIN[k]).filter((n): n is number => !!n);
   return sel.length ? sel : OFFSETS;
 };
 

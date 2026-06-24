@@ -171,6 +171,26 @@ const niceMax = (max: number) => {
   return Math.ceil(max / pow) * pow || 1;
 };
 
+// Evenly-spaced Y-axis ticks (equal intervals, no rounding gaps like 0,1,3,4,5).
+// integer=true → counts: the smallest whole-number step that fits, so a max of 9
+// tops out at 12 (step 3), not 20. integer=false → money: a "nice" 1/2/2.5/5×10ⁿ
+// step so ticks read as round currency values.
+const niceAxis = (rawMax: number, steps = 4, integer = false) => {
+  const safe = Math.max(integer ? 1 : 1e-6, rawMax);
+  let step: number;
+  if (integer) {
+    step = Math.max(1, Math.ceil(safe / steps)); // tight equal integer intervals
+  } else {
+    const rough = safe / steps;
+    const pow = Math.pow(10, Math.floor(Math.log10(rough)));
+    const frac = rough / pow;
+    step = (frac <= 1 ? 1 : frac <= 2 ? 2 : frac <= 2.5 ? 2.5 : frac <= 5 ? 5 : 10) * pow;
+  }
+  const max = step * steps;
+  const ticks = Array.from({ length: steps + 1 }, (_, i) => (integer ? Math.round(step * i) : step * i));
+  return { max, ticks };
+};
+
 // Cardinal-spline (smooth) path through the points, in a 0..100 coordinate box.
 const cardinalPath = (pts: { x: number; y: number }[]) => {
   if (pts.length < 2) return pts.length ? `M ${pts[0].x},${pts[0].y}` : "";
@@ -190,9 +210,7 @@ type SeriesLabels = { current: string; previous: string };
 
 const LineChart: React.FC<{ points: Pt[]; compare?: Pt[]; labels?: SeriesLabels }> = ({ points, compare, labels }) => {
   const [hover, setHover] = useState<number | null>(null);
-  const max = niceMax(Math.max(5, ...points.map((p) => p.value), ...(compare?.map((p) => p.value) || [])));
-  const STEPS = 6;
-  const ticks = Array.from({ length: STEPS + 1 }, (_, i) => Math.round((max / STEPS) * i));
+  const { max, ticks } = niceAxis(Math.max(5, ...points.map((p) => p.value), ...(compare?.map((p) => p.value) || [])), 6);
   const n = Math.max(1, points.length - 1);
   const X = (i: number) => (i / n) * 100;
   const Y = (v: number) => 100 - (v / max) * 100;
@@ -274,13 +292,37 @@ const PctBadge: React.FC<{ cur: number; prev: number; label?: string }> = ({ cur
   const up = cur >= prev;
   return (
     <span className="flex items-center gap-1.5 mt-0.5">
-      <span className={`text-[11px] font-weight-700 px-1.5 py-0.5 rounded ${up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
-        {up ? "+" : ""}{pct}%
+      <span className={`flex items-center gap-1 text-[11px] font-weight-700 px-1.5 py-0.5 rounded ${up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
+        {/* Arrow (matches the KPI cards) instead of a +/- sign. */}
+        <img src={up ? TrendingUp : TrendingDown} alt="" className="w-3 h-3" />
+        {Math.abs(pct)}%
       </span>
       {label && <span className="text-neutral-400">{label}</span>}
     </span>
   );
 };
+
+// WTD covers the working week (Mon–Fri). Small DD-MM-YY caption shown under the
+// chart, e.g. "23-06-26 to 27-06-26".
+const wtdRangeLabel = (): string => {
+  const fmt = (d: Date) =>
+    `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(-2)}`;
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); // back to Monday
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  return `${fmt(monday)} to ${fmt(friday)}`;
+};
+
+// "Total number" pill (soft blue) for WTD/MTD/YTD — sits at the right of the
+// trend filters row.
+const TrendTotalCard: React.FC<{ value: number; period: string }> = ({ value, period }) => (
+  <div className="flex items-center gap-1.5 bg-blue-50 rounded-full px-3.5 py-2 shrink-0">
+    <span className="text-blue-500 text-base font-weight-700 leading-none">{fmtNum(value)}</span>
+    <span className="text-blue-300 text-[11px] font-weight-600">{period}</span>
+  </div>
+);
 
 // Prettier line chart used ONLY for the Claims Trend: gradient area fill under a
 // smooth line, hollow markers, and a clean white tooltip (instead of black).
@@ -288,9 +330,7 @@ const ClaimsTrendChart: React.FC<{ points: Pt[]; compare?: Pt[]; labels?: Series
   const [hover, setHover] = useState<number | null>(null);
   // Which series' dot is hovered, so only one tooltip (at that dot) shows.
   const [hoverPrev, setHoverPrev] = useState(false);
-  const max = niceMax(Math.max(5, ...points.map((p) => p.value), ...(compare?.map((p) => p.value) || [])));
-  const STEPS = 4;
-  const ticks = Array.from({ length: STEPS + 1 }, (_, i) => Math.round((max / STEPS) * i));
+  const { max, ticks } = niceAxis(Math.max(0, ...points.map((p) => p.value), ...(compare?.map((p) => p.value) || [])), 4, true);
   const n = Math.max(1, points.length - 1);
   const X = (i: number) => (i / n) * 100;
   const Y = (v: number) => 100 - (v / max) * 100;
@@ -437,8 +477,10 @@ const KpiCompare: React.FC<{ points: Pt[]; unit: string }> = ({ points, unit }) 
       <div className="flex-1 rounded-xl border-2 border-blue-200 bg-blue-50/50 p-6">
         <div className="flex items-center justify-between mb-4">
           <span className="text-blue-600 text-sm font-weight-600">{b.label}</span>
-          <span className={`text-xs font-weight-600 px-2 py-0.5 rounded-full ${up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
-            {up ? "▲" : "▼"} {Math.abs(delta)}%
+          <span className={`flex items-center gap-1 text-xs font-weight-600 px-2 py-0.5 rounded-full ${up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
+            {/* Same trending arrow as the KPI cards. */}
+            <img src={up ? TrendingUp : TrendingDown} alt="" className="w-3 h-3" />
+            {Math.abs(delta)}%
           </span>
         </div>
         <div className="text-blue-600 text-[44px] font-weight-700 leading-none">{b.value}</div>
@@ -470,9 +512,7 @@ const BarChart: React.FC<{
   const n = Math.max(1, points.length);
   const barW = n <= 2 ? 96 : n <= 4 ? 64 : n <= 7 ? 36 : 24;
   const cmpW = Math.round(barW * 0.5);
-  const max = niceMax(Math.max(5, ...points.map((p) => p.value), ...(compare?.map((p) => p.value) || [])));
-  const STEPS = 6;
-  const ticks = Array.from({ length: STEPS + 1 }, (_, i) => Math.round((max / STEPS) * i));
+  const { max, ticks } = niceAxis(Math.max(0, ...points.map((p) => p.value), ...(compare?.map((p) => p.value) || [])), 4, true);
   const Y = (v: number) => 100 - (v / max) * 100;
   const H = 224;
   return (
@@ -487,11 +527,12 @@ const BarChart: React.FC<{
           {ticks.map((t, i) => (
             <div key={i} className="absolute left-0 right-0 border-t border-dashed border-neutral-200" style={{ top: `${Y(t)}%` }} />
           ))}
-          <div className="absolute inset-0 flex items-end gap-3 px-2">
+          <div className={`absolute inset-0 flex items-end px-2 ${n <= 2 ? "justify-center gap-8" : "gap-3"}`}>
             {points.map((p, i) => (
               <div
                 key={i}
-                className="flex-1 h-full flex items-end justify-center relative"
+                className={`${n <= 2 ? "flex-none" : "flex-1"} h-full flex items-end justify-center relative`}
+                style={n <= 2 ? { width: barW } : undefined}
                 onMouseEnter={() => setHover(i)}
                 onMouseLeave={() => setHover(null)}
               >
@@ -549,8 +590,10 @@ const BarChart: React.FC<{
       </div>
       <div className="flex mt-2">
         <div className="w-11 shrink-0" />
-        <div className="flex-1 flex gap-3 px-2 text-[11px] text-neutral-400">
-          {points.map((p, i) => <span key={i} className="flex-1 text-center">{p.label}</span>)}
+        <div className={`flex-1 flex px-2 text-[11px] text-neutral-400 ${n <= 2 ? "justify-center gap-8" : "gap-3"}`}>
+          {points.map((p, i) => (
+            <span key={i} className={`${n <= 2 ? "flex-none" : "flex-1"} text-center`} style={n <= 2 ? { width: barW } : undefined}>{p.label}</span>
+          ))}
         </div>
       </div>
     </div>
@@ -1225,7 +1268,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   }, []);
   const debtorsAge = dash?.debtors_age || [];
   // Aging dropdown narrows to a single bucket (or all). Buckets come from the
-  // backend as "0-30 Days" / "30-60 Days" / "60-90 Days" / "90+ Days".
+  // backend as "0-30 Days" / "31-60 Days" / "61-90 Days" / "90+ Days".
   const shownDebtors = debtorsAging === "Aging"
     ? debtorsAge
     : debtorsAge.filter((r: any) => (r.label || "").startsWith(debtorsAging));
@@ -1555,6 +1598,12 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 {trendExpanded ? <Minimize2 size={16} /> : <LayoutGrid size={16} />}
               </button>
             )}
+            {/* WTD/MTD/YTD → total pill, right-aligned in the filters row. */}
+            {!trendMode && trendPeriod !== "Custom" && (
+              <div className="ml-auto">
+                <TrendTotalCard value={claimsTrend.reduce((s, p) => s + p.value, 0)} period={trendPeriod} />
+              </div>
+            )}
           </div>
           {(() => {
             const isSummary = trendMode && !trendExpanded;            // YoY/MoM overall
@@ -1578,6 +1627,9 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 />
                 {!trendMode && trendPeriod === "YTD" && (
                   <div className="text-center text-[12px] text-neutral-400 mt-1">{new Date().getFullYear()}</div>
+                )}
+                {!trendMode && trendPeriod === "WTD" && (
+                  <div className="text-center text-[12px] text-neutral-400 mt-1">{wtdRangeLabel()}</div>
                 )}
                 <TrendLegend labels={claimsTrendPrev.length ? trendLabels : undefined} prevColor="#a2cfff" curColor="#0352FD" />
               </>
@@ -1622,23 +1674,44 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
             </div>
             <TrendFilter label="Referrer" value={hireRef} options={trendOptions.referrers} onChange={setHireRef} />
             <TrendFilter label="Status" value={hireStatus} options={["On Hire", "Off Hire"]} onChange={setHireStatus} />
-            {/* Expand a YoY/MoM summary (2 points) into the quarter / week comparison. */}
-            {hireMode && (
-              <button
-                type="button"
-                onClick={() => setHireExpanded((e) => !e)}
-                title={
-                  hireExpanded
-                    ? "Show overall totals"
-                    : hireMode === "YoY"
-                    ? "Compare quarters (this FY vs last FY)"
-                    : "Compare weeks (this month vs last month)"
+            {/* Right side of the filters row: total pill (WTD/MTD/YTD) or change
+                badge (YoY/MoM/Custom), plus the expand toggle. */}
+            <div className="ml-auto flex items-center gap-3">
+              {(() => {
+                const isSummary = hireMode && !hireExpanded;
+                const isCustom = !hireMode && hirePeriod === "Custom";
+                if (isSummary && hireTrend.length === 2) {
+                  const cmpLabel = hireMode === "MoM" ? "from last month" : "from last year";
+                  return <PctBadge cur={hireTrend[1].value} prev={hireTrend[0].value} label={cmpLabel} />;
                 }
-                className="ml-auto flex items-center justify-center w-9 h-9 rounded outline outline-1 outline-offset-[-1px] outline-blue-200 text-blue-500 hover:bg-blue-50"
-              >
-                {hireExpanded ? <Minimize2 size={16} /> : <LayoutGrid size={16} />}
-              </button>
-            )}
+                if (isCustom) {
+                  const prevV = hireTrendPrev.reduce((s, p) => s + p.value, 0);
+                  const curV = hireTrend.reduce((s, p) => s + p.value, 0);
+                  return <PctBadge cur={curV} prev={prevV} label={`from ${hireLabels?.previous || "previous"}`} />;
+                }
+                if (!hireMode && hirePeriod !== "Custom") {
+                  return <TrendTotalCard value={hireTrend.reduce((s, p) => s + p.value, 0)} period={hirePeriod} />;
+                }
+                return null;
+              })()}
+              {/* Expand a YoY/MoM summary (2 points) into the quarter / week comparison. */}
+              {hireMode && (
+                <button
+                  type="button"
+                  onClick={() => setHireExpanded((e) => !e)}
+                  title={
+                    hireExpanded
+                      ? "Show overall totals"
+                      : hireMode === "YoY"
+                      ? "Compare quarters (this FY vs last FY)"
+                      : "Compare weeks (this month vs last month)"
+                  }
+                  className="flex items-center justify-center w-9 h-9 rounded outline outline-1 outline-offset-[-1px] outline-blue-200 text-blue-500 hover:bg-blue-50"
+                >
+                  {hireExpanded ? <Minimize2 size={16} /> : <LayoutGrid size={16} />}
+                </button>
+              )}
+            </div>
           </div>
           {(() => {
             const isSummary = hireMode && !hireExpanded;             // YoY/MoM overall
@@ -1664,14 +1737,12 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                   barColors={overall ? ["#a2cfff", "#0352FD"] : undefined}
                   comparisonLabel={cmpLabel}
                 />
-                {/* Overall (summary / custom) shows the same increase/decrease badge as a comparison. */}
-                {overall && pts.length === 2 && (
-                  <div className="flex justify-center mt-3">
-                    <PctBadge cur={pts[1].value} prev={pts[0].value} label={cmpLabel} />
-                  </div>
-                )}
+                {/* The overall increase/decrease badge now sits top-right of the card. */}
                 {!hireMode && hirePeriod === "YTD" && (
                   <div className="text-center text-[12px] text-neutral-400 mt-1">{new Date().getFullYear()}</div>
+                )}
+                {!hireMode && hirePeriod === "WTD" && (
+                  <div className="text-center text-[12px] text-neutral-400 mt-1">{wtdRangeLabel()}</div>
                 )}
                 <TrendLegend labels={cmp.length ? hireLabels : undefined} prevColor="#a2cfff" curColor="#0352FD" />
               </>
@@ -1705,7 +1776,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 </div>
                 <MiniDropdown
                   value={debtorsAging}
-                  options={["Aging", "0-30 Days", "30-60 Days", "60-90 Days", "90+ Days"]}
+                  options={["Aging", "0-30 Days", "31-60 Days", "61-90 Days", "90+ Days"]}
                   onChange={setDebtorsAging}
                 />
                 <MiniDropdown

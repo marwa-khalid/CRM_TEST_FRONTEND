@@ -319,15 +319,10 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
 
   const divider = <div className="self-stretch h-px bg-neutral-100" />;
 
-  // Notify the manager that the amount received is less than the actual payable amount
-  // Write off the outstanding (excl. VAT) amount — records it for the email + save
+  // Write Off resets to 0; the Payment Outstanding (Excl. VAT) keeps its value.
   const handleWriteOff = () => {
-    const outstandingExcl =
-      formik.values.payment_outstanding_excl_vat !== ""
-        ? toF(formik.values.payment_outstanding_excl_vat)
-        : outstandingExclAuto;
-    formik.setFieldValue("write_off_amount", fmt(round2(outstandingExcl)));
-    toast.success("Outstanding (Excl. VAT) written off");
+    formik.setFieldValue("write_off_amount", "0.00");
+    toast.success("Write off set to 0");
   };
 
   const handleNotifyManager = async () => {

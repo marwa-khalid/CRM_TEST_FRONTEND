@@ -8,12 +8,18 @@ import Processing from "../../assets/AutoClaim_icon/Processing.svg";
 import PDF from "../../assets/FileTypes/PDF.svg";
 import PNG from "../../assets/FileTypes/PNG.svg";
 import CSV from "../../assets/FileTypes/CSV.svg";
+import DOC from "../../assets/FileTypes/DOC.svg";
+import PPT from "../../assets/FileTypes/PPT.svg";
+import Excel from "../../assets/FileTypes/Excel.svg";
 
 // Map a file name / path to one of the available file-type logos (used by the
 // drawer to show the attached file after upload).
 export const fileLogo = (nameOrPath?: string | null): string => {
   const ext = (nameOrPath || "").split(".").pop()?.toLowerCase() || "";
-  if (["csv", "xls", "xlsx"].includes(ext)) return CSV;
+  if (["xls", "xlsx"].includes(ext)) return Excel;
+  if (ext === "csv") return CSV;
+  if (["doc", "docx"].includes(ext)) return DOC;
+  if (["ppt", "pptx"].includes(ext)) return PPT;
   if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return PNG;
   return PDF; // pdf + everything else
 };

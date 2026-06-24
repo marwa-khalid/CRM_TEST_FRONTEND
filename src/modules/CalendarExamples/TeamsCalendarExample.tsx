@@ -11,6 +11,7 @@ import EventDetailsDrawer from "../TaskManagement/calendar/EventDetailsDrawer";
 import DateField from "../TaskManagement/calendar/DateField";
 import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDetailsForm";
 import { SpinnerLoader } from "../../components/common/SpinnerLoader";
+import NotificationBell from "../../components/Notifications/NotificationBell";
 import { getClaims } from "../../services/Claims/Claims";
 import { getVehicleOptions } from "../../services/Tasks/Tasks";
 import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
@@ -52,6 +53,49 @@ const evMinutes = (t?: string | null) => {
   return h * 60 + (m || 0);
 };
 const mondayOf = (d: Date) => { const s = new Date(d); s.setDate(d.getDate() - ((d.getDay() + 6) % 7)); s.setHours(0, 0, 0, 0); return s; };
+
+// Side-by-side layout for a single day column's timed events. Events that
+// overlap in time are split into vertical columns (like Outlook/Google) instead
+// of stacking on top of each other. Returns each event with its start/end (mins)
+// plus { col, cols } so the renderer can compute left%/width%.
+type LaidOut = { e: CalendarEvent; start: number; end: number; col: number; cols: number };
+const layoutDayEvents = (dayEvents: CalendarEvent[]): LaidOut[] => {
+  const items = dayEvents
+    .map((e) => {
+      const start = evMinutes(e.start_time) as number;
+      const em = evMinutes(e.end_time);
+      const end = em != null && em > start ? em : start + 30; // min 30-min slot
+      return { e, start, end };
+    })
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const out: LaidOut[] = [];
+  let cluster: { e: CalendarEvent; start: number; end: number }[] = [];
+  let clusterEnd = -Infinity;
+
+  const flush = () => {
+    if (!cluster.length) return;
+    const colEnds: number[] = []; // last end-time placed in each column
+    const placed = cluster.map((it) => {
+      let col = colEnds.findIndex((endAt) => it.start >= endAt);
+      if (col === -1) { col = colEnds.length; colEnds.push(it.end); }
+      else colEnds[col] = it.end;
+      return { ...it, col };
+    });
+    const cols = colEnds.length;
+    placed.forEach((p) => out.push({ ...p, cols }));
+    cluster = [];
+    clusterEnd = -Infinity;
+  };
+
+  for (const it of items) {
+    if (cluster.length && it.start >= clusterEnd) flush(); // no overlap → new cluster
+    cluster.push(it);
+    clusterEnd = Math.max(clusterEnd, it.end);
+  }
+  flush();
+  return out;
+};
 
 // Demo fallback (shown only if the API is unreachable, e.g. logged out).
 const _t = new Date();
@@ -100,12 +144,12 @@ const attCount = (e: CalendarEvent) =>
   String(e.attachment_path || "").split(",").map((s) => s.trim()).filter(Boolean).length;
 
 // Full paperclip + count badge (agenda / details).
-const AttachmentBadge = ({ count }: { count: number }) => {
+const AttachmentBadge = ({ count, circleCls = "bg-blue-200 text-blue-500" }: { count: number; circleCls?: string }) => {
   if (!count) return null;
   return (
     <span className="relative inline-flex shrink-0 w-4 h-4" title={`${count} attachment${count === 1 ? "" : "s"}`}>
       <img src={attachmentIcon} alt="" className="w-4 h-4" />
-      <span className="absolute -top-2 -left-2 min-w-[15px] h-[15px] px-1 rounded-full bg-blue-200 text-blue-500 text-[10px] font-weight-600 flex items-center justify-center leading-none">{count}</span>
+      <span className={`absolute -top-2 -left-2 min-w-[15px] h-[15px] px-1 rounded-full ${circleCls} text-[10px] font-weight-600 flex items-center justify-center leading-none`}>{count}</span>
     </span>
   );
 };
@@ -136,7 +180,7 @@ const Chevron = ({ d = "down" }: { d?: "down" | "left" | "right" }) => (
   </svg>
 );
 
-const TeamsCalendarExample: React.FC = () => {
+const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTasks }) => {
   const today = new Date();
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
@@ -221,7 +265,12 @@ const TeamsCalendarExample: React.FC = () => {
       start = toKey(new Date(y, m, 1)); end = toKey(new Date(y, m + 1, 0));
     }
     else if (view === "year") { start = `${anchor.getFullYear()}-01-01`; end = `${anchor.getFullYear()}-12-31`; }
-    else { start = `${today.getFullYear() - 5}-01-01`; end = `${today.getFullYear() + 5}-12-31`; } // agenda: show all (past + future)
+    else {
+      // agenda: scope to the anchored month so the year/month filter applies
+      // (the title and jump menu are month-based too).
+      const y = anchor.getFullYear(), m = anchor.getMonth();
+      start = toKey(new Date(y, m, 1)); end = toKey(new Date(y, m + 1, 0));
+    }
     if (fFrom) start = fFrom;
     if (fTo) end = fTo;
     return { start, end };
@@ -251,8 +300,8 @@ const TeamsCalendarExample: React.FC = () => {
   const move = (delta: number) => {
     const d = new Date(anchor);
     if (view === "day") d.setDate(d.getDate() + delta);
-    else if (view === "week" || view === "agenda") d.setDate(d.getDate() + delta * 7);
-    else if (view === "month") d.setMonth(d.getMonth() + delta);
+    else if (view === "week") d.setDate(d.getDate() + delta * 7);
+    else if (view === "month" || view === "agenda") d.setMonth(d.getMonth() + delta);
     else d.setFullYear(d.getFullYear() + delta);
     setAnchor(d);
   };
@@ -290,9 +339,19 @@ const TeamsCalendarExample: React.FC = () => {
 
   const chipClsFor = (e: CalendarEvent) => {
     const st = (e.status || "").toLowerCase();
-    if (st === "cancelled") return "bg-neutral-100 text-neutral-400 line-through";
-    if (st === "completed") return "bg-green-100 text-green-600";
-    if (e.start_date && e.start_date < toKey(today)) return "bg-red-100 text-red-600"; // overdue
+    const isPast = !!e.start_date && e.start_date < toKey(today);
+    // Every event on a passed day is dimmed (Teams-style) to show the day has
+    // gone by — completed green, cancelled neutral and overdue red included.
+    const dim = isPast ? " opacity-60" : "";
+    // Manual = created on the Calendar (meetings etc.), not a synced system event.
+    const isManual = !isTaskMgmt(e) && !isEngineerInspection(e);
+
+    if (st === "cancelled") return "bg-neutral-100 text-neutral-400 line-through" + dim;
+    if (st === "completed") return "bg-green-100 text-green-600" + dim;
+    // A passed manual event fades to a light blue. Red/overdue stays reserved for
+    // Task Management deadlines.
+    if (isPast && isManual) return "bg-blue-100 text-blue-300 opacity-60";
+    if (isPast) return "bg-red-100 text-red-600 opacity-60"; // overdue task deadline / system event
     if (isEngineerInspection(e)) return "bg-purple-100 text-purple-600"; // Engineer Inspection
     return isTaskMgmt(e)
       ? "bg-yellow-100 text-yellow-500"   // Task Management
@@ -308,6 +367,17 @@ const TeamsCalendarExample: React.FC = () => {
     if (e.start_date && e.start_date < toKey(today)) return "bg-red-100/40";
     if (isEngineerInspection(e)) return "bg-purple-100/40"; // Engineer Inspection
     return isTaskMgmt(e) ? "bg-amber-100/40" : "bg-blue-100/40";
+  };
+
+  // Attachment-count circle tone, matching the agenda row's chipBgFor category so
+  // the badge picks up the event's colour theme instead of always being blue.
+  const badgeToneFor = (e: CalendarEvent) => {
+    const st = (e.status || "").toLowerCase();
+    if (st === "cancelled") return "bg-neutral-200 text-neutral-600";
+    if (st === "completed") return "bg-green-200 text-green-600";
+    if (e.start_date && e.start_date < toKey(today)) return "bg-red-200 text-red-600";
+    if (isEngineerInspection(e)) return "bg-purple-200 text-purple-600";
+    return isTaskMgmt(e) ? "bg-amber-200 text-amber-600" : "bg-blue-200 text-blue-500";
   };
 
   // Dropdown options = claims-list values unioned with anything seen on loaded events.
@@ -404,19 +474,25 @@ const TeamsCalendarExample: React.FC = () => {
                       <div className="absolute left-0 right-0 z-20" style={{ top: nowTop, height: 2, background: RED }} />
                     </>
                   )}
-                  {evs.map((e) => {
-                    const start = evMinutes(e.start_time) as number;
-                    const endM = evMinutes(e.end_time);
-                    const dur = endM && endM > start ? endM - start : 30;
+                  {layoutDayEvents(evs).map(({ e, start, end, col, cols }) => {
+                    const dur = end - start;
                     const top = (start / 60) * HOUR_PX;
                     // Floor the height to fit the two-line label (title + type) so
                     // point-in-time deadlines don't spill text past a tiny slot.
                     const minHeight = Math.max(40, (dur / 60) * HOUR_PX - 2);
+                    // Overlapping events split the column width (3px outer inset,
+                    // 6px gaps) instead of stacking on top of each other.
+                    const widthPct = 100 / cols;
                     return (
                       <button key={`${e.id}-${e.start_date}`} type="button" title={e.title}
                         onClick={(ev) => { ev.stopPropagation(); openDetails(e); }}
                         className={`absolute text-left overflow-hidden border-l-[3px] border-current ${chipClsFor(e)}`}
-                        style={{ top: top + 1, left: 3, right: 3, minHeight, borderRadius: 4, padding: "4px 8px" }}>
+                        style={{
+                          top: top + 1,
+                          left: `calc(${col * widthPct}% + 3px)`,
+                          width: `calc(${widthPct}% - 6px)`,
+                          minHeight, borderRadius: 4, padding: "4px 8px",
+                        }}>
                         <div className="text-[12px] font-weight-600 truncate leading-4">{e.title}</div>
                         <div className="flex items-center gap-1 leading-4">
                           {e.event_type && <span className="text-[11px] truncate opacity-70">{e.event_type}</span>}
@@ -545,10 +621,11 @@ const TeamsCalendarExample: React.FC = () => {
                     <div className={chipClsFor(e)} style={{ width: 4, borderRadius: 4, background: "currentColor" }} />
                     <div className="w-20 shrink-0 text-[13px]" style={{ color: "#616161" }}>{e.start_time || "All day"}</div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[14px] font-weight-600 truncate" style={{ color: "#242424" }}>{e.title}</div>
+                      <div className={`text-[14px] font-weight-600 truncate ${(e.status || "").toLowerCase() === "cancelled" ? "line-through" : ""}`}
+                        style={{ color: (e.status || "").toLowerCase() === "cancelled" ? "#9ca3af" : "#242424" }}>{e.title}</div>
                       {e.event_type && <div className="text-[12px] truncate" style={{ color: "#616161" }}>{e.event_type}</div>}
                     </div>
-                    <div className="self-center pl-1"><AttachmentBadge count={attCount(e)} /></div>
+                    <div className="self-center pl-1"><AttachmentBadge count={attCount(e)} circleCls={badgeToneFor(e)} /></div>
                   </button>
                 ))}
               </div>
@@ -570,8 +647,8 @@ const TeamsCalendarExample: React.FC = () => {
           </div>
           <span className="text-[20px] font-weight-600">Calendar</span>
         </div>
-        <div className="flex items-center gap-2">
-      
+        <div className="flex items-center gap-4">
+          <NotificationBell onOpenTask={onOpenTasks} />
           <button type="button" onClick={() => openCreate()} className="h-9 px-4 inline-flex items-center gap-2 rounded-md text-white text-[13px] font-weight-600" style={{ background: PURPLE }}
             onMouseEnter={(e) => (e.currentTarget.style.background = PURPLE_DARK)} onMouseLeave={(e) => (e.currentTarget.style.background = PURPLE)}>
             <span className="text-[16px] leading-none">+</span> Add Event
@@ -590,7 +667,7 @@ const TeamsCalendarExample: React.FC = () => {
           <button type="button" onClick={() => move(1)} className="w-8 h-8 inline-flex items-center justify-center rounded-md hover:bg-[#f0f0f0]" aria-label="Next"><Chevron d="right" /></button>
           <div className="relative">
             <button type="button"
-              onClick={() => { setJumpYear((view === "year" ? anchor.getFullYear() : weekDays[3].getFullYear())); setDateMenuOpen((o) => !o); }}
+              onClick={() => { setJumpYear((view === "year" || view === "agenda" ? anchor.getFullYear() : weekDays[3].getFullYear())); setDateMenuOpen((o) => !o); }}
               className="inline-flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-[#f0f0f0]">
               <span className="text-[16px] font-weight-600">{title}</span><Chevron />
             </button>

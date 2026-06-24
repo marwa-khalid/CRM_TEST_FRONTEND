@@ -235,3 +235,15 @@ export const getCaseReference = async (claimId: string | number): Promise<string
     return "";
   }
 };
+
+// Drop the cached reference for a claim so the next read refetches from the
+// server. Call this after anything that changes the reference (e.g. saving the
+// client surname), then dispatch the "case-reference-updated" event so any
+// mounted useCaseReference() consumers refresh immediately (no page reload).
+export const invalidateCaseReference = (claimId: string | number): void => {
+  const key = String(claimId ?? "");
+  if (key) _caseRefCache.delete(key);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("case-reference-updated", { detail: key }));
+  }
+};

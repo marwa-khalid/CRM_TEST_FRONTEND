@@ -33,6 +33,30 @@ const inputCls =
 
 const rsComponents = { DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null };
 const rsPortal = typeof document !== "undefined" ? document.body : undefined;
+
+// Checkbox-style option row for the (multi-select) Reminder dropdown — matches the
+// Task Management / Claim Listing multi-selector design (grey box, blue box + ring
+// when checked, blue highlight on the selected row).
+const CheckboxOption = (props: any) => {
+  const { innerRef, innerProps, isSelected, isFocused, label } = props;
+  return (
+    <div
+      ref={innerRef}
+      {...innerProps}
+      className={`flex items-center gap-2 p-2.5 rounded-sm cursor-pointer ${
+        isSelected ? "bg-blue-100" : isFocused ? "bg-neutral-50" : ""
+      }`}
+    >
+      <span
+        className={`w-5 h-5 rounded-sm shrink-0 ${
+          isSelected ? "bg-blue-500 border-[6px] border-blue-200" : "bg-neutral-300"
+        }`}
+      />
+      <span className="text-neutral-700 text-sm font-normal leading-4">{label}</span>
+    </div>
+  );
+};
+const reminderComponents = { ...rsComponents, Option: CheckboxOption };
 // Portaled menus must sit above the drawer (z-[60]); customStyles doesn't set this,
 // so the dropdowns were opening *behind* the drawer and looked empty.
 const menuPortalFix = { menuPortal: (b: any) => ({ ...b, zIndex: 9999 }) };
@@ -237,11 +261,33 @@ const EventFormDrawer = ({
           <Field label="Assigned Users">
             <Select
               isMulti
+              closeMenuOnSelect={false}
+              hideSelectedOptions={false}
               options={assigneeOptions}
               value={(form.assigned_users || []).map((u: string) => ({ label: u, value: u }))}
               onChange={(vals: any) => set("assigned_users", (vals || []).map((v: any) => v.value))}
-              styles={multiStyles}
-              components={{ IndicatorSeparator: () => null }}
+              styles={{
+                ...multiStyles,
+                valueContainer: (b: any) => ({ ...b, flexWrap: "wrap" }),
+                menu: (b: any) => ({
+                  ...b,
+                  borderRadius: 6,
+                  border: "1px solid #f5f5f5",
+                  boxShadow: "0px 4px 4px 0px rgba(0,0,0,0.08)",
+                  overflow: "hidden",
+                }),
+                menuList: (b: any) => ({
+                  ...b,
+                  padding: 8,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                  scrollbarWidth: "none",
+                  msOverflowStyle: "none",
+                  "::-webkit-scrollbar": { display: "none" },
+                }),
+              }}
+              components={{ ...reminderComponents, IndicatorSeparator: () => null }}
               menuPortalTarget={rsPortal}
               placeholder="Assign to users"
             />
@@ -283,8 +329,25 @@ const EventFormDrawer = ({
                     minHeight: 52,
                   }),
                   valueContainer: (b: any) => ({ ...b, flexWrap: "wrap" }),
+                  menu: (b: any) => ({
+                    ...b,
+                    borderRadius: 6,
+                    border: "1px solid #f5f5f5",
+                    boxShadow: "0px 4px 4px 0px rgba(0,0,0,0.08)",
+                    overflow: "hidden",
+                  }),
+                  menuList: (b: any) => ({
+                    ...b,
+                    padding: 8,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                    scrollbarWidth: "none",
+                    msOverflowStyle: "none",
+                    "::-webkit-scrollbar": { display: "none" },
+                  }),
                 }}
-                components={rsComponents}
+                components={reminderComponents}
                 menuPortalTarget={rsPortal}
                 isSearchable={false}
                 isClearable={false}

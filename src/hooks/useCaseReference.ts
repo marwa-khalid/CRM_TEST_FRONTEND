@@ -14,11 +14,21 @@ export const useCaseReference = (claimId?: string | number | null): string => {
       setRef("");
       return;
     }
-    getCaseReference(claimId).then((r) => {
-      if (active) setRef(r);
-    });
+    const load = () =>
+      getCaseReference(claimId).then((r) => {
+        if (active) setRef(r);
+      });
+    load();
+    // Refresh immediately when the reference is invalidated elsewhere (e.g. the
+    // client surname was just saved) instead of waiting for a page reload.
+    const onUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail == null || String(detail) === String(claimId)) load();
+    };
+    window.addEventListener("case-reference-updated", onUpdated);
     return () => {
       active = false;
+      window.removeEventListener("case-reference-updated", onUpdated);
     };
   }, [claimId]);
   return ref;

@@ -8,7 +8,7 @@ import { createClient, getClientByClaimID, updateClient, vulnerablePersonPolicy 
 import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from "yup"
-import { notifyManager } from "../../../services/Claims/Claims";
+import { notifyManager, invalidateCaseReference } from "../../../services/Claims/Claims";
 import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
 import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
@@ -142,9 +142,12 @@ export const ClientDetailsForm = ({ formRef, claimId }: any) => {
         }
         if (response?.id) setClientId(String(response.id));
 
-        // Case reference is derived server-side per claim
+        // Case reference is derived server-side per claim from the surname
         // (GET /claims/{id}/reference, read via useCaseReference) — no longer
-        // computed here or stored in localStorage.
+        // computed here or stored in localStorage. Bust the cached ref and
+        // signal consumers so the new SURNAME-based ref shows immediately,
+        // without needing a page refresh.
+        if (claimId) invalidateCaseReference(parseInt(claimId));
         toast.success("Client details saved successfully");
       } catch (error) {
         toast.error("Error saving client details");

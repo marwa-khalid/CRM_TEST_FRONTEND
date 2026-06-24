@@ -17,7 +17,6 @@ import {
   MoreVertical,
   Upload,
   ChevronDown,
-  Check,
   X,
   Trash2,
 } from "lucide-react";
@@ -797,7 +796,7 @@ const Dashboard: React.FC = () => {
             )}
             {activePage === "tasks" && <Tasks initialFilters={taskFilter} />}
             {activePage === "dashboard" && <TasksDashboard onOpen={goToTasks} />}
-            {activePage === "calendar" && <TasksCalendar />}
+            {activePage === "calendar" && <TasksCalendar onOpenTasks={() => goToTasks()} />}
           </Suspense>
         )}
       </main>
@@ -880,23 +879,32 @@ const MultiFilterDropdown = ({
         <ChevronDown size={14} />
       </button>
       {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 w-max min-w-[140px] max-w-[280px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1 max-h-72 overflow-auto">
+        <div className="absolute z-30 top-full mt-1 left-0 w-max min-w-[176px] max-w-[300px] bg-white rounded-md shadow-[0px_4px_4px_0px_rgba(0,0,0,0.08)] border border-neutral-100 p-2 max-h-72 overflow-auto scrollbar-hide flex flex-col gap-1">
           {selected.length > 0 && (
-            <button type="button" onClick={onClear} className="w-full text-left px-4 py-2 text-xs text-neutral-500 hover:bg-neutral-50 border-b border-neutral-100">
+            <button type="button" onClick={onClear} className="w-full text-left p-2.5 text-xs text-neutral-500 hover:bg-neutral-50 rounded-sm">
               Clear {label}
             </button>
           )}
           {options.length === 0 ? (
-            <div className="px-4 py-2 text-sm text-neutral-400">No options</div>
+            <div className="p-2.5 text-sm text-neutral-400">No options</div>
           ) : (
             options.map((o) => {
               const checked = selected.includes(o);
               return (
-                <button key={o} type="button" onClick={() => onToggle(o)} className="w-full flex items-center gap-2 text-left px-4 py-2 text-sm hover:bg-blue-50 text-neutral-700">
-                  <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${checked ? "bg-blue-500 border-blue-500" : "border-neutral-300"}`}>
-                    {checked && <Check size={12} className="text-white" />}
-                  </span>
-                  <span className="truncate">{o}</span>
+                <button
+                  key={o}
+                  type="button"
+                  onClick={() => onToggle(o)}
+                  className={`w-full flex items-center gap-2 text-left p-2.5 rounded-sm transition-colors ${
+                    checked ? "bg-blue-100" : "hover:bg-neutral-50"
+                  }`}
+                >
+                  <span
+                    className={`w-5 h-5 rounded-sm shrink-0 ${
+                      checked ? "bg-blue-500 border-[6px] border-blue-200" : "bg-neutral-300"
+                    }`}
+                  />
+                  <span className="text-neutral-700 text-sm font-normal leading-4 truncate">{o}</span>
                 </button>
               );
             })

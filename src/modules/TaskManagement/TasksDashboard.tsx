@@ -277,7 +277,7 @@ const LineChart: React.FC<{ points: Pt[]; compare?: Pt[]; labels?: SeriesLabels 
         <div className="w-8 shrink-0" />
         <div className="relative flex-1 h-4">
           {coords.map((c, i) => (
-            <span key={i} className="absolute -translate-x-1/2 text-[11px] text-neutral-400" style={{ left: `${c.x}%` }}>{c.label}</span>
+            <span key={i} className="absolute -translate-x-1/2 whitespace-nowrap text-[11px] text-neutral-400" style={{ left: `${c.x}%` }}>{c.label}</span>
           ))}
         </div>
       </div>
@@ -288,16 +288,19 @@ const LineChart: React.FC<{ points: Pt[]; compare?: Pt[]; labels?: SeriesLabels 
 // % change of current vs previous, shown only in comparison tooltips
 // (e.g. "+12.4% from last year"). Green when up, red when down.
 const PctBadge: React.FC<{ cur: number; prev: number; label?: string }> = ({ cur, prev, label }) => {
-  const pct = prev > 0 ? Math.round(((cur - prev) / prev) * 1000) / 10 : (cur > 0 ? 100 : 0);
+  // Normalise by the larger of the two so the figure is bounded to ±100%:
+  // 0→9 = 100%, 4→9 = 55.6%, 9→4 = -55.6%. (Plain (cur-prev)/prev gives 125%.)
+  const denom = Math.max(prev, cur);
+  const pct = denom > 0 ? Math.round(((cur - prev) / denom) * 1000) / 10 : 0;
   const up = cur >= prev;
   return (
     <span className="flex items-center gap-1.5 mt-0.5">
-      <span className={`flex items-center gap-1 text-[11px] font-weight-700 px-1.5 py-0.5 rounded ${up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
+      <span className={`flex items-center gap-1 shrink-0 whitespace-nowrap text-[11px] font-weight-700 px-1.5 py-0.5 rounded ${up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
         {/* Arrow (matches the KPI cards) instead of a +/- sign. */}
-        <img src={up ? TrendingUp : TrendingDown} alt="" className="w-3 h-3" />
+        <img src={up ? TrendingUp : TrendingDown} alt="" className="w-3 h-3 shrink-0" />
         {Math.abs(pct)}%
       </span>
-      {label && <span className="text-neutral-400">{label}</span>}
+      {label && <span className="text-neutral-400 whitespace-nowrap">{label}</span>}
     </span>
   );
 };
@@ -315,12 +318,12 @@ const wtdRangeLabel = (): string => {
   return `${fmt(monday)} to ${fmt(friday)}`;
 };
 
-// "Total number" pill (soft blue) for WTD/MTD/YTD — sits at the right of the
-// trend filters row.
-const TrendTotalCard: React.FC<{ value: number; period: string }> = ({ value, period }) => (
-  <div className="flex items-center gap-1.5 bg-blue-50 rounded-full px-3.5 py-2 shrink-0">
-    <span className="text-blue-500 text-base font-weight-700 leading-none">{fmtNum(value)}</span>
-    <span className="text-blue-300 text-[11px] font-weight-600">{period}</span>
+// "Total number" pill (soft blue) — shows the count + unit (e.g. "7 claims" /
+// "9 Hires"), sitting at the right of the trend filters row.
+const TrendTotalCard: React.FC<{ value: number; unit: string }> = ({ value, unit }) => (
+  <div className="flex items-center gap-1.5 bg-blue-50 rounded-full px-3.5 py-1.5 shrink-0">
+    <span className="text-blue-500 text-2xl font-weight-700 leading-none">{fmtNum(value)}</span>
+    <span className="text-blue-300 text-[11px] font-weight-600 leading-none">{unit}</span>
   </div>
 );
 
@@ -435,7 +438,7 @@ const ClaimsTrendChart: React.FC<{ points: Pt[]; compare?: Pt[]; labels?: Series
         <div className="w-8 shrink-0" />
         <div className="relative flex-1 h-4">
           {coords.map((c, i) => (
-            <span key={i} className="absolute -translate-x-1/2 text-[11px] text-neutral-400" style={{ left: `${c.x}%` }}>{c.label}</span>
+            <span key={i} className="absolute -translate-x-1/2 whitespace-nowrap text-[11px] text-neutral-400" style={{ left: `${c.x}%` }}>{c.label}</span>
           ))}
         </div>
       </div>
@@ -463,9 +466,9 @@ const TrendLegend: React.FC<{ labels?: SeriesLabels; prevColor: string; curColor
 const KpiCompare: React.FC<{ points: Pt[]; unit: string }> = ({ points, unit }) => {
   if (!points || points.length < 2) return null;
   const [a, b] = points;
-  const delta = a.value > 0
-    ? Math.round(((b.value - a.value) / a.value) * 100)
-    : (b.value > 0 ? 100 : 0);
+  // Normalise by the larger value so the change is bounded to ±100%.
+  const denom = Math.max(a.value, b.value);
+  const delta = denom > 0 ? Math.round(((b.value - a.value) / denom) * 100) : 0;
   const up = b.value >= a.value;
   return (
     <div className="flex gap-4 py-8 font-['Stack_Sans_Headline']">
@@ -646,12 +649,12 @@ const CollectionDonut: React.FC<{
           onMouseEnter={() => setHover("actual")} onMouseLeave={() => setHover(null)}
         />
       </svg>
-      {hover && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-          <span className="text-[11px] text-neutral-500">{hover === "actual" ? actualLabel : billedLabel}</span>
-          <span className="text-[15px] font-weight-700 text-neutral-900">{fmt(hover === "actual" ? actual : billed)}</span>
-        </div>
-      )}
+      {/* Centre shows the Agreed amount by default; hovering the light arc shows
+          the other (billed/actual) value instead. */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+        <span className="text-[11px] text-neutral-500">{hover === "billed" ? billedLabel : actualLabel}</span>
+        <span className="text-[15px] font-weight-700 text-neutral-900">{fmt(hover === "billed" ? billed : actual)}</span>
+      </div>
     </div>
   );
 };
@@ -669,10 +672,13 @@ interface ColumnDef {
 }
 
 const COLUMNS: ColumnDef[] = [
+  // All Tasks: count = every active task (In Progress + Overdue + Pending +
+  // Awaiting Response — excludes Completed/Rejected); list shows In-Progress tasks.
   { key: "all", label: "All Tasks", Icon: AllTasks, iconBg: "bg-blue-100",  cardBorder: "border-blue-200", filter: {} },
   { key: "overdue", label: "Overdue Tasks", Icon: Overdue, iconBg: "bg-red-100", cardBorder: "border-red-200", filter: { status: "Overdue" } },
-  { key: "critical", label: "Critical Tasks", Icon: Critical, iconBg: "bg-yellow-100", cardBorder: "border-amber-200", filter: { priority: "High" } },
-  { key: "followups", label: "Pending Followups", Icon: PendingFollowups, iconBg: "bg-neutral-100",cardBorder: "border-neutral-300", filter: { status: "Awaiting Response" } },
+  // Exclude overdue so a past-due task only shows under Overdue, not here too.
+  { key: "awaiting", label: "Awaiting Response", Icon: Critical, iconBg: "bg-yellow-100", cardBorder: "border-amber-200", filter: { status: "Awaiting Response", exclude_overdue: true } },
+  { key: "followups", label: "Pending Followups", Icon: PendingFollowups, iconBg: "bg-neutral-100",cardBorder: "border-neutral-300", filter: { status: "Pending", exclude_overdue: true } },
 ];
 
 const TaskCard = ({ t, border, onClick }: { t: any; border: string; onClick: () => void }) => {
@@ -708,32 +714,28 @@ const Column = ({
 
   useEffect(() => {
     setLoading(true);
-    // "All Tasks" shows the remainder — everything that ISN'T already in the
-    // Overdue / Critical / Pending-Followups columns, so nothing repeats.
     // Dashboard task cards are user-specific (only the logged-in user's tasks),
     // same scoping as the Task Management list.
-    const params = col.key === "all"
-      ? { page_size: 100 }
-      : { ...filter, page_size: 10 };
-    listTasks(params)
-      .then(({ data }) => {
-        let rows = data?.items ?? [];
-        if (col.key === "all") {
-          rows = rows.filter(
-            (t: any) =>
-              !t.is_overdue &&
-              (t.priority || "").toLowerCase() !== "high" &&
-              t.status !== "Awaiting Response",
-          );
-          setItems(rows);
-          setCount(rows.length);
-        } else {
-          setItems(rows);
-          setCount(data?.total ?? 0);
-        }
-      })
-      .catch(() => { setItems([]); setCount(0); })
-      .finally(() => setLoading(false));
+    if (col.key === "all") {
+      // List the In-Progress (not overdue) tasks; count every active task — the
+      // OR of the four statuses returns distinct rows, so it's the true sum of
+      // In Progress + Overdue + Pending + Awaiting Response (no Completed/Rejected).
+      Promise.all([
+        listTasks({ status: "In Progress", page_size: 100 }),
+        listTasks({ status: "In Progress,Pending,Awaiting Response,Overdue", page_size: 1 }),
+      ])
+        .then(([listRes, countRes]) => {
+          setItems((listRes.data?.items ?? []).filter((t: any) => !t.is_overdue));
+          setCount(countRes.data?.total ?? 0);
+        })
+        .catch(() => { setItems([]); setCount(0); })
+        .finally(() => setLoading(false));
+    } else {
+      listTasks({ ...filter, page_size: 10 })
+        .then(({ data }) => { setItems(data?.items ?? []); setCount(data?.total ?? 0); })
+        .catch(() => { setItems([]); setCount(0); })
+        .finally(() => setLoading(false));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me]);
 
@@ -798,7 +800,7 @@ const TrendFilter = ({
               !value ? "text-blue-600 font-weight-500" : "text-neutral-700"
             }`}
           >
-            {allLabel || `All ${label}s`}
+            {allLabel || `All ${label}`}
           </button>
           {options.map((o) => (
             <button
@@ -1051,13 +1053,23 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const [srOpen, setSrOpen] = useState<null | "storage" | "recovery">(null);
   const [collPeriod, setCollPeriod] = useState<"MTD" | "YTD" | "All Time">("YTD");
   // Debtors Age Analysis filters (see Figma). Period changes the "Current …" label;
-  // Aging narrows to a single bucket; Status is a display filter.
+  // Status is a display filter.
   const [debtorsPeriod, setDebtorsPeriod] = useState("MTD");
-  const [debtorsAging, setDebtorsAging] = useState("Aging");
   const [debtorsStatus, setDebtorsStatus] = useState("All Status");
   const [collectionPayment, setCollectionPayment] = useState<CollectionPaymentStatus | null>(null);
   const [collectionPerf, setCollectionPerf] = useState<any>(null);
   const [period, setPeriod] = useState("WTD");
+  // Global custom date range (when period === "Custom") — drives the charts that
+  // support a date range (Income + Claims/Hire trends).
+  const [gFrom, setGFrom] = useState("");
+  const [gTo, setGTo] = useState("");
+  const [gCalOpen, setGCalOpen] = useState<null | "from" | "to">(null);
+  const gCalRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (gCalRef.current && !gCalRef.current.contains(e.target as Node)) setGCalOpen(null); };
+    if (gCalOpen) document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [gCalOpen]);
   // Headline aggregates are all-time totals; the selected period is kept for the UI.
   useEffect(() => {
     getDashboard(period)
@@ -1098,7 +1110,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   // No comparison mode selected by default — just the current period. Picking
   // YoY/MoM shows a 2-point summary; the expand toggle drills into quarters/weeks.
   const [trendMode, setTrendMode] = useState("");
-  const [trendExpanded, setTrendExpanded] = useState(false);
+  const [trendExpanded, setTrendExpanded] = useState(true);
   const [trendRef, setTrendRef] = useState("");
   const [trendStatus, setTrendStatus] = useState("");
   // Custom comparison (replaces the date range): Year (2024 vs 2026) or Month (Jan vs Dec).
@@ -1107,7 +1119,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const [trendCmpB, setTrendCmpB] = useState(String(new Date().getFullYear()));
   const [hirePeriod, setHirePeriod] = useState("WTD");
   const [hireMode, setHireMode] = useState("");
-  const [hireExpanded, setHireExpanded] = useState(false);
+  const [hireExpanded, setHireExpanded] = useState(true);
   const [hireRef, setHireRef] = useState("");
   const [hireStatus, setHireStatus] = useState("");
   const [hireCmpType, setHireCmpType] = useState<"year" | "month">("year");
@@ -1185,13 +1197,27 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   // the dashboard, overriding any per-chart selection and clearing YoY/MoM modes.
   const applyGlobalPeriod = (p: string) => {
     setPeriod(p);
-    setIncomePeriod(p);
-    setTrendPeriod(p); setTrendMode(""); setTrendExpanded(false);
-    setHirePeriod(p); setHireMode(""); setHireExpanded(false);
+    if (p === "Custom") {
+      // Custom date range drives the date-range charts (Income + Claims/Hire trends).
+      setIncomePeriod("Custom"); setIncomeFrom(gFrom); setIncomeTo(gTo);
+      setTrendPeriod("Custom"); setTrendMode(""); setTrendExpanded(true);
+      setHirePeriod("Custom"); setHireMode(""); setHireExpanded(true);
+      return;
+    }
+    // Picking a preset clears any global custom range.
+    setGFrom(""); setGTo("");
+    setIncomePeriod(p); setIncomeFrom(""); setIncomeTo("");
+    setTrendPeriod(p); setTrendMode(""); setTrendExpanded(true);
+    setHirePeriod(p); setHireMode(""); setHireExpanded(true);
     // Collection & Debtors have no WTD bucket — use MTD as the narrowest period.
     const narrowed = (p === "WTD" ? "MTD" : p) as "MTD" | "YTD" | "All Time";
     setCollPeriod(narrowed);
     setDebtorsPeriod(narrowed);
+  };
+  // Update the global custom range and mirror it into the income chart's range.
+  const setGlobalRange = (from: string, to: string) => {
+    setGFrom(from); setGTo(to);
+    setIncomePeriod("Custom"); setIncomeFrom(from); setIncomeTo(to);
   };
 
   // value helpers off the real aggregates (fallback "—" until loaded)
@@ -1206,8 +1232,12 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   // Real month-over-month trend (falls back to the static text until loaded).
   const trendOf = (c: any) => dash?.trends?.[c.key];
   const trendUp = (c: any) => (trendOf(c) ? trendOf(c).up : c.up);
-  const trendText = (c: any) =>
-    trendOf(c) ? `${trendOf(c).up ? "+" : "-"}${trendOf(c).pct}% vs last month` : c.trend;
+  // Magnitude of the change, capped at 100% and rounded to 1 dp so it never
+  // overflows the badge (a percentage never exceeds 100).
+  const trendPct = (c: any) => {
+    const raw = trendOf(c) ? Number(trendOf(c).pct) : parseFloat(String(c.trend).replace(/[^0-9.]/g, "")) || 0;
+    return Math.round(Math.min(100, Math.abs(raw)) * 10) / 10;
+  };
   const breakdown = incomeBreakdown || {};
   const shownCards =
     incomeType === "all" ? INCOME_CARDS : INCOME_CARDS.filter((c) => c.key === incomeType);
@@ -1227,10 +1257,15 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
     if (trendMode) {
       view = trendExpanded ? "detail" : "summary";
     } else if (trendPeriod === "Custom") {
-      if (!trendCmpA || !trendCmpB) return;
-      view = trendCmpType;
-      from = trendCmpA;
-      to = trendCmpB;
+      if (gFrom && gTo) {
+        // Global custom date range → single series over the range (no comparison).
+        from = gFrom; to = gTo; view = undefined;
+      } else {
+        if (!trendCmpA || !trendCmpB) return;
+        view = trendCmpType;
+        from = trendCmpA;
+        to = trendCmpB;
+      }
     }
     getDashboardTrends(trendPeriod, trendMode, trendRef, trendStatus, from, to, view)
       .then(({ data }) => {
@@ -1238,7 +1273,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
         setClaimsTrendPrev(data?.claims_trend_prev || []);
         setTrendLabels(data?.series_labels);
       }).catch(() => {});
-  }, [trendPeriod, trendMode, trendExpanded, trendRef, trendStatus, trendCmpType, trendCmpA, trendCmpB]);
+  }, [trendPeriod, trendMode, trendExpanded, trendRef, trendStatus, trendCmpType, trendCmpA, trendCmpB, gFrom, gTo]);
   useEffect(() => {
     let view: string | undefined;
     let from: string | undefined;
@@ -1246,10 +1281,14 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
     if (hireMode) {
       view = hireExpanded ? "detail" : "summary";
     } else if (hirePeriod === "Custom") {
-      if (!hireCmpA || !hireCmpB) return;
-      view = hireCmpType;
-      from = hireCmpA;
-      to = hireCmpB;
+      if (gFrom && gTo) {
+        from = gFrom; to = gTo; view = undefined; // global custom date range → single series
+      } else {
+        if (!hireCmpA || !hireCmpB) return;
+        view = hireCmpType;
+        from = hireCmpA;
+        to = hireCmpB;
+      }
     }
     getDashboardTrends(hirePeriod, hireMode, hireRef, hireStatus, from, to, view)
       .then(({ data }) => {
@@ -1257,7 +1296,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
         setHireTrendPrev(data?.hire_trend_prev || []);
         setHireLabels(data?.series_labels);
       }).catch(() => {});
-  }, [hirePeriod, hireMode, hireExpanded, hireRef, hireStatus, hireCmpType, hireCmpA, hireCmpB]);
+  }, [hirePeriod, hireMode, hireExpanded, hireRef, hireStatus, hireCmpType, hireCmpA, hireCmpB, gFrom, gTo]);
   useEffect(() => {
     getTrendOptions()
       .then(({ data }) => setTrendOptions({
@@ -1267,11 +1306,8 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
       .catch(() => {});
   }, []);
   const debtorsAge = dash?.debtors_age || [];
-  // Aging dropdown narrows to a single bucket (or all). Buckets come from the
-  // backend as "0-30 Days" / "31-60 Days" / "61-90 Days" / "90+ Days".
-  const shownDebtors = debtorsAging === "Aging"
-    ? debtorsAge
-    : debtorsAge.filter((r: any) => (r.label || "").startsWith(debtorsAging));
+  // All buckets shown (0-30 / 31-60 / 61-90 / 90+) — no aging filter.
+  const shownDebtors = debtorsAge;
   const debtorsTotal = shownDebtors.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
   const debtorsMax = Math.max(1, ...shownDebtors.map((r: any) => Number(r.amount) || 0));
   const collection = collectionPerf || dash?.collection_ytd || {
@@ -1320,8 +1356,44 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
       </div>
 
       <section className="px-10 py-6 flex-1 overflow-auto font-['Stack_Sans_Headline'] flex flex-col gap-8">
-        {/* Global period tabs — cascade WTD/MTD/YTD to every chart below. */}
-        <PeriodTabs active={period} onChange={applyGlobalPeriod} hideCustom />
+        {/* Global period tabs — cascade WTD/MTD/YTD (or a Custom date range) to
+            every chart below. The Custom range drives the date-range charts
+            (Income + Claims/Hire trends). */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <PeriodTabs active={period} onChange={applyGlobalPeriod} />
+          {period === "Custom" && (
+            <div ref={gCalRef} className="flex items-center gap-2">
+              {(["from", "to"] as const).map((which) => {
+                const val = which === "from" ? gFrom : gTo;
+                return (
+                  <div key={which} className="relative">
+                    <div
+                      onClick={() => setGCalOpen((o) => (o === which ? null : which))}
+                      className="h-9 px-3 rounded border border-neutral-200 text-sm text-neutral-600 flex items-center gap-2 cursor-pointer min-w-[120px] justify-between"
+                    >
+                      <span className={val ? "text-neutral-700" : "text-neutral-400"}>
+                        {val || (which === "from" ? "From" : "To")}
+                      </span>
+                     <img src={Vector6} alt="" />
+                    </div>
+                    {gCalOpen === which && (
+                      <div className="absolute bottom-[54px] left-0 z-50 mt-1 shadow-xl rounded-lg bg-white">
+                        <CustomDatePicker
+                          selectedDate={val ? new Date(val + "T00:00:00") : new Date()}
+                          onDateSelect={(d: Date) => {
+                            const iso = toLocalISO(d);
+                            which === "from" ? setGlobalRange(iso, gTo) : setGlobalRange(gFrom, iso);
+                            setGCalOpen(null);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -1347,18 +1419,19 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
               </div>
               <div className="text-neutral-500 text-xs">{c.label}</div>
               <div className="mt-2 h-px w-full bg-neutral-200" />
-              <div className="mt-2 flex items-center gap-3">
+              <div className="mt-2 flex items-center gap-2">
                 <span
-                  className={`rounded px-2 py-1 text-sm font-weight-600 ${
+                  className={`flex items-center gap-1 shrink-0 whitespace-nowrap rounded px-2 py-1 text-sm font-weight-600 ${
                     trendUp(c)
                       ? "bg-green-100 text-green-500"
                       : "bg-red-100 text-red-500"
                   }`}
                 >
-                  {trendText(c).split("%")[0]}%
+                  <img src={trendUp(c) ? TrendingUp : TrendingDown} alt="" className="w-3.5 h-3.5 shrink-0" />
+                  {trendPct(c)}%
                 </span>
 
-                <span className="text-[14px] font-weight-500 text-neutral-500">
+                <span className="text-xs font-weight-500 text-neutral-500 leading-tight">
                   vs last month
                 </span>
               </div>
@@ -1555,7 +1628,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
               active={trendMode ? "" : trendPeriod}
               onChange={(p) => { setTrendPeriod(p); setTrendMode(""); }}
             />
-            {!trendMode && trendPeriod === "Custom" && (
+            {!trendMode && trendPeriod === "Custom" && !gFrom && (
               <CustomCompare
                 type={trendCmpType} a={trendCmpA} b={trendCmpB}
                 onType={(t) => {
@@ -1572,7 +1645,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 <button
                   key={m}
                   type="button"
-                  onClick={() => { setTrendMode(trendMode === m ? "" : m); setTrendExpanded(false); }}
+                  onClick={() => { setTrendMode(trendMode === m ? "" : m); setTrendExpanded(true); }}
                   className={`px-4 py-2 rounded text-sm leading-4 ${trendMode === m ? "bg-blue-300 text-white" : "text-blue-500"}`}
                 >
                   {m}
@@ -1601,7 +1674,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
             {/* WTD/MTD/YTD → total pill, right-aligned in the filters row. */}
             {!trendMode && trendPeriod !== "Custom" && (
               <div className="ml-auto">
-                <TrendTotalCard value={claimsTrend.reduce((s, p) => s + p.value, 0)} period={trendPeriod} />
+                <TrendTotalCard value={claimsTrend.reduce((s, p) => s + p.value, 0)} unit="claims" />
               </div>
             )}
           </div>
@@ -1648,7 +1721,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
               active={hireMode ? "" : hirePeriod}
               onChange={(p) => { setHirePeriod(p); setHireMode(""); }}
             />
-            {!hireMode && hirePeriod === "Custom" && (
+            {!hireMode && hirePeriod === "Custom" && !gFrom && (
               <CustomCompare
                 type={hireCmpType} a={hireCmpA} b={hireCmpB}
                 onType={(t) => {
@@ -1665,7 +1738,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                 <button
                   key={m}
                   type="button"
-                  onClick={() => { setHireMode(hireMode === m ? "" : m); setHireExpanded(false); }}
+                  onClick={() => { setHireMode(hireMode === m ? "" : m); setHireExpanded(true); }}
                   className={`px-4 py-2 rounded text-sm leading-4 ${hireMode === m ? "bg-blue-300 text-white" : "text-blue-500"}`}
                 >
                   {m}
@@ -1690,7 +1763,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                   return <PctBadge cur={curV} prev={prevV} label={`from ${hireLabels?.previous || "previous"}`} />;
                 }
                 if (!hireMode && hirePeriod !== "Custom") {
-                  return <TrendTotalCard value={hireTrend.reduce((s, p) => s + p.value, 0)} period={hirePeriod} />;
+                  return <TrendTotalCard value={hireTrend.reduce((s, p) => s + p.value, 0)} unit="Hires" />;
                 }
                 return null;
               })()}
@@ -1774,11 +1847,6 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                     </button>
                   ))}
                 </div>
-                <MiniDropdown
-                  value={debtorsAging}
-                  options={["Aging", "0-30 Days", "31-60 Days", "61-90 Days", "90+ Days"]}
-                  onChange={setDebtorsAging}
-                />
                 <MiniDropdown
                   value={debtorsStatus}
                   options={["All Status", "Outstanding", "Partially Paid", "Paid"]}

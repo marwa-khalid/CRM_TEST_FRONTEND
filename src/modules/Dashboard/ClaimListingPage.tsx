@@ -66,8 +66,8 @@ const Dashboard: React.FC = () => {
   const [claims, setClaims] = useState<any[]>([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [multi, setMulti] = useState<{ type: string[]; status: string[]; priority: string[] }>({
-    type: [], status: [], priority: [],
+  const [multi, setMulti] = useState<{ type: string[]; status: string[] }>({
+    type: [], status: [],
   });
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -189,13 +189,14 @@ const Dashboard: React.FC = () => {
       ...claim,
       client: claim.client_name || "—",
       claimNo: claim.our_reference || claim.claim_no || claim.claim_number || "—",
-      type: claim.actual_category || claim.claim_type || claim.type || "—",
+      // Claim Type comes from the General Details "Claim Type" dropdown, NOT the
+      // hire-provided vehicle category (actual_category).
+      type: claim.claim_type || claim.claim_type_name || "—",
       incidentRaw: claim.incident_date || claim.accident_date || claim.date || null,
       date: formatDate(claim.incident_date || claim.accident_date || claim.date),
       assigned: claim.handler || claim.assigned_to || claim.handler_name || "—",
       status: claim.case_status || claim.status || "—",
       reason: claim.rejection_reason || claim.reason || "",
-      priority: claim.priority || "—",
     };
   };
 
@@ -215,11 +216,6 @@ const Dashboard: React.FC = () => {
     if (all.length) return all;
     return [...new Set(tableRows.map((r) => r.status).filter((v) => v && v !== "—"))].sort();
   }, [caseStatuses, tableRows]);
-  const priorityOptions = useMemo(
-    () => [...new Set(tableRows.map((r) => r.priority).filter((v) => v && v !== "—"))].sort(),
-    [tableRows],
-  );
-
   const filteredRows = useMemo(() => {
     const query = searchQuery.toLowerCase();
     const fromT = fromDate ? new Date(fromDate + "T00:00:00").getTime() : null;
@@ -228,34 +224,33 @@ const Dashboard: React.FC = () => {
     return tableRows.filter((claim) => {
       const matchesSearch =
         !query ||
-        [claim.client, claim.claimNo, claim.type, claim.assigned, claim.status, claim.priority]
+        [claim.client, claim.claimNo, claim.type, claim.assigned, claim.status]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(query));
       const matchesType = multi.type.length === 0 || multi.type.includes(claim.type);
       const matchesStatus = multi.status.length === 0 || multi.status.includes(claim.status);
-      const matchesPriority = multi.priority.length === 0 || multi.priority.includes(claim.priority);
       let matchesDate = true;
       if ((fromT || toT) && claim.incidentRaw) {
         const t = new Date(claim.incidentRaw).getTime();
         if (fromT && t < fromT) matchesDate = false;
         if (toT && t > toT) matchesDate = false;
       }
-      return matchesSearch && matchesType && matchesStatus && matchesPriority && matchesDate;
+      return matchesSearch && matchesType && matchesStatus && matchesDate;
     });
   }, [tableRows, searchQuery, multi, fromDate, toDate]);
 
   useEffect(() => { setCurrentPage(1); }, [multi, fromDate, toDate, searchQuery]);
 
   // ── filter helpers (multi-select pills) ────────────────────────────────────
-  const toggleFilter = (key: "type" | "status" | "priority", value: string) =>
+  const toggleFilter = (key: "type" | "status", value: string) =>
     setMulti((m) => ({
       ...m,
       [key]: m[key].includes(value) ? m[key].filter((v) => v !== value) : [...m[key], value],
     }));
-  const clearFilter = (key: "type" | "status" | "priority") =>
+  const clearFilter = (key: "type" | "status") =>
     setMulti((m) => ({ ...m, [key]: [] }));
-  const clearAllFilters = () => setMulti({ type: [], status: [], priority: [] });
-  const activePills = (["type", "status", "priority"] as const).flatMap((k) =>
+  const clearAllFilters = () => setMulti({ type: [], status: [] });
+  const activePills = (["type", "status"] as const).flatMap((k) =>
     multi[k].map((value) => ({ key: k, value })),
   );
 
@@ -316,9 +311,9 @@ const Dashboard: React.FC = () => {
   };
 
   // ── export (Excel / PDF) ────────────────────────────────────────────────────
-  const EXPORT_COLS = ["Client", "Claim No.", "Type", "Incident Date", "Assigned To", "Reason", "Status", "Priority"];
+  const EXPORT_COLS = ["Client", "Claim No.", "Type", "Incident Date", "Assigned To", "Reason", "Status"];
   const exportRowsData = () =>
-    filteredRows.map((r) => [r.client, r.claimNo, r.type, r.date, r.assigned, r.reason || "", r.status, r.priority]);
+    filteredRows.map((r) => [r.client, r.claimNo, r.type, r.date, r.assigned, r.reason || "", r.status]);
   const exportExcel = () => {
     setExportMenu(false);
     const ws = XLSX.utils.aoa_to_sheet([EXPORT_COLS, ...exportRowsData()]);
@@ -347,7 +342,6 @@ const Dashboard: React.FC = () => {
   const pendingCount = tableRows.filter((c) => has(c.status, "pending")).length;
   const processingCount = tableRows.filter((c) => has(c.status, "process", "tbc", "progress")).length;
   const approvedCount = tableRows.filter((c) => has(c.status, "approve", "accept", "complete")).length;
-  const highCount = tableRows.filter((c) => (c.priority || "").toLowerCase() === "high").length;
 
   const stats = [
     {
@@ -379,14 +373,6 @@ const Dashboard: React.FC = () => {
       value: approvedCount,
       icon: Complete,
       iconBg: "bg-green-100",
-      trend: "-2.2%",
-      up: false,
-    },
-    {
-      title: "High Priority",
-      value: highCount,
-      icon: StatUrgent,
-      iconBg: "bg-red-100",
       trend: "-2.2%",
       up: false,
     },
@@ -586,7 +572,6 @@ const Dashboard: React.FC = () => {
                   <div className="flex items-center gap-6">
                     <MultiFilterDropdown label="Claim Type" options={typeOptions} selected={multi.type} onToggle={(v) => toggleFilter("type", v)} onClear={() => clearFilter("type")} />
                     <MultiFilterDropdown label="Status" options={statusOptions} selected={multi.status} onToggle={(v) => toggleFilter("status", v)} onClear={() => clearFilter("status")} />
-                    <MultiFilterDropdown label="Priority" options={priorityOptions} selected={multi.priority} onToggle={(v) => toggleFilter("priority", v)} onClear={() => clearFilter("priority")} />
                   </div>
 
                   <div className="ml-auto flex flex-col items-end gap-2">
@@ -667,14 +652,13 @@ const Dashboard: React.FC = () => {
                         <TableHeader>ASSIGNED TO</TableHeader>
                         <TableHeader>REASON</TableHeader>
                         <TableHeader>STATUS</TableHeader>
-                        <TableHeader>PRIORITY</TableHeader>
                         <TableHeader className="w-10" />
                       </tr>
                     </thead>
 
                     <tbody>
                       {pageRows.length === 0 && (
-                        <tr><td colSpan={selectMode ? 10 : 9} className="px-4 py-10 text-center text-neutral-400 text-xl">No claims found.</td></tr>
+                        <tr><td colSpan={selectMode ? 9 : 8} className="px-4 py-10 text-center text-neutral-400 text-xl">No claims found.</td></tr>
                       )}
                       {pageRows.map((claim, index) => (
                         <tr
@@ -711,10 +695,6 @@ const Dashboard: React.FC = () => {
 
                           <TableCell>
                             <StatusBadge status={claim.status} />
-                          </TableCell>
-
-                          <TableCell>
-                            <PriorityBadge priority={claim.priority} />
                           </TableCell>
 
                           <TableCell className="w-10 text-right relative" onClick={(e: any) => e.stopPropagation()}>

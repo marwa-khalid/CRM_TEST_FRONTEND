@@ -108,6 +108,9 @@ export const customStyles: StylesConfig<any, false> = {
     ...provided,
     fontFamily: "'Stack Sans Headline', sans-serif",
     fontWeight: 400,
+    // Sit the dropdown right under the field (react-select defaults to an 8px gap).
+    marginTop: 2,
+    marginBottom: 2,
   }),
 
   menuList: (provided) => ({
@@ -203,8 +206,15 @@ useEffect(() => {
     setIsAnalyzing(true);
        
        const res = await getClaimById(parseInt(claimId))
+       // The YES/NO/TBC dropdowns expect upper-case values; saved data can arrive
+       // title-cased ("Yes"), which fails to match the options (so the field looks
+       // empty) and then 422s on save. Normalise them here.
+       const up = (v: any) => (typeof v === "string" && v ? v.toUpperCase() : v);
        const formData= {
           ...res,
+          non_fault_accident: up(res.non_fault_accident),
+          any_passengers: up(res.any_passengers),
+          client_injured: up(res.client_injured),
           credit_hire_accepted: res.credit_hire_accepted ?"Yes" :"No",
           client_going_abroad: res.client_going_abroad ? "Yes" :"No"
         };

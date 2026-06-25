@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Select from "react-select";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Repeat } from "lucide-react";
 import {
   listCalendarEvents, type CalendarEvent, type EventFilters,
 } from "../../services/CalendarEvents/CalendarEvents";
-import { useAssignees } from "../TaskManagement/useAssignees";
 import { EVENT_TYPES, DEPARTMENTS } from "../TaskManagement/calendar/eventMeta";
 import EventFormDrawer from "../TaskManagement/calendar/EventFormDrawer";
 import EventDetailsDrawer from "../TaskManagement/calendar/EventDetailsDrawer";
@@ -32,7 +31,6 @@ const GRID_SOFT = "#EDEBE9";
 const WEEKEND = "#FAF9F8";
 const CHIP_BG = "#E8EBFA";
 const CHIP_TEXT = "#33344A";
-const RED = "#C4314B";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
@@ -182,17 +180,19 @@ const Chevron = ({ d = "down" }: { d?: "down" | "left" | "right" }) => (
 
 const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTasks }) => {
   const today = new Date();
-  const [view, setView] = useState<View>("week");
+  const [view, setView] = useState<View>("month");
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
   const [events, setEvents] = useState<CalendarEvent[]>(SAMPLE);
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
+  // The date-jump menu drills down: clicking the year header switches to a years
+  // grid; picking a year returns to the months grid.
+  const [dateMenuView, setDateMenuView] = useState<"months" | "years">("months");
   const [jumpYear, setJumpYear] = useState(() => new Date().getFullYear());
   const [reloadKey, setReloadKey] = useState(0);
   const scrolled = useRef(false);
-  const assignees = useAssignees();
 
   // Claim-ref and vehicle-reg dropdown options.
   const [claimRefs, setClaimRefs] = useState<string[]>([]);
@@ -266,10 +266,8 @@ const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTa
     }
     else if (view === "year") { start = `${anchor.getFullYear()}-01-01`; end = `${anchor.getFullYear()}-12-31`; }
     else {
-      // agenda: scope to the anchored month so the year/month filter applies
-      // (the title and jump menu are month-based too).
-      const y = anchor.getFullYear(), m = anchor.getMonth();
-      start = toKey(new Date(y, m, 1)); end = toKey(new Date(y, m + 1, 0));
+      // agenda: all-time by default (the date-range filter below can narrow it).
+      start = `${today.getFullYear() - 5}-01-01`; end = `${today.getFullYear() + 5}-12-31`;
     }
     if (fFrom) start = fFrom;
     if (fTo) end = fTo;
@@ -340,44 +338,48 @@ const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTa
   const chipClsFor = (e: CalendarEvent) => {
     const st = (e.status || "").toLowerCase();
     const isPast = !!e.start_date && e.start_date < toKey(today);
-    // Every event on a passed day is dimmed (Teams-style) to show the day has
-    // gone by — completed green, cancelled neutral and overdue red included.
-    const dim = isPast ? " opacity-60" : "";
-    // Manual = created on the Calendar (meetings etc.), not a synced system event.
+    // Manual = created on the Calendar (meetings etc.); everything else is system.
     const isManual = !isTaskMgmt(e) && !isEngineerInspection(e);
 
-    if (st === "cancelled") return "bg-neutral-100 text-neutral-400 line-through" + dim;
-    if (st === "completed") return "bg-green-100 text-green-600" + dim;
-    // A passed manual event fades to a light blue. Red/overdue stays reserved for
-    // Task Management deadlines.
-    if (isPast && isManual) return "bg-blue-100 text-blue-300 opacity-60";
-    if (isPast) return "bg-red-100 text-red-600 opacity-60"; // overdue task deadline / system event
-    if (isEngineerInspection(e)) return "bg-purple-100 text-purple-600"; // Engineer Inspection
-    return isTaskMgmt(e)
-      ? "bg-yellow-100 text-yellow-500"   // Task Management
-      : "bg-blue-100 text-blue-500";    // created on the Calendar
+    // Cancelled and rejected both read as grey + strikethrough.
+    if (st === "cancelled" || st === "rejected") return "bg-neutral-100 text-neutral-400 line-through" + (isPast ? " opacity-60" : "");
+    if (!isManual) {
+      // System / Task Management: completed = dim purple, overdue = red, else purple.
+      if (st === "completed") return "bg-purple-100 text-purple-600 opacity-60";
+      if (isPast) return "bg-red-100 text-red-600";
+      return "bg-purple-100 text-purple-600";
+    }
+    // Manual events: dim blue once completed or the day has passed; blue otherwise.
+    if (st === "completed" || isPast) return "bg-blue-100 text-blue-300 opacity-60";
+    return "bg-blue-100 text-blue-500";
   };
 
   // Light source-tint background for the Agenda rows (matches the chip colours),
   // so events are distinguishable without colouring the label text itself.
   const chipBgFor = (e: CalendarEvent) => {
     const st = (e.status || "").toLowerCase();
-    if (st === "cancelled") return "bg-neutral-100/50";
-    if (st === "completed") return "bg-green-100/40";
-    if (e.start_date && e.start_date < toKey(today)) return "bg-red-100/40";
-    if (isEngineerInspection(e)) return "bg-purple-100/40"; // Engineer Inspection
-    return isTaskMgmt(e) ? "bg-amber-100/40" : "bg-blue-100/40";
+    if (st === "cancelled" || st === "rejected") return "bg-neutral-100/50";
+    const isPast = !!e.start_date && e.start_date < toKey(today);
+    const isManual = !isTaskMgmt(e) && !isEngineerInspection(e);
+    if (!isManual) {
+      if (st === "completed") return "bg-purple-100/40";
+      return isPast ? "bg-red-100" : "bg-purple-100/40"; // overdue stays full red
+    }
+    return "bg-blue-100/40";
   };
 
   // Attachment-count circle tone, matching the agenda row's chipBgFor category so
   // the badge picks up the event's colour theme instead of always being blue.
   const badgeToneFor = (e: CalendarEvent) => {
     const st = (e.status || "").toLowerCase();
-    if (st === "cancelled") return "bg-neutral-200 text-neutral-600";
-    if (st === "completed") return "bg-green-200 text-green-600";
-    if (e.start_date && e.start_date < toKey(today)) return "bg-red-200 text-red-600";
-    if (isEngineerInspection(e)) return "bg-purple-200 text-purple-600";
-    return isTaskMgmt(e) ? "bg-amber-200 text-amber-600" : "bg-blue-200 text-blue-500";
+    if (st === "cancelled" || st === "rejected") return "bg-neutral-200 text-neutral-600";
+    const isPast = !!e.start_date && e.start_date < toKey(today);
+    const isManual = !isTaskMgmt(e) && !isEngineerInspection(e);
+    if (!isManual) {
+      if (st === "completed") return "bg-purple-200 text-purple-600";
+      return isPast ? "bg-red-200 text-red-600" : "bg-purple-200 text-purple-600";
+    }
+    return "bg-blue-200 text-blue-500";
   };
 
   // Dropdown options = claims-list values unioned with anything seen on loaded events.
@@ -394,16 +396,15 @@ const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTa
 
   const title = view === "year"
     ? `${anchor.getFullYear()}`
-    : view === "week"
-      ? `${MONTHS[weekDays[3].getMonth()]} ${weekDays[3].getFullYear()}`
-      : `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
-
-  const nowTop = ((today.getHours() * 60 + today.getMinutes()) / 60) * HOUR_PX;
+    : view === "agenda"
+      ? "All Time"
+      : view === "week"
+        ? `${MONTHS[weekDays[3].getMonth()]} ${weekDays[3].getFullYear()}`
+        : `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
 
   // -------------------------------------------------- time grid (day / week)
   const TimeGrid = ({ cols, outline }: { cols: Date[]; outline: boolean }) => {
     const gtCols = `${GUTTER}px repeat(${cols.length}, 1fr)`;
-    const showNow = cols.some((c) => sameDay(c, today));
     return (
       <>
         <div>
@@ -468,12 +469,6 @@ const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTa
                       <div style={{ height: "50%", borderBottom: `1px dashed ${GRID_SOFT}` }} />
                     </div>
                   ))}
-                  {showNow && isToday && (
-                    <>
-                      <div className="absolute z-20" style={{ top: nowTop, left: -4, width: 8, height: 8, borderRadius: 9999, background: RED }} />
-                      <div className="absolute left-0 right-0 z-20" style={{ top: nowTop, height: 2, background: RED }} />
-                    </>
-                  )}
                   {layoutDayEvents(evs).map(({ e, start, end, col, cols }) => {
                     const dur = end - start;
                     const top = (start / 60) * HOUR_PX;
@@ -618,11 +613,14 @@ const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTa
                 {g.rows.map((e) => (
                   <button key={`${e.id}-${e.start_date}`} type="button" onClick={() => openDetails(e)}
                     className={`flex items-stretch gap-3 rounded-md p-3 text-left transition hover:brightness-95 ${chipBgFor(e)}`} style={{ border: `1px solid ${GRID}` }}>
-                    <div className={chipClsFor(e)} style={{ width: 4, borderRadius: 4, background: "currentColor" }} />
+                    <div className={chipClsFor(e)} style={{ width: 4, borderRadius: 4, background: "currentColor", opacity: e.start_date && e.start_date < toKey(today) ? 0.45 : 1 }} />
                     <div className="w-20 shrink-0 text-[13px]" style={{ color: "#616161" }}>{e.start_time || "All day"}</div>
                     <div className="min-w-0 flex-1">
-                      <div className={`text-[14px] font-weight-600 truncate ${(e.status || "").toLowerCase() === "cancelled" ? "line-through" : ""}`}
-                        style={{ color: (e.status || "").toLowerCase() === "cancelled" ? "#9ca3af" : "#242424" }}>{e.title}</div>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className={`text-[14px] font-weight-600 truncate ${["cancelled", "rejected"].includes((e.status || "").toLowerCase()) ? "line-through" : ""}`}
+                          style={{ color: ["cancelled", "rejected"].includes((e.status || "").toLowerCase()) ? "#9ca3af" : "#242424" }}>{e.title}</div>
+                        {e.recurrence_rule && <Repeat size={13} className="shrink-0" style={{ color: "#9ca3af" }} aria-label="Recurring" />}
+                      </div>
                       {e.event_type && <div className="text-[12px] truncate" style={{ color: "#616161" }}>{e.event_type}</div>}
                     </div>
                     <div className="self-center pl-1"><AttachmentBadge count={attCount(e)} circleCls={badgeToneFor(e)} /></div>
@@ -667,7 +665,7 @@ const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTa
           <button type="button" onClick={() => move(1)} className="w-8 h-8 inline-flex items-center justify-center rounded-md hover:bg-[#f0f0f0]" aria-label="Next"><Chevron d="right" /></button>
           <div className="relative">
             <button type="button"
-              onClick={() => { setJumpYear((view === "year" || view === "agenda" ? anchor.getFullYear() : weekDays[3].getFullYear())); setDateMenuOpen((o) => !o); }}
+              onClick={() => { setJumpYear((view === "year" || view === "agenda" ? anchor.getFullYear() : weekDays[3].getFullYear())); setDateMenuView("months"); setDateMenuOpen((o) => !o); }}
               className="inline-flex items-center gap-1.5 px-2 h-8 rounded-md hover:bg-[#f0f0f0]">
               <span className="text-[16px] font-weight-600">{title}</span><Chevron />
             </button>
@@ -675,24 +673,51 @@ const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTa
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setDateMenuOpen(false)} />
                 <div className="absolute left-0 mt-2 z-40 w-64 rounded-lg bg-white shadow-xl p-3" style={{ border: `1px solid ${GRID}` }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <button type="button" onClick={() => setJumpYear((y) => y - 1)} className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-[#f0f0f0]"><Chevron d="left" /></button>
-                    <span className="text-[14px] font-weight-600">{jumpYear}</span>
-                    <button type="button" onClick={() => setJumpYear((y) => y + 1)} className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-[#f0f0f0]"><Chevron d="right" /></button>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1">
-                    {MONTHS_SHORT.map((m, i) => {
-                      const isCur = i === anchor.getMonth() && jumpYear === anchor.getFullYear();
-                      return (
-                        <button key={m} type="button"
-                          onClick={() => { setAnchor(new Date(jumpYear, i, 1)); if (view === "year") setView("month"); setDateMenuOpen(false); }}
-                          className="px-2 py-1.5 rounded text-[13px] hover:bg-blue-50"
-                          style={isCur ? { background: PURPLE, color: "#fff" } : { color: "#242424" }}>
-                          {m}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {dateMenuView === "years" ? (
+                    <>
+                      {/* Years grid — paginate by 12; pick a year to return to months. */}
+                      <div className="flex items-center justify-between mb-2">
+                        <button type="button" onClick={() => setJumpYear((y) => y - 12)} className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-[#f0f0f0]"><Chevron d="left" /></button>
+                        <span className="text-[14px] font-weight-600">{jumpYear - 11} – {jumpYear}</span>
+                        <button type="button" onClick={() => setJumpYear((y) => y + 12)} className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-[#f0f0f0]"><Chevron d="right" /></button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1">
+                        {Array.from({ length: 12 }, (_, i) => jumpYear - 11 + i).map((y) => {
+                          const isCur = y === anchor.getFullYear();
+                          return (
+                            <button key={y} type="button"
+                              onClick={() => { setJumpYear(y); setDateMenuView("months"); }}
+                              className="px-2 py-1.5 rounded text-[13px] hover:bg-blue-50"
+                              style={isCur ? { background: PURPLE, color: "#fff" } : { color: "#242424" }}>
+                              {y}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Months grid — clicking the year header opens the years grid. */}
+                      <div className="flex items-center justify-between mb-2">
+                        <button type="button" onClick={() => setJumpYear((y) => y - 1)} className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-[#f0f0f0]"><Chevron d="left" /></button>
+                        <button type="button" onClick={() => setDateMenuView("years")} className="text-[14px] font-weight-600 px-2 py-0.5 rounded hover:bg-[#f0f0f0]">{jumpYear}</button>
+                        <button type="button" onClick={() => setJumpYear((y) => y + 1)} className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-[#f0f0f0]"><Chevron d="right" /></button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1">
+                        {MONTHS_SHORT.map((m, i) => {
+                          const isCur = i === anchor.getMonth() && jumpYear === anchor.getFullYear();
+                          return (
+                            <button key={m} type="button"
+                              onClick={() => { setAnchor(new Date(jumpYear, i, 1)); if (view === "year") setView("month"); setDateMenuOpen(false); }}
+                              className="px-2 py-1.5 rounded text-[13px] hover:bg-blue-50"
+                              style={isCur ? { background: PURPLE, color: "#fff" } : { color: "#242424" }}>
+                              {m}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -730,11 +755,9 @@ const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTa
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1"><span className="text-[12px] text-neutral-500">Event Type</span><FilterSelect value={fType} onChange={setFType} options={EVENT_TYPES} placeholder="All types" width="100%" /></div>
-                      <div className="flex flex-col gap-1"><span className="text-[12px] text-neutral-500">Assigned User</span><FilterSelect value={fUser} onChange={setFUser} options={assignees} placeholder="All users" width="100%" /></div>
                       <div className="flex flex-col gap-1"><span className="text-[12px] text-neutral-500">Department</span><FilterSelect value={fDept} onChange={setFDept} options={DEPARTMENTS} placeholder="All departments" width="100%" /></div>
                       <div className="flex flex-col gap-1"><span className="text-[12px] text-neutral-500">Claim Ref</span><FilterSelect value={fClaim} onChange={setFClaim} options={claimOpts} placeholder="All claims" width="100%" searchable clearable /></div>
                       <div className="flex flex-col gap-1"><span className="text-[12px] text-neutral-500">Vehicle Reg</span><FilterSelect value={fVehicle} onChange={setFVehicle} options={vehicleOpts} placeholder="All vehicles" width="100%" searchable clearable /></div>
-                      <div />
                       <div className="flex flex-col gap-1"><span className="text-[12px] text-neutral-500">From</span><DateField value={fFrom} onChange={setFFrom} placeholder="From" className="w-full" /></div>
                       <div className="flex flex-col gap-1"><span className="text-[12px] text-neutral-500">To</span><DateField value={fTo} onChange={setFTo} placeholder="To" className="w-full" /></div>
                     </div>

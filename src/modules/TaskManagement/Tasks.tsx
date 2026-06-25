@@ -958,7 +958,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
   const [tasks, setTasks] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [view, setView] = useState<"list" | "card">("list");
+  const [view, setView] = useState<"list" | "card">("card");
   const [selectMode, setSelectMode] = useState(false);
   const [search, setSearch] = useState("");
   const [multi, setMulti] = useState<MultiState>(seedMulti(initialFilters));

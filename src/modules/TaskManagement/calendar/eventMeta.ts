@@ -4,14 +4,8 @@
 export const EVENT_TYPES = [
   "Appointment",
   "Meeting",
-  "Engineer Inspection",
-  "Vehicle Collection",
-  "Vehicle Delivery",
-  "Vehicle Return",
   "Reminder",
   "Follow-Up",
-  "Internal Meeting",
-  "Task Deadline",
 ];
 
 export const DEPARTMENTS = [
@@ -33,32 +27,30 @@ export const REMINDER_OPTIONS = [
 
 export const RECURRENCE_OPTIONS = ["Daily", "Weekly", "Monthly", "Yearly"];
 
-export const EVENT_STATUSES = ["Scheduled", "Completed", "Cancelled"];
+// "Completed" is not selectable on the Add/Edit form (events are never manually
+// marked complete here); it can still arrive from Task Management for display.
+export const EVENT_STATUSES = ["Scheduled", "Cancelled"];
 
 // Chip colour per event type — bg-*-100 / text-*-600 to match the app theme.
 const TYPE_COLORS: Record<string, string> = {
   Appointment: "bg-blue-100 text-blue-600",
   Meeting: "bg-blue-100 text-blue-600",
-  "Internal Meeting": "bg-indigo-100 text-indigo-600",
-  "Engineer Inspection": "bg-purple-100 text-purple-600",
-  "Vehicle Collection": "bg-green-100 text-green-600",
-  "Vehicle Delivery": "bg-teal-100 text-teal-600",
-  "Vehicle Return": "bg-amber-100 text-amber-600",
   Reminder: "bg-yellow-100 text-amber-600",
   "Follow-Up": "bg-orange-100 text-orange-600",
-  "Task Deadline": "bg-amber-100 text-amber-600", // amber by default; red is reserved for OVERDUE (see calendar)
 };
 
 export const eventChipCls = (event_type?: string | null, status?: string | null): string => {
-  if ((status || "").toLowerCase() === "cancelled") return "bg-neutral-100 text-neutral-400 line-through";
-  if ((status || "").toLowerCase() === "completed") return "bg-green-100 text-green-600";
+  const s = (status || "").toLowerCase();
+  if (s === "cancelled" || s === "rejected") return "bg-neutral-100 text-neutral-400 line-through";
+  if (s === "completed") return "bg-purple-100 text-purple-600";
   return TYPE_COLORS[event_type || ""] || "bg-blue-100 text-blue-600";
 };
 
 export const statusBadgeCls = (status?: string | null): string => {
   const s = (status || "").toLowerCase();
-  if (s === "completed") return "bg-green-100 text-green-600";
-  if (s === "cancelled") return "bg-neutral-100 text-neutral-500";
+  // No green anywhere — completed reads as a muted purple.
+  if (s === "completed") return "bg-purple-100 text-purple-600";
+  if (s === "cancelled" || s === "rejected") return "bg-neutral-100 text-neutral-500";
   return "bg-blue-100 text-blue-600"; // Scheduled
 };
 

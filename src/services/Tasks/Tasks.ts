@@ -15,6 +15,9 @@ export interface TaskFilters {
   // When true, returns every task in the tenant (system-wide), ignoring the
   // logged-in user filter. Used by the Dashboard task overview cards.
   all_users?: boolean;
+  // When true, drops past-due tasks so the Pending / Awaiting Response cards stay
+  // mutually exclusive with the Overdue card.
+  exclude_overdue?: boolean;
 }
 
 export interface TaskPayload {

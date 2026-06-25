@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { Pencil, Ban, Repeat } from "lucide-react";
 import {
-  getCalendarEvent, updateCalendarEvent, completeCalendarEvent, cancelCalendarEvent,
+  getCalendarEvent, updateCalendarEvent, cancelCalendarEvent,
   deleteCalendarEvent, getCalendarEventAudit, type CalendarEvent, type EventAudit,
 } from "../../../services/CalendarEvents/CalendarEvents";
 import { getAttachmentUrl } from "../../../services/Tasks/Tasks";
-import { statusBadgeCls, eventChipCls } from "./eventMeta";
+import { statusBadgeCls, eventChipCls, REMINDER_OPTIONS } from "./eventMeta";
 import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
 import { ConfirmModal } from "../../../components/common/ConfirmModal";
 import TaskAttachmentModal, { fileLogo } from "../TaskAttachmentModal";
@@ -25,8 +26,14 @@ const fmtLong = (d?: string | null) => {
   if (isNaN(dt.getTime())) return d;
   return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
-const fmtDateTime = (d?: string | null, t?: string | null) =>
-  d ? `${fmtLong(d)}${t ? ` · ${t}` : ""}` : "—";
+// Date on the first row, time on the next (used for Starts / Ends).
+const dateTimeRows = (d?: string | null, t?: string | null) =>
+  d ? (
+    <>
+      <div>{fmtLong(d)}</div>
+      {t ? <div>{t}</div> : null}
+    </>
+  ) : undefined;
 const fmtStamp = (iso?: string | null) =>
   iso
     ? new Date(iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z").toLocaleString("en-GB", {
@@ -42,47 +49,164 @@ const Field = ({ label, children }: { label: string; children?: React.ReactNode 
   </div>
 );
 
+// ─── reminders helpers + edit popup ─────────────────────────────────────────────
+const REAL_REMINDERS = REMINDER_OPTIONS.filter((o) => o.value !== "none");
+// Parse the comma-separated reminder string. Empty = all four defaults (tasks
+// start with every reminder); "none" = don't remind.
+const parseReminders = (raw?: string | null): string[] => {
+  const vals = String(raw || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (vals.includes("none")) return ["none"];
+  const real = vals.filter((v) => v !== "none");
+  return real.length ? real : REAL_REMINDERS.map((o) => o.value);
+};
+const reminderSummary = (raw?: string | null): string => {
+  const vals = parseReminders(raw);
+  if (vals.includes("none")) return "Don't remind me";
+  return vals.map((v) => REMINDER_OPTIONS.find((o) => o.value === v)?.label || v).join(", ");
+};
+
+// Quick reminder editor — multiselect (same checkbox look as the Add/Edit form),
+// available even for system events (which can't otherwise be edited).
+const ReminderEditModal = ({ initial, onClose, onSave }: {
+  initial?: string | null;
+  onClose: () => void;
+  onSave: (reminder: string) => Promise<void> | void;
+}) => {
+  const [sel, setSel] = useState<string[]>(() => parseReminders(initial));
+  const [saving, setSaving] = useState(false);
+  const toggle = (v: string) => {
+    setSel((prev) => {
+      if (v === "none") return prev.includes("none") ? [] : ["none"]; // exclusive
+      const without = prev.filter((x) => x !== "none");
+      return without.includes(v) ? without.filter((x) => x !== v) : [...without, v];
+    });
+  };
+  const save = async () => {
+    setSaving(true);
+    try { await onSave(sel.includes("none") ? "none" : sel.join(",")); onClose(); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-[360px] bg-white rounded-lg p-5 flex flex-col gap-4" onClick={(e) => e.stopPropagation()}>
+        <div className="text-neutral-900 text-base font-weight-600">Edit Reminders</div>
+        <div className="flex flex-col gap-1">
+          {REMINDER_OPTIONS.map((o) => {
+            const checked = sel.includes(o.value);
+            return (
+              <button key={o.value} type="button" onClick={() => toggle(o.value)}
+                className={`w-full flex items-center gap-2 p-2.5 rounded-sm text-left ${checked ? "bg-blue-100" : "hover:bg-neutral-50"}`}>
+                <span className={`w-5 h-5 rounded-sm shrink-0 ${checked ? "bg-blue-500 border-[6px] border-blue-200" : "bg-neutral-300"}`} />
+                <span className="text-neutral-700 text-sm">{o.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded border border-neutral-300 text-neutral-700 text-sm hover:bg-neutral-50">Cancel</button>
+          <button type="button" onClick={save} disabled={saving} className="px-4 py-2 rounded bg-blue-500 text-white text-sm hover:bg-blue-600 disabled:opacity-60">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Tab 1: details ──────────────────────────────────────────────────────────────
-const DetailsTab = ({ ev }: { ev: CalendarEvent }) => (
+const DetailsTab = ({
+  ev,
+  onEditReminder,
+  onCancelRecurrence,
+}: {
+  ev: CalendarEvent;
+  onEditReminder?: () => void;
+  onCancelRecurrence?: () => void;
+}) => (
   <div className="flex flex-col gap-6">
     <div className="flex gap-6">
       <Field label="Event Type">
-        <span className={`px-2 py-0.5 rounded text-xs font-weight-600 ${eventChipCls(ev.event_type, ev.status)}`}>
+        <span
+          className={`px-2 py-0.5 rounded text-xs font-weight-600 ${eventChipCls(ev.event_type, ev.status)}`}
+        >
           {ev.event_type || "Event"}
         </span>
       </Field>
       <Field label="Status">
-        <span className={`px-2 py-0.5 rounded text-xs font-weight-600 ${statusBadgeCls(ev.status)}`}>
+        <span
+          className={`px-2 py-0.5 rounded text-xs font-weight-600 ${statusBadgeCls(ev.status)}`}
+        >
           {ev.status || "Scheduled"}
         </span>
       </Field>
     </div>
     <div className="flex gap-6">
-      <Field label="Starts">{fmtDateTime(ev.start_date, ev.start_time)}</Field>
-      <Field label="Ends">{fmtDateTime(ev.end_date, ev.end_time)}</Field>
+      <Field label="Starts">{dateTimeRows(ev.start_date, ev.start_time)}</Field>
+      <Field label="Ends">{dateTimeRows(ev.end_date, ev.end_time)}</Field>
     </div>
     <div className="flex gap-6">
       <Field label="Department">{ev.department}</Field>
       <Field label="Location">{ev.location}</Field>
     </div>
-    <Field label="Assigned User(s)">{(ev.assigned_users || []).join(", ")}</Field>
+    <Field label="Assigned User(s)">
+      {(ev.assigned_users || []).join(", ")}
+    </Field>
     <div className="flex gap-6">
-      <Field label="Reminder">{ev.reminder}</Field>
-      <Field label="Recurrence">{ev.recurrence_rule}</Field>
+      <Field label="Reminder">
+        <span className="inline-flex items-center gap-2">
+          <span>{reminderSummary(ev.reminder)}</span>
+          {/* Quick reminder edit is only for system events — manual events use Edit. */}
+          {onEditReminder && (
+            <button
+              type="button"
+              onClick={onEditReminder}
+              title="Edit reminders"
+              className="text-blue-500 hover:text-blue-600 shrink-0"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+        </span>
+      </Field>
+      <Field label="Recurrence">
+        {ev.recurrence_rule ? (
+          <span className="inline-flex items-center gap-2">
+            <span>{ev.recurrence_rule}</span>
+            {onCancelRecurrence && (
+              <button
+                type="button"
+                onClick={onCancelRecurrence}
+                title="Stop recurrence"
+                className="text-blue-500 hover:text-blue-600 shrink-0"
+              >
+                <Repeat size={14} />
+              </button>
+            )}
+          </span>
+        ) : undefined}
+      </Field>
     </div>
     <div className="flex flex-col gap-1.5">
-      <div className="text-neutral-900 text-sm font-weight-600">Description</div>
-      <div className="text-neutral-500 text-sm font-light whitespace-pre-line">{ev.description || "—"}</div>
+      <div className="text-neutral-900 text-sm font-weight-600">
+        Description
+      </div>
+      <div className="text-neutral-500 text-sm font-light whitespace-pre-line">
+        {ev.description || "—"}
+      </div>
+    </div>
+    {/* Created / Last Updated (replaces the Activity Log for system events). */}
+    <div className="flex gap-6">
+      <Field label="Created">{fmtStamp(ev.created_at)}</Field>
+      <Field label="Last Updated">{fmtStamp(ev.updated_at)}</Field>
     </div>
   </div>
 );
 
 // ─── Tab: attachments ───────────────────────────────────────────────────────────────
 const AttachmentsTab = ({
-  ev, onUpdated,
+  ev, onUpdated, canEdit,
 }: {
   ev: CalendarEvent;
   onUpdated: (e: CalendarEvent) => void;
+  canEdit: boolean;
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
@@ -118,20 +242,22 @@ const AttachmentsTab = ({
       {modalOpen && (
         <TaskAttachmentModal onClose={() => setModalOpen(false)} onUploaded={onUploaded} />
       )}
-      <div className="flex flex-col gap-4">
-        <div className="text-neutral-900 text-base font-weight-600">Upload Attachment</div>
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="p-8 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col items-center gap-3 hover:bg-neutral-50"
-        >
-          <img src={upload} alt="" />
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-blue-500 text-sm font-weight-500">Click to upload or drag and drop</span>
-            <span className="text-neutral-500 text-xs">JPG, PNG, PDF, CSV, Excel, Word, PPT Supported</span>
-          </div>
-        </button>
-      </div>
+      {canEdit && (
+        <div className="flex flex-col gap-4">
+          <div className="text-neutral-900 text-base font-weight-600">Upload Attachment</div>
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="p-8 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col items-center gap-3 hover:bg-neutral-50"
+          >
+            <img src={upload} alt="" />
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-blue-500 text-sm font-weight-500">Click to upload or drag and drop</span>
+              <span className="text-neutral-500 text-xs">JPG, PNG, PDF, CSV, Excel, Word, PPT Supported</span>
+            </div>
+          </button>
+        </div>
+      )}
       <div className="flex flex-col gap-3">
         <div className="text-neutral-700 text-base font-weight-600">Attached Files ({files.length})</div>
         {files.length === 0 && <div className="text-neutral-400 text-sm">No attachments yet.</div>}
@@ -144,9 +270,11 @@ const AttachmentsTab = ({
             <button type="button" onClick={() => open(p)} title="Download" className="text-neutral-500 hover:text-blue-500">
               <img src={Download} alt="" />
             </button>
-            <button type="button" onClick={() => setRemoveTarget(p)} title="Remove" className="text-neutral-500 hover:text-red-500">
-              <img src={Delete} alt="" />
-            </button>
+            {canEdit && (
+              <button type="button" onClick={() => setRemoveTarget(p)} title="Remove" className="text-neutral-500 hover:text-red-500">
+                <img src={Delete} alt="" />
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -248,6 +376,7 @@ const EventDetailsDrawer = ({
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<EventTab>("Event Details");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
 
   useEffect(() => {
     if (!open || !eventId) return;
@@ -265,10 +394,16 @@ const EventDetailsDrawer = ({
   if (!open) return null;
 
   const isSystem = (ev?.source || "manual") === "system";
-  // Only manually-created calendar events are editable. Everything system-generated
-  // (Task Management deadlines, engineer inspections, etc.) is owned by its source.
   const fromTaskMgmt = ev?.source_type === "task_due" || !!ev?.task_id;
-  const editable = !isSystem;
+  const isEngineerInspection = ev?.event_type === "Engineer Inspection" || ev?.source_type === "engineer_inspection";
+  // Any non-manual event (Task Management deadlines, engineer inspections, other
+  // system events) is system-generated: it cannot be edited, completed, cancelled
+  // or deleted, and shows the purple "System Generated" pill.
+  const isSystemGenerated = isSystem || fromTaskMgmt || isEngineerInspection;
+  const editable = !isSystemGenerated;
+  // System events have no useful audit trail — drop the Activity Log tab (the
+  // Created / Last Updated stamps now live on the Event Details tab instead).
+  const visibleTabs = isSystemGenerated ? TABS.filter((t) => t !== "Activity Log") : TABS;
   // For a recurring series, actions target the specific occurrence the user opened
   // (today's standup), never the whole series.
   const recurring = !!ev?.recurrence_rule;
@@ -280,11 +415,9 @@ const EventDetailsDrawer = ({
   const viewEv: CalendarEvent | null =
     ev && occDate ? { ...ev, start_date: occDate, end_date: occDate, status: effStatus } : ev;
 
-  const badge = fromTaskMgmt
-    ? { cls: "bg-amber-100 text-amber-600", label: "Task Management" }
-    : isSystem
-      ? { cls: "bg-purple-100 text-purple-600", label: "System Generated" }
-      : { cls: "bg-blue-100 text-blue-600", label: "Manual Event" };
+  const badge = isSystemGenerated
+    ? { cls: "bg-purple-100 text-purple-600", label: "System Generated" }
+    : { cls: "bg-blue-100 text-blue-600", label: "Manual Event" };
 
   const act = async (fn: () => Promise<any>, ok: string) => {
     setBusy(true);
@@ -296,6 +429,42 @@ const EventDetailsDrawer = ({
   const viewRecord = () => {
     if (ev?.claim_id) { navigate(`/add-claim/${ev.claim_id}`); return; }
     toast.info("No linked claim record on this event");
+  };
+
+  // Quick reminder update (works for system events too, which can't otherwise be edited).
+  const saveReminder = async (reminder: string) => {
+    if (!ev) return;
+    setBusy(true);
+    try {
+      const { data } = await updateCalendarEvent(ev.id, { title: ev.title, reminder });
+      setEv(data);
+      onChanged();
+      toast.success("Reminders updated");
+    } catch {
+      toast.error("Action failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Turn a recurring event into a one-off (clears the recurrence rule) without
+  // having to open Edit and change the dropdown. Stays on the drawer.
+  const cancelRecurrence = async () => {
+    if (!ev) return;
+    setBusy(true);
+    try {
+      const { data } = await updateCalendarEvent(ev.id, { title: ev.title, recurrence_rule: null });
+      setEv(data);
+      onChanged();
+      getCalendarEventAudit(ev.id)
+        .then(({ data }) => setAudit(Array.isArray(data) ? data : []))
+        .catch(() => {});
+      toast.success("Recurrence cancelled");
+    } catch {
+      toast.error("Action failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -343,7 +512,7 @@ const EventDetailsDrawer = ({
             </div>
           </div>
           <div className="flex items-start gap-6">
-            {TABS.map((t) => (
+            {visibleTabs.map((t) => (
               <button
                 key={t}
                 type="button"
@@ -366,7 +535,7 @@ const EventDetailsDrawer = ({
         {/* body */}
         <div className="flex-1 overflow-auto p-6 flex flex-col gap-4">
           {recurring && (
-            <div className="px-3 py-2 rounded bg-indigo-50 text-indigo-700 text-xs">
+            <div className="px-3 py-2 rounded bg-blue-50 text-blue-500 text-xs">
               This is a recurring event. Complete, cancel or delete here affects
               <span className="font-weight-600">
                 {" "}
@@ -375,12 +544,18 @@ const EventDetailsDrawer = ({
               — the rest of the series stays unchanged.
             </div>
           )}
-          {viewEv && tab === "Event Details" && <DetailsTab ev={viewEv} />}
+          {viewEv && tab === "Event Details" && (
+            <DetailsTab
+              ev={viewEv}
+              onEditReminder={isSystemGenerated ? () => setReminderOpen(true) : undefined}
+              onCancelRecurrence={recurring && editable ? cancelRecurrence : undefined}
+            />
+          )}
           {viewEv && tab === "Linked Record" && (
             <LinkedTab ev={viewEv} onViewRecord={viewRecord} />
           )}
           {ev && tab === "Attachments" && (
-            <AttachmentsTab ev={ev} onUpdated={(u) => {
+            <AttachmentsTab ev={ev} canEdit={editable} onUpdated={(u) => {
               setEv(u);
               onChanged();
               // Refresh the audit so the attachment entry shows in Activity Log.
@@ -394,13 +569,15 @@ const EventDetailsDrawer = ({
 
         {/* actions */}
         <div className="border-t border-neutral-100 px-6 py-4 flex items-center justify-between shrink-0">
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="px-3 py-2 rounded text-red-500 border border-red-500 text-sm hover:bg-red-100"
-          >
-            Delete
-          </button>
+          {editable ? (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="px-3 py-2 rounded text-red-500 border border-red-500 text-sm hover:bg-red-100"
+            >
+              Delete
+            </button>
+          ) : <span />}
           <div className="flex items-center gap-2">
             {ev?.claim_id && (
               <button
@@ -408,10 +585,10 @@ const EventDetailsDrawer = ({
                 onClick={viewRecord}
                 className="px-4 py-2 rounded border border-blue-500 text-blue-500 text-sm hover:bg-blue-50"
               >
-                View Record
+                View Claim
               </button>
             )}
-            {effStatus !== "Cancelled" && effStatus !== "Completed" && (
+            {editable && effStatus !== "Cancelled" && effStatus !== "Completed" && (
               <button
                 type="button"
                 onClick={() =>
@@ -423,22 +600,7 @@ const EventDetailsDrawer = ({
                 }
                 className="px-4 py-2 rounded border border-neutral-500 text-neutral-500 text-sm hover:bg-neutral-100"
               >
-                Cancel
-              </button>
-            )}
-            {effStatus !== "Completed" && (
-              <button
-                type="button"
-                onClick={() =>
-                  ev &&
-                  act(
-                    () => completeCalendarEvent(ev.id, occDate),
-                    "Event completed",
-                  )
-                }
-                className="px-4 py-2 rounded bg-green-100 text-green-500 text-sm hover:bg-green-100"
-              >
-                Mark Complete
+                Cancel Event
               </button>
             )}
           </div>
@@ -460,6 +622,14 @@ const EventDetailsDrawer = ({
             ev &&
               act(() => deleteCalendarEvent(ev.id, occDate), "Event deleted");
           }}
+        />
+      )}
+
+      {reminderOpen && ev && (
+        <ReminderEditModal
+          initial={ev.reminder}
+          onClose={() => setReminderOpen(false)}
+          onSave={saveReminder}
         />
       )}
     </div>

@@ -7,11 +7,19 @@ import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/St
 import { gettingEnginerDetails } from "../../../services/EngineeringDetails/engineeringDetails";
 import { getHireRecords } from "../../../services/HireDetail/HireDetails";
 import { getHireProvidedVehicles } from "../../../services/Vehicle/vehicle";
+import { getThirdPartyInsurer } from "../../../services/ThirdPartyInsurer/ThirdPartyInsurer";
+import { getClientByClaimID } from "../../../services/Client/client";
+import { getAccidentDetailById } from "../../../services/Accidents/accident";
 import VehicleCards, { type ClaimVehicle } from "./VehicleCards";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import Plus from "../../../assets/AutoClaim_icon/Plus.svg";
 import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
+import CreditHireInvoiceForm from "./CreditHireInvoiceForm";
+import ABIHireBreakdownForm from "./ABIHireBreakdownForm";
+import PlatingInvoiceForm from "./PlatingInvoiceForm";
+import CoveringLetterForm from "./CoveringLetterForm";
+import FrontCoverForm from "./FrontCoverForm";
 
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
@@ -69,6 +77,34 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     if (!claimId) return;
     getHireProvidedVehicles(claimId).then((vs) => setVehicles(Array.isArray(vs) ? vs : []));
   }, [claimId]);
+
+  // Document-only claim data: policy number + insurer (TPI), client (Screen 3),
+  // and incident date (accident details).
+  useEffect(() => {
+    if (!claimId) return;
+    getThirdPartyInsurer(claimId)
+      .then((res: any) => {
+        setPolicyNumber(res?.data?.policy_number || "");
+        setInsurerName(res?.data?.third_party_insurer?.first_name || "");
+      })
+      .catch(() => {});
+    getClientByClaimID(claimId)
+      .then((c: any) => setClientName([c?.first_name, c?.surname].filter(Boolean).join(" ")))
+      .catch(() => {});
+    getAccidentDetailById(Number(claimId))
+      .then((a: any) => setIncidentDate(String(a?.date_time || "").split("T")[0]))
+      .catch(() => {});
+  }, [claimId]);
+
+  // Logged-in user — signatory name is the part before the "@" in their email.
+  const signatory = (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      return String(u.email || "").split("@")[0] || "";
+    } catch {
+      return "";
+    }
+  })();
   const perVehicle = vehicles.length >= 2;
 
   // Date picker visibility state
@@ -86,6 +122,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const penaltyDue60Ref = useRef<HTMLDivElement>(null);
   const penaltyDue61Ref = useRef<HTMLDivElement>(null);
   const penaltyDue90Ref = useRef<HTMLDivElement>(null);
+  const packMenuRef = useRef<HTMLDivElement>(null);
 
   const [penaltyDueDate30, setPenaltyDueDate30] = useState("");
   const [penaltyDueDate60, setPenaltyDueDate60] = useState("");
@@ -93,6 +130,24 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [penaltyDueDate90, setPenaltyDueDate90] = useState("");
 
   const [isGenerating, setIsGenerating] = useState(false);
+  // Confirmation popup that lists the pack contents before generating.
+  const [showPackModal, setShowPackModal] = useState(false);
+  // Credit Hire Invoice editable form screen (opened from the popup's first item).
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  // ABI Hire Breakdown editable form screen (popup's second item).
+  const [showAbiBreakdown, setShowAbiBreakdown] = useState(false);
+  // Plating Invoice editable form screen (popup's "Plating Invoice" item).
+  const [showPlatingInvoice, setShowPlatingInvoice] = useState(false);
+  // Front Cover editable form screen (popup's "Front Cover" item).
+  const [showFrontCover, setShowFrontCover] = useState(false);
+  // Covering Letter editable form screen (popup's "Covering Letter" item).
+  const [showCoveringLetter, setShowCoveringLetter] = useState(false);
+
+  // Claim data sourced for the documents (read-only).
+  const [policyNumber, setPolicyNumber] = useState("");
+  const [insurerName, setInsurerName] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [incidentDate, setIncidentDate] = useState("");
   const [loading, setLoading] = useState(true);
 
   // Formik — only the Payment Pack Sent Detail fields are saved to DB
@@ -143,6 +198,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         setShowPenaltyDue61Picker(false);
       if (penaltyDue90Ref.current && !penaltyDue90Ref.current.contains(e.target as Node))
         setShowPenaltyDue90Picker(false);
+      if (packMenuRef.current && !packMenuRef.current.contains(e.target as Node))
+        setShowPackModal(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -296,6 +353,19 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const vAdmin = isFirstCard ? abiAdminFee : 0;
   const vBhrAdmin = isFirstCard ? bhrAdminFee : 0;
 
+  // Other vehicles on the claim — printed under the edited vehicle in the
+  // Credit Hire document (read-only), so multi-vehicle packs list every vehicle.
+  const otherVehicleRows = vehicles
+    .map((v, i) => ({ v, rec: hireRecords[i] as any, i }))
+    .filter(({ i }) => i !== activeVehicle)
+    .map(({ v, rec }) => ({
+      vehicle: [(v as any)?.make, (v as any)?.model].filter(Boolean).join(" "),
+      registration: (v as any)?.registration || rec?.registration_number || rec?.hire_vehicle_registration || "",
+      hireStart: String(rec?.hire_start_date || rec?.hire_out || "").slice(0, 10),
+      hireEnd: String(rec?.hire_back || "").slice(0, 10),
+      days: rec ? toF(rec.final_total_no_of_hire_days ?? rec.no_of_days_hire_so_far) || "" : "",
+    }));
+
   // 0-30 section (selected vehicle)
   const totalHire030 = vAbiHire + (vExtra * vDays) + vAdmin;
 
@@ -336,46 +406,170 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   return (
     <div className="w-full mt-3 flex flex-col justify-start items-start gap-6 bg-white font-['Stack_Sans_Headline']">
       {loading && <SpinnerLoader />}
+
+      {showInvoiceForm && (
+        <CreditHireInvoiceForm
+          onClose={() => setShowInvoiceForm(false)}
+          prefill={{
+            invoiceNumber: formik.values.invoice_number || "",
+            invoiceDate: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
+            hireStart: String((selRec as any)?.hire_start_date || (selRec as any)?.hire_out || "").slice(0, 10),
+            hireEnd: String((selRec as any)?.hire_back || "").slice(0, 10),
+            totalHireDays: vDays || "",
+            registration: (selRec as any)?.registration_number || (selRec as any)?.hire_vehicle_registration || "",
+            make: (selRec as any)?.make || "",
+            model: (selRec as any)?.model || "",
+            basicHireDays: vDays || "",
+            basicHireRate: selRec ? toF((selRec as any).abi_hire_charge_per_day) : (noOfDays ? abiDailyRate / noOfDays : undefined),
+            basicHireAmount: vAbiHire,
+            adminAmount: vAdmin || undefined,
+            otherVehicles: otherVehicleRows,
+            client: clientName || (selRec as any)?.client_name || "",
+            billTo: clientName || (selRec as any)?.client_name || "",
+          }}
+        />
+      )}
+
+      {showAbiBreakdown && (
+        <ABIHireBreakdownForm
+          onClose={() => setShowAbiBreakdown(false)}
+          vehicleGroups={vehicles.map((v) => (v as any).category).filter(Boolean) as string[]}
+          prefill={{
+            ourReference: formik.values.invoice_number || "",
+            vehicleGroup: (selRec as any)?.actual_vehicle_category?.label || (selRec as any)?.vehicle_group || "",
+            hireStart: String((selRec as any)?.hire_start_date || (selRec as any)?.hire_out || "").slice(0, 10),
+            hireEnd: String((selRec as any)?.hire_back || "").slice(0, 10),
+            totalHireDays: vDays || "",
+            abiRatePerDay: selRec ? toF((selRec as any).abi_hire_charge_per_day) : (noOfDays ? abiDailyRate / noOfDays : undefined),
+            extras: vExtra || undefined,
+            vehicle: [(selRec as any)?.make, (selRec as any)?.model].filter(Boolean).join(" "),
+            registration: (selRec as any)?.registration_number || (selRec as any)?.hire_vehicle_registration || "",
+            dated: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
+          }}
+        />
+      )}
+
+      {showPlatingInvoice && (
+        <PlatingInvoiceForm
+          onClose={() => setShowPlatingInvoice(false)}
+          prefill={{
+            invoiceNumber: formik.values.invoice_number || "",
+            invoiceDate: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
+            registration: (selRec as any)?.registration_number || (selRec as any)?.hire_vehicle_registration || "",
+            make: (selRec as any)?.make || "",
+            model: (selRec as any)?.model || "",
+            privateHirePlatingCosts: platingCharges || undefined,
+            otherVehicles: otherVehicleRows.map((v) => ({ vehicle: v.vehicle, registration: v.registration })),
+            client: clientName || (selRec as any)?.client_name || "",
+            billTo: clientName || (selRec as any)?.client_name || "",
+          }}
+        />
+      )}
+
+      {showFrontCover && (
+        <FrontCoverForm
+          onClose={() => setShowFrontCover(false)}
+          prefill={{
+            yourInsured: insurerName,
+            policyNumber,
+            incidentDate,
+            caseType: (vehicles.length || 1) > 1 ? "Multiple Vehicles" : "Single Vehicle",
+            dated: String(formik.values.payment_pack_raised_date || dateToISO(new Date())).slice(0, 10),
+          }}
+        />
+      )}
+
+      {showCoveringLetter && (
+        <CoveringLetterForm
+          onClose={() => setShowCoveringLetter(false)}
+          prefill={{
+            ourReference: formik.values.invoice_number || "",
+            ourClient: clientName || (selRec as any)?.client_name || "",
+            yourInsured: insurerName,
+            incidentDate,
+            dated: String(formik.values.payment_pack_raised_date || dateToISO(new Date())).slice(0, 10),
+            vehicleCount: vehicles.length || 1,
+            valetingFee: 30,
+            signatory,
+          }}
+        />
+      )}
+
       <div className="w-full flex items-center justify-between">
         <h1 className="text-black text-2xl font-weight-600 leading-6">
           ABI &amp; BHR Charges
         </h1>
-        <button
-          type="button"
-          onClick={handleGeneratePaymentPack}
-          disabled={isGenerating}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-100 disabled:bg-blue-100 text-blue-500 text-sm font-weight-500 rounded transition-all"
-        >
-          {isGenerating ? (
-            <>
-              <svg
-                className="animate-spin w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
+        <div className="relative" ref={packMenuRef}>
+          <button
+            type="button"
+            onClick={() => setShowPackModal((v) => !v)}
+            disabled={isGenerating}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-100 disabled:bg-blue-100 text-blue-500 text-sm font-weight-500 rounded transition-all"
+          >
+            {isGenerating ? (
+              <>
+                <svg
+                  className="animate-spin w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"
+                  />
+                </svg>
+                Generating...
+              </>
+            ) : (
+              <>
+              <img src={Plus} alt="" />
+                Generate Payment Pack
+              </>
+            )}
+          </button>
+
+          {/* Anchored dropdown — lists what the Payment Pack contains. */}
+          {showPackModal && (
+            <div className="absolute right-0 top-full mt-2 z-50 p-6 bg-white rounded-lg shadow-xl inline-flex flex-col gap-3 min-w-[300px] border border-slate-100 font-['Stack_Sans_Headline']">
+              {[
+                { label: "Credit Hire Invoice", open: () => setShowInvoiceForm(true) },
+                { label: "ABI Hire Breakdown", open: () => setShowAbiBreakdown(true) },
+                { label: "Front Cover", open: () => setShowFrontCover(true) },
+                { label: "Plating Invoice", open: () => setShowPlatingInvoice(true) },
+                { label: "Covering Letter", open: () => setShowCoveringLetter(true) },
+              ].map((item,index) => (
+                <React.Fragment key={item.label}>
+                
+                  <div
+                    className="text-blue-500 text-sm cursor-pointer hover:bg-slate-50 p-1"
+                    onClick={() => { setShowPackModal(false); item.open(); }}
+                  >
+                    {item.label}
+                  </div>
+                  {index < 4 && <div className="h-px bg-slate-100 w-full" />}
+                </React.Fragment>
+              ))}
+              {/* <div className="h-px bg-slate-100 w-full" /> */}
+              {/* <button
+                type="button"
+                onClick={() => { setShowPackModal(false); handleGeneratePaymentPack(); }}
+                disabled={isGenerating}
+                className="mt-1 px-4 py-2 rounded bg-blue-500 text-white text-sm font-weight-500 hover:bg-blue-600 disabled:opacity-60"
               >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8H4z"
-                />
-              </svg>
-              Generating...
-            </>
-          ) : (
-            <>
-            <img src={Plus} alt="" />
-              Generate Payment Pack
-            </>
+                Generate All
+              </button> */}
+            </div>
           )}
-        </button>
+        </div>
       </div>
       {/* Section 1: Payment Pack Sent Detail */}
       <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col justify-start items-start gap-4">

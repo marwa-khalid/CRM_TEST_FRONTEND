@@ -12,6 +12,8 @@ import { customStyles, BlueDropdownIndicator } from "../../modules/Claims/Steps/
  */
 
 const OFFSETS = [1440, 60, 30, 15]; // minutes before start (default when none chosen)
+// Overdue Task-Management deadlines re-remind at these 4 hours every day.
+const OVERDUE_SLOTS = [9, 12, 15, 18];
 const REMINDER_MIN: Record<string, number> = { "15m": 15, "30m": 30, "1h": 60, "1d": 1440 };
 const POLL_MS = 60_000;       // re-check every minute
 const CATCHUP_MS = 90_000;    // only fire if the reminder became due within this window
@@ -154,26 +156,32 @@ const ReminderWatcher: React.FC = () => {
         });
       });
 
-      // Overdue Task-Management deadlines keep reminding the user once a day until
-      // they're done (so an overdue task is never silently forgotten).
-      events.forEach((e) => {
-        const isTaskEvent = (e as any).source_type === "task_due" || !!(e as any).task_id;
-        if (!isTaskEvent || !e.start_date || e.start_date >= todayKey) return;
-        const st = (e.status || "").toLowerCase();
-        if (st === "cancelled" || st === "completed") return;
-        const key = `overdue|${e.id}|${e.start_date}|${todayKey}`;
-        if (shownRef.current.has(key)) return;
-        shownRef.current.add(key);
-        const [y, m, d] = e.start_date.split("-").map(Number);
-        const tm = e.start_time && e.start_time.includes(":") ? e.start_time.split(":").map(Number) : [9, 0];
-        newPopups.push({
-          id: key,
-          title: e.title || "Overdue Task",
-          startMs: new Date(y, m - 1, d, tm[0] || 0, tm[1] || 0).getTime(),
-          timeLabel: formatTime12(e.start_time),
-          subtitle: e.event_type || "",
+      // Overdue Task-Management deadlines keep reminding the user 4× a day (at the
+      // OVERDUE_SLOTS hours) until they're done, so an overdue task is never
+      // silently forgotten. We fire the most-recent slot that's arrived — so each
+      // slot time during the day triggers a fresh reminder, and opening the app
+      // mid-day catches up the current one (rather than bursting all four at once).
+      const slot = OVERDUE_SLOTS.filter((h) => today.getHours() >= h).slice(-1)[0];
+      if (slot !== undefined) {
+        events.forEach((e) => {
+          const isTaskEvent = (e as any).source_type === "task_due" || !!(e as any).task_id;
+          if (!isTaskEvent || !e.start_date || e.start_date >= todayKey) return;
+          const st = (e.status || "").toLowerCase();
+          if (st === "cancelled" || st === "completed" || st === "rejected") return;
+          const key = `overdue|${e.id}|${e.start_date}|${todayKey}|h${slot}`;
+          if (shownRef.current.has(key)) return;
+          shownRef.current.add(key);
+          const [y, m, d] = e.start_date.split("-").map(Number);
+          const tm = e.start_time && e.start_time.includes(":") ? e.start_time.split(":").map(Number) : [9, 0];
+          newPopups.push({
+            id: key,
+            title: e.title || "Overdue Task",
+            startMs: new Date(y, m - 1, d, tm[0] || 0, tm[1] || 0).getTime(),
+            timeLabel: formatTime12(e.start_time),
+            subtitle: e.event_type || "",
+          });
         });
-      });
+      }
 
       // Completed / cancelled events lose any pending reminders — pruned here by
       // event id (handles both the offset and the overdue popup id formats).

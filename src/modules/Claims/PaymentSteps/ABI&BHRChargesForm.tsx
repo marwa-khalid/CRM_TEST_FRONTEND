@@ -2,14 +2,17 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
 import { getABIBHRCharges, saveABIBHRCharges, generatePaymentPack } from "../../../services/ABIBHRCharges/ABIBHRCharges";
-import { getPlatingTotal } from "../../../services/PlatingCharges/PlatingCharges";
+import { getPlatingTotal, getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharges";
 import { getStorageRecoveryProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { gettingEnginerDetails } from "../../../services/EngineeringDetails/engineeringDetails";
 import { getHireRecords } from "../../../services/HireDetail/HireDetails";
+import { getActualVehicleCategory } from "../../../services/HireDetail/HireDetails";
+import { getRepairData } from "../../../services/RepairAndCost/RepairAndCost";
 import { getHireProvidedVehicles } from "../../../services/Vehicle/vehicle";
 import { getThirdPartyInsurer } from "../../../services/ThirdPartyInsurer/ThirdPartyInsurer";
 import { getClientByClaimID } from "../../../services/Client/client";
 import { getAccidentDetailById } from "../../../services/Accidents/accident";
+import { getCaseReference, getClaimById } from "../../../services/Claims/Claims";
 import VehicleCards, { type ClaimVehicle } from "./VehicleCards";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
@@ -20,11 +23,22 @@ import ABIHireBreakdownForm from "./ABIHireBreakdownForm";
 import PlatingInvoiceForm from "./PlatingInvoiceForm";
 import CoveringLetterForm from "./CoveringLetterForm";
 import FrontCoverForm from "./FrontCoverForm";
+import HirePeriodValidationForm from "./HirePeriodValidationForm";
 
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
 
 const toF = (v: any): number => parseFloat(String(v ?? 0)) || 0;
+
+// Claim type id → label (mirrors the options on the General Details screen).
+const CLAIM_TYPE_LABELS: Record<number, string> = {
+  1: "RTA - NA",
+  2: "RTA - CAMS",
+  3: "Direct Hire - NA",
+  4: "Direct Hire - CAMS",
+  5: "PI Only RTA - CAMS",
+  6: "PI Only RTA - NA",
+};
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + "Z");
@@ -86,6 +100,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       .then((res: any) => {
         setPolicyNumber(res?.data?.policy_number || "");
         setInsurerName(res?.data?.third_party_insurer?.first_name || "");
+        setInsurerReference(res?.data?.insurer_reference || "");
       })
       .catch(() => {});
     getClientByClaimID(claimId)
@@ -93,6 +108,12 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       .catch(() => {});
     getAccidentDetailById(Number(claimId))
       .then((a: any) => setIncidentDate(String(a?.date_time || "").split("T")[0]))
+      .catch(() => {});
+    getCaseReference(claimId)
+      .then((ref: string) => setCaseReference(ref || ""))
+      .catch(() => {});
+    getClaimById(Number(claimId))
+      .then((c: any) => setCaseType(CLAIM_TYPE_LABELS[c?.claim_type_id] || ""))
       .catch(() => {});
   }, [claimId]);
 
@@ -142,12 +163,21 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [showFrontCover, setShowFrontCover] = useState(false);
   // Covering Letter editable form screen (popup's "Covering Letter" item).
   const [showCoveringLetter, setShowCoveringLetter] = useState(false);
+  // Hire Period Validation editable form screen (popup's "Hire Period" item).
+  const [showHirePeriod, setShowHirePeriod] = useState(false);
 
   // Claim data sourced for the documents (read-only).
   const [policyNumber, setPolicyNumber] = useState("");
   const [insurerName, setInsurerName] = useState("");
+  const [insurerReference, setInsurerReference] = useState("");
   const [clientName, setClientName] = useState("");
   const [incidentDate, setIncidentDate] = useState("");
+  const [caseReference, setCaseReference] = useState("");
+  const [caseType, setCaseType] = useState("");
+  const [platingMot, setPlatingMot] = useState(0);
+  const [platingFee, setPlatingFee] = useState(0);
+  const [repairCost, setRepairCost] = useState(0);
+  const [vehicleCatMap, setVehicleCatMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
 
   // Formik — only the Payment Pack Sent Detail fields are saved to DB
@@ -277,6 +307,31 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         setPlatingCharges(toF(data?.total_plating_cost));
       })
       .catch(() => {});
+
+    // Plating invoice line items (MOT + plating fee) — from the Plating screen.
+    getPlatingCharges(claimId)
+      .then(({ data }: any) => {
+        setPlatingMot(toF(data?.private_hire_mot_cost));
+        setPlatingFee(toF(data?.private_hire_plating_fee));
+      })
+      .catch(() => {});
+
+    // Repair cost — sub total from the Repair Cost modal on the engineers screen.
+    getRepairData(claimId)
+      .then((apiData: any) => {
+        const rec = apiData?.data ?? apiData;
+        setRepairCost(toF(rec?.sub_total));
+      })
+      .catch(() => {});
+
+    // Vehicle category lookup (id → label) for the ABI "Group" field.
+    getActualVehicleCategory()
+      .then(({ data }: any) => {
+        const map: Record<number, string> = {};
+        (Array.isArray(data) ? data : []).forEach((c: any) => { map[c.id] = c.label; });
+        setVehicleCatMap(map);
+      })
+      .catch(() => {});
   }, [claimId]);
 
   // Load saved Payment Pack Sent Detail
@@ -362,7 +417,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       vehicle: [(v as any)?.make, (v as any)?.model].filter(Boolean).join(" "),
       registration: (v as any)?.registration || rec?.registration_number || rec?.hire_vehicle_registration || "",
       hireStart: String(rec?.hire_start_date || rec?.hire_out || "").slice(0, 10),
-      hireEnd: String(rec?.hire_back || "").slice(0, 10),
+      hireEnd: String(rec?.hire_end_date || rec?.hire_back || "").slice(0, 10),
       days: rec ? toF(rec.final_total_no_of_hire_days ?? rec.no_of_days_hire_so_far) || "" : "",
     }));
 
@@ -401,6 +456,36 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const totalOutlay =
     creditHireTotal + abiAdminFee + storageCharges + recoveryCharges + engineerCharges + platingCharges;
 
+  // Covering Letter "Schedule of Charges" — claim-level value per head across the
+  // rate periods: BHR (basic hire), <30 (ABI), 31–60 (+10% on ABI), 61+ (+20%).
+  // Repair Cost / CDW / Collection & Delivery have no source in the charges model
+  // yet, so they stay blank (still editable on the form).
+  const coveringCharges = useMemo(() => {
+    const out: Record<string, string> = {};
+    (
+      [
+        { key: "basicHireRate", bhr: bhrHireSum, abi: abiDailyRate },
+        { key: "administrationFee", bhr: bhrAdminFee, abi: abiAdminFee },
+        { key: "repairCost", bhr: repairCost, abi: repairCost },
+        { key: "storage", bhr: storageCharges, abi: storageCharges },
+        { key: "recovery", bhr: recoveryCharges, abi: recoveryCharges },
+        { key: "platingCosts", bhr: platingCharges, abi: platingCharges },
+        { key: "engineersFee", bhr: engineerCharges, abi: engineerCharges },
+        // CDW + Collection & Delivery: £60 in the BHR column only; other periods stay empty.
+        { key: "cdw", bhr: 60, abi: 0 },
+        { key: "collectionDeliveryFee", bhr: 60, abi: 0 },
+      ] as const
+    ).forEach((h) => {
+      if (h.bhr) out[`${h.key}_bhr`] = h.bhr.toFixed(2);
+      if (h.abi) {
+        out[`${h.key}_abi`] = h.abi.toFixed(2);
+        out[`${h.key}_lpp10`] = (h.abi * 1.1).toFixed(2);
+        out[`${h.key}_lpp20`] = (h.abi * 1.2).toFixed(2);
+      }
+    });
+    return out;
+  }, [bhrHireSum, abiDailyRate, bhrAdminFee, abiAdminFee, repairCost, storageCharges, recoveryCharges, platingCharges, engineerCharges]);
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
@@ -411,21 +496,37 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         <CreditHireInvoiceForm
           onClose={() => setShowInvoiceForm(false)}
           prefill={{
+            ourReference: caseReference,
+            yourReference: insurerReference,
             invoiceNumber: formik.values.invoice_number || "",
-            invoiceDate: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
-            hireStart: String((selRec as any)?.hire_start_date || (selRec as any)?.hire_out || "").slice(0, 10),
-            hireEnd: String((selRec as any)?.hire_back || "").slice(0, 10),
+            invoiceDate: String(
+              formik.values.payment_pack_raised_date || "",
+            ).slice(0, 10),
+            hireStart: String(
+              (selRec as any)?.hire_start_date ||
+                (selRec as any)?.hire_out ||
+                "",
+            ).slice(0, 10),
+            hireEnd: String((selRec as any)?.hire_end_date || (selRec as any)?.hire_back || "").slice(0, 10),
             totalHireDays: vDays || "",
-            registration: (selRec as any)?.registration_number || (selRec as any)?.hire_vehicle_registration || "",
-            make: (selRec as any)?.make || "",
-            model: (selRec as any)?.model || "",
+            registration:
+              (vehicles[activeVehicle] as any)?.registration ||
+              (selRec as any)?.registration_number ||
+              (selRec as any)?.hire_vehicle_registration ||
+              "",
+            make: (vehicles[activeVehicle] as any)?.make || (selRec as any)?.make || "",
+            model: (vehicles[activeVehicle] as any)?.model || (selRec as any)?.model || "",
             basicHireDays: vDays || "",
-            basicHireRate: selRec ? toF((selRec as any).abi_hire_charge_per_day) : (noOfDays ? abiDailyRate / noOfDays : undefined),
+            basicHireRate: selRec
+              ? toF((selRec as any).abi_hire_charge_per_day)
+              : noOfDays
+                ? abiDailyRate / noOfDays
+                : undefined,
             basicHireAmount: vAbiHire,
             adminAmount: vAdmin || undefined,
             otherVehicles: otherVehicleRows,
             client: clientName || (selRec as any)?.client_name || "",
-            billTo: clientName || (selRec as any)?.client_name || "",
+            billTo: insurerName,
           }}
         />
       )}
@@ -433,18 +534,41 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       {showAbiBreakdown && (
         <ABIHireBreakdownForm
           onClose={() => setShowAbiBreakdown(false)}
-          vehicleGroups={vehicles.map((v) => (v as any).category).filter(Boolean) as string[]}
+          vehicleGroups={
+            vehicles.map((v) => (v as any).category).filter(Boolean) as string[]
+          }
           prefill={{
-            ourReference: formik.values.invoice_number || "",
-            vehicleGroup: (selRec as any)?.actual_vehicle_category?.label || (selRec as any)?.vehicle_group || "",
-            hireStart: String((selRec as any)?.hire_start_date || (selRec as any)?.hire_out || "").slice(0, 10),
-            hireEnd: String((selRec as any)?.hire_back || "").slice(0, 10),
+            ourReference: caseReference,
+            yourReference: insurerReference,
+            vehicleGroup:
+              vehicleCatMap[(selRec as any)?.actual_vehicle_category_id] ||
+              (selRec as any)?.actual_vehicle_category?.label ||
+              (selRec as any)?.vehicle_group ||
+              "",
+            hireStart: String(
+              (selRec as any)?.hire_start_date ||
+                (selRec as any)?.hire_out ||
+                "",
+            ).slice(0, 10),
+            hireEnd: String((selRec as any)?.hire_end_date || (selRec as any)?.hire_back || "").slice(0, 10),
             totalHireDays: vDays || "",
-            abiRatePerDay: selRec ? toF((selRec as any).abi_hire_charge_per_day) : (noOfDays ? abiDailyRate / noOfDays : undefined),
+            abiRatePerDay: selRec
+              ? toF((selRec as any).abi_hire_charge_per_day)
+              : noOfDays
+                ? abiDailyRate / noOfDays
+                : undefined,
             extras: vExtra || undefined,
-            vehicle: [(selRec as any)?.make, (selRec as any)?.model].filter(Boolean).join(" "),
-            registration: (selRec as any)?.registration_number || (selRec as any)?.hire_vehicle_registration || "",
-            dated: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
+            vehicle: [(selRec as any)?.make, (selRec as any)?.model]
+              .filter(Boolean)
+              .join(" "),
+            registration:
+              (selRec as any)?.registration_number ||
+              (selRec as any)?.hire_vehicle_registration ||
+              "",
+            dated: String(formik.values.payment_pack_raised_date || "").slice(
+              0,
+              10,
+            ),
           }}
         />
       )}
@@ -453,15 +577,27 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         <PlatingInvoiceForm
           onClose={() => setShowPlatingInvoice(false)}
           prefill={{
+            ourReference: caseReference,
+            yourReference: insurerReference,
             invoiceNumber: formik.values.invoice_number || "",
-            invoiceDate: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
-            registration: (selRec as any)?.registration_number || (selRec as any)?.hire_vehicle_registration || "",
-            make: (selRec as any)?.make || "",
-            model: (selRec as any)?.model || "",
-            privateHirePlatingCosts: platingCharges || undefined,
-            otherVehicles: otherVehicleRows.map((v) => ({ vehicle: v.vehicle, registration: v.registration })),
+            invoiceDate: String(
+              formik.values.payment_pack_raised_date || "",
+            ).slice(0, 10),
+            registration:
+              (vehicles[activeVehicle] as any)?.registration ||
+              (selRec as any)?.registration_number ||
+              (selRec as any)?.hire_vehicle_registration ||
+              "",
+            make: (vehicles[activeVehicle] as any)?.make || (selRec as any)?.make || "",
+            model: (vehicles[activeVehicle] as any)?.model || (selRec as any)?.model || "",
+            privateHireMot: platingMot || undefined,
+            privateHirePlatingCosts: platingFee || undefined,
+            otherVehicles: otherVehicleRows.map((v) => ({
+              vehicle: v.vehicle,
+              registration: v.registration,
+            })),
             client: clientName || (selRec as any)?.client_name || "",
-            billTo: clientName || (selRec as any)?.client_name || "",
+            billTo: insurerName,
           }}
         />
       )}
@@ -470,11 +606,15 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         <FrontCoverForm
           onClose={() => setShowFrontCover(false)}
           prefill={{
+            ourReference: caseReference,
             yourInsured: insurerName,
+            yourReference: insurerReference,
             policyNumber,
             incidentDate,
-            caseType: (vehicles.length || 1) > 1 ? "Multiple Vehicles" : "Single Vehicle",
-            dated: String(formik.values.payment_pack_raised_date || dateToISO(new Date())).slice(0, 10),
+            caseType,
+            dated: String(
+              formik.values.payment_pack_raised_date || dateToISO(new Date()),
+            ).slice(0, 10),
           }}
         />
       )}
@@ -483,16 +623,24 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         <CoveringLetterForm
           onClose={() => setShowCoveringLetter(false)}
           prefill={{
-            ourReference: formik.values.invoice_number || "",
+            ourReference: caseReference,
+            yourReference: insurerReference,
             ourClient: clientName || (selRec as any)?.client_name || "",
             yourInsured: insurerName,
             incidentDate,
-            dated: String(formik.values.payment_pack_raised_date || dateToISO(new Date())).slice(0, 10),
+            dated: String(
+              formik.values.payment_pack_raised_date || dateToISO(new Date()),
+            ).slice(0, 10),
             vehicleCount: vehicles.length || 1,
             valetingFee: 30,
             signatory,
+            charges: coveringCharges,
           }}
         />
+      )}
+
+      {showHirePeriod && (
+        <HirePeriodValidationForm onClose={() => setShowHirePeriod(false)} />
       )}
 
       <div className="w-full flex items-center justify-between">
@@ -531,7 +679,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
               </>
             ) : (
               <>
-              <img src={Plus} alt="" />
+                <img src={Plus} alt="" />
                 Generate Payment Pack
               </>
             )}
@@ -541,21 +689,44 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           {showPackModal && (
             <div className="absolute right-0 top-full mt-2 z-50 p-6 bg-white rounded-lg shadow-xl inline-flex flex-col gap-3 min-w-[300px] border border-slate-100 font-['Stack_Sans_Headline']">
               {[
-                { label: "Credit Hire Invoice", open: () => setShowInvoiceForm(true) },
-                { label: "ABI Hire Breakdown", open: () => setShowAbiBreakdown(true) },
-                { label: "Front Cover", open: () => setShowFrontCover(true) },
-                { label: "Plating Invoice", open: () => setShowPlatingInvoice(true) },
-                { label: "Covering Letter", open: () => setShowCoveringLetter(true) },
-              ].map((item,index) => (
+                {
+                  label: "Front Cover Information",
+                  open: () => setShowFrontCover(true),
+                },
+                {
+                  label: "Covering Letter",
+                  open: () => setShowCoveringLetter(true),
+                },
+                {
+                  label: "Credit Hire Invoice",
+                  open: () => setShowInvoiceForm(true),
+                },
+                {
+                  label: "ABI Hire Breakdown",
+                  open: () => setShowAbiBreakdown(true),
+                },
+                {
+                  label: "Hire Period Validation",
+                  open: () => setShowHirePeriod(true),
+                },
+                {
+                  label: "Plating Invoice",
+                  open: () => setShowPlatingInvoice(true),
+                },
+              ].map((item, index, arr) => (
                 <React.Fragment key={item.label}>
-                
                   <div
                     className="text-blue-500 text-sm cursor-pointer hover:bg-slate-50 p-1"
-                    onClick={() => { setShowPackModal(false); item.open(); }}
+                    onClick={() => {
+                      setShowPackModal(false);
+                      item.open();
+                    }}
                   >
                     {item.label}
                   </div>
-                  {index < 4 && <div className="h-px bg-slate-100 w-full" />}
+                  {index < arr.length - 1 && (
+                    <div className="h-px bg-slate-100 w-full" />
+                  )}
                 </React.Fragment>
               ))}
               {/* <div className="h-px bg-slate-100 w-full" /> */}
@@ -662,10 +833,17 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Admin Charges" value={fmt(vAdmin)} />
-            <ReadonlyField label="Total Hire Charge" value={fmt(totalHire030)} />
+            <ReadonlyField
+              label="Total Hire Charge"
+              value={fmt(totalHire030)}
+            />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Penalty Due Date" value={penaltyDueDate30} symbol="" />
+            <ReadonlyField
+              label="Penalty Due Date"
+              value={penaltyDueDate30}
+              symbol=""
+            />
           </div>
         </div>
 
@@ -681,10 +859,17 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Admin Charges" value={fmt(admin3160)} />
-            <ReadonlyField label="Total Hire Charge" value={fmt(totalHire3160)} />
+            <ReadonlyField
+              label="Total Hire Charge"
+              value={fmt(totalHire3160)}
+            />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Penalty Due Date" value={penaltyDueDate60} symbol="" />
+            <ReadonlyField
+              label="Penalty Due Date"
+              value={penaltyDueDate60}
+              symbol=""
+            />
           </div>
         </div>
 
@@ -700,10 +885,17 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
             <ReadonlyField label="Admin Charges" value={fmt(admin61plus)} />
-            <ReadonlyField label="Total Hire Charge" value={fmt(totalHire61plus)} />
+            <ReadonlyField
+              label="Total Hire Charge"
+              value={fmt(totalHire61plus)}
+            />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Penalty Due Date" value={penaltyDueDate61} symbol="" />
+            <ReadonlyField
+              label="Penalty Due Date"
+              value={penaltyDueDate61}
+              symbol=""
+            />
           </div>
         </div>
 
@@ -722,7 +914,11 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             <ReadonlyField label="Total Hire Charge" value={fmt(totalHire90)} />
           </div>
           <div className="w-full grid grid-cols-2 gap-5">
-            <ReadonlyField label="Penalty Due Date" value={penaltyDueDate90} symbol="" />
+            <ReadonlyField
+              label="Penalty Due Date"
+              value={penaltyDueDate90}
+              symbol=""
+            />
           </div>
         </div>
       </section>

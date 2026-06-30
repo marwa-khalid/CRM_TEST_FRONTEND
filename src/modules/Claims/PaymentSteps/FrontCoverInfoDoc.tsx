@@ -4,17 +4,18 @@ import { datedLong, cellBase, DocShell, DocHeader, SectionLabel, DocFooter } fro
 // Mostly fixed claim-terms text; the meta box is populated from the claim.
 
 export type FrontCoverDocData = {
+  ourReference?: string;
   policyNumber?: string;
   yourReference?: string;
   dated?: string; // YYYY-MM-DD
   yourInsured?: string;
   incidentDate?: string; // YYYY-MM-DD
-  caseType?: string; // "Single Vehicle" | "Multiple Vehicles"
+  caseType?: string; // claim type label
 };
 
 const FrontCoverInfoDoc = ({ data }: { data: FrontCoverDocData }) => (
   <DocShell>
-    <DocHeader ourRef={data.policyNumber} yourRef={data.yourReference} dated={datedLong(data.dated)} />
+    <DocHeader ourRef={data.ourReference} yourRef={data.yourReference} dated={datedLong(data.dated)} />
 
     {/* Title + intro */}
     <div className="self-stretch pt-7">

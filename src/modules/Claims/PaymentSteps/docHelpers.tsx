@@ -50,13 +50,18 @@ export const d = (v?: string | number) => {
 };
 
 // Standard table cell / header classes used across the documents.
-export const cellBase = "border border-black px-1.5 py-1 text-black text-xs leading-4 align-top";
-export const headBase = "border border-black px-1.5 py-1 bg-gray-200 text-black text-[10px] font-bold leading-4 align-top";
+// A tall line-height (vs a small fixed leading) is what actually vertical-centers
+// the single line of text when html2canvas rasterises the table for the PDF —
+// `align-middle` alone is not honoured reliably by html2canvas.
+export const cellBase = "border border-black px-1.5 py-0.5 text-black text-xs leading-[2.2] align-middle";
+export const headBase = "border border-black px-1.5 py-0.5 bg-gray-200 text-black text-[10px] font-bold leading-[2.2] align-middle";
 
 // Shared document chrome --------------------------------------------------------
 
+// min-height kept just under one A4 page (297mm ≈ 1122.5px @96dpi) so a short
+// document doesn't spill a sliver onto a blank second page in the PDF.
 export const DocShell = ({ children }: { children: React.ReactNode }) => (
-  <div className="w-[793.70px] min-h-[1122.52px] p-16 bg-white text-black font-['Stack_Sans_Headline'] flex flex-col">
+  <div className="w-[793.70px] min-h-[1090px] p-16 bg-white text-black font-['Stack_Sans_Headline'] flex flex-col">
     {children}
   </div>
 );

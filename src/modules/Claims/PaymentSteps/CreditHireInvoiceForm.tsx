@@ -12,6 +12,7 @@ const gbp = (n: number) =>
 const money = (v?: number) => (v != null ? gbp(v) : "");
 
 export type CreditHireInvoicePrefill = {
+  ourReference?: string;
   invoiceDate?: string;
   invoiceNumber?: string;
   hireStart?: string;
@@ -41,6 +42,9 @@ export type CreditHireInvoicePrefill = {
 const labelCls = "text-neutral-700 text-sm font-weight-500";
 const inputCls =
   "self-stretch px-5 py-4 bg-white rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4 outline-none focus:border-blue-500 placeholder:text-neutral-300";
+// Compact input for the Hire Charges table cells (tighter than the full-width fields).
+const chargeInputCls =
+  "w-full px-4 py-3 bg-white rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4 outline-none focus:border-blue-500 placeholder:text-neutral-300";
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
@@ -69,18 +73,18 @@ const ChargeRow = ({
   amount: string; onAmount: (v: string) => void;
   showDays?: boolean;
 }) => (
-  <div className="self-stretch flex items-center gap-5">
-    <div className="w-48 text-neutral-950 text-sm font-weight-500">{label}</div>
-    <div className="w-40">
+  <div className="self-stretch flex items-center gap-4">
+    <div className="w-48 shrink-0 text-neutral-950 text-sm font-weight-500">{label}</div>
+    <div className="w-24 shrink-0">
       {showDays ? (
-        <input className={inputCls} value={days} onChange={(e) => onDays?.(e.target.value)} placeholder="--" />
+        <input className={chargeInputCls} value={days} onChange={(e) => onDays?.(e.target.value)} placeholder="--" />
       ) : null}
     </div>
-    <div className="w-44">
-      <input className={inputCls} value={rate} onChange={(e) => onRate(e.target.value)} placeholder="£0.00" />
+    <div className="w-40 shrink-0">
+      <input className={chargeInputCls} value={rate} onChange={(e) => onRate(e.target.value)} placeholder="£0.00" />
     </div>
-    <div className="w-44">
-      <input className={inputCls} value={amount} onChange={(e) => onAmount(e.target.value)} placeholder="£0.00" />
+    <div className="w-40 shrink-0">
+      <input className={chargeInputCls} value={amount} onChange={(e) => onAmount(e.target.value)} placeholder="£0.00" />
     </div>
   </div>
 );
@@ -89,6 +93,7 @@ const CreditHireInvoiceForm = ({
   prefill = {}, onClose,
 }: { prefill?: CreditHireInvoicePrefill; onClose: () => void }) => {
   const [f, setF] = useState({
+    ourReference: prefill.ourReference || "",
     invoiceDate: prefill.invoiceDate || "",
     invoiceNumber: prefill.invoiceNumber || "",
     yourReference: prefill.yourReference || "",
@@ -130,6 +135,7 @@ const CreditHireInvoiceForm = ({
   const doc = (
     <CreditHireInvoiceDoc
       data={{
+        ourReference: f.ourReference,
         invoiceNumber: f.invoiceNumber,
         invoiceDate: f.invoiceDate,
         yourReference: f.yourReference,
@@ -157,7 +163,10 @@ const CreditHireInvoiceForm = ({
             <Text label="Invoice Number" value={f.invoiceNumber} onChange={(v) => set("invoiceNumber", v)} />
           </div>
           <div className="flex gap-5">
+            <Text label="Our Reference" value={f.ourReference} onChange={(v) => set("ourReference", v)} />
             <Text label="Your Reference" value={f.yourReference} onChange={(v) => set("yourReference", v)} />
+          </div>
+          <div className="flex gap-5">
             <Text label="Bill To" value={f.billTo} onChange={(v) => set("billTo", v)} />
           </div>
         </Section>
@@ -188,11 +197,11 @@ const CreditHireInvoiceForm = ({
 
         <Section title="Hire Charges">
           {/* column headers */}
-          <div className="self-stretch flex items-center gap-5">
-            <div className="w-48" />
-            <div className="w-40 text-neutral-700 text-sm font-weight-500">Days</div>
-            <div className="w-44 text-neutral-700 text-sm font-weight-500">Daily Rate</div>
-            <div className="w-44 text-neutral-700 text-sm font-weight-500">Amount</div>
+          <div className="self-stretch flex items-center gap-4">
+            <div className="w-48 shrink-0" />
+            <div className="w-24 shrink-0 text-neutral-700 text-sm font-weight-500">Days</div>
+            <div className="w-40 shrink-0 text-neutral-700 text-sm font-weight-500">Daily Rate</div>
+            <div className="w-40 shrink-0 text-neutral-700 text-sm font-weight-500">Amount</div>
           </div>
           <ChargeRow
             label="Basic Hire Rate"
@@ -220,25 +229,21 @@ const CreditHireInvoiceForm = ({
           <div className="self-stretch h-px bg-neutral-100" />
           {/* Sub Total / VAT / Total Due — derived, read-only */}
           {[
-            { label: "Sub Total", value: subTotal, bold: false },
-            { label: "VAT @ 20%", value: vat, bold: false },
+            { label: "Sub Total", value: subTotal },
+            { label: "VAT @ 20%", value: vat },
           ].map((r) => (
-            <div key={r.label} className="self-stretch flex justify-end items-center gap-5">
-              <div className="w-40 text-neutral-950 text-sm font-weight-500">{r.label}</div>
-              <div className="w-44">
-                <div className="px-5 py-4 bg-neutral-50 rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4">
-                  {gbp(r.value)}
-                </div>
+            <div key={r.label} className="self-stretch flex justify-end items-center gap-4">
+              <div className="text-neutral-950 text-sm font-weight-500 text-right">{r.label}</div>
+              <div className="w-40 shrink-0 px-4 py-3 bg-neutral-50 rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4">
+                {gbp(r.value)}
               </div>
             </div>
           ))}
           <div className="self-stretch h-px bg-neutral-100" />
-          <div className="self-stretch flex justify-end items-center gap-5">
-            <div className="w-40 text-neutral-900 text-base font-weight-600">Total Due</div>
-            <div className="w-44">
-              <div className="px-5 py-4 bg-neutral-50 rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4">
-                {gbp(totalDue)}
-              </div>
+          <div className="self-stretch flex justify-end items-center gap-4">
+            <div className="text-neutral-900 text-base font-weight-600 text-right">Total Due</div>
+            <div className="w-40 shrink-0 px-4 py-3 bg-neutral-50 rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4">
+              {gbp(totalDue)}
             </div>
           </div>
         </Section>

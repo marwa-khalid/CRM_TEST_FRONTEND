@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PackScreen, Section, Text, DateField } from "./paymentPackUi";
 import FrontCoverInfoDoc from "./FrontCoverInfoDoc";
 
@@ -6,6 +6,7 @@ import FrontCoverInfoDoc from "./FrontCoverInfoDoc";
 // The body text (payment terms / statement of enquiry) is fixed in the document.
 
 export type FrontCoverPrefill = {
+  ourReference?: string;
   yourInsured?: string;
   policyNumber?: string;
   yourReference?: string;
@@ -18,6 +19,7 @@ const FrontCoverForm = ({
   prefill = {}, onClose,
 }: { prefill?: FrontCoverPrefill; onClose: () => void }) => {
   const [f, setF] = useState({
+    ourReference: prefill.ourReference || "",
     yourInsured: prefill.yourInsured || "",
     policyNumber: prefill.policyNumber || "",
     yourReference: prefill.yourReference || "",
@@ -26,9 +28,26 @@ const FrontCoverForm = ({
   });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
 
+  // Prefill values are fetched async by the parent — fill any field still empty
+  // when they arrive, without clobbering edits the user has already made.
+  useEffect(() => {
+    setF((prev) => ({
+      ourReference: prev.ourReference || prefill.ourReference || "",
+      yourInsured: prev.yourInsured || prefill.yourInsured || "",
+      policyNumber: prev.policyNumber || prefill.policyNumber || "",
+      yourReference: prev.yourReference || prefill.yourReference || "",
+      incidentDate: prev.incidentDate || prefill.incidentDate || "",
+      caseType: prev.caseType || prefill.caseType || "",
+    }));
+  }, [
+    prefill.ourReference, prefill.yourInsured, prefill.policyNumber,
+    prefill.yourReference, prefill.incidentDate, prefill.caseType,
+  ]);
+
   const docNode = (
     <FrontCoverInfoDoc
       data={{
+        ourReference: f.ourReference,
         policyNumber: f.policyNumber,
         yourReference: f.yourReference,
         dated: prefill.dated,
@@ -48,10 +67,11 @@ const FrontCoverForm = ({
         </div>
         <div className="flex gap-5">
           <DateField label="Date of Incident" value={f.incidentDate} onChange={(v) => set("incidentDate", v)} />
-          <Text label="Case Type" value={f.caseType} onChange={(v) => set("caseType", v)} placeholder="Single Vehicle" />
+          <Text label="Your Reference" value={f.yourReference} onChange={(v) => set("yourReference", v)} />
         </div>
         <div className="flex gap-5">
-          <Text label="Your Reference" value={f.yourReference} onChange={(v) => set("yourReference", v)} />
+          <Text label="Our Reference" value={f.ourReference} onChange={(v) => set("ourReference", v)} />
+          <Text label="Case Type" value={f.caseType} onChange={(v) => set("caseType", v)} placeholder="Claim type" />
         </div>
       </Section>
     </PackScreen>

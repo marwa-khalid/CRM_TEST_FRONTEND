@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PackScreen, Section, Text, DateField, SelectField, ReadField, toNum, gbp, money } from "./paymentPackUi";
+import { PackScreen, Section, Text, DateField, ReadField, toNum, gbp, money } from "./paymentPackUi";
 import ABIHireBreakdownDoc from "./ABIHireBreakdownDoc";
 
 // Editable "Payment Pack: ABI Hire Breakdown" screen. Breakdown inputs are
@@ -88,12 +88,7 @@ const ABIHireBreakdownForm = ({
           <Text label="Registration" value={f.registration} onChange={(v) => set("registration", v)} placeholder="Reg Number" />
         </div>
         <div className="flex gap-5">
-          <SelectField
-            label="Select Group"
-            value={f.vehicleGroup}
-            onChange={(v) => set("vehicleGroup", v)}
-            options={vehicleGroups}
-          />
+          <Text label="Group" value={f.vehicleGroup} onChange={(v) => set("vehicleGroup", v)} placeholder="Vehicle Category" />
         </div>
       </Section>
 

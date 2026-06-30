@@ -104,17 +104,19 @@ export const PackScreen = ({
           <span className="text-black text-2xl font-weight-600 leading-6">{title}</span>
         </div>
         <div className="flex items-center gap-12">
-          <div className="flex items-center gap-6 text-blue-500">
-            <button type="button" title="Print" onClick={handlePrint} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
-              <Printer size={22} />
-            </button>
-            <button type="button" title="Download" onClick={handleDownload} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
-              <Download size={22} />
-            </button>
-            <button type="button" title="Email" onClick={handleEmail} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
-              <Mail size={22} />
-            </button>
-          </div>
+          {renderDoc && (
+            <div className="flex items-center gap-6 text-blue-500">
+              <button type="button" title="Print" onClick={handlePrint} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
+                <Printer size={22} />
+              </button>
+              <button type="button" title="Download" onClick={handleDownload} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
+                <Download size={22} />
+              </button>
+              <button type="button" title="Email" onClick={handleEmail} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
+                <Mail size={22} />
+              </button>
+            </div>
+          )}
           <button
             type="button"
             onClick={onClose}

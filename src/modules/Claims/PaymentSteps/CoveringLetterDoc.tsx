@@ -165,7 +165,7 @@ const CoveringLetterDoc = ({ data }: { data: CoveringLetterDocData }) => {
       <div className="self-stretch pt-4 flex justify-between items-end">
         <div className="flex flex-col gap-1">
           <div className="text-[10px] leading-4">Please make your cheque payable to:</div>
-          <div className="text-xs font-semibold leading-5">Nationwide Assist Ltd</div>
+          <div className="text-xs font-weight-600 leading-5">Nationwide Assist Ltd</div>
         </div>
         <div className="flex flex-col items-end">
           <div className="text-right text-[10px] leading-4">Yours faithfully,</div>

@@ -21,6 +21,7 @@ export type CreditHireDocCharge = {
 };
 
 export type CreditHireDocData = {
+  ourReference?: string;
   invoiceNumber?: string;
   invoiceDate?: string; // YYYY-MM-DD
   yourReference?: string;
@@ -41,7 +42,7 @@ const CreditHireInvoiceDoc = ({ data }: { data: CreditHireDocData }) => {
 
   return (
     <DocShell>
-      <DocHeader ourRef={data.invoiceNumber} yourRef={data.yourReference} dated={slash(data.invoiceDate)} />
+      <DocHeader ourRef={data.ourReference} yourRef={data.yourReference} dated={slash(data.invoiceDate)} />
 
       {/* Title + Bill To */}
       <div className="self-stretch pt-7 flex justify-between items-end">
@@ -50,8 +51,8 @@ const CreditHireInvoiceDoc = ({ data }: { data: CreditHireDocData }) => {
           <div className="text-base font-bold uppercase leading-5">CREDIT HIRE INVOICE</div>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <div className="text-right text-[8px] font-semibold uppercase leading-3 tracking-wider">BILL TO</div>
-          <div className="text-right text-base font-semibold leading-5">{data.billTo || "—"}</div>
+          <div className="text-right text-[12px] font-weight-600 uppercase leading-3 tracking-wider">BILL TO</div>
+          <div className="text-right text-base font-weight-600 leading-5">{data.billTo || "—"}</div>
         </div>
       </div>
 

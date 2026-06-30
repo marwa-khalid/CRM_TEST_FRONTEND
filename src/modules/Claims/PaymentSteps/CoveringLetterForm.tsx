@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PackScreen, Section, Text, DateField, fieldInputCls, gbp, toNum } from "./paymentPackUi";
 import CoveringLetterDoc from "./CoveringLetterDoc";
 
@@ -55,6 +55,34 @@ const CoveringLetterForm = ({
 
   const [cells, setCells] = useState<Record<string, string>>(prefill.charges || {});
   const setCell = (key: string, v: string) => setCells((p) => ({ ...p, [key]: v }));
+
+  // Prefill is fetched async by the parent — fill any meta field still empty when
+  // it arrives, without clobbering edits the user has already made.
+  useEffect(() => {
+    setF((prev) => ({
+      ...prev,
+      yourInsured: prev.yourInsured || prefill.yourInsured || "",
+      yourReference: prev.yourReference || prefill.yourReference || "",
+      ourClient: prev.ourClient || prefill.ourClient || "",
+      ourReference: prev.ourReference || prefill.ourReference || "",
+      incidentDate: prev.incidentDate || prefill.incidentDate || "",
+    }));
+  }, [
+    prefill.yourInsured, prefill.yourReference, prefill.ourClient,
+    prefill.ourReference, prefill.incidentDate,
+  ]);
+
+  // Fill any Schedule-of-Charges cell still empty when the charge data loads.
+  useEffect(() => {
+    if (!prefill.charges) return;
+    setCells((prev) => {
+      const next = { ...prev };
+      Object.entries(prefill.charges!).forEach(([k, v]) => {
+        if (!next[k]) next[k] = v;
+      });
+      return next;
+    });
+  }, [prefill.charges]);
 
   // Derived totals — sum of every charge cell.
   const subTotal = Object.values(cells).reduce((s, v) => s + toNum(v), 0);

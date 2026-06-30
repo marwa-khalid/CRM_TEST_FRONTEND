@@ -6,6 +6,7 @@ import { gbp, slash, m, cellBase, headBase, DocShell, DocHeader, SectionLabel, D
 export type PlatingDocVehicle = { vehicle?: string; registration?: string };
 
 export type PlatingInvoiceDocData = {
+  ourReference?: string;
   invoiceNumber?: string;
   invoiceDate?: string; // YYYY-MM-DD
   yourReference?: string;
@@ -24,17 +25,29 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
 
   return (
     <DocShell>
-      <DocHeader ourRef={data.invoiceNumber} yourRef={data.yourReference} dated={slash(data.invoiceDate)} />
+      <DocHeader
+        ourRef={data.ourReference}
+        yourRef={data.yourReference}
+        dated={slash(data.invoiceDate)}
+      />
 
       {/* Title + Bill To */}
       <div className="self-stretch pt-7 flex justify-between items-end">
         <div className="pt-3.5 pb-0.5 flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase leading-4">INVOICE · PLATING COSTS</div>
-          <div className="text-base font-bold uppercase leading-5">PLATING COSTS INVOICE</div>
+          <div className="text-[10px] uppercase leading-4">
+            INVOICE · PLATING COSTS
+          </div>
+          <div className="text-base font-bold uppercase leading-5">
+            PLATING COSTS INVOICE
+          </div>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <div className="text-right text-[8px] font-semibold uppercase leading-3 tracking-wider">BILL TO</div>
-          <div className="text-right text-base font-semibold leading-5">{data.billTo || "—"}</div>
+          <div className="text-right text-[12px] font-weight-600 uppercase leading-3 tracking-wider">
+            BILL TO
+          </div>
+          <div className="text-right text-base font-weight-600 leading-5">
+            {data.billTo || "—"}
+          </div>
         </div>
       </div>
 
@@ -46,13 +59,17 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
               <td className={`${cellBase} w-1/2`}>
                 <div className="flex justify-between items-center">
                   <span className="text-[10px]">Invoice No.:</span>
-                  <span className="text-xs font-bold text-right">{data.invoiceNumber || "—"}</span>
+                  <span className="text-xs font-bold text-right">
+                    {data.invoiceNumber || "—"}
+                  </span>
                 </div>
               </td>
               <td className={`${cellBase} w-1/2`}>
                 <div className="flex justify-between items-center">
                   <span className="text-[10px]">Invoice Date:</span>
-                  <span className="text-xs font-bold text-right">{slash(data.invoiceDate)}</span>
+                  <span className="text-xs font-bold text-right">
+                    {slash(data.invoiceDate)}
+                  </span>
                 </div>
               </td>
             </tr>
@@ -60,13 +77,17 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
               <td className={cellBase}>
                 <div className="flex justify-between items-center">
                   <span className="text-[10px]">Client:</span>
-                  <span className="text-xs font-bold text-right">{data.client || "—"}</span>
+                  <span className="text-xs font-bold text-right">
+                    {data.client || "—"}
+                  </span>
                 </div>
               </td>
               <td className={cellBase}>
                 <div className="flex justify-between items-center">
                   <span className="text-[10px]">Vehicles:</span>
-                  <span className="text-xs font-bold text-right">{vehiclesLabel}</span>
+                  <span className="text-xs font-bold text-right">
+                    {vehiclesLabel}
+                  </span>
                 </div>
               </td>
             </tr>
@@ -105,11 +126,15 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
         <tbody>
           <tr>
             <td className={cellBase}>Private Hire MOT</td>
-            <td className={`${cellBase} text-right`}>{m(data.privateHireMot)}</td>
+            <td className={`${cellBase} text-right`}>
+              {m(data.privateHireMot)}
+            </td>
           </tr>
           <tr>
             <td className={cellBase}>Private Hire Plating Costs</td>
-            <td className={`${cellBase} text-right`}>{m(data.privateHirePlatingCosts)}</td>
+            <td className={`${cellBase} text-right`}>
+              {m(data.privateHirePlatingCosts)}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -118,8 +143,12 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
       <div className="self-stretch pt-2.5 flex flex-col items-end">
         <div className="w-72 flex flex-col">
           <div className="pt-[5px] border-t-2 border-black flex justify-between items-center">
-            <span className="text-xs font-bold uppercase leading-4">TOTAL DUE</span>
-            <span className="text-xs font-bold leading-4">{gbp(data.total || 0)}</span>
+            <span className="text-xs font-bold uppercase leading-4">
+              TOTAL DUE
+            </span>
+            <span className="text-xs font-bold leading-4">
+              {gbp(data.total || 0)}
+            </span>
           </div>
         </div>
       </div>

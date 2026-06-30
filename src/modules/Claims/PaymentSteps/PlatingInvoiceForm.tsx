@@ -6,6 +6,7 @@ import PlatingInvoiceDoc, { type PlatingDocVehicle } from "./PlatingInvoiceDoc";
 // Total derives live from Private Hire MOT + Private Hire Plating Costs.
 
 export type PlatingInvoicePrefill = {
+  ourReference?: string;
   billTo?: string;
   invoiceDate?: string;
   invoiceNumber?: string;
@@ -24,6 +25,7 @@ const PlatingInvoiceForm = ({
   prefill = {}, onClose,
 }: { prefill?: PlatingInvoicePrefill; onClose: () => void }) => {
   const [f, setF] = useState({
+    ourReference: prefill.ourReference || "",
     billTo: prefill.billTo || "",
     invoiceDate: prefill.invoiceDate || "",
     invoiceNumber: prefill.invoiceNumber || "",
@@ -44,6 +46,7 @@ const PlatingInvoiceForm = ({
   const docNode = (
     <PlatingInvoiceDoc
       data={{
+        ourReference: f.ourReference,
         invoiceNumber: f.invoiceNumber,
         invoiceDate: f.invoiceDate,
         yourReference: f.yourReference,
@@ -74,6 +77,7 @@ const PlatingInvoiceForm = ({
           <Text label="Invoice Number" value={f.invoiceNumber} onChange={(v) => set("invoiceNumber", v)} />
         </div>
         <div className="flex gap-5">
+          <Text label="Our Reference" value={f.ourReference} onChange={(v) => set("ourReference", v)} />
           <Text label="Your Reference" value={f.yourReference} onChange={(v) => set("yourReference", v)} />
         </div>
       </Section>

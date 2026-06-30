@@ -356,10 +356,10 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
             <div data-pdf-section className="flex gap-6">
               {showClientCard && (
                 <div className="flex-1 p-5 bg-blue-100 rounded-lg flex flex-col gap-1">
-                  <div className="text-black text-xl font-semibold leading-5">Client Vehicle</div>
+                  <div className="text-black text-xl font-weight-600 leading-5">Client Vehicle</div>
                   <div className="text-neutral-700 text-sm">
                     <span className="font-normal">Reg# </span>
-                    <span className="font-semibold">
+                    <span className="font-weight-600">
                       {[clientVehicle?.registration, vehicleLine(clientVehicle)].filter(Boolean).join(", ") || "-"}
                     </span>
                   </div>
@@ -367,10 +367,10 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
               )}
               {showThirdPartyCard && (
                 <div className="flex-1 p-5 bg-white rounded-lg outline outline-1 outline-blue-200 flex flex-col gap-1">
-                  <div className="text-black text-xl font-semibold leading-5">Third party Vehicle</div>
+                  <div className="text-black text-xl font-weight-600 leading-5">Third party Vehicle</div>
                   <div className="text-neutral-700 text-sm">
                     <span className="font-normal">Reg# </span>
-                    <span className="font-semibold">
+                    <span className="font-weight-600">
                       {[thirdPartyVehicle?.registration, vehicleLine(thirdPartyVehicle)].filter(Boolean).join(", ") || "-"}
                     </span>
                   </div>
@@ -381,7 +381,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
 
           {/* ---- Damage Summary ---- */}
           <div data-pdf-section className="rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-100 overflow-hidden">
-            <div className="grid grid-cols-[1fr_1.2fr_1.2fr_110px_110px_120px_1.3fr] gap-2 p-4 bg-white font-semibold text-gray-800 text-sm border-b border-neutral-100">
+            <div className="grid grid-cols-[1fr_1.2fr_1.2fr_110px_110px_120px_1.3fr] gap-2 p-4 bg-white font-weight-600 text-gray-800 text-sm border-b border-neutral-100">
               <div>DAMAGE SIDE</div>
               <div>AREA OF DAMAGE</div>
               <div>TYPE OF DAMAGE</div>
@@ -404,7 +404,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
                       <div className="capitalize">{det.part || det.area_of_damage || det.area || "-"}</div>
                       <div className="capitalize">{damageType}</div>
                       <div>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                        <span className={`px-2 py-1 rounded text-xs font-weight-600 ${
                           severity === "High" ? "bg-red-100 text-red-700"
                           : severity === "Medium" ? "bg-orange-100 text-orange-500"
                           : severity === "Low" ? "bg-green-100 text-green-500"
@@ -426,7 +426,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
           {/* ---- Images with AI Detection ---- */}
           <div data-pdf-section className="p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-100 flex flex-col gap-4">
             <div>
-              <h3 className="text-black text-xl font-semibold leading-5">Images with AI Detection</h3>
+              <h3 className="text-black text-xl font-weight-600 leading-5">Images with AI Detection</h3>
               <p className="text-neutral-700 text-sm mt-1">
                 {imageItems.length} image{imageItems.length !== 1 ? "s" : ""} • Uploaded
               </p>
@@ -462,7 +462,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
 
           {/* ---- Manual Adjustments ---- */}
           <div data-pdf-section className="p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col gap-6">
-            <h3 className="text-black text-xl font-semibold leading-5">Manual Adjustments</h3>
+            <h3 className="text-black text-xl font-weight-600 leading-5">Manual Adjustments</h3>
 
             {data.length > 0 ? (
               <div className="rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-100 divide-y divide-neutral-100">
@@ -477,14 +477,14 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
                     <div key={id} className="p-4 flex justify-between items-center gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-neutral-700 text-sm capitalize truncate">{code} {label}</span>
-                        <span className="px-2 py-1 rounded outline outline-1 outline-offset-[-1px] outline-blue-300 text-blue-300 text-xs font-semibold capitalize shrink-0">{type}</span>
+                        <span className="px-2 py-1 rounded outline outline-1 outline-offset-[-1px] outline-blue-300 text-blue-300 text-xs font-weight-600 capitalize shrink-0">{type}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <button
                           type="button"
                           disabled={readOnly}
                           onClick={() => setDecisions((p) => ({ ...p, [id]: "accepted" }))}
-                          className={`px-2 py-1 rounded outline outline-1 outline-offset-[-1px] text-xs font-semibold ${
+                          className={`px-2 py-1 rounded outline outline-1 outline-offset-[-1px] text-xs font-weight-600 ${
                             decision === "accepted" ? "bg-green-500 text-white outline-green-500" : "text-green-500 outline-green-500"
                           }`}
                         >Accept</button>
@@ -492,7 +492,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
                           type="button"
                           disabled={readOnly}
                           onClick={() => setDecisions((p) => ({ ...p, [id]: "rejected" }))}
-                          className={`px-2 py-1 rounded outline outline-1 outline-offset-[-1px] text-xs font-semibold ${
+                          className={`px-2 py-1 rounded outline outline-1 outline-offset-[-1px] text-xs font-weight-600 ${
                             decision === "rejected" ? "bg-red-500 text-white outline-red-500" : "text-red-500 outline-red-500"
                           }`}
                         >Reject</button>
@@ -541,7 +541,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
 
           {/* ---- Damage By Severity ---- */}
           <div data-pdf-section className="p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col gap-5">
-            <h3 className="text-black text-xl font-semibold leading-5">Damage By Severity</h3>
+            <h3 className="text-black text-xl font-weight-600 leading-5">Damage By Severity</h3>
             <div className="flex gap-5">
               <StatBox label="Total Damages" count={total} color="outline-neutral-200" />
               <StatBox label="High Severity" count={high} color="outline-red-500" />
@@ -552,7 +552,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
 
           {/* ---- Damage By Location ---- */}
           <div data-pdf-section className="px-4 py-3 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col gap-6">
-            <div className="text-black text-xl font-semibold leading-5">Damage By Location</div>
+            <div className="text-black text-xl font-weight-600 leading-5">Damage By Location</div>
             <div className="grid grid-cols-3 w-full gap-4">
               {locationConfig.map((item) => (
                 <LocationBox key={item.key} count={sideCounts[item.key] || 0} image={item.image} label={item.label} />
@@ -562,9 +562,9 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
 
           {/* ---- Audit Trail ---- */}
           <div data-pdf-section className="p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col gap-5">
-            <h3 className="text-black text-xl font-semibold leading-5">Audit Trail</h3>
+            <h3 className="text-black text-xl font-weight-600 leading-5">Audit Trail</h3>
             <div className="rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-100 overflow-hidden">
-              <div className="grid grid-cols-3 gap-3 p-4 bg-white border-b border-neutral-100 font-semibold text-gray-800 text-sm">
+              <div className="grid grid-cols-3 gap-3 p-4 bg-white border-b border-neutral-100 font-weight-600 text-gray-800 text-sm">
                 <div>DONE BY</div><div>ACTION</div><div>TIMESTAMP</div>
               </div>
               {auditTrail.map((item, index) => (

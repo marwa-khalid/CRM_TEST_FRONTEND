@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Camera, ChevronRight, ChevronLeft } from "lucide-react";
+import { X, Camera, ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 import Downloadd from "../../../assets/AutoClaim_icon/Downloadd.svg";
+import { deleteDriverCheckImage } from "../../../services/HireVehicleProvided/HireVehicleProvided";
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -72,8 +73,38 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   }, []);
 
   const handleClose = () => {
+    if (submitting) return;
     setStep(1);
     onClose();
+  };
+
+  // Saving the checkout also triggers the confirmation email, which can take a
+  // moment — show a loader on the Save button until it resolves.
+  const [submitting, setSubmitting] = useState(false);
+  const handleSave = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onSave(formData);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Delete an already-saved photo (server-side) and drop it from the form state.
+  const handleRemoveExistingImage = async (
+    key: "interiorImages" | "exteriorImages",
+    id: number,
+  ) => {
+    try {
+      await deleteDriverCheckImage(id);
+    } catch {
+      // Ignore API failure — still remove it from the view.
+    }
+    setFormData((prev: any) => ({
+      ...prev,
+      [key]: (prev[key] || []).filter((img: any) => img.id !== id),
+    }));
   };
 
   if (!isOpen) return null;
@@ -95,10 +126,17 @@ const formatMoneyOnBlur = (field: string) => {
           </h2>
           <div className="flex gap-3">
             {[1, 2, 3].map((s) => (
-              <div
+              <button
                 key={s}
-                className={`w-3 h-3 rounded-full ${
-                  step >= s ? "bg-blue-600" : "bg-zinc-300"
+                type="button"
+                aria-label={`Go to step ${s}`}
+                onClick={() => setStep(s)}
+                className={`w-3 h-3 rounded-full cursor-pointer transition-transform hover:scale-125 ${
+                  step === s
+                    ? "bg-blue-600 ring-2 ring-blue-200"
+                    : step > s
+                      ? "bg-blue-600"
+                      : "bg-zinc-300"
                 }`}
               />
             ))}
@@ -158,7 +196,28 @@ const formatMoneyOnBlur = (field: string) => {
                 />
               </div>
             )}
-            <PhotoUploadBox label="Add Photos (Optional)" />
+            <PhotoUploadBox
+              label="Add Photos (Optional)"
+              photos={formData.interiorPhotos || []}
+              existingImages={formData.interiorImages || []}
+              onRemoveExisting={(id: number) =>
+                handleRemoveExistingImage("interiorImages", id)
+              }
+              onAdd={(files: File[]) =>
+                setFormData((prev: any) => ({
+                  ...prev,
+                  interiorPhotos: [...(prev.interiorPhotos || []), ...files],
+                }))
+              }
+              onRemove={(idx: number) =>
+                setFormData((prev: any) => ({
+                  ...prev,
+                  interiorPhotos: (prev.interiorPhotos || []).filter(
+                    (_: any, i: number) => i !== idx,
+                  ),
+                }))
+              }
+            />
           </div>
         )}
 
@@ -213,7 +272,28 @@ const formatMoneyOnBlur = (field: string) => {
                 />
               </div>
             )}
-            <PhotoUploadBox label="Add Photos (Optional)" />
+            <PhotoUploadBox
+              label="Add Photos (Optional)"
+              photos={formData.exteriorPhotos || []}
+              existingImages={formData.exteriorImages || []}
+              onRemoveExisting={(id: number) =>
+                handleRemoveExistingImage("exteriorImages", id)
+              }
+              onAdd={(files: File[]) =>
+                setFormData((prev: any) => ({
+                  ...prev,
+                  exteriorPhotos: [...(prev.exteriorPhotos || []), ...files],
+                }))
+              }
+              onRemove={(idx: number) =>
+                setFormData((prev: any) => ({
+                  ...prev,
+                  exteriorPhotos: (prev.exteriorPhotos || []).filter(
+                    (_: any, i: number) => i !== idx,
+                  ),
+                }))
+              }
+            />
           </div>
         )}
 
@@ -348,7 +428,8 @@ const formatMoneyOnBlur = (field: string) => {
         <div className="flex justify-between">
           {step > 1 ? (
             <button
-              className="px-10 py-4 bg-white border border-blue-600 text-blue-600 rounded-lg text-base font-weight-400 flex items-center gap-2"
+              disabled={submitting}
+              className="px-10 py-4 bg-white border border-blue-600 text-blue-600 rounded-lg text-base font-weight-400 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleBack}
             >
               <ChevronLeft size={18} /> Back
@@ -358,23 +439,29 @@ const formatMoneyOnBlur = (field: string) => {
           )}
           <div className="flex justify-end gap-4">
             <button
-              className="px-10 py-4 bg-white border border-blue-600 text-blue-600 rounded-lg text-base font-weight-400 flex items-center gap-2"
+              disabled={submitting}
+              className="px-10 py-4 bg-white border border-blue-600 text-blue-600 rounded-lg text-base font-weight-400 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleClose}
             >
               Cancel
             </button>
 
             <button
-              className="px-10 py-4 bg-blue-600 text-white rounded-lg text-base font-weight-400 flex items-center gap-2"
-              onClick={
-                step === 3
-                  ? () => {
-                      onSave(formData);
-                    }
-                  : handleNext
-              }
+              disabled={submitting}
+              className="px-10 py-4 bg-blue-600 text-white rounded-lg text-base font-weight-400 flex items-center justify-center gap-2 min-w-[140px] disabled:opacity-70 disabled:cursor-not-allowed"
+              onClick={step === 3 ? handleSave : handleNext}
             >
-              {step === 3 ? "Save" : "Next"}
+              {step === 3 ? (
+                submitting ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> Saving…
+                  </>
+                ) : (
+                  "Save"
+                )
+              ) : (
+                "Next"
+              )}
             </button>
           </div>
         </div>
@@ -403,11 +490,91 @@ const ModalRadioGroup = ({ label, value, onChange }: any) => (
   </div>
 );
 
-const PhotoUploadBox = ({ label }: { label: string }) => (
-  <div className="w-full p-6 rounded-lg border border-slate-200 flex flex-col justify-center items-center gap-6 cursor-pointer hover:bg-slate-50">
-    <div className="w-12 h-12 rounded-full flex items-center justify-center">
-      <img src={Downloadd} alt="upload" />
+const PhotoUploadBox = ({
+  label,
+  photos = [],
+  existingImages = [],
+  onAdd,
+  onRemove,
+  onRemoveExisting,
+}: {
+  label: string;
+  photos?: File[];
+  existingImages?: { id: number; url: string }[];
+  onAdd?: (files: File[]) => void;
+  onRemove?: (idx: number) => void;
+  onRemoveExisting?: (id: number) => void;
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="w-full flex flex-col gap-3">
+      <div
+        onClick={() => inputRef.current?.click()}
+        className="w-full p-6 rounded-lg border border-slate-200 flex flex-col justify-center items-center gap-6 cursor-pointer hover:bg-slate-50"
+      >
+        <div className="w-12 h-12 rounded-full flex items-center justify-center">
+          <img src={Downloadd} alt="upload" />
+        </div>
+        <span className="text-black text-base font-weight-600">{label}</span>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          if (files.length && onAdd) onAdd(files);
+          e.target.value = "";
+        }}
+      />
+      {(existingImages.length > 0 || photos.length > 0) && (
+        <div className="flex flex-wrap gap-3">
+          {existingImages.map((img, i) => (
+            <div
+              key={`existing-${img.id}`}
+              className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200"
+            >
+              <img
+                src={img.url}
+                alt={`saved-photo-${i + 1}`}
+                className="w-full h-full object-cover"
+              />
+              {onRemoveExisting && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveExisting(img.id)}
+                  className="absolute top-0 right-0 w-5 h-5 flex items-center justify-center bg-black/60 text-white text-xs rounded-bl"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          {photos.map((file, i) => (
+            <div
+              key={i}
+              className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200"
+            >
+              <img
+                src={file instanceof File ? URL.createObjectURL(file) : (file as any)}
+                alt={`photo-${i + 1}`}
+                className="w-full h-full object-cover"
+              />
+              {onRemove && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(i)}
+                  className="absolute top-0 right-0 w-5 h-5 flex items-center justify-center bg-black/60 text-white text-xs rounded-bl"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
-    <span className="text-black text-base font-weight-600">{label}</span>
-  </div>
-);
+  );
+};

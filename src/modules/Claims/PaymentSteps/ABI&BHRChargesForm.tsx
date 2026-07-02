@@ -12,7 +12,7 @@ import { getHireProvidedVehicles } from "../../../services/Vehicle/vehicle";
 import { getThirdPartyInsurer } from "../../../services/ThirdPartyInsurer/ThirdPartyInsurer";
 import { getClientByClaimID } from "../../../services/Client/client";
 import { getAccidentDetailById } from "../../../services/Accidents/accident";
-import { getCaseReference, getClaimById } from "../../../services/Claims/Claims";
+import { getCaseReference } from "../../../services/Claims/Claims";
 import VehicleCards, { type ClaimVehicle } from "./VehicleCards";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
@@ -30,15 +30,6 @@ import HirePeriodValidationForm from "./HirePeriodValidationForm";
 
 const toF = (v: any): number => parseFloat(String(v ?? 0)) || 0;
 
-// Claim type id → label (mirrors the options on the General Details screen).
-const CLAIM_TYPE_LABELS: Record<number, string> = {
-  1: "RTA - NA",
-  2: "RTA - CAMS",
-  3: "Direct Hire - NA",
-  4: "Direct Hire - CAMS",
-  5: "PI Only RTA - CAMS",
-  6: "PI Only RTA - NA",
-};
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + "Z");
@@ -112,9 +103,6 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     getCaseReference(claimId)
       .then((ref: string) => setCaseReference(ref || ""))
       .catch(() => {});
-    getClaimById(Number(claimId))
-      .then((c: any) => setCaseType(CLAIM_TYPE_LABELS[c?.claim_type_id] || ""))
-      .catch(() => {});
   }, [claimId]);
 
   // Logged-in user — signatory name is the part before the "@" in their email.
@@ -173,7 +161,6 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [clientName, setClientName] = useState("");
   const [incidentDate, setIncidentDate] = useState("");
   const [caseReference, setCaseReference] = useState("");
-  const [caseType, setCaseType] = useState("");
   const [platingMot, setPlatingMot] = useState(0);
   const [platingFee, setPlatingFee] = useState(0);
   const [repairCost, setRepairCost] = useState(0);
@@ -386,6 +373,13 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     }
   };
 
+  const handlePaymentPackEmailSent = (sentDate?: string) => {
+    formik.setFieldValue(
+      "payment_pack_sent_date",
+      sentDate ? String(sentDate).slice(0, 10) : dateToISO(new Date()),
+    );
+  };
+
   // ── computed values ────────────────────────────────────────────────────────────
   const rd = formik.values.payment_pack_raised_date;
 
@@ -476,11 +470,14 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         { key: "collectionDeliveryFee", bhr: 60, abi: 0 },
       ] as const
     ).forEach((h) => {
+      // Only Hire Amount + Administration Fee are topped up over the LPP periods;
+      // every other head of claim stays flat across <30 / 31–60 / 61+.
+      const topUp = h.key === "basicHireRate" || h.key === "administrationFee";
       if (h.bhr) out[`${h.key}_bhr`] = h.bhr.toFixed(2);
       if (h.abi) {
         out[`${h.key}_abi`] = h.abi.toFixed(2);
-        out[`${h.key}_lpp10`] = (h.abi * 1.1).toFixed(2);
-        out[`${h.key}_lpp20`] = (h.abi * 1.2).toFixed(2);
+        out[`${h.key}_lpp10`] = (h.abi * (topUp ? 1.1 : 1)).toFixed(2);
+        out[`${h.key}_lpp20`] = (h.abi * (topUp ? 1.2 : 1)).toFixed(2);
       }
     });
     return out;
@@ -494,6 +491,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
       {showInvoiceForm && (
         <CreditHireInvoiceForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
           onClose={() => setShowInvoiceForm(false)}
           prefill={{
             ourReference: caseReference,
@@ -533,6 +532,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
       {showAbiBreakdown && (
         <ABIHireBreakdownForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
           onClose={() => setShowAbiBreakdown(false)}
           vehicleGroups={
             vehicles.map((v) => (v as any).category).filter(Boolean) as string[]
@@ -575,6 +576,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
       {showPlatingInvoice && (
         <PlatingInvoiceForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
           onClose={() => setShowPlatingInvoice(false)}
           prefill={{
             ourReference: caseReference,
@@ -604,6 +607,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
       {showFrontCover && (
         <FrontCoverForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
           onClose={() => setShowFrontCover(false)}
           prefill={{
             ourReference: caseReference,
@@ -611,7 +616,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             yourReference: insurerReference,
             policyNumber,
             incidentDate,
-            caseType,
+            caseType: vehicles.length > 1 ? "Multiple Vehicles" : "Single Vehicle",
             dated: String(
               formik.values.payment_pack_raised_date || dateToISO(new Date()),
             ).slice(0, 10),
@@ -621,6 +626,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
       {showCoveringLetter && (
         <CoveringLetterForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
           onClose={() => setShowCoveringLetter(false)}
           prefill={{
             ourReference: caseReference,
@@ -640,7 +647,11 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       )}
 
       {showHirePeriod && (
-        <HirePeriodValidationForm onClose={() => setShowHirePeriod(false)} />
+        <HirePeriodValidationForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
+          onClose={() => setShowHirePeriod(false)}
+        />
       )}
 
       <div className="w-full flex items-center justify-between">

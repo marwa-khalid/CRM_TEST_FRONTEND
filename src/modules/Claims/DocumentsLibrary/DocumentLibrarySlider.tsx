@@ -536,9 +536,7 @@ const formatDateTime = (dateStr?: string) => {
                   {[
                     [
                       "Uploaded By",
-                      document.claim_id === parseInt(claimId)
-                        ? JSON.parse(localStorage.getItem("activeUser"))?.email
-                        : "testmailtocheckk@yopmail.com",
+                      JSON.parse(localStorage.getItem("activeUser"))?.email || "-",
                     ],
                     [
                       "Upload Date Time",
@@ -598,13 +596,7 @@ const formatDateTime = (dateStr?: string) => {
 
                     <div className="text-[#374151] text-sm">
                       Uploaded by{" "}
-                      {version.created_by_name ||
-                      version.uploaded_by_name ||
-                      document.claim_id === parseInt(claimId)
-                        ? JSON.parse(localStorage.getItem("activeUser"))?.email
-                        : "testmailtocheckk@yopmail.com" ||
-                          version.created_by ||
-                          "-"}
+                      {version.created_by_name || version.uploaded_by_name || version.created_by || "-"}
                     </div>
 
                     <div className="text-[#6B7280] text-sm font-weight-300">
@@ -637,9 +629,7 @@ const formatDateTime = (dateStr?: string) => {
                     </div>
                     <div className="text-[#374151] text-sm">
                       Uploaded by{" "}
-                      {document.claim_id === parseInt(claimId)
-                        ? JSON.parse(localStorage.getItem("activeUser"))?.email
-                        : "testmailtocheckk@yopmail.com"}
+                      {JSON.parse(localStorage.getItem("activeUser"))?.email || "-"}
                       {/* {version.created_by_name || version.created_by || "-"} */}
                     </div>
                     <div className="text-[#374151] text-sm">

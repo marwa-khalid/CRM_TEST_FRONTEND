@@ -17,8 +17,13 @@ export type HirePeriodValidationPrefill = {
 };
 
 const HirePeriodValidationForm = ({
-  prefill = {}, onClose,
-}: { prefill?: HirePeriodValidationPrefill; onClose: () => void }) => {
+  prefill = {}, claimId, onClose, onEmailSent,
+}: {
+  prefill?: HirePeriodValidationPrefill;
+  claimId?: string | number;
+  onClose: () => void;
+  onEmailSent?: (sentDate?: string) => void;
+}) => {
   const [f, setF] = useState({
     dateNotifiedByInsured: prefill.dateNotifiedByInsured || "",
     dateOfInspection: prefill.dateOfInspection || "",
@@ -33,7 +38,12 @@ const HirePeriodValidationForm = ({
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
 
   return (
-    <PackScreen title="Payment Pack: Hire Period Validation" onClose={onClose}>
+    <PackScreen
+      title="Payment Pack: Hire Period Validation"
+      claimId={claimId}
+      onClose={onClose}
+      onEmailSent={onEmailSent}
+    >
       <Section title="Notification & Inspection">
         <div className="flex gap-5">
           <DateField label="Date of notification by Insured" value={f.dateNotifiedByInsured} onChange={(v) => set("dateNotifiedByInsured", v)} />

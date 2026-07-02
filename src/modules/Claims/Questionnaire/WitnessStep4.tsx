@@ -131,6 +131,21 @@ const Step4Signature = () => {
     reader.readAsDataURL(file);
   };
 
+  const saveDrawnSignature = () => {
+    if (!signatureRef.current) return;
+
+    try {
+      if (signatureRef.current.isEmpty()) return;
+
+      const dataUrl = signatureRef.current.getCanvas().toDataURL("image/png");
+      if (dataUrl && dataUrl.length > 100) {
+        updateStepData("signature", { witnessSignature: dataUrl });
+      }
+    } catch (err) {
+      console.error("Failed to capture signature", err);
+    }
+  };
+
 
   if (submitted) {
     return (
@@ -180,22 +195,7 @@ const Step4Signature = () => {
             <SignatureCanvas
               ref={signatureRef}
               penColor="black"
-              onEnd={() => {
-                if (!signatureRef.current) return;
-                // getTrimmedCanvas() throws in this lib (bundled trim-canvas bug),
-                // which silently aborted the save. Use the full canvas instead.
-                try {
-                  if (signatureRef.current.isEmpty()) return;
-                  const dataUrl = signatureRef.current
-                    .getCanvas()
-                    .toDataURL("image/png");
-                  if (dataUrl && dataUrl.length > 100) {
-                    updateStepData("signature", { witnessSignature: dataUrl });
-                  }
-                } catch (err) {
-                  console.error("Failed to capture signature", err);
-                }
-              }}
+              onEnd={saveDrawnSignature}
               canvasProps={{
                 width: canvasDims.w,
                 height: canvasDims.h,
@@ -232,7 +232,10 @@ const Step4Signature = () => {
       {mode === "sign" && (
         <button
           type="button"
-          onClick={() => signatureRef.current?.clear()}
+          onClick={() => {
+            signatureRef.current?.clear();
+            updateStepData("signature", { witnessSignature: "" });
+          }}
           className="text-blue-500 text-sm w-fit"
         >
           Clear Signature

@@ -248,7 +248,7 @@ const questionLabels = [
   };
     const finalToken = token || queryToken || "";
     const claimId = queryClaimId || "";
-    const buildAnswers = (sketchImage: string) => {
+    const buildAnswers = (sketchImage: string, witnessSignature: string) => {
       const witnessDetails = formData.witnessDetails || {};
       const questionnaire = formData.questionnaire || {};
       const incidentSketch = formData.incidentSketch || {};
@@ -298,7 +298,7 @@ const questionLabels = [
         },
         {
           question: "witnessSignature",
-          answer: formData.signature?.witnessSignature || "",
+          answer: witnessSignature || "",
         },
       );
 
@@ -374,6 +374,7 @@ const generateWitnessPdfBlob = async () => {
 
       setIsSubmitting(true);
      const sketchImage = formData.signature?.sketchImage || "";
+     const witnessSignature = formData.signature?.witnessSignature || "";
 
     const pdfBlob = await generateWitnessPdfBlob();
 
@@ -396,7 +397,11 @@ if (!pdfBlob) {
       formData.incidentSketch?.accidentDescription || "",
     );
     formDataToSend.append("date_of_witness", new Date().toISOString());
-    formDataToSend.append("answers", JSON.stringify(buildAnswers(sketchImage)));
+    formDataToSend.append("witness_sign", witnessSignature);
+    formDataToSend.append(
+      "answers",
+      JSON.stringify(buildAnswers(sketchImage, witnessSignature)),
+    );
     formDataToSend.append("pdf_file", pdfFile);
 
     await formSubmitquestionaire(formDataToSend, finalToken);

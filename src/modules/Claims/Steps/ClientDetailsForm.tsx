@@ -502,17 +502,15 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
                     Custom Occupation
                   </label>
-                  <div className="h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center focus-within:border-blue-500">
-                    <input
-                      disabled={formik.values.occupation !== "Others"}
-                      placeholder="Please specify"
-                      value={formik.values.customOccupation}
-                      onChange={(e) =>
-                        formik.setFieldValue("customOccupation", e.target.value)
-                      }
-                      className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
-                    />
-                  </div>
+                  <input
+                    disabled={formik.values.occupation !== "Others"}
+                    placeholder="Please specify"
+                    value={formik.values.customOccupation}
+                    onChange={(e) =>
+                      formik.setFieldValue("customOccupation", e.target.value)
+                    }
+                    className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light focus:border-blue-500 ${inputStyles}`}
+                  />
                 </div>
               )}
             </div>

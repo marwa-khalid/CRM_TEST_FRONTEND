@@ -70,6 +70,21 @@ function openOutlookCompose(to: string, subject: string, body: string) {
   }, 1000);
 }
 
+function getActiveUserEmail() {
+  try {
+    const activeUser = JSON.parse(localStorage.getItem("activeUser") || "null");
+    return activeUser?.email || "";
+  } catch {
+    return "";
+  }
+}
+
+function formatUkMobile(value: unknown) {
+  const mobile = String(value || "").trim();
+  if (!mobile) return "";
+  return mobile.startsWith("+") ? mobile : `+44 ${mobile}`;
+}
+
 function fromApiRecord(rec: any) {
   const yn = (v: boolean) => (v ? "Yes" : "No");
   return {
@@ -121,6 +136,8 @@ function toCheckoutApiPayload(formData: any, claimId: string, hvpId: number) {
     damage_charges_paid: false,
     valet_charges: toVal(formData.valetCharge),
     total_driver_checkout_charges: total,
+    interiorPhotos: formData.interiorPhotos || [],
+    exteriorPhotos: formData.exteriorPhotos || [],
   };
 }
 
@@ -551,15 +568,19 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     setShowEmailPopup({});
     try {
       setEmailSending(true);
+      const selectedVehicle: any =
+        formik.values.thirdPartyVehicles[activeVehicleTab] || {};
+      const activeUserEmail = getActiveUserEmail();
+
       if (option === "Inst Fleet to On Hire") {
         const { data } = await sendEmails(claimId, "on_hire");
        
         const templateData = {
           ...data,
-          activeUserEmail: JSON.parse(localStorage.getItem("activeUser")).email,
-          mobile_tel: `+44 ${data.mobile_tel}`,
+          activeUserEmail,
+          mobile_tel: formatUkMobile(data?.mobile_tel),
           vehicleCategory: actualVehicleCategory.find(
-            (opt) => opt.value === currentVehicle.actual_vehicle_category,
+            (opt) => opt.value === selectedVehicle.actual_vehicle_category,
           )?.label,
         };
         setOnHireEmailData(templateData);
@@ -598,9 +619,9 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         const { data } = await sendEmails(claimId, "off_hire");
         const templateData = {
           ...data,
-          registration: currentVehicle.hire_vehicle_registration,
-          activeUserEmail: JSON.parse(localStorage.getItem("activeUser")).email,
-          mobile_tel: `+44 ${data.mobile_tel}`,
+          registration: selectedVehicle.hire_vehicle_registration,
+          activeUserEmail,
+          mobile_tel: formatUkMobile(data?.mobile_tel),
         };
         setEmailData(templateData);
         setPreviewModalOpen(true);
@@ -624,7 +645,13 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         // openOutlookCompose(data.to, subject, body);
         // toast.success("Off Hire email prepared in Outlook");
       }
-    } catch {} finally {
+    } catch (error: any) {
+      console.error("Hire instruction preview failed:", error);
+      toast.error(
+        error?.response?.data?.detail ||
+          "Unable to prepare email preview. Please check the claim details.",
+      );
+    } finally {
       setEmailSending(false);
     }
   };

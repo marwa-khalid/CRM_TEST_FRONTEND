@@ -16,8 +16,13 @@ export type FrontCoverPrefill = {
 };
 
 const FrontCoverForm = ({
-  prefill = {}, onClose,
-}: { prefill?: FrontCoverPrefill; onClose: () => void }) => {
+  prefill = {}, claimId, onClose, onEmailSent,
+}: {
+  prefill?: FrontCoverPrefill;
+  claimId?: string | number;
+  onClose: () => void;
+  onEmailSent?: (sentDate?: string) => void;
+}) => {
   const [f, setF] = useState({
     ourReference: prefill.ourReference || "",
     yourInsured: prefill.yourInsured || "",
@@ -59,20 +64,39 @@ const FrontCoverForm = ({
   );
 
   return (
-    <PackScreen title="Payment Pack: Front Cover" onClose={onClose} renderDoc={docNode}>
+    <PackScreen
+      title="Payment Pack: Front Cover"
+      claimId={claimId}
+      onClose={onClose}
+      renderDoc={docNode}
+      onEmailSent={onEmailSent}
+    >
       <Section title="Cover Details">
         <div className="flex gap-5">
-          <Text label="Your Insured" value={f.yourInsured} onChange={(v) => set("yourInsured", v)} />
-          <Text label="Policy Number" value={f.policyNumber} onChange={(v) => set("policyNumber", v)} />
+          <Text
+            label="Your Insured"
+            value={f.yourInsured}
+            onChange={(v) => set("yourInsured", v)}
+          />
+          <DateField
+            label="Date of Incident"
+            value={f.incidentDate}
+            onChange={(v) => set("incidentDate", v)}
+          />
         </div>
         <div className="flex gap-5">
-          <DateField label="Date of Incident" value={f.incidentDate} onChange={(v) => set("incidentDate", v)} />
-          <Text label="Your Reference" value={f.yourReference} onChange={(v) => set("yourReference", v)} />
+          <Text
+            label="Policy Number"
+            value={f.policyNumber}
+            onChange={(v) => set("policyNumber", v)}
+          />{" "}
+          <Text
+            label="Your Reference"
+            value={f.yourReference}
+            onChange={(v) => set("yourReference", v)}
+          />
         </div>
-        <div className="flex gap-5">
-          <Text label="Our Reference" value={f.ourReference} onChange={(v) => set("ourReference", v)} />
-          <Text label="Case Type" value={f.caseType} onChange={(v) => set("caseType", v)} placeholder="Claim type" />
-        </div>
+
       </Section>
     </PackScreen>
   );

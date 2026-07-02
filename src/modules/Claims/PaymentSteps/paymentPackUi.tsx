@@ -30,12 +30,20 @@ export const readonlyCls =
   "self-stretch px-5 py-4 bg-neutral-50 rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4";
 
 export const PackScreen = ({
-  title, onClose, emailSubject, renderDoc, children,
-}: { title: string; onClose: () => void; emailSubject?: string; renderDoc?: React.ReactNode; children: React.ReactNode }) => {
+  title, onClose, claimId, emailSubject, renderDoc, onEmailSent, children,
+}: {
+  title: string;
+  onClose: () => void;
+  claimId?: string | number;
+  emailSubject?: string;
+  renderDoc?: React.ReactNode;
+  onEmailSent?: (sentDate?: string) => void;
+  children: React.ReactNode;
+}) => {
   const bodyRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<"" | "print" | "download" | "email">("");
-  const [pdf, setPdf] = useState<{ url: string; name: string } | null>(null);
+  const [pdf, setPdf] = useState<{ url: string; name: string; blob: Blob } | null>(null);
 
   // "Payment Pack: Credit Hire Invoice" -> "Payment-Pack-Credit-Hire-Invoice.pdf"
   const fileName = `${title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}.pdf`;
@@ -82,8 +90,9 @@ export const PackScreen = ({
     if (busy) return;
     setBusy("email");
     try {
-      const url = URL.createObjectURL(await buildBlob());
-      setPdf({ url, name: fileName });
+      const blob = await buildBlob();
+      const url = URL.createObjectURL(blob);
+      setPdf({ url, name: fileName, blob });
     } finally {
       setBusy("");
     }
@@ -104,19 +113,17 @@ export const PackScreen = ({
           <span className="text-black text-2xl font-weight-600 leading-6">{title}</span>
         </div>
         <div className="flex items-center gap-12">
-          {renderDoc && (
-            <div className="flex items-center gap-6 text-blue-500">
-              <button type="button" title="Print" onClick={handlePrint} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
-                <Printer size={22} />
-              </button>
-              <button type="button" title="Download" onClick={handleDownload} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
-                <Download size={22} />
-              </button>
-              <button type="button" title="Email" onClick={handleEmail} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
-                <Mail size={22} />
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-6 text-blue-500">
+            <button type="button" title="Print" onClick={handlePrint} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
+              <Printer size={22} />
+            </button>
+            <button type="button" title="Download" onClick={handleDownload} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
+              <Download size={22} />
+            </button>
+            <button type="button" title="Email" onClick={handleEmail} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
+              <Mail size={22} />
+            </button>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -137,9 +144,11 @@ export const PackScreen = ({
 
       {pdf && (
         <PackEmailModal
+          claimId={claimId}
           subject={emailSubject || title}
           attachment={pdf}
           onClose={closeEmail}
+          onSent={onEmailSent}
         />
       )}
     </div>
@@ -157,7 +166,7 @@ export const Section = ({
 );
 
 export const Text = ({
-  label, value, onChange, placeholder = "--", width = "w-96",
+  label, value, onChange, placeholder = "--", width = "flex-1",
 }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; width?: string }) => (
   <div className={`${width} flex flex-col gap-2`}>
     <span className={labelCls}>{label}</span>
@@ -176,7 +185,7 @@ const toYmd = (d: Date) => {
 
 // Custom calendar date field — matches the picker on the General Details screen.
 export const DateField = ({
-  label, value, onChange, width = "w-96",
+  label, value, onChange, width = "flex-1",
 }: { label: string; value: string; onChange: (v: string) => void; width?: string }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -212,7 +221,7 @@ export const DateField = ({
 };
 
 export const SelectField = ({
-  label, value, onChange, options, placeholder = "Select", width = "w-96",
+  label, value, onChange, options, placeholder = "Select", width = "flex-1",
 }: { label: string; value: string; onChange: (v: string) => void; options: string[]; placeholder?: string; width?: string }) => (
   <div className={`${width} flex flex-col gap-2`}>
     <span className={labelCls}>{label}</span>
@@ -230,7 +239,7 @@ export const SelectField = ({
 
 // Read-only derived field (e.g. computed totals).
 export const ReadField = ({
-  label, value, width = "w-96",
+  label, value, width = "flex-1",
 }: { label: string; value: string; width?: string }) => (
   <div className={`${width} flex flex-col gap-2`}>
     <span className={labelCls}>{label}</span>

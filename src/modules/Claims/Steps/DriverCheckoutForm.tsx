@@ -68,11 +68,17 @@ function fromApiRecord(rec: any) {
     interiorDamage: yn(rec.interior_damage_at_check_in),
     interiorDamageDescription: rec.describe_interior_damage ?? "",
     interiorPhotos: [],
+    interiorImages: (rec.interior_images || [])
+      .filter((i: any) => i.url)
+      .map((i: any) => ({ id: i.id, url: i.url })),
     exteriorCleanCheckOut: yn(rec.exterior_clean_at_check_out),
     exteriorCleanCheckIn: yn(rec.exterior_clean_at_check_in),
     exteriorDamage: yn(rec.exterior_damage_at_check_in),
     exteriorDamageDescription: rec.describe_exterior_damage ?? "",
     exteriorPhotos: [],
+    exteriorImages: (rec.exterior_images || [])
+      .filter((i: any) => i.url)
+      .map((i: any) => ({ id: i.id, url: i.url })),
     petrolCheckoutCharge: yn(rec.apply_petrol_checkout_charges),
     petrolChargeAmount: String(rec.petrol_checkout_charges ?? "0"),
     petrolChargeReason: rec.petrol_charges_note ?? "",
@@ -152,7 +158,18 @@ export const DriverCheckoutForm = ({ formRef, claimId }: any) => {
       return;
     }
     try {
-      await saveCheckoutJson(toApiPayload(data, claimId, activeHvpId));
+      const payload = toApiPayload(data, claimId, activeHvpId);
+      const fd = new FormData();
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v !== null && v !== undefined) fd.append(k, String(v));
+      });
+      (data.interiorPhotos || []).forEach((file: File) =>
+        fd.append("interior_files", file),
+      );
+      (data.exteriorPhotos || []).forEach((file: File) =>
+        fd.append("exterior_files", file),
+      );
+      await saveCheckoutJson(fd);
       setCheckoutMap((prev) => ({ ...prev, [activeHvpId]: data }));
       setShowCheckoutModal(false);
 

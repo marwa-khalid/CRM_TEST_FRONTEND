@@ -1,35 +1,67 @@
 import { useState } from "react";
 import { X, Mail, Paperclip, FileText } from "lucide-react";
 import { toast } from "react-toastify";
+import { sendPaymentPackEmail } from "../../../services/ABIBHRCharges/ABIBHRCharges";
 
-// Outlook-style "Compose Email" popup for the Payment Pack screens — mirrors the
-// design used on the case-activity screens, with the generated form attached as
-// a PDF. Sending is a placeholder until backend wiring is added.
+// Outlook-style "Compose Email" popup for the Payment Pack screens.
 
-export type PackEmailAttachment = { url: string; name: string };
+export type PackEmailAttachment = { url: string; name: string; blob: Blob };
 
 const PackEmailModal = ({
+  claimId,
   subject: initialSubject = "",
   attachment,
   onClose,
+  onSent,
 }: {
+  claimId?: string | number;
   subject?: string;
   attachment: PackEmailAttachment;
   onClose: () => void;
+  onSent?: (sentDate?: string) => void;
 }) => {
   const [to, setTo] = useState("");
   const [cc, setCc] = useState("");
   const [subject, setSubject] = useState(initialSubject);
   const [body, setBody] = useState("");
   const [showCc, setShowCc] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSend = () => {
+  const handleSend = async () => {
+    if (isSending) return;
     if (!to.trim()) {
       toast.warn("Please enter a recipient email address.");
       return;
     }
-    toast.success("Email queued — backend integration coming soon.");
-    onClose();
+    if (!claimId) {
+      toast.error("Claim id is missing for this payment pack email.");
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append("to_email", to.trim());
+    payload.append("cc_email", cc.trim());
+    payload.append("subject", subject.trim());
+    payload.append("body", body);
+    payload.append("document_name", attachment.name);
+    payload.append(
+      "attachment",
+      new File([attachment.blob], attachment.name, { type: "application/pdf" }),
+    );
+
+    try {
+      setIsSending(true);
+      const response = await sendPaymentPackEmail(claimId, payload);
+      toast.success("Payment pack email sent.");
+      onSent?.(response.data?.payment_pack_sent_date);
+      onClose();
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.detail || "Failed to send payment pack email.",
+      );
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -137,10 +169,11 @@ const PackEmailModal = ({
           </button>
           <button
             onClick={handleSend}
-            className="px-6 py-2.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors flex items-center gap-2"
+            disabled={isSending}
+            className="px-6 py-2.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-50"
           >
             <Mail className="w-4 h-4" />
-            Send
+            {isSending ? "Sending..." : "Send"}
           </button>
         </div>
       </div>

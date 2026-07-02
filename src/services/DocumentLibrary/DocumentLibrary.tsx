@@ -97,3 +97,17 @@ export const getDocumentPreviewPages = async (documentId: number | string) => {
 
   return response.data;
 };
+
+export const sendDocumentLibraryEmail = async (payload: {
+  to: string;
+  cc?: string;
+  subject?: string;
+  body?: string;
+  attachments: { s3_key: string; file_name?: string }[];
+}) => {
+  const response = await axiosInstance.post(
+    `/document-library/send-email`,
+    payload,
+  );
+  return response.data;
+};

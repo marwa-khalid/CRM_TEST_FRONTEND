@@ -10,3 +10,17 @@ export const generatePaymentPack = (claimId: string | number) =>
   axiosInstance.post(`/abi-bhr-charges/payment-pack/${claimId}`, null, {
     responseType: "blob",
   });
+
+export const sendPaymentPackEmail = (
+  claimId: string | number,
+  payload: FormData,
+) =>
+  axiosInstance.post(
+    `/abi-bhr-charges/payment-pack/${claimId}/send-email`,
+    payload,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  );

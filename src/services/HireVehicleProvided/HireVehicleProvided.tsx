@@ -189,12 +189,48 @@ export const saveHireRecords = async (payload: any) => {
   return axiosInstance.post(`/hire-records/`, payload);
 };
 
-export const saveCheckoutJson = async (payload: any) => {
-  return axiosInstance.post(`/driver-checks/save-checkout`, payload);
+const toCheckoutFormData = (payload: FormData | Record<string, any>) => {
+  if (payload instanceof FormData) return payload;
+
+  const formData = new FormData();
+
+  Object.entries(payload || {}).forEach(([key, value]) => {
+    if (value === null || value === undefined) return;
+
+    if (key === "interiorPhotos" || key === "interior_files") {
+      (Array.isArray(value) ? value : [value]).forEach((file) => {
+        if (file instanceof File) formData.append("interior_files", file);
+      });
+      return;
+    }
+
+    if (key === "exteriorPhotos" || key === "exterior_files") {
+      (Array.isArray(value) ? value : [value]).forEach((file) => {
+        if (file instanceof File) formData.append("exterior_files", file);
+      });
+      return;
+    }
+
+    formData.append(key, String(value));
+  });
+
+  return formData;
+};
+
+export const saveCheckoutJson = async (payload: FormData | Record<string, any>) => {
+  return axiosInstance.post(
+    `/driver-checks/save-checkout`,
+    toCheckoutFormData(payload),
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
 };
 
 export const sendCheckoutEmail = async (claimId: any, hvpId: any) => {
   return axiosInstance.post(`/driver-checks/hire-vehicle/${hvpId}/checkout-email`, null, {
     params: { claim_id: claimId },
   });
+};
+
+export const deleteDriverCheckImage = async (imageId: number | string) => {
+  return axiosInstance.delete(`/driver-checks/images/${imageId}`);
 };

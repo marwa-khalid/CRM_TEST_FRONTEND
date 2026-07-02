@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { User, ChevronLeft } from "lucide-react";
 import ActivityDetailSlider from "./CaseActivityDetail";
 import attachmentt from "../../../assets/AutoClaim_icon/attachment.svg";
@@ -78,6 +78,7 @@ type ActivityItem = {
   summary?: string;
   detail_text?: string;
   created_by_name?: string;
+  claim_reference?: string;
   attachments?: AttachmentItem[];
 
   subject?: string;
@@ -86,6 +87,7 @@ type ActivityItem = {
   received_at?: string;
   body_preview?: string;
   body_text?: string;
+  body_html?: string;
 
   meta?: Record<string, any>;
   ai?: AIActivityData;
@@ -123,6 +125,7 @@ type ActivityNote = {
 };
 const CaseActivityStream = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const routeClaimId =
     (location.state as any)?.claimId ||
@@ -254,6 +257,19 @@ const CaseActivityStream = () => {
     return match?.[1] || "";
   };
 
+  // Pull just the file name out of the verbose backend sentences, e.g.
+  // "The file named X has been saved for claim REF" -> "X", and strip any
+  // trailing "has been uploaded/saved/downloaded" / "for claim REF" noise.
+  const cleanFileName = (raw = "") => {
+    let s = String(raw || "").trim();
+    const named = s.match(/the file named\s+(.+?)\s+has been\b/i);
+    if (named?.[1]) s = named[1].trim();
+    s = s.replace(/\s+has been\s+(uploaded|saved|downloaded)\b.*$/i, "");
+    s = s.replace(/\s+for claim[- ].*$/i, "");
+    s = s.replace(/\s+(uploaded|downloaded)\s*$/i, "");
+    return s.trim();
+  };
+
   const getS3KeyFromUrl = (fileUrl = "") => {
     if (!fileUrl || typeof fileUrl !== "string") return "";
 
@@ -262,8 +278,16 @@ const CaseActivityStream = () => {
     if (json?.file_url) return getS3KeyFromUrl(json.file_url);
 
     if (fileUrl.includes(".amazonaws.com/")) {
-      return decodeURIComponent(fileUrl.split(".amazonaws.com/")[1] || "");
+      // Strip any query string (e.g. an expired presigned signature) so we get
+      // the bare object key back.
+      const after = (fileUrl.split(".amazonaws.com/")[1] || "").split("?")[0];
+      return decodeURIComponent(after);
     }
+
+    // Local uploads: the "/uploads/..." path is itself a valid key the backend
+    // presigned endpoint understands (it serves the file directly).
+    const uploadsIdx = fileUrl.indexOf("/uploads/");
+    if (uploadsIdx !== -1) return fileUrl.slice(uploadsIdx);
 
     return "";
   };
@@ -292,11 +316,14 @@ const CaseActivityStream = () => {
     if (!isUpload) return null;
 
     const fileName =
-      merged?.file_name ||
-      extractFileNameFromTitle(activity?.title || "") ||
-      extractFileNameFromTitle(firstAttachment?.file_name || "") ||
-      firstAttachment?.file_name ||
-      "Uploaded attachment";
+      cleanFileName(
+        merged?.file_name ||
+          extractFileNameFromTitle(activity?.title || "") ||
+          extractFileNameFromTitle(firstAttachment?.file_name || "") ||
+          firstAttachment?.file_name ||
+          activity?.title ||
+          "",
+      ) || "Uploaded attachment";
 
     const fileUrl = merged?.file_url || firstAttachment?.file_url || "";
 
@@ -335,11 +362,14 @@ const CaseActivityStream = () => {
     );
 
     const fileName =
-      mergedMeta?.file_name ||
-      titleFileName ||
-      attachmentFileName ||
-      firstAttachment?.file_name ||
-      "Uploaded attachment";
+      cleanFileName(
+        mergedMeta?.file_name ||
+          titleFileName ||
+          attachmentFileName ||
+          firstAttachment?.file_name ||
+          activity?.title ||
+          "",
+      ) || "Uploaded attachment";
 
     const fileUrl = mergedMeta?.file_url || firstAttachment?.file_url || "";
 
@@ -415,12 +445,17 @@ const CaseActivityStream = () => {
   // };
   const shortUploadTitle = (activity: any) => {
     const uploadInfo = getUploadInfo(activity);
-
-    if (uploadInfo.fileName) {
-      return `${uploadInfo.fileName} has been uploaded`;
+    const fileName = uploadInfo.fileName || "File";
+    // On a specific claim the reference is obvious, so omit it. On the
+    // all-cases view keep it so you can tell which claim the file belongs to.
+    const claimRef =
+      activity?.claim_reference ||
+      activity?.meta?.upload_claim_reference ||
+      extractClaimRef(activity?.title || "");
+    if (isAllCasesView && claimRef) {
+      return `${fileName} uploaded for claim ${claimRef}`;
     }
-
-    return "File has been uploaded";
+    return `${fileName} uploaded`;
   };
   const shortEmailTitle = (activity: any) => {
     const type = activity?.history_file_type || "";
@@ -556,6 +591,7 @@ const CaseActivityStream = () => {
             upload_s3_key: uploadInfo.s3Key,
             upload_case_document_id: uploadInfo.caseDocumentId,
             upload_content_type: uploadInfo.contentType,
+            upload_claim_reference: extractClaimRef(row?.title || ""),
           }
         : {}),
     };
@@ -611,6 +647,7 @@ const CaseActivityStream = () => {
           row?.sender_email ||
           "noreplynationwideassist@yopmail.com via sendgrid.net",
         received_at: row?.received_at || row?.timestamp || "",
+        body_html: row?.body_html || "",
         body_preview:
           row?.body_preview ||
           "Dear Sir, Please find attached our new instruction.",
@@ -685,6 +722,7 @@ Nationwide Assist Team`,
       type,
       history_file_type: row?.history_file_type || "",
       title,
+      claim_reference: row?.claim_reference || "",
       timestamp: row?.timestamp || row?.received_at || "",
       summary: isUploadLike
         ? ""
@@ -708,6 +746,7 @@ Nationwide Assist Team`,
       received_at: row?.received_at || row?.timestamp || "",
       body_preview: row?.body_preview || "",
       body_text: row?.body_text || "",
+      body_html: row?.body_html || "",
       meta: {
         ...meta,
         modified_fields: modifiedFields,
@@ -724,7 +763,11 @@ Nationwide Assist Team`,
         setIsLoadingActivities(true);
 
         const items = isAllCasesView
-          ? (await axiosInstance.get("/case-activity/all")).data
+          ? (
+              await axiosInstance.get("/case-activity/all", {
+                params: { include_emails: true },
+              })
+            ).data
           : await getCaseActivity(parseInt(claimId, 10));
 
         const normalized = Array.isArray(items)
@@ -732,26 +775,36 @@ Nationwide Assist Team`,
           : [];
 
         setActivities(normalized);
-        const notesEntries = await Promise.all(
-          normalized
-            .filter(
-              (activity) =>
-                activity.type !== "Update" && activity.type !== "Upload",
-            )
-            .map(async (activity) => {
-              const activityId =
-                activity.meta?.parent_activity_id || activity.id;
 
-              try {
-                const notes = await getActivityNotes(activityId);
-                return [String(activityId), notes || []];
-              } catch {
-                return [String(activityId), []];
-              }
-            }),
-        );
+        // On the all-cases view there can be hundreds of activities (every
+        // claim). Prefetching notes per-activity would fire one request each,
+        // saturating the browser's ~6 connections and starving every other API
+        // ("stuck in queue"). Skip it here — notes still load when a detail is
+        // opened. On a single-claim view the count is bounded, so keep prefetch.
+        if (isAllCasesView) {
+          setActivityNotes({});
+        } else {
+          const notesEntries = await Promise.all(
+            normalized
+              .filter(
+                (activity) =>
+                  activity.type !== "Update" && activity.type !== "Upload",
+              )
+              .map(async (activity) => {
+                const activityId =
+                  activity.meta?.parent_activity_id || activity.id;
 
-        setActivityNotes(Object.fromEntries(notesEntries));
+                try {
+                  const notes = await getActivityNotes(activityId);
+                  return [String(activityId), notes || []];
+                } catch {
+                  return [String(activityId), []];
+                }
+              }),
+          );
+
+          setActivityNotes(Object.fromEntries(notesEntries));
+        }
       } catch (error) {
         console.error("Failed to fetch case activity:", error);
         setActivities([]);
@@ -944,7 +997,7 @@ Nationwide Assist Team`,
     );
   };
   const extractClaimRef = (title: string) => {
-    const match = title.match(/for claim (.+)$/i);
+    const match = title.match(/for claim[-\s]+([A-Za-z0-9-]+)/i);
     return match ? match[1] : "";
   };
 
@@ -979,9 +1032,29 @@ Nationwide Assist Team`,
     }
   };
 
-  const handleViewInDocumentLibrary = (activity: ActivityItem) => {
+  const handleViewInDocumentLibrary = async (activity: ActivityItem) => {
     const fileUrl =
       activity.ai?.report_pdf_url || activity.attachments?.[0]?.file_url;
+
+    // Always fetch a FRESH presigned URL from the object key — the stored
+    // report_pdf_url is a presigned link that expires ("Request has expired").
+    const s3Key =
+      activity.ai?.report_pdf_s3_key ||
+      (activity.meta as any)?.report_pdf_s3_key ||
+      (activity.meta as any)?.s3_key ||
+      getS3KeyFromUrl(fileUrl || "");
+
+    try {
+      if (s3Key) {
+        const fresh = await getCaseActivityPresignedUrl(s3Key);
+        if (fresh) {
+          openPdfClean(fresh);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to refresh report URL:", error);
+    }
 
     if (fileUrl && fileUrl !== "#") {
       openPdfClean(fileUrl);
@@ -1260,7 +1333,10 @@ Nationwide Assist Team`,
       />
       <header className="px-10 py-5 bg-white shadow-md border-b flex justify-between items-center sticky top-0 z-10">
         <div className="flex flex-col gap-1">
-          <button className="flex items-center gap-1 text-blue-300 text-xs font-weight-600 hover:text-blue-500">
+          <button
+            onClick={() => (claimId ? navigate(`/add-claim/${claimId}`) : navigate(-1))}
+            className="flex items-center gap-1 text-blue-300 text-xs font-weight-600 hover:text-blue-500"
+          >
             <ChevronLeft size={16} /> Back to Claim Details
           </button>
           <h1 className="text-2xl font-weight-600 text-black uppercase">
@@ -1424,11 +1500,7 @@ Nationwide Assist Team`,
                           <img src={UserUploads} alt="" />
                           <span>
                             {" "}
-                            {activity.meta.claim_id === parseInt(claimId)
-                              ? activity.sender_email ||
-                                activity.created_by_name ||
-                                activeUser?.email
-                              : "testmailtocheckk@yopmail.com"}
+                            {activity.created_by_name || activity.sender_email || activeUser?.email || "User"}
                           </span>
                         </div>
                       </div>
@@ -1443,16 +1515,6 @@ Nationwide Assist Team`,
                               {getShortTitle(activity)}
                             </h3>
                           </div>
-
-                          {(activity.sender_name ||
-                            activity.created_by_name ||
-                            activity.sender_email) && (
-                            <div className="text-sm text-neutral-600 font-weight-300">
-                              {activity.sender_name ||
-                                activity.created_by_name ||
-                                activity.sender_email}
-                            </div>
-                          )}
 
                           {uploadAttachments.length > 0 && (
                             <div className="flex flex-col gap-2 mt-2">
@@ -1508,34 +1570,34 @@ Nationwide Assist Team`,
                           </div>
 
                           <div className="mt-1 p-4 bg-neutral-100 rounded-lg text-sm text-neutral-700">
-                            <div className="font-weight-600 mb-4">
+                            <div className="font-weight-600 text-black text-[16px] mb-4">
                               Damage Summary:
                             </div>
 
                             <div className="w-full overflow-x-auto">
                               <table className="w-full border border-neutral-200 rounded-lg overflow-hidden">
                                 {/* HEADER */}
-                                <thead className=" text-neutral-600 text-xs uppercase">
+                                <thead className=" bg-neutral-100 text-neutral-800 text-sm uppercase">
                                   <tr>
-                                    <th className="text-left px-3 py-2 border-b">
+                                    <th className="text-left px-3 py-2 border-b font-weight-700">
                                       Side
                                     </th>
-                                    <th className="text-left px-3 py-2 border-b">
+                                    <th className="text-left px-3 py-2 border-b font-weight-700">
                                       Area
                                     </th>
-                                    <th className="text-left px-3 py-2 border-b">
+                                    <th className="text-left px-3 py-2 border-b font-weight-700">
                                       Type
                                     </th>
-                                    <th className="text-left px-3 py-2 border-b">
+                                    <th className="text-left px-3 py-2 border-b font-weight-700">
                                       Severity
                                     </th>
-                                    <th className="text-left px-3 py-2 border-b">
+                                    <th className="text-left px-3 py-2 border-b font-weight-700">
                                       Confidence
                                     </th>
-                                    <th className="text-left px-3 py-2 border-b">
+                                    <th className="text-left px-3 py-2 border-b font-weight-700">
                                       Points
                                     </th>
-                                    <th className="text-left px-3 py-2 border-b">
+                                    <th className="text-left px-3 py-2 border-b font-weight-700">
                                       Repair
                                     </th>
                                   </tr>
@@ -1675,8 +1737,10 @@ Nationwide Assist Team`,
                             </span>
                           </div>
 
-                          <div className="mt-2 p-2 bg-neutral-100 rounded-lg text-sm text-neutral-700 whitespace-pre-line">
-                            {activity.body_preview || activity.body_text || ""}
+                          <div className="mt-2 text-sm text-neutral-500 line-clamp-2">
+                            {activity.body_preview ||
+                              activity.body_text ||
+                              ""}
                           </div>
 
                           <div className="mt-3 flex flex-wrap items-center gap-4">
@@ -1778,11 +1842,7 @@ Nationwide Assist Team`,
 
                           <div className="inline-flex justify-start items-start gap-2">
                             <div className="text-neutral-700 text-sm font-weight-400 font-['Stack_Sans_Headline']">
-                              {activity.meta.claim_id === parseInt(claimId)
-                                ? activity.sender_email ||
-                                  activity.created_by_name ||
-                                  activeUser?.email
-                                : "testmailtocheckk@yopmail.com"}
+                              {activity.created_by_name || activity.sender_email || activeUser?.email || "User"}
                             </div>
                           </div>
 

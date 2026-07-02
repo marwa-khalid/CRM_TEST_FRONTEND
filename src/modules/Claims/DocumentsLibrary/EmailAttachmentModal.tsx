@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { X, Mail, Paperclip } from "lucide-react";
+import { X, Mail, Paperclip, Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
+import { sendDocumentLibraryEmail } from "../../../services/DocumentLibrary/DocumentLibrary";
 
 interface Photo {
   id: string | number;
   file_url: string;
   file_name: string;
+  s3_key?: string;
 }
 
 interface Props {
@@ -24,14 +26,41 @@ const EmailAttachmentModal: React.FC<Props> = ({
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [showCc, setShowCc] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!to.trim()) {
       toast.warn("Please enter a recipient email address.");
       return;
     }
-    toast.success("Email queued — backend integration coming soon.");
-    onClose();
+    const files = attachments
+      .map((a) => ({
+        s3_key: a.s3_key || String(a.id),
+        file_name: a.file_name,
+      }))
+      .filter((a) => a.s3_key);
+    if (files.length === 0) {
+      toast.warn("No attachments selected to send.");
+      return;
+    }
+    try {
+      setSending(true);
+      await sendDocumentLibraryEmail({
+        to,
+        cc,
+        subject,
+        body,
+        attachments: files,
+      });
+      toast.success("Email sent.");
+      onClose();
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.detail || "Failed to send email. Please try again.",
+      );
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -149,16 +178,27 @@ const EmailAttachmentModal: React.FC<Props> = ({
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="px-5 py-2.5 border border-gray-200 rounded text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+              disabled={sending}
+              className="px-5 py-2.5 border border-gray-200 rounded text-sm text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
             >
               Discard
             </button>
             <button
               onClick={handleSend}
-              className="px-6 py-2.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors flex items-center gap-2"
+              disabled={sending}
+              className="px-6 py-2.5 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <Mail className="w-4 h-4" />
-              Send
+              {sending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sending…
+                </>
+              ) : (
+                <>
+                  <Mail className="w-4 h-4" />
+                  Send
+                </>
+              )}
             </button>
           </div>
         </div>

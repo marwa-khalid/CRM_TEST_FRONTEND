@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { PackScreen, DateField } from "./paymentPackUi";
-import CreditHireInvoiceDoc, { type CreditHireDocVehicle } from "./CreditHireInvoiceDoc";
+import CreditHireInvoiceDoc, { type CreditHireDocVehicle, type CreditHireDocData } from "./CreditHireInvoiceDoc";
 
 // Editable "Payment Pack: Credit Hire Invoice" screen (opened from the Generate
 // Payment Pack popup). Sub Total / VAT / Total Due are derived live from the
@@ -74,7 +74,7 @@ const ChargeRow = ({
   showDays?: boolean;
 }) => (
   <div className="self-stretch flex items-center gap-4">
-    <div className="w-48 shrink-0 text-neutral-950 text-sm font-weight-500">{label}</div>
+    <div className="flex-1 text-neutral-950 text-sm font-weight-500">{label}</div>
     <div className="w-24 shrink-0">
       {showDays ? (
         <input className={chargeInputCls} value={days} onChange={(e) => onDays?.(e.target.value)} placeholder="--" />
@@ -90,8 +90,13 @@ const ChargeRow = ({
 );
 
 const CreditHireInvoiceForm = ({
-  prefill = {}, onClose,
-}: { prefill?: CreditHireInvoicePrefill; onClose: () => void }) => {
+  prefill = {}, claimId, onClose, onEmailSent,
+}: {
+  prefill?: CreditHireInvoicePrefill;
+  claimId?: string | number;
+  onClose: () => void;
+  onEmailSent?: (sentDate?: string) => void;
+}) => {
   const [f, setF] = useState({
     ourReference: prefill.ourReference || "",
     invoiceDate: prefill.invoiceDate || "",
@@ -132,31 +137,35 @@ const CreditHireInvoiceForm = ({
     hireEnd: f.hireEnd,
     days: f.totalHireDays,
   };
-  const doc = (
-    <CreditHireInvoiceDoc
-      data={{
-        ourReference: f.ourReference,
-        invoiceNumber: f.invoiceNumber,
-        invoiceDate: f.invoiceDate,
-        yourReference: f.yourReference,
-        client: f.client,
-        billTo: f.billTo,
-        vehicles: [editedVehicle, ...(prefill.otherVehicles || [])],
-        charges: [
-          { label: "Basic Hire Rate", days: f.basicHireDays, rate: f.basicHireRate, amount: f.basicHireAmount },
-          { label: "Collision Damage Waiver", days: f.cdwDays, rate: f.cdwRate, amount: f.cdwAmount },
-          { label: "Collection & Delivery Charge", rate: f.collectionRate, amount: f.collectionAmount },
-          { label: "Admin Fee", rate: f.adminRate, amount: f.adminAmount },
-        ],
-        subTotal,
-        vat,
-        totalDue,
-      }}
-    />
-  );
+  const docData: CreditHireDocData = {
+    ourReference: f.ourReference,
+    invoiceNumber: f.invoiceNumber,
+    invoiceDate: f.invoiceDate,
+    yourReference: f.yourReference,
+    client: f.client,
+    billTo: f.billTo,
+    vehicles: [editedVehicle, ...(prefill.otherVehicles || [])],
+    charges: [
+      { label: "Basic Hire Rate", days: f.basicHireDays, rate: f.basicHireRate, amount: f.basicHireAmount },
+      { label: "Collision Damage Waiver", days: f.cdwDays, rate: f.cdwRate, amount: f.cdwAmount },
+      { label: "Collection & Delivery Charge", rate: f.collectionRate, amount: f.collectionAmount },
+      { label: "Admin Fee", rate: f.adminRate, amount: f.adminAmount },
+    ],
+    subTotal,
+    vat,
+    totalDue,
+  };
+  const doc = <CreditHireInvoiceDoc data={docData} />;
 
   return (
-    <PackScreen title="Payment Pack: Credit Hire Invoice" onClose={onClose} renderDoc={doc}>
+    <PackScreen
+      title="Payment Pack: Credit Hire Invoice"
+      claimId={claimId}
+      onClose={onClose}
+      renderDoc={doc}
+      onEmailSent={onEmailSent}
+    >
+
         <Section title="Invoice Details">
           <div className="flex gap-5">
             <DateField label="Invoice Date" value={f.invoiceDate} onChange={(v) => set("invoiceDate", v)} />
@@ -167,7 +176,7 @@ const CreditHireInvoiceForm = ({
             <Text label="Your Reference" value={f.yourReference} onChange={(v) => set("yourReference", v)} />
           </div>
           <div className="flex gap-5">
-            <Text label="Bill To" value={f.billTo} onChange={(v) => set("billTo", v)} />
+            <Text label="Bill To" value={f.billTo} onChange={(v) => set("billTo", v)} width="flex-1" />
           </div>
         </Section>
 
@@ -177,7 +186,7 @@ const CreditHireInvoiceForm = ({
             <DateField label="Hire End" value={f.hireEnd} onChange={(v) => set("hireEnd", v)} />
           </div>
           <div className="flex gap-5">
-            <Text label="Total Hire Days" value={f.totalHireDays} onChange={(v) => set("totalHireDays", v)} />
+            <Text label="Total Hire Days" value={f.totalHireDays} onChange={(v) => set("totalHireDays", v)} width="flex-1" />
           </div>
         </Section>
 
@@ -187,7 +196,7 @@ const CreditHireInvoiceForm = ({
           </div>
           <div className="self-stretch h-px bg-neutral-100" />
           <div className="flex gap-5">
-            <Text label="Registration Number" value={f.registration} onChange={(v) => set("registration", v)} placeholder="Reg Number" />
+            <Text label="Registration Number" value={f.registration} onChange={(v) => set("registration", v)} placeholder="Reg Number" width="flex-1" />
           </div>
           <div className="flex gap-5">
             <Text label="Make" value={f.make} onChange={(v) => set("make", v)} placeholder="Enter Make" />
@@ -198,7 +207,7 @@ const CreditHireInvoiceForm = ({
         <Section title="Hire Charges">
           {/* column headers */}
           <div className="self-stretch flex items-center gap-4">
-            <div className="w-48 shrink-0" />
+            <div className="flex-1" />
             <div className="w-24 shrink-0 text-neutral-700 text-sm font-weight-500">Days</div>
             <div className="w-40 shrink-0 text-neutral-700 text-sm font-weight-500">Daily Rate</div>
             <div className="w-40 shrink-0 text-neutral-700 text-sm font-weight-500">Amount</div>

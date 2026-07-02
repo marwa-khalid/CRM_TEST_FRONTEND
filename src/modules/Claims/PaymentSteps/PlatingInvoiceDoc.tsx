@@ -1,7 +1,8 @@
-import { gbp, slash, m, cellBase, headBase, DocShell, DocHeader, SectionLabel, DocFooter } from "./docHelpers";
+import { gbp, slash, m } from "./docHelpers";
+import { SlateShell, SlateSectionLabel, SlateMeta, SlateCard, SlateTotalStrip, slateCell, slateHead, LIGHT } from "./slateDoc";
 
-// Print/PDF document for the Plating Costs Invoice (non-editable). Built from the
-// edited form values. Lists every vehicle on the claim in Vehicle Details.
+// Print/PDF document for the Plating Costs Invoice (Slate design). Lists every
+// vehicle on the claim in Vehicle Details.
 
 export type PlatingDocVehicle = { vehicle?: string; registration?: string };
 
@@ -24,137 +25,75 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
   const vehiclesLabel = multi ? `${vehicles.length} (Multiple)` : "1 (Single)";
 
   return (
-    <DocShell>
-      <DocHeader
-        ourRef={data.ourReference}
-        yourRef={data.yourReference}
-        dated={slash(data.invoiceDate)}
-      />
-
-      {/* Title + Bill To */}
-      <div className="self-stretch pt-7 flex justify-between items-end">
-        <div className="pt-3.5 pb-0.5 flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase leading-4">
-            INVOICE · PLATING COSTS
-          </div>
-          <div className="text-base font-bold uppercase leading-5">
-            PLATING COSTS INVOICE
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="text-right text-[12px] font-weight-600 uppercase leading-3 tracking-wider">
-            BILL TO
-          </div>
-          <div className="text-right text-base font-weight-600 leading-5">
-            {data.billTo || "—"}
-          </div>
-        </div>
+    <SlateShell title="Invoice" titleSub="Plating Costs" footerLabel="Plating Costs Invoice">
+      {/* Meta grid */}
+      <div className="mt-6 grid grid-cols-4 gap-6">
+        <SlateMeta label="Invoice No." value={data.invoiceNumber || "—"} />
+        <SlateMeta label="Invoice Date" value={slash(data.invoiceDate)} />
+        <SlateMeta label="Our Reference" value={data.ourReference || "—"} />
+        <SlateMeta label="Vehicles" value={vehiclesLabel} />
       </div>
 
-      {/* Invoice meta box — 2×2 */}
-      <div className="self-stretch pt-3.5">
-        <table className="w-full border-collapse table-fixed">
-          <tbody>
-            <tr>
-              <td className={`${cellBase} w-1/2`}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Invoice No.:</span>
-                  <span className="text-xs font-bold text-right">
-                    {data.invoiceNumber || "—"}
-                  </span>
-                </div>
-              </td>
-              <td className={`${cellBase} w-1/2`}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Invoice Date:</span>
-                  <span className="text-xs font-bold text-right">
-                    {slash(data.invoiceDate)}
-                  </span>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td className={cellBase}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Client:</span>
-                  <span className="text-xs font-bold text-right">
-                    {data.client || "—"}
-                  </span>
-                </div>
-              </td>
-              <td className={cellBase}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Vehicles:</span>
-                  <span className="text-xs font-bold text-right">
-                    {vehiclesLabel}
-                  </span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      {/* Bill to / client */}
+      <div className="mt-7 flex gap-4">
+        <SlateCard title="Bill To">
+          <div className="text-[13px] font-weight-600 text-slate-800 mt-1">{data.billTo || "—"}</div>
+          <div className="text-[11px] text-slate-500">Ref: {data.yourReference || "—"}</div>
+        </SlateCard>
+        <SlateCard title="Client">
+          <div className="text-[13px] font-weight-600 text-slate-800 mt-1">{data.client || "—"}</div>
+        </SlateCard>
       </div>
 
-      <SectionLabel no="01." title="VEHICLE DETAILS" />
+      {/* Vehicle details */}
+      <SlateSectionLabel>Vehicle Details</SlateSectionLabel>
       <table className="w-full border-collapse">
         <thead>
-          <tr>
-            <th className={`${headBase} text-left w-14`}>Veh</th>
-            <th className={`${headBase} text-left`}>Vehicle</th>
-            <th className={`${headBase} text-left`}>Registration</th>
+          <tr style={{ backgroundColor: LIGHT }}>
+            <th className={`${slateHead} w-12`}>#</th>
+            <th className={slateHead}>Vehicle</th>
+            <th className={slateHead}>Registration</th>
           </tr>
         </thead>
         <tbody>
           {vehicles.map((v, i) => (
             <tr key={i}>
-              <td className={cellBase}>{multi ? i + 1 : "—"}</td>
-              <td className={cellBase}>{v.vehicle || "—"}</td>
-              <td className={cellBase}>{v.registration || "—"}</td>
+              <td className={slateCell}>{multi ? i + 1 : "1"}</td>
+              <td className={slateCell}>{v.vehicle || "—"}</td>
+              <td className={slateCell}>{v.registration || "—"}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <SectionLabel no="02." title="CHARGES" />
+      {/* Charges */}
+      <SlateSectionLabel>Charges</SlateSectionLabel>
       <table className="w-full border-collapse">
         <thead>
-          <tr>
-            <th className={`${headBase} text-left`}>Details</th>
-            <th className={`${headBase} text-right w-44`}>Amount</th>
+          <tr style={{ backgroundColor: LIGHT }}>
+            <th className={slateHead}>Details</th>
+            <th className={`${slateHead} text-right w-44`}>Amount</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td className={cellBase}>Private Hire MOT</td>
-            <td className={`${cellBase} text-right`}>
-              {m(data.privateHireMot)}
-            </td>
+            <td className={slateCell}>Private Hire MOT</td>
+            <td className={`${slateCell} text-right`}>{m(data.privateHireMot)}</td>
           </tr>
           <tr>
-            <td className={cellBase}>Private Hire Plating Costs</td>
-            <td className={`${cellBase} text-right`}>
-              {m(data.privateHirePlatingCosts)}
-            </td>
+            <td className={slateCell}>Private Hire Plating Costs</td>
+            <td className={`${slateCell} text-right`}>{m(data.privateHirePlatingCosts)}</td>
           </tr>
         </tbody>
       </table>
 
-      {/* Total Due */}
-      <div className="self-stretch pt-2.5 flex flex-col items-end">
-        <div className="w-72 flex flex-col">
-          <div className="pt-[5px] border-t-2 border-black flex justify-between items-center">
-            <span className="text-xs font-bold uppercase leading-4">
-              TOTAL DUE
-            </span>
-            <span className="text-xs font-bold leading-4">
-              {gbp(data.total || 0)}
-            </span>
-          </div>
+      {/* Total */}
+      <div className="mt-6 flex justify-end">
+        <div className="w-72 flex flex-col gap-2">
+          <SlateTotalStrip label="Total Due" value={gbp(data.total || 0)} />
         </div>
       </div>
-
-      <DocFooter label="Plating Costs Invoice" />
-    </DocShell>
+    </SlateShell>
   );
 };
 

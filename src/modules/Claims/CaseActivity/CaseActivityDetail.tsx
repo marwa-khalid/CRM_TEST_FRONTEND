@@ -304,6 +304,12 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
       .querySelectorAll("script, style, iframe, object, embed")
       .forEach((el) => el.remove());
 
+    // Inline (cid:) images from emails can't resolve in the browser — drop them
+    // so they don't render as broken-image icons.
+    doc
+      .querySelectorAll('img[src^="cid:"], img[src^="CID:"]')
+      .forEach((el) => el.remove());
+
     doc.body.querySelectorAll("*").forEach((el) => {
       [...el.attributes].forEach((attr) => {
         const name = attr.name.toLowerCase();
@@ -316,6 +322,25 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
     });
 
     return doc.body.innerHTML;
+  };
+
+  // Email body: render the original email HTML (its real design) when present,
+  // sanitized; otherwise fall back to the cleaned plain text.
+  const renderEmailBody = (d: any) => {
+    const rawHtml = d?.body_html || "";
+    if (rawHtml && /<[a-z][\s\S]*>/i.test(rawHtml)) {
+      return (
+        <div
+          className="text-sm text-neutral-700 leading-relaxed break-words overflow-x-auto [&_img]:max-w-full [&_table]:max-w-full [&_a]:text-blue-600 [&_a]:underline"
+          dangerouslySetInnerHTML={{ __html: sanitizeNoteHtml(rawHtml) }}
+        />
+      );
+    }
+    return (
+      <p className="text-neutral-700 text-sm font-weight-300 leading-relaxed whitespace-pre-line">
+        {d?.body_text || d?.body_preview || "No email body available."}
+      </p>
+    );
   };
 
   const applyNoteFormatting = (value: string) => {
@@ -1169,7 +1194,10 @@ ${getWitnessStatement() || "No witness statement available."}${getPdfLinksText()
     }
 
     if (data.type === "AI Report") {
-      return `${getAiReportMessageBody()}${getPdfLinksText()}`;
+      // The report PDF is sent as an attachment, so don't dump the whole damage
+      // table into the message body — just send the user's note (or a short
+      // default). Keeps the forwarded email clean.
+      return emailComment || "Please find the attached AI Damage Report.";
     }
 
     return emailComment || "";
@@ -1357,24 +1385,36 @@ ${getWitnessStatement() || "No witness statement available."}${getPdfLinksText()
                 </p>
               </div>
               <div className="mt-1 p-4 bg-neutral-100 rounded-lg text-sm text-neutral-700">
-                <div className="font-weight-600 mb-4">Damage Summary:</div>
+                <div className="font-weight-600 text-black text-[16px] mb-4">
+                  Damage Summary:
+                </div>
 
                 <div className="w-full overflow-x-auto">
                   <table className="w-full border border-neutral-200 rounded-lg overflow-hidden">
                     {/* HEADER */}
-                    <thead className=" text-neutral-600 text-xs uppercase">
+                    <thead className=" bg-neutral-100 text-neutral-800 text-sm uppercase">
                       <tr>
-                        <th className="text-left px-3 py-2 border-b">Side</th>
-                        <th className="text-left px-3 py-2 border-b">Area</th>
-                        <th className="text-left px-3 py-2 border-b">Type</th>
-                        <th className="text-left px-3 py-2 border-b">
+                        <th className="text-left px-3 py-2 border-b font-weight-700">
+                          Side
+                        </th>
+                        <th className="text-left px-3 py-2 border-b font-weight-700">
+                          Area
+                        </th>
+                        <th className="text-left px-3 py-2 border-b font-weight-700">
+                          Type
+                        </th>
+                        <th className="text-left px-3 py-2 border-b font-weight-700">
                           Severity
                         </th>
-                        <th className="text-left px-3 py-2 border-b">
+                        <th className="text-left px-3 py-2 border-b font-weight-700">
                           Confidence
                         </th>
-                        <th className="text-left px-3 py-2 border-b">Points</th>
-                        <th className="text-left px-3 py-2 border-b">Repair</th>
+                        <th className="text-left px-3 py-2 border-b font-weight-700">
+                          Points
+                        </th>
+                        <th className="text-left px-3 py-2 border-b font-weight-700">
+                          Repair
+                        </th>
                       </tr>
                     </thead>
 
@@ -1521,12 +1561,8 @@ ${getWitnessStatement() || "No witness statement available."}${getPdfLinksText()
 
               <hr className="border-neutral-100" />
 
-              <div className="bg-neutral-100 p-6 rounded-lg">
-                <p className="text-neutral-700 text-sm font-weight-300 leading-relaxed whitespace-pre-line">
-                  {data.body_text ||
-                    data.body_preview ||
-                    "No email body available."}
-                </p>
+              <div className="bg-white rounded-lg border border-neutral-100 p-2">
+                {renderEmailBody(data)}
               </div>
 
               {data.attachments?.length > 0 && (
@@ -1870,72 +1906,8 @@ ${getWitnessStatement() || "No witness statement available."}`}
                     className="w-full min-h-[70px] resize-none outline-none border-none bg-transparent text-neutral-800 text-sm leading-6 placeholder:text-neutral-300 placeholder:font-light"
                   />
 
-                  <div className="text-sm text-neutral-800 font-weight-600">
-                    AI Damage Report Summary
-                  </div>
-
-                  <div className="w-full overflow-x-auto">
-                    <table className="w-full border border-neutral-200 text-sm">
-                      <thead className="bg-neutral-50 text-neutral-600">
-                        <tr>
-                          <th className="text-left px-3 py-2 border">Side</th>
-                          <th className="text-left px-3 py-2 border">Area</th>
-                          <th className="text-left px-3 py-2 border">Type</th>
-                          <th className="text-left px-3 py-2 border">
-                            Severity
-                          </th>
-                          <th className="text-left px-3 py-2 border">
-                            Confidence
-                          </th>
-                          <th className="text-left px-3 py-2 border">Points</th>
-                          <th className="text-left px-3 py-2 border">Repair</th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {(
-                          data.meta?.damage_table ||
-                          data.ai?.damage_table ||
-                          []
-                        ).map((item: any, index: number) => (
-                          <tr key={index}>
-                            <td className="px-3 py-2 border">
-                              {item.damage_side || item.side || "-"}
-                            </td>
-                            <td className="px-3 py-2 border">
-                              {item.area_of_damage ||
-                                item.area ||
-                                item.part ||
-                                "-"}
-                            </td>
-                            <td className="px-3 py-2 border">
-                              {item.type_of_damage ||
-                                item.type ||
-                                item.damage_type ||
-                                "-"}
-                            </td>
-                            <td
-                              className={`px-3 py-2 border ${item.severity == "High" ? "text-red-500" : item.severity == "Medium" ? "text-orange-300" : "text-green-600"}`}
-                            >
-                              {item.severity || "-"}
-                            </td>
-                            <td className="px-3 py-2 border">
-                              {item.confidence
-                                ? String(item.confidence).includes("%")
-                                  ? item.confidence
-                                  : `${item.confidence}%`
-                                : "-"}
-                            </td>
-                            <td className="px-3 py-2 border">
-                              {item.points || "-"}
-                            </td>
-                            <td className="px-3 py-2 border">
-                              {item.suggested_repair || item.repair || "-"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="text-xs text-neutral-400">
+                    The full AI Damage Report will be attached as a PDF.
                   </div>
 
                   <div className="self-stretch h-8 flex justify-between items-end">
@@ -1983,10 +1955,8 @@ ${getWitnessStatement() || "No witness statement available."}`}
                     {formatDateTime(data.received_at || data.timestamp)}
                   </p>
 
-                  <div className="text-sm text-neutral-700 whitespace-pre-line">
-                    {data.body_text ||
-                      data.body_preview ||
-                      "No email body available."}
+                  <div className="text-sm text-neutral-700">
+                    {renderEmailBody(data)}
                   </div>
                 </div>
               )}

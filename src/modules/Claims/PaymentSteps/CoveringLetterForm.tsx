@@ -41,8 +41,13 @@ export type CoveringLetterPrefill = {
 };
 
 const CoveringLetterForm = ({
-  prefill = {}, onClose,
-}: { prefill?: CoveringLetterPrefill; onClose: () => void }) => {
+  prefill = {}, claimId, onClose, onEmailSent,
+}: {
+  prefill?: CoveringLetterPrefill;
+  claimId?: string | number;
+  onClose: () => void;
+  onEmailSent?: (sentDate?: string) => void;
+}) => {
   const [f, setF] = useState({
     yourInsured: prefill.yourInsured || "",
     yourReference: prefill.yourReference || "",
@@ -129,19 +134,46 @@ const CoveringLetterForm = ({
   );
 
   return (
-    <PackScreen title="Payment Pack: Covering Letter" onClose={onClose} renderDoc={docNode}>
+    <PackScreen
+      title="Payment Pack: Covering Letter"
+      claimId={claimId}
+      onClose={onClose}
+      renderDoc={docNode}
+      onEmailSent={onEmailSent}
+    >
       <Section title="Invoice Details">
         <div className="flex gap-5">
-          <Text label="Your Insured" value={f.yourInsured} onChange={(v) => set("yourInsured", v)} />
-          <Text label="Your Reference" value={f.yourReference} onChange={(v) => set("yourReference", v)} />
+          <Text
+            label="Your Insured"
+            value={f.yourInsured}
+            onChange={(v) => set("yourInsured", v)}
+          />
+          <Text
+            label="Your Reference"
+            value={f.yourReference}
+            onChange={(v) => set("yourReference", v)}
+          />
         </div>
         <div className="flex gap-5">
-          <Text label="Our Client" value={f.ourClient} onChange={(v) => set("ourClient", v)} />
-          <Text label="Our Reference" value={f.ourReference} onChange={(v) => set("ourReference", v)} />
+          <Text
+            label="Our Client"
+            value={f.ourClient}
+            onChange={(v) => set("ourClient", v)}
+          />
+          <Text
+            label="Our Reference"
+            value={f.ourReference}
+            onChange={(v) => set("ourReference", v)}
+          />
         </div>
-        <div className="flex gap-5">
-          <DateField label="Incident Date" value={f.incidentDate} onChange={(v) => set("incidentDate", v)} />
-          <Text label="Valeting Fee" value={f.valetingFee} onChange={(v) => set("valetingFee", v)} placeholder="£0.00" />
+        <div className="fv-row ">
+          <div className="col-6">
+            <DateField
+              label="Incident Date"
+              value={f.incidentDate}
+              onChange={(v) => set("incidentDate", v)}
+            />
+          </div>
         </div>
       </Section>
 
@@ -150,9 +182,14 @@ const CoveringLetterForm = ({
         <div className="self-stretch flex items-start gap-5">
           <div className="w-44 shrink-0" />
           {COLS.map((c) => (
-            <div key={c.key} className="flex-1 w-0 text-sm font-weight-500 leading-tight">
-              <span className="text-neutral-900">{c.title}</span>{" "}
-              <span className="text-neutral-700">{c.sub}</span>
+            <div
+              key={c.key}
+              className="flex-1 w-0 text-sm font-weight-500 leading-tight"
+            >
+              <div className="flex flex-col">
+                <span className="text-neutral-900">{c.title}</span>{" "}
+                <span className="text-neutral-700">{c.sub}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -160,7 +197,9 @@ const CoveringLetterForm = ({
         {/* charge rows */}
         {ROWS.map((r) => (
           <div key={r.key} className="self-stretch flex items-center gap-5">
-            <div className="w-44 shrink-0 text-neutral-950 text-sm font-weight-500">{r.label}</div>
+            <div className="w-44 shrink-0 text-neutral-950 text-sm font-weight-500">
+              {r.label}
+            </div>
             {COLS.map((c) => {
               const key = `${r.key}_${c.key}`;
               return (
@@ -183,8 +222,13 @@ const CoveringLetterForm = ({
           { label: "Sub Total", value: subTotal },
           { label: "VAT @ 20%", value: vat },
         ].map((t) => (
-          <div key={t.label} className="self-stretch flex justify-end items-center gap-5">
-            <div className="w-40 text-neutral-950 text-sm font-weight-500">{t.label}</div>
+          <div
+            key={t.label}
+            className="self-stretch flex justify-end items-center gap-5"
+          >
+            <div className="w-40 text-neutral-950 text-sm font-weight-500">
+              {t.label}
+            </div>
             <div className="w-64 px-5 py-4 bg-neutral-50 rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4">
               {gbp(t.value)}
             </div>
@@ -193,7 +237,9 @@ const CoveringLetterForm = ({
 
         <div className="self-stretch h-px bg-neutral-100" />
         <div className="self-stretch flex justify-end items-center gap-5">
-          <div className="w-40 text-neutral-900 text-base font-weight-600">Total Due</div>
+          <div className="w-40 text-neutral-900 text-base font-weight-600">
+            Total Due
+          </div>
           <div className="w-64 px-5 py-4 bg-neutral-50 rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4">
             {gbp(totalDue)}
           </div>

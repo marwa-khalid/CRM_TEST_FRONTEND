@@ -22,8 +22,13 @@ export type PlatingInvoicePrefill = {
 };
 
 const PlatingInvoiceForm = ({
-  prefill = {}, onClose,
-}: { prefill?: PlatingInvoicePrefill; onClose: () => void }) => {
+  prefill = {}, claimId, onClose, onEmailSent,
+}: {
+  prefill?: PlatingInvoicePrefill;
+  claimId?: string | number;
+  onClose: () => void;
+  onEmailSent?: (sentDate?: string) => void;
+}) => {
   const [f, setF] = useState({
     ourReference: prefill.ourReference || "",
     billTo: prefill.billTo || "",
@@ -64,7 +69,13 @@ const PlatingInvoiceForm = ({
   );
 
   return (
-    <PackScreen title="Payment Pack: Plating Invoice" onClose={onClose} renderDoc={docNode}>
+    <PackScreen
+      title="Payment Pack: Plating Invoice"
+      claimId={claimId}
+      onClose={onClose}
+      renderDoc={docNode}
+      onEmailSent={onEmailSent}
+    >
       <Section title="Bill to">
         <div className="flex gap-5">
           <Text label="Bill to" value={f.billTo} onChange={(v) => set("billTo", v)} />
@@ -76,10 +87,10 @@ const PlatingInvoiceForm = ({
           <DateField label="Invoice Date" value={f.invoiceDate} onChange={(v) => set("invoiceDate", v)} />
           <Text label="Invoice Number" value={f.invoiceNumber} onChange={(v) => set("invoiceNumber", v)} />
         </div>
-        <div className="flex gap-5">
+        {/* <div className="flex gap-5">
           <Text label="Our Reference" value={f.ourReference} onChange={(v) => set("ourReference", v)} />
           <Text label="Your Reference" value={f.yourReference} onChange={(v) => set("yourReference", v)} />
-        </div>
+        </div> */}
       </Section>
 
       <Section title="Client details" divider={false}>

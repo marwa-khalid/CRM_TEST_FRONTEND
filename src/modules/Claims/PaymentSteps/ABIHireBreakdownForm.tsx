@@ -24,8 +24,14 @@ export type ABIHireBreakdownPrefill = {
 };
 
 const ABIHireBreakdownForm = ({
-  prefill = {}, vehicleGroups = [], onClose,
-}: { prefill?: ABIHireBreakdownPrefill; vehicleGroups?: string[]; onClose: () => void }) => {
+  prefill = {}, vehicleGroups = [], claimId, onClose, onEmailSent,
+}: {
+  prefill?: ABIHireBreakdownPrefill;
+  vehicleGroups?: string[];
+  claimId?: string | number;
+  onClose: () => void;
+  onEmailSent?: (sentDate?: string) => void;
+}) => {
   const [f, setF] = useState({
     ourReference: prefill.ourReference || "",
     yourReference: prefill.yourReference || "",
@@ -74,8 +80,14 @@ const ABIHireBreakdownForm = ({
   );
 
   return (
-    <PackScreen title="Payment Pack: ABI Hire Breakdown" onClose={onClose} renderDoc={docNode}>
-      <Section title="Refrence">
+    <PackScreen
+      title="Payment Pack: ABI Hire Breakdown"
+      claimId={claimId}
+      onClose={onClose}
+      renderDoc={docNode}
+      onEmailSent={onEmailSent}
+    >
+      <Section title="Reference">
         <div className="flex gap-5">
           <Text label="Our Reference" value={f.ourReference} onChange={(v) => set("ourReference", v)} />
           <Text label="Your Reference" value={f.yourReference} onChange={(v) => set("yourReference", v)} />
@@ -88,7 +100,7 @@ const ABIHireBreakdownForm = ({
           <Text label="Registration" value={f.registration} onChange={(v) => set("registration", v)} placeholder="Reg Number" />
         </div>
         <div className="flex gap-5">
-          <Text label="Group" value={f.vehicleGroup} onChange={(v) => set("vehicleGroup", v)} placeholder="Vehicle Category" />
+          <Text label="Vehicle Category" value={f.vehicleGroup} onChange={(v) => set("vehicleGroup", v)} placeholder="Vehicle Category" />
         </div>
       </Section>
 

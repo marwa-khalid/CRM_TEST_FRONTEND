@@ -169,7 +169,9 @@ export const forwardEmailGraph = async (
 };
 
 export const getAllCaseActivity = async () => {
-  const response = await axiosInstance.get(`/case-activity/all`);
+  const response = await axiosInstance.get(`/case-activity/all`, {
+    params: { include_emails: true },
+  });
   return response.data;
 };
 

@@ -1,7 +1,12 @@
+import { toast } from 'react-toastify';
+import { createPortal } from "react-dom";
+import logo from '../../../assets/AutoClaim_icon/logo.svg'
+import { sendOffHireMail } from '../../../services/HireDetail/HireDetails';
+
 interface EmailPreviewProps {
   isOpen: boolean;
   onClose: () => void;
-  data: {
+  data?: {
     Reference: string;
     Referrer: string;
     client_name: string;
@@ -10,21 +15,25 @@ interface EmailPreviewProps {
     to?: string;
   };
 }
-import { toast } from 'react-toastify';
-import logo from '../../../assets/AutoClaim_icon/logo.svg'
-import { sendOffHireMail } from '../../../services/HireDetail/HireDetails';
+
 export const EmailPreviewModal = ({
   isOpen,
   onClose,
   data,
 }: EmailPreviewProps) => {
   if (!isOpen) return null;
+  const previewData = data || ({} as NonNullable<EmailPreviewProps["data"]>);
+  const recipients = String(previewData?.to || "")
+    .split(";")
+    .map((email) => email.trim())
+    .filter(Boolean);
+
    const sendEmail = async () => {
   // Optional: Add a loading state to disable the button while sending
 //   setIsLoading(true); 
 
   try {
-    const res = await sendOffHireMail(data);
+    const res = await sendOffHireMail(previewData);
 
     // If your service returns the full response object:
     if (res.status === 200) {
@@ -38,15 +47,15 @@ export const EmailPreviewModal = ({
   } catch (error: any) {
       // Handle network errors or server crashes
       console.log(error)
-    toast.error(error.response.detail);
+    toast.error(error?.response?.data?.detail || "Failed to send email");
   } finally {
     // setIsLoading(false);
   }
    };
-    console.log(data);
+    console.log(previewData);
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/10 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/10 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-[700px] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
@@ -68,7 +77,7 @@ export const EmailPreviewModal = ({
               To:
             </span>
             <div className="flex flex-wrap gap-2 flex-1">
-              {data.to.split(";").map((email: string, index: number) => (
+              {recipients.map((email: string, index: number) => (
                 <span
                   key={index}
                   className="px-2 py-1 bg-gray-50 text-darkGray border border-gray rounded text-xs"
@@ -76,6 +85,11 @@ export const EmailPreviewModal = ({
                   {email.trim()}
                 </span>
               ))}
+              {recipients.length === 0 && (
+                <span className="text-slate-500 text-xs">
+                  No recipient selected
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-start gap-4">
@@ -93,15 +107,15 @@ export const EmailPreviewModal = ({
           {/* Main Data Card (From your Design) */}
           <img src={logo} alt="" />
           <div className="w-[384px] p-4 mt-5 rounded-lg border border-slate-200 flex flex-col gap-2 mb-8 bg-white shadow-sm">
-            <DataRow label="Reference" value={data.Reference} />
+            <DataRow label="Reference" value={previewData.Reference} />
             <div className="h-px bg-slate-100 w-full" />
-            <DataRow label="Referrer" value={data.Referrer} />
+            <DataRow label="Referrer" value={previewData.Referrer} />
             <div className="h-px bg-slate-100 w-full" />
-            <DataRow label="Client" value={data.client_name} />
+            <DataRow label="Client" value={previewData.client_name} />
             <div className="h-px bg-slate-100 w-full" />
-            <DataRow label="Hire Vehicle" value={data.registration} />
+            <DataRow label="Hire Vehicle" value={previewData.registration} />
             <div className="h-px bg-slate-100 w-full" />
-            <DataRow label="Cl Mobile No" value={`+44 ` + data.mobile_tel} />
+            <DataRow label="Cl Mobile No" value={previewData.mobile_tel} />
           </div>
 
           {/* Message Content */}
@@ -153,7 +167,8 @@ export const EmailPreviewModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

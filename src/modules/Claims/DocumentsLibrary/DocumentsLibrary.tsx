@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, Check, Mail } from "lucide-react";
 import { toast } from "react-toastify";
 import EmailAttachmentModal from "./EmailAttachmentModal";
@@ -39,6 +39,7 @@ const DocumentsLibrary = () => {
   const [isPhotosLoading, setIsPhotosLoading] = useState(false);
   const [hoveredPhoto, setHoveredPhoto] = useState<any>(null);
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const claimId = searchParams.get("claim_id") || searchParams.get("claimId") || "";
   const [isPageLoading, setIsPageLoading] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -351,7 +352,10 @@ Regards`;
 
       <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] inline-flex justify-between items-center">
         <div className="inline-flex flex-col justify-center items-start gap-2">
-          <div className="inline-flex justify-start items-center gap-1 cursor-pointer">
+          <div
+            onClick={() => (claimId ? navigate(`/add-claim/${claimId}`) : navigate(-1))}
+            className="inline-flex justify-start items-center gap-1 cursor-pointer"
+          >
             <ChevronLeft className="w-4 h-4 text-[#3B82F6]" />
             <div className="text-[#3B82F6] text-xs font-weight-600">
               Back to Claim Details

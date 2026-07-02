@@ -1,11 +1,12 @@
 import { toast } from "react-toastify";
+import { createPortal } from "react-dom";
 import logo from "../../../assets/AutoClaim_icon/logo.svg";
 import { sendOnHireMail } from "../../../services/HireDetail/HireDetails"; // Ensure this service exists
 
 interface OnHirePreviewProps {
   isOpen: boolean;
   onClose: () => void;
-  data: {
+  data?: {
     Reference: string;
     Referrer: string;
     client_name: string;
@@ -34,10 +35,15 @@ export const OnHireEmailPreviewModal = ({
   data,
 }: OnHirePreviewProps) => {
   if (!isOpen) return null;
+  const previewData = data || ({} as NonNullable<OnHirePreviewProps["data"]>);
+  const recipients = String(previewData?.to || "")
+    .split(";")
+    .map((email) => email.trim())
+    .filter(Boolean);
 
   const sendEmail = async () => {
     try {
-      const res = await sendOnHireMail(data);
+      const res = await sendOnHireMail(previewData);
       if (res.status === 200) {
         toast.success(res.data.msg || "On-Hire Email sent successfully");
         onClose();
@@ -55,8 +61,8 @@ export const OnHireEmailPreviewModal = ({
     year: "numeric",
   });
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/10 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/10 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-[700px] flex flex-col overflow-hidden max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-4 border-b border-neutral-100 flex justify-between items-center bg-white sticky top-0 z-10">
@@ -78,7 +84,7 @@ export const OnHireEmailPreviewModal = ({
               To:
             </span>
             <div className="flex flex-wrap gap-2 flex-1">
-              {data.to.split(";").map((email, index) => (
+              {recipients.map((email, index) => (
                 <span
                   key={index}
                   className="px-2 py-1 bg-gray-50 text-darkGray border border-gray rounded text-xs"
@@ -86,6 +92,11 @@ export const OnHireEmailPreviewModal = ({
                   {email.trim()}
                 </span>
               ))}
+              {recipients.length === 0 && (
+                <span className="text-neutral-500 text-xs">
+                  No recipient selected
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-start gap-4">
@@ -93,7 +104,7 @@ export const OnHireEmailPreviewModal = ({
               Subject:
             </span>
             <span className="text-neutral-800 text-sm font-weight-600 flex-1">
-              {data.Subject}
+              {previewData.Subject || "New Instruction to Fleet to Arrange New Hire"}
             </span>
           </div>
         </div>
@@ -106,13 +117,13 @@ export const OnHireEmailPreviewModal = ({
           <div className="w-[420px] p-4 mt-8 rounded-lg border border-neutral-200 flex flex-col gap-2 bg-white shadow-sm">
             <DataRow label="Brand" value="RTA - Nationwide Assist" />
             <div className="h-px bg-neutral-100 w-full" />
-            <DataRow label="Reference" value={data.Reference} />
+            <DataRow label="Reference" value={previewData.Reference} />
             <div className="h-px bg-neutral-100 w-full" />
-            <DataRow label="Referrer" value={data.Referrer} />
+            <DataRow label="Referrer" value={previewData.Referrer} />
             <div className="h-px bg-neutral-100 w-full" />
-            <DataRow label="Client" value={data.client_name} />
+            <DataRow label="Client" value={previewData.client_name} />
             <div className="h-px bg-neutral-100 w-full" />
-            <DataRow label="Cl Mobile No" value={data.mobile_tel} />
+            <DataRow label="Cl Mobile No" value={previewData.mobile_tel} />
             <div className="h-px bg-neutral-100 w-full" />
             <div className="py-1 text-center">
               <span className="text-neutral-700 text-sm font-normal">
@@ -127,38 +138,38 @@ export const OnHireEmailPreviewModal = ({
             <h3 className="text-neutral-700 text-sm font-weight-600 mb-2">
               Client's Vehicle Details
             </h3>
-            <DataRow label="Reg" value={data.registration} />
+            <DataRow label="Reg" value={previewData.registration} />
             <div className="h-px bg-neutral-100 w-full" />
             <DataRow
               label="Make/Model"
-              value={`${data.make} / ${data.model}`}
+              value={`${previewData.make || "N/A"} / ${previewData.model || "N/A"}`}
             />
             <div className="h-px bg-neutral-100 w-full" />
-            <DataRow label="Body Type" value={data.body_type} />
+            <DataRow label="Body Type" value={previewData.body_type} />
             <div className="h-px bg-neutral-100 w-full" />
-            <DataRow label="Auto" value={data.Auto} />
+            <DataRow label="Auto" value={previewData.Auto} />
             <div className="h-px bg-neutral-100 w-full" />
-            <DataRow label="Engine Size" value={data.engine_size} />
+            <DataRow label="Engine Size" value={previewData.engine_size} />
             <div className="h-px bg-neutral-100 w-full" />
-            <DataRow label="Fuel Type" value={data.fuel_type} />
+            <DataRow label="Fuel Type" value={previewData.fuel_type} />
             <div className="h-px bg-neutral-100 w-full" />
             <DataRow
               label="No of Seats inc Driver"
-              value={data.number_of_seat.toString()}
+              value={String(previewData.number_of_seat || "")}
             />
           </div>
 
           {/* Section 3: If Taxi (Conditional) */}
-          {(data.borough_name || data.taxi_type || data.driver_base) && (
+          {(previewData.borough_name || previewData.taxi_type || previewData.driver_base) && (
             <div className="w-[420px] p-4 mt-6 rounded-lg border border-neutral-200 flex flex-col gap-2 bg-white shadow-sm">
               <h3 className="text-neutral-700 text-sm font-weight-600 mb-2">
                 If Taxi Vehicle
               </h3>
-              <DataRow label="Borough:" value={data.borough_name || "N/A"} />
+              <DataRow label="Borough:" value={previewData.borough_name || "N/A"} />
               <div className="h-px bg-neutral-100 w-full" />
-              <DataRow label="Type of Plate:" value={data.taxi_type || "N/A"} />
+              <DataRow label="Type of Plate:" value={previewData.taxi_type || "N/A"} />
               <div className="h-px bg-neutral-100 w-full" />
-              <DataRow label="Driver Base:" value={data.driver_base || "N/A"} />
+              <DataRow label="Driver Base:" value={previewData.driver_base || "N/A"} />
             </div>
           )}
 
@@ -177,7 +188,7 @@ export const OnHireEmailPreviewModal = ({
               <br />
               We need to provide hire vehicle category{" "}
               <span className="font-weight-600">
-                {data.vehicleCategory}
+                {previewData.vehicleCategory || "N/A"}
               </span>
               .
             </p>
@@ -212,7 +223,8 @@ export const OnHireEmailPreviewModal = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
 import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import { useEffect, useRef, useState } from "react";
@@ -16,6 +17,7 @@ import {
   gettingEnginerDetails,
   instructEngineer,
   udpateEnginerDetails,
+  getEngineerCompanySuggestions,
 } from "../../../services/EngineeringDetails/engineeringDetails";
 import { V5CEngineerUploadModal } from "../UploadModalPopups/V5CEngineerUploadModal";
 import { CustomDatePicker } from "../Components/DatePicker";
@@ -29,6 +31,11 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [instructing, setInstructing] = useState(false);
   const [engineer_report_received, setReportData] = useState<any>();
+
+  // Company Name autocomplete (engineer companies master list).
+  const [companyOptions, setCompanyOptions] = useState<any[]>([]);
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const companyBoxRef = useRef<HTMLDivElement>(null);
 
   const [showInvRec, setShowInvRec] = useState(false);
   const [showInvPaid, setShowInvPaid] = useState(false);
@@ -77,6 +84,26 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
     }
 
     return "Date";
+  };
+
+  const formatUkPhoneForInput = (value: any) => {
+    const digits = String(value || "")
+      .replace(/^\+44\s?/, "")
+      .replace(/\D/g, "");
+
+    if (digits.length > 4) {
+      return `${digits.slice(0, 4)} ${digits.slice(4, 11)}`;
+    }
+
+    return digits;
+  };
+
+  const formatUkPhoneForPayload = (value: any) => {
+    const digits = String(value || "")
+      .replace(/^\+44\s?/, "")
+      .replace(/\D/g, "");
+
+    return digits ? `+44${digits}` : "";
   };
 
   const formik = useFormik({
@@ -150,7 +177,7 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
           engineer_address: {
             address: values.engineer_address.address,
             postcode: values.engineer_address.postcode,
-            landline_tel: values.engineer_address.landline_tel,
+            landline_tel: formatUkPhoneForPayload(values.engineer_address.landline_tel),
             mobile_tel: values.engineer_address.mobile_tel,
             email: values.engineer_address.email,
           },
@@ -248,7 +275,9 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
           engineer_address: {
             address: res.engineer_address?.address || "",
             postcode: res.engineer_address?.postcode || "",
-            landline_tel: res.engineer_address?.landline_tel || "",
+            landline_tel: formatUkPhoneForInput(
+              res.engineer_address?.landline_tel || "",
+            ),
             mobile_tel: res.engineer_address?.mobile_tel || "",
             email: res.engineer_address?.email || "",
           },
@@ -280,6 +309,39 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
       formRef.current = formik;
     }
   }, [formRef, formik]);
+
+  useReportCompletion(isAllFilled(formik.values));
+
+  // Fetch engineer-company suggestions as the user types the Company Name.
+  useEffect(() => {
+    const term = (formik.values.companyName || "").trim();
+    if (!term) {
+      setCompanyOptions([]);
+      return;
+    }
+    let cancelled = false;
+    getEngineerCompanySuggestions(term)
+      .then((res) => {
+        if (!cancelled) setCompanyOptions(res.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setCompanyOptions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [formik.values.companyName]);
+
+  // Close the company dropdown on outside click.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (companyBoxRef.current && !companyBoxRef.current.contains(e.target as Node)) {
+        setShowCompanyDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -331,23 +393,16 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
   }, []);
 
   const handleHomeNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    formik.setFieldValue("engineer_address.landline_tel", e.target.value);
-  };
-
-  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, "");
-
-    if (value.length > 4) {
-      value = value.slice(0, 4) + " " + value.slice(4);
-    }
-
-    formik.setFieldValue("engineer_address.mobile_tel", value);
+    formik.setFieldValue(
+      "engineer_address.landline_tel",
+      formatUkPhoneForInput(e.target.value),
+    );
   };
 
   const pollJobStatus = async () => {
     try {
       toast.success("Data extracted successfully!");
-    } catch (e) {
+    } catch {
       toast.error("OCR extraction failed");
     }
   };
@@ -472,19 +527,87 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
 
           <div className="h-px bg-gray-100 w-full" />
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 relative" ref={companyBoxRef}>
             <label className="text-neutral-700 text-[14px] font-weight-500">
               Company Name
             </label>
             <input
               value={formik.values.companyName}
-              onChange={(e) =>
-                formik.setFieldValue("companyName", e.target.value)
-              }
+              onChange={(e) => {
+                formik.setFieldValue("companyName", e.target.value);
+                setShowCompanyDropdown(true);
+              }}
+              onFocus={() => setShowCompanyDropdown(true)}
               type="text"
               placeholder="Enter Company Name"
               className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
             />
+
+            {showCompanyDropdown && (formik.values.companyName || "").trim() && (
+              <div className="absolute top-[80px] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                {(() => {
+                  const term = (formik.values.companyName || "").trim();
+                  const hasExact = companyOptions.some(
+                    (c) =>
+                      (c.company_name || "").trim().toLowerCase() ===
+                      term.toLowerCase(),
+                  );
+                  const canAdd = term.length > 0 && !hasExact;
+                  return (
+                    <>
+                      {canAdd && (
+                        <div
+                          onMouseDown={(ev) => {
+                            ev.preventDefault();
+                            formik.setFieldValue("companyName", term);
+                            setShowCompanyDropdown(false);
+                          }}
+                          className="px-5 py-3 hover:bg-blue-50 cursor-pointer text-sm text-blue-700 border-b border-gray-50 font-medium"
+                        >
+                          Add "{term}"
+                        </div>
+                      )}
+                      {companyOptions.length > 0 ? (
+                        companyOptions.map((c, i) => (
+                          <div
+                            key={i}
+                            onMouseDown={(ev) => {
+                              ev.preventDefault();
+                              formik.setFieldValue("companyName", c.company_name || "");
+                              if (c.address)
+                                formik.setFieldValue(
+                                  "engineer_address.address",
+                                  c.address,
+                                );
+                              if (c.postcode)
+                                formik.setFieldValue(
+                                  "engineer_address.postcode",
+                                  c.postcode,
+                                );
+                              setShowCompanyDropdown(false);
+                            }}
+                            className="px-5 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-none"
+                          >
+                            <div className="text-sm text-gray-700">
+                              {c.company_name}
+                            </div>
+                            {c.address && (
+                              <div className="text-xs text-gray-400">
+                                {c.address}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : !canAdd ? (
+                        <div className="px-5 py-3 text-sm text-gray-400">
+                          No company found
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -537,13 +660,16 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
               <label className="text-neutral-700 text-[14px] font-weight-500">
-                Tel. Main
+                Home Telephone
               </label>
               <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                <span className="text-gray-400 text-base font-light">
+                  +44
+                </span>
                 <input
                   type="text"
                   onChange={handleHomeNumberChange}
-                  maxLength={15}
+                  maxLength={12}
                   value={formik.values.engineer_address.landline_tel}
                   placeholder="Enter telephone"
                   className="w-full bg-transparent mb-0.5 outline-none text-gray-900 font-light placeholder:text-gray-300"
@@ -731,11 +857,28 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
 
             <button
               type="button"
-              className="h-8 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded flex items-center gap-2 transition-colors group"
+              disabled={!formik.values.engineer_report_received}
+              className={`h-8 px-3 py-2 rounded flex items-center gap-2 transition-colors group ${
+                formik.values.engineer_report_received
+                  ? "bg-blue-50 hover:bg-blue-100 cursor-pointer"
+                  : "bg-neutral-100 cursor-not-allowed opacity-60"
+              }`}
               onClick={() => setShowUploadModal(true)}
             >
-              <Plus className="w-3 h-3 text-blue-600" />
-              <span className="text-blue-600 text-sm font-weight-300">
+              <Plus
+                className={`w-3 h-3 ${
+                  formik.values.engineer_report_received
+                    ? "text-blue-600"
+                    : "text-neutral-400"
+                }`}
+              />
+              <span
+                className={`text-sm font-weight-300 ${
+                  formik.values.engineer_report_received
+                    ? "text-blue-600"
+                    : "text-neutral-400"
+                }`}
+              >
                 Upload Report
               </span>
             </button>
@@ -763,9 +906,14 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
                         name="engineer_report_received"
                         className="sr-only"
                         checked={selected}
-                        onChange={() =>
-                          formik.setFieldValue("engineer_report_received", isYes)
-                        }
+                        onChange={() => {
+                          formik.setFieldValue("engineer_report_received", isYes);
+                          if (!isYes) {
+                            formik.setFieldValue("engineer_report_received_date", "");
+                            setShowUploadModal(false);
+                            setShowReportRec(false);
+                          }
+                        }}
                       />
                       {selected ? <img src={Yes} /> : <img src={No} />}
                     </div>

@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { useEffect, useState, useRef } from "react";
 import { CustomDatePicker } from "../Components/DatePicker";
@@ -242,6 +243,28 @@ export const ReferrerDetailsForm = ({ formRef, claimId }: any) => {
     }
   }, [formRef, formik]);
 
+  useReportCompletion(
+    isAllFilled({
+      company_name: formik.values.company_name,
+      address: formik.values.address,
+      postcode: formik.values.postcode,
+      contact_name: formik.values.contact_name,
+      contact_email: formik.values.contact_email,
+      contact_number: formik.values.contact_number,
+      // congestion_charges & other_charges are optional extra-charge fields, so
+      // only the core amount/paid-on commission fields count toward completion.
+      driver_commission: {
+        on_hire_amount: formik.values.driver_commission?.on_hire_amount,
+        on_hire_paid_on: formik.values.driver_commission?.on_hire_paid_on,
+        off_hire_amount: formik.values.driver_commission?.off_hire_amount,
+        off_hire_paid_on: formik.values.driver_commission?.off_hire_paid_on,
+      },
+      referrer_commission: formik.values.referrer_commission,
+      solicitor: formik.values.solicitor,
+      third_party_capture: formik.values.third_party_capture,
+    }),
+  );
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -299,6 +322,25 @@ export const ReferrerDetailsForm = ({ formRef, claimId }: any) => {
     formik.setFieldValue("referrer_id", selected.id || undefined);
   };
 
+  const handleAddCompany = () => {
+    const companyName = searchTerm.trim();
+    if (!companyName) return;
+
+    setSearchTerm(companyName);
+    setShowDropdown(false);
+    formik.setFieldValue("company_name", companyName);
+    formik.setFieldValue("referrer_id", undefined);
+  };
+
+  const trimmedCompanySearch = searchTerm.trim();
+  const hasExactCompanyMatch = companies.some(
+    (company) =>
+      (company.company_name || "").trim().toLowerCase() ===
+      trimmedCompanySearch.toLowerCase(),
+  );
+  const canAddCompany =
+    trimmedCompanySearch.length > 0 && !hasExactCompanyMatch;
+
   return (
     <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">
       <h1 className="text-neutral-900 text-[24px] font-weight-600">
@@ -346,23 +388,38 @@ export const ReferrerDetailsForm = ({ formRef, claimId }: any) => {
             className={`w-full h-[52px] px-5 bg-white rounded text-neutral-700 border border-gray-200 ${inputStyles}`}
           />
 
-          {showDropdown && searchTerm && (
+          {showDropdown && trimmedCompanySearch && (
             <div className="absolute top-[80px] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+              {canAddCompany && (
+                <div
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    handleAddCompany();
+                  }}
+                  className="px-5 py-3 hover:bg-blue-50 cursor-pointer text-sm text-blue-700 border-b border-gray-50 font-medium"
+                >
+                  Add "{trimmedCompanySearch}"
+                </div>
+              )}
+
               {companies.length > 0 ? (
                 companies.map((r, i) => (
                   <div
                     key={i}
-                    onClick={() => handleCompanySelect(r)}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      handleCompanySelect(r);
+                    }}
                     className="px-5 py-3 hover:bg-gray-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-none"
                   >
                     {r.company_name}
                   </div>
                 ))
-              ) : (
+              ) : !canAddCompany ? (
                 <div className="px-5 py-3 text-sm text-gray-400">
                   No company found
                 </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>
@@ -869,7 +926,7 @@ export const ReferrerDetailsForm = ({ formRef, claimId }: any) => {
         </div>
       </div>
 
-      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
+      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mb-8">
         <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
           Referrers Nominated Solicitor (PI must go to)
         </h2>

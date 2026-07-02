@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
 import trash from "../../../assets/AutoClaim_icon/trash.svg";
 import { useEffect, useState } from "react";
@@ -129,6 +130,8 @@ export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
       formRef.current = formik;
     }
   }, [formRef, formik]);
+
+  useReportCompletion(isAllFilled(formik.values));
 
   // --- MAP EDIT LOGIC ---
   const handleEditStorage = (item: any) => {

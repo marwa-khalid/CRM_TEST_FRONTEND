@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import {
   useState,
   useEffect,
@@ -12,6 +13,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
 import { useParams } from "react-router-dom";
+import { useCurrentUser } from "../../../context/AuthContext";
 // Assets & Icons
 import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
 import Vector9 from "../../../assets/AutoClaim_icon/Vector-9.svg";
@@ -122,6 +124,9 @@ export const customStyles: StylesConfig<any, false> = {
 // --- COMPONENT ---
 const GeneralDetailsForm = ({ formRef, claimId, onClaimCreated }: any) => {
   const { id } = useParams();
+  // The handler & claim entrant are always the logged-in user (non-editable).
+  const { user } = useCurrentUser();
+  const loggedInName = user?.name || user?.email || "";
   const [fileClosedOn, setFileClosedOn] = useState<any>(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closureReason, setClosureReason] = useState("");
@@ -169,7 +174,7 @@ useEffect(() => {
     { value: 4, label: "Direct Hire - CAMS" },
     { value:5, label: "PI Only RTA - CAMS" },
     { value: 6, label: "PI Only RTA - NA" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
   const positionOptions = [
     { value: 1, label: "Awaiting Accident Details" },
     { value: 2, label: "Client is at Fault" },
@@ -178,7 +183,7 @@ useEffect(() => {
       label: "Awaiting Engineer to Inspect Client’s Vehicle",
     },
     { value: 4, label: "Others" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
   const handlerOptions = [
     { value:1, label: "Imran Dean" },
     { value: 2, label: "Ruby Uddin" },
@@ -186,7 +191,7 @@ useEffect(() => {
     { value: 4, label: "Akeel Rehman" },
     { value: 5, label: "Alex Berwick" },
     { value:6, label: "Gary Fellows" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
   const findUsOptions = [
     { value: 1, label: "Existing Account" },
@@ -194,13 +199,13 @@ useEffect(() => {
     { value: 3, label: "Staff Marketing" },
     { value:4, label: "Google Marketing" },
     { value:5, label: "Organic" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
   const commonStatusOptions = [
     { value: "YES", label: "Yes" },
     { value:"NO", label: "No" },
     { value: "TBC", label: "TBC" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
   useEffect(() => {
      const fetchData = async () => {
     setIsAnalyzing(true);
@@ -300,12 +305,45 @@ useEffect(() => {
   }
 }, [formRef, formik]);
 
+  const selectedCaseStatus = caseStatusOptions.find(
+    (option) => option.value === formik.values.case_status_id,
+  );
+  const isRejectedStatus =
+    (selectedCaseStatus?.label || "").toLowerCase() === "rejected";
+
+  useReportCompletion(
+    isAllFilled({
+      claim_type_id: formik.values.claim_type_id,
+      target_debt_id: formik.values.target_debt_id,
+      source_id: formik.values.source_id,
+      source_staff_user_id:
+        formik.values.source_id === 3
+          ? formik.values.source_staff_user_id
+          : "n/a",
+      case_status_id: formik.values.case_status_id,
+      rejection_reason: isRejectedStatus
+        ? formik.values.rejection_reason
+        : "n/a",
+      credit_hire_accepted: formik.values.credit_hire_accepted,
+      non_fault_accident: formik.values.non_fault_accident,
+      any_passengers: formik.values.any_passengers,
+      client_injured: formik.values.client_injured,
+      prospects_id: formik.values.prospects_id,
+      present_position_id: formik.values.present_position_id,
+      client_going_abroad: formik.values.client_going_abroad,
+      abroad_date:
+        formik.values.client_going_abroad === "Yes"
+          ? formik.values.abroad_date
+          : "n/a",
+    }),
+  );
+
   const handleNotifyManager = async () => {
     try {
       await notifyManager(parseInt(formik.values.id));
       toast.success("Manager Notified");
     } catch (e) {
-      toast.error("Failed to notify manager");
+      toast.error("Failed to Notify Manager");
     }
   };
 
@@ -374,26 +412,14 @@ useEffect(() => {
               />
             </div>
 
-            {/* 2. Handler */}
+            {/* 2. Handler — always the logged-in user (non-editable). */}
             <div className="flex flex-col gap-2">
               <label className="text-neutral-700 text-[14px] font-weight-500">
                 Handler
               </label>
-              <Select
-                options={handlerOptions}
-                placeholder="Select Handler"
-                styles={customStyles}
-                value={handlerOptions.find(
-                  (option) => option.value === formik.values.handler_id,
-                )} // Controlled from step1Data
-                onChange={(val) =>
-                  formik.setFieldValue("handler_id", val.value)
-                }
-                components={{
-                  DropdownIndicator: BlueDropdownIndicator,
-                  IndicatorSeparator: () => null,
-                }}
-              />
+              <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center text-gray-500">
+                <span>{loggedInName || "—"}</span>
+              </div>
             </div>
 
             {/* 3. Target Debt */}
@@ -405,7 +431,7 @@ useEffect(() => {
                 options={[
                   { value: 1, label: "Target" },
                   { value: 2, label: "Non-Target" },
-                ]}
+                ].sort((a, b) => String(a.label).localeCompare(String(b.label)))}
                 placeholder="Select Target Debt"
                 styles={customStyles}
                 value={[
@@ -658,7 +684,7 @@ useEffect(() => {
                   { value: 1, label: "50/50 Fault" },
                   { value: 2, label: "Non-Fault" },
                   { value: 3, label: "TP Uninsured" },
-                ]}
+                ].sort((a, b) => String(a.label).localeCompare(String(b.label)))}
                 value={[
                   { value: 1, label: "50/50 Fault" },
                   { value: 2, label: "Non-Fault" },
@@ -707,13 +733,7 @@ useEffect(() => {
                 Claim Entrants Username
               </label>
               <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center text-gray-500">
-                <span>
-                  {
-                    handlerOptions.find(
-                      (option) => option.value === formik.values.handler_id,
-                    )?.label
-                  }
-                </span>
+                <span>{loggedInName || "—"}</span>
               </div>
             </div>
           </div>

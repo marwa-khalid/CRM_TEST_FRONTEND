@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import { useEffect, useState } from "react";
 import Select from "react-select";
 import { useFormik } from "formik";
@@ -11,7 +12,6 @@ import {
   updateClientInsurer,
   createClientInsurer,
 } from "../../../services/ClientInsurer/ClientInsurer";
-import { getCompanySuggestions } from "../../../services/Referrer/Referrer";
 import {
   getVehicleOwner,
   updateVehicleOwner,
@@ -24,32 +24,6 @@ import No from "../../../assets/AutoClaim_icon/No.svg";
 
 export const ClientInsurerBrokerForm = ({ formRef, claimId }: any) => {
   const [insurerId, setInsurerId] = useState<string | null>(null);
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-   useEffect(() => {
-     const fetchCompanies = async () => {
-       try {
-         
-         const response = await getCompanySuggestions(searchTerm); // Replace with your API endpoint
-         
-
-         // Normalize empty strings to null
-        //  const normalized = response.data.map((r) => ({
-        //    company_name: r.company_name,
-        //    address: r.address?.trim() || null,
-        //    post_code: r.postcode?.trim() || null,
-        //  }));
-
-         setCompanies(response.data);
-       } catch (err) {
-         console.error(err);
-       }
-     };
-     if (searchTerm) {
-       fetchCompanies();
-     }
-   }, [searchTerm]);
   const formik = useFormik({
     initialValues: {
       companyName: "",
@@ -165,18 +139,6 @@ export const ClientInsurerBrokerForm = ({ formRef, claimId }: any) => {
       console.error("Sync back failed");
     }
   };
-  const handleCompanySelect = (selected: any) => {
-    // Update input field to show full company name
-    setSearchTerm(selected.company_name);
-
-    // Close dropdown
-    setShowDropdown(false);
-
-    // Set Formik fields (correct backend keys!)
-    formik.setFieldValue("companyName", selected.company_name);
-    formik.setFieldValue("address", selected.address ?? "");
-    formik.setFieldValue("postcode", selected.postcode ?? "");
-  };
 const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
@@ -189,6 +151,8 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   useEffect(() => {
     if (formRef) formRef.current = formik;
   }, [formik]);
+
+  useReportCompletion(isAllFilled(formik.values));
 const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
 
   return (
@@ -211,25 +175,10 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           </label>
           <input
             className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
-            value={searchTerm || formik.values.companyName}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setShowDropdown(true);
-            }}
+            value={formik.values.companyName}
+            onChange={(e) => formik.setFieldValue("companyName", e.target.value)}
+            placeholder="Enter Company Name"
           />
-          {showDropdown && searchTerm && (
-            <div className="absolute top-[80px] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-              {companies.map((r, i) => (
-                <div
-                  key={i}
-                  onClick={() => handleCompanySelect(r)}
-                  className="px-5 py-3 hover:bg-gray-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-none"
-                >
-                  {r.company_name}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -362,7 +311,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 { value: 1, label: "Fleet" },
                 { value: 2, label: "TBC" },
                 { value: 3, label: "Trade" },
-              ]}
+              ].sort((a, b) => String(a.label).localeCompare(String(b.label)))}
               styles={customStyles}
               onChange={(opt: any) =>
                 formik.setFieldValue("type_of_policy", opt.value)
@@ -386,7 +335,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               options={[
                 { value: 1, label: "Comprehensive" },
                 { value: 2, label: "Third Party" },
-              ]}
+              ].sort((a, b) => String(a.label).localeCompare(String(b.label)))}
               styles={customStyles}
               onChange={(opt: any) =>
                 formik.setFieldValue("policy_cover_level", opt.value)

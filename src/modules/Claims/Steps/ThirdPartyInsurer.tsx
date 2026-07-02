@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import { useEffect, useRef, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -291,6 +292,8 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
     if (formRef) formRef.current = formik;
   }, [formik]);
 
+  useReportCompletion(isAllFilled(formik.values));
+
   // --- RENDERERS ---
   const renderInput = (label: string, field: string, placeholder: string) => (
     <div className="flex flex-col gap-2 w-full">
@@ -380,7 +383,7 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
         <div className="flex flex-col gap-2 w-full">
           <label className="text-neutral-700 text-sm font-light">Title</label>
           <Select
-            options={[{ value: "mr", label: "Mr" }, { value: "mrs", label: "Mrs" }]}
+            options={[{ value: "mr", label: "Mr" }, { value: "mrs", label: "Mrs" }].sort((a, b) => String(a.label).localeCompare(String(b.label)))}
             styles={customStyles}
             value={[{ value: "mr", label: "Mr" }, { value: "mrs", label: "Mrs" }].find((o) => o.value === formik.values.third_party.gender)}
             onChange={(o: any) => formik.setFieldValue("third_party.gender", o.value)}

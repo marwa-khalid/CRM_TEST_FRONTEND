@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PackScreen, Section, Text, DateField, ReadField, toNum, gbp, money } from "./paymentPackUi";
 import PlatingInvoiceDoc, { type PlatingDocVehicle } from "./PlatingInvoiceDoc";
+import VehicleCards from "./VehicleCards";
 
 // Editable "Payment Pack: Plating Invoice" screen. Cost inputs are editable;
 // Total derives live from Private Hire MOT + Private Hire Plating Costs.
@@ -22,32 +23,65 @@ export type PlatingInvoicePrefill = {
 };
 
 const PlatingInvoiceForm = ({
-  prefill = {}, claimId, onClose, onEmailSent,
+  prefill = {}, prefills, claimId, onClose, onEmailSent,
 }: {
   prefill?: PlatingInvoicePrefill;
+  prefills?: PlatingInvoicePrefill[];
   claimId?: string | number;
   onClose: () => void;
   onEmailSent?: (sentDate?: string) => void;
 }) => {
-  const [f, setF] = useState({
-    ourReference: prefill.ourReference || "",
-    billTo: prefill.billTo || "",
-    invoiceDate: prefill.invoiceDate || "",
-    invoiceNumber: prefill.invoiceNumber || "",
-    yourReference: prefill.yourReference || "",
-    client: prefill.client || "",
-    registration: prefill.registration || "",
-    make: prefill.make || "",
-    model: prefill.model || "",
-    privateHireMot: money(prefill.privateHireMot),
-    privateHirePlatingCosts: money(prefill.privateHirePlatingCosts),
+  // All local to this form — editing/deleting never touches the actual claim.
+  const list = prefills && prefills.length ? prefills : [prefill];
+  const [shared, setShared] = useState({
+    ourReference: list[0].ourReference || "",
+    billTo: list[0].billTo || "",
+    invoiceDate: list[0].invoiceDate || "",
+    invoiceNumber: list[0].invoiceNumber || "",
+    yourReference: list[0].yourReference || "",
+    client: list[0].client || "",
   });
-  const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const initV = (p: PlatingInvoicePrefill) => ({
+    registration: p.registration || "",
+    make: p.make || "",
+    model: p.model || "",
+    privateHireMot: money(p.privateHireMot),
+    privateHirePlatingCosts: money(p.privateHirePlatingCosts),
+  });
+  const [vForms, setVForms] = useState(list.map(initV));
+  const [active, setActive] = useState(0);
+  const SHARED_KEYS = new Set([
+    "ourReference", "billTo", "invoiceDate", "invoiceNumber", "yourReference", "client",
+  ]);
+  const f = { ...shared, ...(vForms[active] ?? vForms[0]) };
+  const set = (k: string, v: string) => {
+    if (SHARED_KEYS.has(k)) setShared((p) => ({ ...p, [k]: v }));
+    else setVForms((p) => p.map((vf, i) => (i === active ? { ...vf, [k]: v } : vf)));
+  };
+  const deleteVehicle = (i: number) => {
+    if (vForms.length <= 1) return;
+    setVForms((p) => p.filter((_, idx) => idx !== i));
+    setActive((a) => (i < a ? a - 1 : i === a ? Math.min(a, vForms.length - 2) : a));
+  };
+  // Vehicle switcher — only renders for 2+ vehicles (single stays as before).
+  const vehicleCards = (
+    <VehicleCards
+      vehicles={vForms.map((vf) => ({
+        registration: vf.registration, make: vf.make, model: vf.model,
+      }))}
+      activeIndex={active}
+      onSelect={setActive}
+      onDelete={(_, i) => deleteVehicle(i)}
+    />
+  );
 
   const total = toNum(f.privateHireMot) + toNum(f.privateHirePlatingCosts);
 
-  // Print/PDF document — built live from the edited values. The edited vehicle
-  // is listed first, then any other vehicles on the claim.
+  // Print/PDF document — the active vehicle's costs + every vehicle listed.
+  const docVehicles = vForms.map((vf) => ({
+    vehicle: [vf.make, vf.model].filter(Boolean).join(" "),
+    registration: vf.registration,
+  }));
   const docNode = (
     <PlatingInvoiceDoc
       data={{
@@ -57,10 +91,7 @@ const PlatingInvoiceForm = ({
         yourReference: f.yourReference,
         client: f.client,
         billTo: f.billTo,
-        vehicles: [
-          { vehicle: [f.make, f.model].filter(Boolean).join(" "), registration: f.registration },
-          ...(prefill.otherVehicles || []),
-        ],
+        vehicles: [docVehicles[active], ...docVehicles.filter((_, i) => i !== active)].filter(Boolean),
         privateHireMot: f.privateHireMot,
         privateHirePlatingCosts: f.privateHirePlatingCosts,
         total,
@@ -97,7 +128,7 @@ const PlatingInvoiceForm = ({
         <div className="flex gap-5">
           <Text label="Client" value={f.client} onChange={(v) => set("client", v)} width="flex-1" />
         </div>
-        <div className="self-stretch h-px bg-neutral-100" />
+        {vehicleCards}
         <div className="flex gap-5">
           <Text label="Registration Number" value={f.registration} onChange={(v) => set("registration", v)} placeholder="Reg Number" />
         </div>
@@ -108,6 +139,7 @@ const PlatingInvoiceForm = ({
       </Section>
 
       <Section title="Cost Details" divider={false}>
+        {vehicleCards}
         <div className="flex gap-4">
           <Text label="Private Hire MOT" value={f.privateHireMot} onChange={(v) => set("privateHireMot", v)} placeholder="£0.00" />
           <Text label="Private Hire Plating Costs" value={f.privateHirePlatingCosts} onChange={(v) => set("privateHirePlatingCosts", v)} placeholder="£0.00" />

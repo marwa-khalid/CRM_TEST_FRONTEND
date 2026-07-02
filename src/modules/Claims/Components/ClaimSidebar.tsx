@@ -6,6 +6,7 @@ import Vector10 from "../../../assets/AutoClaim_icon/Vector-10.svg";
 import type1 from "../../../assets/AutoClaim_icon/type1.svg";
 import type2 from "../../../assets/AutoClaim_icon/type2.svg";
 import pending from "../../../assets/AutoClaim_icon/Pending.svg";
+import checkgreen from "../../../assets/AutoClaim_icon/checkgreen.svg";
 
 interface SidebarProps {
   steps: { label: string }[];
@@ -15,9 +16,11 @@ interface SidebarProps {
   activePaymentStep: number;
   onPaymentStepClick: (index: number) => void;
   activeMode?: "claim" | "payment";
+  /** Map of claim-step index -> true when every field on that screen is filled. */
+  completedMap?: Record<number, boolean>;
 }
 
-const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep,onPaymentStepClick, activeMode = "claim" }: SidebarProps) => {
+const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep,onPaymentStepClick, activeMode = "claim", completedMap = {} }: SidebarProps) => {
   // 2. Local state to track if "Claim Details" is expanded.
   // The two sections are mutually exclusive: opening one closes the other.
   // Initial expansion follows the active mode so a deep-link (?mode=payment)
@@ -78,6 +81,7 @@ const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep
               {steps.map((step, idx) => {
                 const isActive = idx === activeStep;
                 const isCompleted = idx < activeStep;
+                const isFilled = completedMap[idx] === true;
                 return (
                   <div
                     key={idx}
@@ -88,17 +92,12 @@ const Sidebar = ({ steps, activeStep, onStepClick,paymentSteps,activePaymentStep
                     }}
                     className="Claimsteps self-stretch inline-flex justify-start items-center gap-3 cursor-pointer group"
                   >
-                    {isActive ? (
+                    {isFilled ? (
+                      // Every field on this screen is filled -> green check
+                      <img src={checkgreen} alt="complete" />
+                    ) : isActive ? (
                       <img src={type1} alt="active" />
                     ) : isCompleted ? (
-                      // <div className="relative">
-                      //   <img src={greenCircle} alt="green circle" />
-                      //   <img
-                      //     src={checkIcon}
-                      //     alt="check"
-                      //     className="absolute inset-0 m-auto"
-                      //   />
-                      // </div>
                       <img src={pending} alt="upcoming" />
                     ) : (
                       <img src={type2} alt="upcoming" />

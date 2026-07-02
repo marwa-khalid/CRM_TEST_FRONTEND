@@ -65,13 +65,13 @@ const handlerOptions = [
   { value: "B", label: "B" },
   { value: "N", label: "N" },
   { value: "S", label: "S" },
-];
+].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
 const commonOptions = [
   { value: "YES", label: "Yes" },
   { value: "NO", label: "No" },
   { value: "TBC", label: "TBC" },
-];
+].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
 const commonOptions2 = [
   ...commonOptions,
@@ -408,7 +408,7 @@ const handleCTA = async (type: string) => {
               <button
                 onClick={() => handleCTA("eng")}
                 className="flex-1 min-w-[200px] px-6 py-4 bg-white rounded border
-              border-blue-600 text-blue-600 font-medium hover:bg-blue-50"
+              border-blue-500 text-blue-500 font-weight-500 hover:bg-blue-50"
               >
                 {loading === "eng" ? "Sending..." : "Send Eng Rep to TPI"}
               </button>
@@ -416,7 +416,7 @@ const handleCTA = async (type: string) => {
               <button
                 onClick={() => handleCTA("pav")}
                 className="flex-1 min-w-[200px] px-6 py-4 bg-white rounded border
-              border-blue-600 text-blue-600 font-medium hover:bg-blue-50"
+              border-blue-500 text-blue-500 font-weight-500 hover:bg-blue-50"
               >
                 {loading === "pav" ? "Sending..." : "Send PAV to CL"}
               </button>
@@ -424,7 +424,7 @@ const handleCTA = async (type: string) => {
               <button
                 onClick={() => handleCTA("fleet")}
                 className="flex-1 min-w-[200px] px-6 py-4 bg-white rounded border
-              border-blue-600 text-blue-600 font-medium hover:bg-blue-50"
+              border-blue-500 text-blue-500 font-weight-500 hover:bg-blue-50"
               >
                 {loading === "fleet"
                   ? "Sending..."
@@ -453,7 +453,7 @@ const handleCTA = async (type: string) => {
               />
 
               <div className="flex flex-col gap-4">
-                <span className="text-gray-700 text-sm font-medium">
+                <span className="text-gray-700 text-sm font-weight-500">
                   Has Salvage Been Collected?
                 </span>
                 <div className="flex items-center gap-5">
@@ -522,7 +522,7 @@ const InputGroup = ({
   formik: any;
 }) => (
   <div className="flex flex-col gap-2">
-    <label className="text-gray-700 text-sm font-medium">{label}</label>
+    <label className="text-gray-700 text-sm font-weight-500">{label}</label>
     <div className="relative">
       {type === "currency" && (
         <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400">

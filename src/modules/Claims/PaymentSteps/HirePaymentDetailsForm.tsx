@@ -363,7 +363,7 @@ const HirePaymentDetailsForm = ({ paymentFormRef, claimId }: any) => {
       });
       toast.success("Manager Notified");
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "Failed to notify manager");
+      toast.error(e?.response?.data?.detail || "Failed to Notify Manager");
     } finally {
       setNotifying(false);
     }

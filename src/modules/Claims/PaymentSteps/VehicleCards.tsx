@@ -32,8 +32,8 @@ const VehicleCards: React.FC<{
             onClick={() => onSelect(i)}
             className={`flex-1 min-w-[240px] p-4 rounded-lg flex items-start justify-between gap-3 text-left transition-colors ${
               selected
-                ? "bg-blue-100 border border-blue-200"
-                : "bg-white border border-neutral-200 hover:bg-neutral-50"
+                ? "bg-blue-100 "
+                : "bg-white border border-neutral-200 hover:bg-blue-50"
             }`}
           >
             <div className="flex flex-col gap-0.5 min-w-0">

@@ -1,16 +1,12 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import Canvas from "../../../assets/AutoClaim_icon/canvas.svg";
 import { useQuestionnaireForm } from "./QuestionnaireLayout";
 import Delete from "../../../assets/AutoClaim_icon/trashBlue.svg";
 import { useState } from "react";
 import CanvasScreen from "./CanvasScreen";
 const Step3SketchPreview = () => {
-  const navigate = useNavigate();
-  const { token } = useParams();
   const { formData, updateStepData } = useQuestionnaireForm();
 
-  const basePath = token ? `/questionnaire/${token}` : "/questionnaire";
 const [showSketchCanvas, setShowSketchCanvas] = useState(false);
   const isTruthConfirmed = formData.incidentSketch?.isTruthConfirmed || false;
 
@@ -80,7 +76,6 @@ const [showSketchCanvas, setShowSketchCanvas] = useState(false);
                   sketchImage: "",
                   placedObjects: [],
                 });
-                setShowSketchCanvas(true);
               }}
               className="flex gap-1 text-blue-600 text-sm font-weight-500"
             >

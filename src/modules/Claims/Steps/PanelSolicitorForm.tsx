@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import { useEffect, useRef, useState } from "react";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
@@ -197,6 +198,8 @@ console.log(selected)
   useEffect(() => {
     if (formRef) formRef.current = formik;
   }, [formik]);
+
+  useReportCompletion(isAllFilled(formik.values));
 
   return (
           <div className="MainContent w-full flex flex-col items-start gap-6 py-1 font-['Stack_Sans_Headline']">

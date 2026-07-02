@@ -54,7 +54,7 @@ const statusOptions = [
   { value: 1, label: "Roadworthy" },
   { value: 2, label: "Unroadworthy" },
   { value: 3, label: "TBC" },
-];
+].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
 const VehicleManualForm = ({formRef, claimId}:any) => {
   const formik = useFormik({

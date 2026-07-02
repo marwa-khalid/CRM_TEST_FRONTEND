@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useCaseReference } from "../../../hooks/useCaseReference";
 import Select from "react-select";
-import { X, ChevronLeft } from "lucide-react";
+import { X, ChevronLeft, Loader2 } from "lucide-react";
 import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
 import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import {
@@ -11,11 +11,14 @@ import {
   updateWitness,
 } from "../../../services/Accidents/Cards/cards";
 import { toast } from "react-toastify";
+import { API_BASE_URL } from "../../../services/axiosConfig";
 import Vulnerable from "../../../assets/AutoClaim_icon/Vulnerable.svg";
 import Vector3 from "../../../assets/AutoClaim_icon/Vector-3.svg";
 import checkgreen from "../../../assets/AutoClaim_icon/checkgreen.svg";
 import pdf from "../../../assets/AutoClaim_icon/pdf.svg";
 import download from "../../../assets/AutoClaim_icon/download.svg";
+import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
+import No from "../../../assets/AutoClaim_icon/No.svg";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 
 export const WitnessDetailsModal = ({
@@ -27,9 +30,8 @@ export const WitnessDetailsModal = ({
   const [step, setStep] = useState(1);
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [sentMethods, setSentMethods] = useState<Record<string, string>>({});
-  const [questionnaireId, setQuestionnaireId] = useState<number | null>(null);
-  const [deepLink, setDeepLink] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMethod, setProcessingMethod] = useState<string | null>(null);
 
   const claimRef = useCaseReference(claimId); // per-claim ref (was localStorage)
 
@@ -55,7 +57,7 @@ export const WitnessDetailsModal = ({
     { value: "Mrs", label: "Mrs" },
     { value: "Ms", label: "Ms" },
     { value: "Dr", label: "Dr" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
   const methods = [
     {
@@ -162,28 +164,24 @@ export const WitnessDetailsModal = ({
       if (!addNext) {
         onClose();
       }
-    } catch (error) {
+    } catch {
       toast.error("Error saving witness details");
     }
   };
 
   const handleViewQuestionnaire = () => {
-    if (questionnaireId) {
-   
-      window.open(`/questionnaire/view/${questionnaireId}`, "_blank");
-      return;
-    }
-
-    if (deepLink) {
-      window.open(`${deepLink}?readonly=true`, "_blank", "noreferrer");
-      return;
-    }
-
-    window.open("/questionnaire/step-1?readonly=true", "_blank", "noreferrer");
+    // Show the actual questionnaire PDF that gets emailed, so the user can see
+    // exactly how it looks.
+    window.open(
+      `${API_BASE_URL}/witnesses/questionnaire-preview`,
+      "_blank",
+      "noopener,noreferrer",
+    );
   };
 
   const handleFunctionality = async (method: any) => {
     setIsProcessing(true);
+    setProcessingMethod(method.id);
 
     try {
       if (!witness.email && method.id !== "download") {
@@ -204,12 +202,7 @@ export const WitnessDetailsModal = ({
         );
 
         if (method.id === "link" && res?.deep_link) {
-          setDeepLink(res.deep_link);
           navigator.clipboard.writeText(res.deep_link);
-        }
-
-        if (res?.claim_questionnaire_id) {
-          setQuestionnaireId(res.claim_questionnaire_id);
         }
 
         if (method.id === "download" && res?.zip_base64) {
@@ -242,10 +235,11 @@ export const WitnessDetailsModal = ({
             ? "Questionnaire link sent successfully"
             : "Documents downloaded successfully",
       );
-    } catch (error) {
+    } catch {
       toast.error("Failed to process request");
     } finally {
       setIsProcessing(false);
+      setProcessingMethod(null);
     }
   };
 
@@ -257,14 +251,6 @@ export const WitnessDetailsModal = ({
         const res = await getQuestionnaireStatus(claimId, initialData.id);
 
         if (!res) return;
-
-        if (res.claim_questionnaire_id) {
-          setQuestionnaireId(res.claim_questionnaire_id);
-        }
-
-        if (res.deep_link) {
-          setDeepLink(res.deep_link);
-        }
 
         if (res.status === "sent" && res.sent_at) {
           setSentMethods((prev) => ({
@@ -453,6 +439,44 @@ export const WitnessDetailsModal = ({
                   />
                 </div>
               </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-black text-sm font-weight-400">
+                  Witness Independent?
+                </label>
+
+                <div className="h-[52px] flex items-center gap-5">
+                  {["Yes", "No"].map((option) => (
+                    <label
+                      key={option}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <div className="relative flex items-center justify-center">
+                        <input
+                          type="radio"
+                          name="witnessIndependent"
+                          className="sr-only"
+                          checked={witness.isIndependent === option}
+                          onChange={() =>
+                            setWitness({
+                              ...witness,
+                              isIndependent: option,
+                            })
+                          }
+                        />
+
+                        {witness.isIndependent === option ? (
+                          <img src={Yes} alt="" />
+                        ) : (
+                          <img src={No} alt="" />
+                        )}
+                      </div>
+
+                      <span className="text-black text-sm">{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         ) : (
@@ -479,6 +503,13 @@ export const WitnessDetailsModal = ({
                 const isSent = !!sentMethods[method.id];
                 const hasAnythingBeenSent = Object.keys(sentMethods).length > 0;
                 const shouldLookGrey = hasAnythingBeenSent && !isSent;
+                const isCurrentActionLoading = processingMethod === method.id;
+                const loadingText =
+                  method.id === "download"
+                    ? "Preparing download..."
+                    : method.id === "link"
+                      ? "Sending link..."
+                      : "Sending email...";
 
                 return (
                   <div key={method.id} className="w-full">
@@ -487,10 +518,18 @@ export const WitnessDetailsModal = ({
                       onClick={() => handleFunctionality(method)}
                       disabled={isProcessing}
                       className={`w-full px-4 py-3 rounded-lg flex justify-between items-center transition-all group ${
-                        shouldLookGrey
+                        isCurrentActionLoading
+                          ? "bg-neutral-100"
+                          : shouldLookGrey
                           ? "opacity-40 grayscale hover:opacity-100 hover:grayscale-0 hover:bg-gray-50"
                           : "hover:bg-gray-50"
-                      } ${isProcessing ? "cursor-wait" : "cursor-pointer"}`}
+                      } ${
+                        isProcessing && !isCurrentActionLoading
+                          ? "opacity-50 grayscale cursor-not-allowed"
+                          : isProcessing
+                            ? "cursor-wait"
+                            : "cursor-pointer"
+                      }`}
                     >
                       <div className="flex items-center gap-4">
                         <img src={method.icon} alt="" className="w-5 h-5" />
@@ -504,7 +543,15 @@ export const WitnessDetailsModal = ({
                         </span>
                       </div>
 
-                      {isSent && (
+                      {isCurrentActionLoading ? (
+                        <div className="flex items-center gap-2 rounded bg-neutral-200 px-3 py-1.5 text-gray-600">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+
+                          <span className="text-xs font-normal">
+                            {loadingText}
+                          </span>
+                        </div>
+                      ) : isSent && (
                         <div className="flex items-center gap-2">
                           <img src={checkgreen} alt="" />
 

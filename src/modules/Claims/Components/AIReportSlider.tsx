@@ -434,7 +434,15 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
 
             <div className="w-full bg-neutral-100 rounded-lg p-3">
               {imageItems.length > 0 ? (
-                <div className="grid grid-cols-6 gap-2">
+                <div
+                  className="grid gap-2"
+                  style={{
+                    gridTemplateColumns: `repeat(${Math.min(
+                      imageItems.length,
+                      6,
+                    )}, minmax(0, 1fr))`,
+                  }}
+                >
                   {imageItems.map((image, index) => {
                     const imageUrl = image.annotated_image_url || image.original_image_url || "";
                     return (

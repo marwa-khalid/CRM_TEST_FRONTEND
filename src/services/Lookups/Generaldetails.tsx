@@ -54,7 +54,8 @@ export const closeFile = async (payload: any) => {
 
 export const getFuelType = () => axiosInstance.get('/setups/fuel-types')
 export const getTransmissionType = () => axiosInstance.get('/setups/transmissions')
-export const getTaxiType = () => axiosInstance.get('/setups/taxi-types')
+export const getTaxiType = (includeInactive = false) =>
+  axiosInstance.get(`/setups/taxi-types${includeInactive ? "?include_inactive=true" : ""}`)
 
 // ------------------- MID REASONS -------------------
 export const getMidReasons = () => axiosInstance.get("/setups/mid_reasons");
@@ -66,7 +67,6 @@ export const getLiabilityStances = () => axiosInstance.get("/setups/liability_st
 export const getClientVehicle = () => axiosInstance.get("/setups/vehicle_statuses");
 
 export const getThirdPartyVehicle = () => axiosInstance.get("/setups/vehicle_statuses");
-
 
 
 

@@ -37,7 +37,6 @@ const Step4Signature = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasDims, setCanvasDims] = useState({ w: 0, h: 0 });
 
-  const [mode, setMode] = useState<"sign" | "upload">("sign");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -55,7 +54,7 @@ const Step4Signature = () => {
   // navigates back to this step (otherwise the canvas re-mounts blank).
   useEffect(() => {
     const saved = formData.signature?.witnessSignature;
-    if (mode === "sign" && canvasDims.w > 0 && signatureRef.current && saved) {
+    if (canvasDims.w > 0 && signatureRef.current && saved) {
       try {
         signatureRef.current.clear();
         signatureRef.current.fromDataURL(saved);
@@ -64,7 +63,7 @@ const Step4Signature = () => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, canvasDims.w]);
+  }, [canvasDims.w]);
 
   const searchParams = new URLSearchParams(location.search);
   const queryToken = searchParams.get("details");
@@ -119,17 +118,6 @@ const Step4Signature = () => {
     return answers;
   };
 
-  const handleUploadSignature = (file: File) => {
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      updateStepData("signature", {
-        witnessSignature: reader.result,
-      });
-    };
-
-    reader.readAsDataURL(file);
-  };
 
   const saveDrawnSignature = () => {
     if (!signatureRef.current) return;
@@ -167,69 +155,27 @@ const Step4Signature = () => {
         <h3 className="text-black text-xl font-weight-600 leading-5">
           Signature
         </h3>
-
-        <div className="flex items-center gap-4 text-sm">
-          <button
-            type="button"
-            onClick={() => setMode("sign")}
-            className={mode === "sign" ? "text-blue-500" : "text-black"}
-          >
-            Sign
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setMode("upload")}
-            className={mode === "upload" ? "text-blue-500" : "text-black"}
-          >
-            Upload
-          </button>
-        </div>
       </div>
 
       <div className="h-px bg-gray-100 w-full" />
 
       <div ref={containerRef} className="w-full h-72 bg-neutral-100 rounded-lg overflow-hidden">
-        {mode === "sign" ? (
-          canvasDims.w > 0 && (
-            <SignatureCanvas
-              ref={signatureRef}
-              penColor="black"
-              onEnd={saveDrawnSignature}
-              canvasProps={{
-                width: canvasDims.w,
-                height: canvasDims.h,
-                className: "bg-neutral-100",
-                style: { touchAction: "none" },
-              }}
-            />
-          )
-        ) : (
-          <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer text-neutral-500 text-sm">
-            {formData.signature?.witnessSignature ? (
-              <img
-                src={formData.signature.witnessSignature}
-                alt="Uploaded Signature"
-                className="max-w-full max-h-full object-contain"
-              />
-            ) : (
-              "Click to upload signature"
-            )}
-
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleUploadSignature(file);
-              }}
-            />
-          </label>
+        {canvasDims.w > 0 && (
+          <SignatureCanvas
+            ref={signatureRef}
+            penColor="black"
+            onEnd={saveDrawnSignature}
+            canvasProps={{
+              width: canvasDims.w,
+              height: canvasDims.h,
+              className: "bg-neutral-100",
+              style: { touchAction: "none" },
+            }}
+          />
         )}
       </div>
 
-      {mode === "sign" && (
+      {(
         <button
           type="button"
           onClick={() => {

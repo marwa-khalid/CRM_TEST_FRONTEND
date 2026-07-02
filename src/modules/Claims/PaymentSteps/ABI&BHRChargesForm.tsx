@@ -483,6 +483,79 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     return out;
   }, [bhrHireSum, abiDailyRate, bhrAdminFee, abiAdminFee, repairCost, storageCharges, recoveryCharges, platingCharges, engineerCharges]);
 
+  // ── Per-vehicle prefills for the payment-pack forms ─────────────────────────
+  // Each vehicle is fully editable inside the form; editing/deleting there never
+  // touches the claim. One prefill per vehicle so the form can persist edits.
+  const creditHirePrefills = vehicles.map((v, i) => {
+    const rec = hireRecords[i] as any;
+    const vv = v as any;
+    const days = perVehicle && rec
+      ? toF(rec.final_total_no_of_hire_days ?? rec.no_of_days_hire_so_far)
+      : noOfDays;
+    const abiHire = perVehicle && rec ? days * toF(rec.abi_hire_charge_per_day) : abiDailyRate;
+    const admin = (!perVehicle || i === 0) ? abiAdminFee : 0;
+    return {
+      ourReference: caseReference,
+      yourReference: insurerReference,
+      invoiceNumber: formik.values.invoice_number || "",
+      invoiceDate: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
+      client: clientName || rec?.client_name || "",
+      billTo: insurerName,
+      registration: vv?.registration || rec?.registration_number || rec?.hire_vehicle_registration || "",
+      make: vv?.make || rec?.make || "",
+      model: vv?.model || rec?.model || "",
+      hireStart: String(rec?.hire_start_date || rec?.hire_out || "").slice(0, 10),
+      hireEnd: String(rec?.hire_end_date || rec?.hire_back || "").slice(0, 10),
+      totalHireDays: days || "",
+      basicHireDays: days || "",
+      basicHireRate: rec ? toF(rec.abi_hire_charge_per_day) : (noOfDays ? abiDailyRate / noOfDays : undefined),
+      basicHireAmount: abiHire,
+      adminAmount: admin || undefined,
+    };
+  });
+
+  const abiPrefills = vehicles.map((v, i) => {
+    const rec = hireRecords[i] as any;
+    const vv = v as any;
+    const days = perVehicle && rec
+      ? toF(rec.final_total_no_of_hire_days ?? rec.no_of_days_hire_so_far)
+      : noOfDays;
+    return {
+      ourReference: caseReference,
+      yourReference: insurerReference,
+      vehicleGroup:
+        vehicleCatMap[rec?.actual_vehicle_category_id] ||
+        rec?.actual_vehicle_category?.label ||
+        rec?.vehicle_group || "",
+      hireStart: String(rec?.hire_start_date || rec?.hire_out || "").slice(0, 10),
+      hireEnd: String(rec?.hire_end_date || rec?.hire_back || "").slice(0, 10),
+      totalHireDays: days || "",
+      abiRatePerDay: rec ? toF(rec.abi_hire_charge_per_day) : (noOfDays ? abiDailyRate / noOfDays : undefined),
+      extras: (perVehicle && rec ? toF(rec.abi_extra_charges_per_day) : abiExtraCharges) || undefined,
+      vehicle: [vv?.make || rec?.make, vv?.model || rec?.model].filter(Boolean).join(" "),
+      registration: vv?.registration || rec?.registration_number || rec?.hire_vehicle_registration || "",
+      dated: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
+    };
+  });
+
+  const platingPrefills = vehicles.map((v, i) => {
+    const rec = hireRecords[i] as any;
+    const vv = v as any;
+    return {
+      ourReference: caseReference,
+      yourReference: insurerReference,
+      invoiceNumber: formik.values.invoice_number || "",
+      invoiceDate: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
+      registration: vv?.registration || rec?.registration_number || rec?.hire_vehicle_registration || "",
+      make: vv?.make || rec?.make || "",
+      model: vv?.model || rec?.model || "",
+      privateHireMot: platingMot || undefined,
+      privateHirePlatingCosts: platingFee || undefined,
+      client: clientName || rec?.client_name || "",
+      billTo: insurerName,
+    };
+  });
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
@@ -494,39 +567,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           claimId={claimId}
           onEmailSent={handlePaymentPackEmailSent}
           onClose={() => setShowInvoiceForm(false)}
-          prefill={{
-            ourReference: caseReference,
-            yourReference: insurerReference,
-            invoiceNumber: formik.values.invoice_number || "",
-            invoiceDate: String(
-              formik.values.payment_pack_raised_date || "",
-            ).slice(0, 10),
-            hireStart: String(
-              (selRec as any)?.hire_start_date ||
-                (selRec as any)?.hire_out ||
-                "",
-            ).slice(0, 10),
-            hireEnd: String((selRec as any)?.hire_end_date || (selRec as any)?.hire_back || "").slice(0, 10),
-            totalHireDays: vDays || "",
-            registration:
-              (vehicles[activeVehicle] as any)?.registration ||
-              (selRec as any)?.registration_number ||
-              (selRec as any)?.hire_vehicle_registration ||
-              "",
-            make: (vehicles[activeVehicle] as any)?.make || (selRec as any)?.make || "",
-            model: (vehicles[activeVehicle] as any)?.model || (selRec as any)?.model || "",
-            basicHireDays: vDays || "",
-            basicHireRate: selRec
-              ? toF((selRec as any).abi_hire_charge_per_day)
-              : noOfDays
-                ? abiDailyRate / noOfDays
-                : undefined,
-            basicHireAmount: vAbiHire,
-            adminAmount: vAdmin || undefined,
-            otherVehicles: otherVehicleRows,
-            client: clientName || (selRec as any)?.client_name || "",
-            billTo: insurerName,
-          }}
+          prefills={creditHirePrefills}
         />
       )}
 
@@ -538,39 +579,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           vehicleGroups={
             vehicles.map((v) => (v as any).category).filter(Boolean) as string[]
           }
-          prefill={{
-            ourReference: caseReference,
-            yourReference: insurerReference,
-            vehicleGroup:
-              vehicleCatMap[(selRec as any)?.actual_vehicle_category_id] ||
-              (selRec as any)?.actual_vehicle_category?.label ||
-              (selRec as any)?.vehicle_group ||
-              "",
-            hireStart: String(
-              (selRec as any)?.hire_start_date ||
-                (selRec as any)?.hire_out ||
-                "",
-            ).slice(0, 10),
-            hireEnd: String((selRec as any)?.hire_end_date || (selRec as any)?.hire_back || "").slice(0, 10),
-            totalHireDays: vDays || "",
-            abiRatePerDay: selRec
-              ? toF((selRec as any).abi_hire_charge_per_day)
-              : noOfDays
-                ? abiDailyRate / noOfDays
-                : undefined,
-            extras: vExtra || undefined,
-            vehicle: [(selRec as any)?.make, (selRec as any)?.model]
-              .filter(Boolean)
-              .join(" "),
-            registration:
-              (selRec as any)?.registration_number ||
-              (selRec as any)?.hire_vehicle_registration ||
-              "",
-            dated: String(formik.values.payment_pack_raised_date || "").slice(
-              0,
-              10,
-            ),
-          }}
+          prefills={abiPrefills}
         />
       )}
 
@@ -579,29 +588,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           claimId={claimId}
           onEmailSent={handlePaymentPackEmailSent}
           onClose={() => setShowPlatingInvoice(false)}
-          prefill={{
-            ourReference: caseReference,
-            yourReference: insurerReference,
-            invoiceNumber: formik.values.invoice_number || "",
-            invoiceDate: String(
-              formik.values.payment_pack_raised_date || "",
-            ).slice(0, 10),
-            registration:
-              (vehicles[activeVehicle] as any)?.registration ||
-              (selRec as any)?.registration_number ||
-              (selRec as any)?.hire_vehicle_registration ||
-              "",
-            make: (vehicles[activeVehicle] as any)?.make || (selRec as any)?.make || "",
-            model: (vehicles[activeVehicle] as any)?.model || (selRec as any)?.model || "",
-            privateHireMot: platingMot || undefined,
-            privateHirePlatingCosts: platingFee || undefined,
-            otherVehicles: otherVehicleRows.map((v) => ({
-              vehicle: v.vehicle,
-              registration: v.registration,
-            })),
-            client: clientName || (selRec as any)?.client_name || "",
-            billTo: insurerName,
-          }}
+          prefills={platingPrefills}
         />
       )}
 

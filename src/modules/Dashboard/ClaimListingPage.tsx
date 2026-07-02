@@ -41,6 +41,7 @@ import TrendingDown from "../../assets/Dashboard/TrendingDown.svg";
 
 import { Link, useNavigate } from "react-router-dom";
 import { getClaims, deleteClaim, updateClaimStatus } from "../../services/Claims/Claims";
+import { getDashboard } from "../../services/Dashboard/Dashboard";
 import { getCaseStatuses } from "../../services/Lookups/Generaldetails";
 import { ConfirmModal } from "../../components/common/ConfirmModal";
 import NotificationBell from "../../components/Notifications/NotificationBell";
@@ -65,6 +66,8 @@ const Dashboard: React.FC = () => {
   const [taskFilter, setTaskFilter] = useState<TaskFilters | undefined>(undefined);
   const [claims, setClaims] = useState<any[]>([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
+  // Real month-over-month trends for the top KPI cards (from the dashboard aggregate).
+  const [statTrends, setStatTrends] = useState<Record<string, { up: boolean; pct: number }>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [multi, setMulti] = useState<{ type: string[]; status: string[] }>({
     type: [], status: [],
@@ -182,6 +185,13 @@ const Dashboard: React.FC = () => {
     };
 
     fetchClaims();
+  }, []);
+
+  // Month-over-month trends for the KPI cards, computed server-side.
+  useEffect(() => {
+    getDashboard()
+      .then(({ data }) => setStatTrends(data?.trends || {}))
+      .catch(() => setStatTrends({}));
   }, []);
 
   const normalizeClaim = (claim: any) => {
@@ -343,38 +353,41 @@ const Dashboard: React.FC = () => {
   const processingCount = tableRows.filter((c) => has(c.status, "process", "tbc", "progress")).length;
   const approvedCount = tableRows.filter((c) => has(c.status, "approve", "accept", "complete")).length;
 
+  // Resolve a card's real MoM trend (magnitude capped at 100%); undefined until loaded.
+  const trendFor = (key: string) => {
+    const t = statTrends[key];
+    if (!t || typeof t.pct !== "number") return { up: true, pct: null as number | null };
+    return { up: !!t.up, pct: Math.round(Math.min(100, Math.abs(t.pct)) * 10) / 10 };
+  };
+
   const stats = [
     {
       title: "Total Claims",
       value: totalClaims,
       icon: StatFile,
       iconBg: "bg-blue-100",
-      trend: "+8.2%",
-      up: true,
+      ...trendFor("claims_reported"),
     },
     {
       title: "Pending",
       value: pendingCount,
       icon: Pending,
       iconBg: "bg-red-100",
-      trend: "+12.4%",
-      up: true,
+      ...trendFor("claims_pending"),
     },
     {
       title: "Processing",
       value: processingCount,
       icon: Processing,
       iconBg: "bg-yellow-100",
-      trend: "-2.2%",
-      up: false,
+      ...trendFor("claims_processing"),
     },
     {
       title: "Approved",
       value: approvedCount,
       icon: Complete,
       iconBg: "bg-green-100",
-      trend: "-2.2%",
-      up: false,
+      ...trendFor("claims_approved"),
     },
   ];
 
@@ -803,7 +816,7 @@ const Dashboard: React.FC = () => {
   );
 };
 
-const StatCard = ({ title, value, icon, iconBg, trend, up }: any) => (
+const StatCard = ({ title, value, icon, iconBg, pct, up }: any) => (
   <div className="p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex flex-col gap-3">
     <div className="flex items-start justify-between">
       <span className={`w-9 h-9 rounded ${iconBg} flex items-center justify-center`}>
@@ -816,10 +829,15 @@ const StatCard = ({ title, value, icon, iconBg, trend, up }: any) => (
       <div className="text-neutral-500 text-sm font-weight-500">{title}</div>
     </div>
     <div className="border-t border-neutral-100 pt-2 flex items-center gap-2">
-      <span className={`px-1.5 py-0.5 rounded text-[11px] font-weight-600 ${up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
-        {trend}
-      </span>
-      <span className="text-neutral-400 text-xs">vs last month</span>
+      {pct != null && (
+        <>
+          <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-weight-600 ${up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
+            <img src={up ? TrendingUp : TrendingDown} alt="" className="w-3 h-3 shrink-0" />
+            {pct}%
+          </span>
+          <span className="text-neutral-400 text-xs">vs last month</span>
+        </>
+      )}
     </div>
   </div>
 );

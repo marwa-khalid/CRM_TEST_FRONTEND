@@ -60,7 +60,7 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData ,addNew}) 
       } else {
         onClose();
       }
-    } catch (error) {
+    } catch {
       toast.error("Error saving passenger");
     }
   };
@@ -94,7 +94,7 @@ export const PassengerDetailsModal = ({ onClose, claimId, initialData ,addNew}) 
     { value: "Mrs", label: "Mrs" },
     { value: "Ms", label: "Ms" },
     { value: "Dr", label: "Dr" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
   // if (!isOpen) return null;
 const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
@@ -125,9 +125,11 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               </label>
               <Select
                 options={titleOptions}
-                value={titleOptions.find(
-                  (opt) => opt.value === passenger.title?.value,
-                )}
+                value={
+                  titleOptions.find(
+                    (opt) => opt.value === passenger.title?.value,
+                  ) || null
+                }
                 placeholder="Select Title"
                 styles={customStyles}
                 components={{

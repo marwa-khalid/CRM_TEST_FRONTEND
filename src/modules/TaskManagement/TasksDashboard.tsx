@@ -771,6 +771,7 @@ const TrendFilter = ({
   label, value, options, onChange, allLabel,
 }: { label: string; value: string; options: string[]; onChange: (v: string) => void; allLabel?: string }) => {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -779,6 +780,21 @@ const TrendFilter = ({
     if (open) document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
+  // Reset the search box each time the dropdown closes.
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
+
+  // Alphabetical order, then filter by the search box.
+  const sorted = [...options].sort((a, b) =>
+    String(a).localeCompare(String(b), undefined, { sensitivity: "base" }),
+  );
+  const filtered = query.trim()
+    ? sorted.filter((o) => o.toLowerCase().includes(query.trim().toLowerCase()))
+    : sorted;
+  // Only bother with a search box once the list is long enough to warrant it.
+  const showSearch = options.length > 6;
+
   return (
     <div className="relative" ref={ref}>
       <button
@@ -793,6 +809,17 @@ const TrendFilter = ({
       </button>
       {open && (
         <div className="absolute z-30 mt-1 right-0 min-w-[170px] max-h-60 overflow-auto bg-white rounded-lg border border-neutral-200 shadow-lg py-1">
+          {showSearch && (
+            <div className="px-2 pt-1 pb-2 sticky top-0 bg-white">
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Search ${label.toLowerCase()}…`}
+                className="w-full px-2 py-1.5 text-sm rounded border border-neutral-200 outline-none focus:border-blue-400 text-neutral-700 placeholder:text-neutral-400"
+              />
+            </div>
+          )}
           <button
             type="button"
             onClick={() => { onChange(""); setOpen(false); }}
@@ -802,7 +829,7 @@ const TrendFilter = ({
           >
             {allLabel || `All ${label}`}
           </button>
-          {options.map((o) => (
+          {filtered.map((o) => (
             <button
               key={o}
               type="button"
@@ -814,8 +841,10 @@ const TrendFilter = ({
               {o}
             </button>
           ))}
-          {options.length === 0 && (
-            <div className="px-3 py-2 text-xs text-neutral-400">No options</div>
+          {filtered.length === 0 && (
+            <div className="px-3 py-2 text-xs text-neutral-400">
+              {options.length === 0 ? "No options" : "No matches"}
+            </div>
           )}
         </div>
       )}
@@ -1674,7 +1703,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
             {/* WTD/MTD/YTD → total pill, right-aligned in the filters row. */}
             {!trendMode && trendPeriod !== "Custom" && (
               <div className="ml-auto">
-                <TrendTotalCard value={claimsTrend.reduce((s, p) => s + p.value, 0)} unit="claims" />
+                <TrendTotalCard value={claimsTrend.reduce((s, p) => s + p.value, 0)} unit="Claims" />
               </div>
             )}
           </div>
@@ -1847,11 +1876,11 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                     </button>
                   ))}
                 </div>
-                <MiniDropdown
+                {/* <MiniDropdown
                   value={debtorsStatus}
                   options={["All Status", "Outstanding", "Partially Paid", "Paid"]}
                   onChange={setDebtorsStatus}
-                />
+                /> */}
               </div>
             </div>
 
@@ -1921,7 +1950,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
                   <div className="text-black text-2xl font-weight-600 leading-6">
                     {collection.rate ?? 0}%
                   </div>
-                  <div className="text-neutral-500 text-sm font-weight-500">Collection rate</div>
+                  <div className="text-neutral-500 text-sm font-weight-500">Collection Rate</div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-5">

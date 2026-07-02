@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 
 import { useEffect, useState } from "react";
 import Select from "react-select";
@@ -95,6 +96,19 @@ export const VehicleOwnerForm = ({ formRef, claimId }: any) => {
         formRef.current = formik;
       }
     }, [formRef, formik]);
+
+  useReportCompletion(
+    isAllFilled({
+      clientFirstName: formik.values.clientFirstName,
+      clientSurname: formik.values.clientSurname,
+      address: formik.values.address,
+      postcode: formik.values.postcode,
+      homeTelephone: formik.values.homeTelephone,
+      mobileTelephone: formik.values.mobileTelephone,
+      email: formik.values.email,
+      vehiclePaymentBeneficiary: formik.values.vehiclePaymentBeneficiary,
+    }),
+  );
   const pollJobStatus = async (jobId: string) => {
     // Show a global loader for the OCR processing
     // setLoading(true);

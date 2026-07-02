@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
@@ -215,6 +216,8 @@ const [uploadModal, setUploadModal] = useState<{
       formRef.current = formik;
     }
   }, [formRef, formik]);
+
+  useReportCompletion(isAllFilled(formik.values));
 
 const DocumentRow: React.FC<{
   label: string;

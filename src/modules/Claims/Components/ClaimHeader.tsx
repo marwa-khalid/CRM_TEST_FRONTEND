@@ -5,7 +5,15 @@ import Vector4 from "../../../assets/AutoClaim_icon/Vector-4.svg";
 import FileIcon from '../../../assets/case_activity/file.svg'
 import { useCaseReference } from "../../../hooks/useCaseReference";
 
-const Header = ({ onNext, claimId }: { onNext?: any; claimId?: string | number }) => {
+const Header = ({
+  onNext,
+  claimId,
+  isSaving = false,
+}: {
+  onNext?: any;
+  claimId?: string | number;
+  isSaving?: boolean;
+}) => {
   const navigate = useNavigate();
   // Per-claim reference (replaces the old single global localStorage value).
   const caseReference = useCaseReference(claimId);
@@ -59,10 +67,11 @@ const Header = ({ onNext, claimId }: { onNext?: any; claimId?: string | number }
 
         {/* Save & Next -> Next Step */}
         <button
+          disabled={isSaving}
           onClick={onNext} // Trigger the step increase here
-          className="px-10 py-4 bg-blue-500 rounded text-white text-base font-weight-400 font-['Stack_Sans_Headline'] hover:bg-blue-500 transition"
+          className="px-10 py-4 bg-blue-500 rounded text-white text-base font-weight-400 font-['Stack_Sans_Headline'] hover:bg-blue-500 transition disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          Save & Next
+          {isSaving ? "Saving..." : "Save & Next"}
         </button>
       </div>
     </div>

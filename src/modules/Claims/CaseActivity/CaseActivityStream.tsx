@@ -892,16 +892,21 @@ Nationwide Assist Team`,
   };
   const openWitnessPdf = async (fileUrl: string) => {
     try {
-      const s3Key = fileUrl.split(".amazonaws.com/")[1];
+      const s3Key = getS3KeyFromUrl(fileUrl);
 
       if (!s3Key) {
+        if (fileUrl?.startsWith("http")) {
+          window.open(fileUrl, "_blank", "noopener,noreferrer");
+          return;
+        }
+
         toast.error("PDF file key not found");
         return;
       }
 
       const presignedUrl = await getCaseActivityPresignedUrl(s3Key);
 
-      window.open(presignedUrl, "_blank");
+      window.open(presignedUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       console.error(error);
       toast.error("Failed to open witness PDF");

@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import * as Yup from "yup";
@@ -483,6 +484,8 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
   useEffect(() => {
     if (formRef) formRef.current = formik;
   }, [formik]);
+
+  useReportCompletion(isAllFilled(formik.values));
   const handleDownload = async (docType: string) => {
     const currentClaimId = claimId;
     if (!currentClaimId) return;

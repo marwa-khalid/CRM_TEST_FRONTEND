@@ -629,7 +629,15 @@ useEffect(() => {
                 </div>
 
                 <div className="w-full bg-neutral-100 rounded-lg p-3">
-                  <div className="grid grid-cols-6 gap-2">
+                  <div
+                    className="grid gap-2"
+                    style={{
+                      gridTemplateColumns: `repeat(${Math.min(
+                        getAllDetectionImages().length || 1,
+                        6,
+                      )}, minmax(0, 1fr))`,
+                    }}
+                  >
                     {getAllDetectionImages().map(
                       (image: any, index: number) => (
                         <button

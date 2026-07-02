@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { PackScreen, DateField } from "./paymentPackUi";
 import CreditHireInvoiceDoc, { type CreditHireDocVehicle, type CreditHireDocData } from "./CreditHireInvoiceDoc";
+import VehicleCards from "./VehicleCards";
 
 // Editable "Payment Pack: Credit Hire Invoice" screen (opened from the Generate
 // Payment Pack popup). Sub Total / VAT / Total Due are derived live from the
@@ -90,53 +91,91 @@ const ChargeRow = ({
 );
 
 const CreditHireInvoiceForm = ({
-  prefill = {}, claimId, onClose, onEmailSent,
+  prefill = {}, prefills, claimId, onClose, onEmailSent,
 }: {
   prefill?: CreditHireInvoicePrefill;
+  prefills?: CreditHireInvoicePrefill[];
   claimId?: string | number;
   onClose: () => void;
   onEmailSent?: (sentDate?: string) => void;
 }) => {
-  const [f, setF] = useState({
-    ourReference: prefill.ourReference || "",
-    invoiceDate: prefill.invoiceDate || "",
-    invoiceNumber: prefill.invoiceNumber || "",
-    yourReference: prefill.yourReference || "",
-    billTo: prefill.billTo || "",
-    hireStart: prefill.hireStart || "",
-    hireEnd: prefill.hireEnd || "",
-    totalHireDays: String(prefill.totalHireDays ?? ""),
-    client: prefill.client || "",
-    registration: prefill.registration || "",
-    make: prefill.make || "",
-    model: prefill.model || "",
-    basicHireDays: String(prefill.basicHireDays ?? ""),
-    basicHireRate: money(prefill.basicHireRate),
-    basicHireAmount: money(prefill.basicHireAmount),
-    cdwDays: String(prefill.cdwDays ?? ""),
-    cdwRate: money(prefill.cdwRate),
-    cdwAmount: money(prefill.cdwAmount),
-    collectionRate: money(prefill.collectionRate),
-    collectionAmount: money(prefill.collectionAmount),
-    adminRate: money(prefill.adminRate),
-    adminAmount: money(prefill.adminAmount),
+  // Every vehicle's prefill (falls back to the single prefill). All state below
+  // is local to this form — editing/deleting a vehicle here never touches the
+  // actual claim.
+  const list = prefills && prefills.length ? prefills : [prefill];
+
+  // Fields shared across all vehicles.
+  const [shared, setShared] = useState({
+    ourReference: list[0].ourReference || "",
+    invoiceDate: list[0].invoiceDate || "",
+    invoiceNumber: list[0].invoiceNumber || "",
+    yourReference: list[0].yourReference || "",
+    billTo: list[0].billTo || "",
+    client: list[0].client || "",
   });
-  const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
+  // Per-vehicle editable fields — one entry per vehicle, so edits persist when
+  // you switch vehicles.
+  const initV = (p: CreditHireInvoicePrefill) => ({
+    hireStart: p.hireStart || "",
+    hireEnd: p.hireEnd || "",
+    totalHireDays: String(p.totalHireDays ?? ""),
+    registration: p.registration || "",
+    make: p.make || "",
+    model: p.model || "",
+    basicHireDays: String(p.basicHireDays ?? ""),
+    basicHireRate: money(p.basicHireRate),
+    basicHireAmount: money(p.basicHireAmount),
+    cdwDays: String(p.cdwDays ?? ""),
+    cdwRate: money(p.cdwRate),
+    cdwAmount: money(p.cdwAmount),
+    collectionRate: money(p.collectionRate),
+    collectionAmount: money(p.collectionAmount),
+    adminRate: money(p.adminRate),
+    adminAmount: money(p.adminAmount),
+  });
+  const [vForms, setVForms] = useState(list.map(initV));
+  const [active, setActive] = useState(0);
+
+  const SHARED_KEYS = new Set([
+    "ourReference", "invoiceDate", "invoiceNumber", "yourReference", "billTo", "client",
+  ]);
+  const f = { ...shared, ...(vForms[active] ?? vForms[0]) };
+  const set = (k: string, v: string) => {
+    if (SHARED_KEYS.has(k)) setShared((p) => ({ ...p, [k]: v }));
+    else setVForms((p) => p.map((vf, i) => (i === active ? { ...vf, [k]: v } : vf)));
+  };
+  const deleteVehicle = (i: number) => {
+    if (vForms.length <= 1) return;
+    setVForms((p) => p.filter((_, idx) => idx !== i));
+    setActive((a) => (i < a ? a - 1 : i === a ? Math.min(a, vForms.length - 2) : a));
+  };
+
+  // Vehicle switcher — only renders for 2+ vehicles (single stays as before).
+  const vehicleCards = (
+    <VehicleCards
+      vehicles={vForms.map((vf) => ({
+        registration: vf.registration, make: vf.make, model: vf.model,
+      }))}
+      activeIndex={active}
+      onSelect={setActive}
+      onDelete={(_, i) => deleteVehicle(i)}
+    />
+  );
 
   const subTotal =
     toNum(f.basicHireAmount) + toNum(f.cdwAmount) + toNum(f.collectionAmount) + toNum(f.adminAmount);
   const vat = subTotal * 0.2;
   const totalDue = subTotal + vat;
 
-  // Print/PDF document — built live from the edited values. The edited vehicle
-  // is row 1; any other vehicles on the claim follow (read-only).
-  const editedVehicle: CreditHireDocVehicle = {
-    vehicle: [f.make, f.model].filter(Boolean).join(" "),
-    registration: f.registration,
-    hireStart: f.hireStart,
-    hireEnd: f.hireEnd,
-    days: f.totalHireDays,
-  };
+  // Print/PDF document — the active vehicle's charges, plus every vehicle listed
+  // in Vehicle Details (active vehicle first).
+  const docVehicles: CreditHireDocVehicle[] = vForms.map((vf) => ({
+    vehicle: [vf.make, vf.model].filter(Boolean).join(" "),
+    registration: vf.registration,
+    hireStart: vf.hireStart,
+    hireEnd: vf.hireEnd,
+    days: vf.totalHireDays,
+  }));
   const docData: CreditHireDocData = {
     ourReference: f.ourReference,
     invoiceNumber: f.invoiceNumber,
@@ -144,7 +183,7 @@ const CreditHireInvoiceForm = ({
     yourReference: f.yourReference,
     client: f.client,
     billTo: f.billTo,
-    vehicles: [editedVehicle, ...(prefill.otherVehicles || [])],
+    vehicles: [docVehicles[active], ...docVehicles.filter((_, i) => i !== active)].filter(Boolean),
     charges: [
       { label: "Basic Hire Rate", days: f.basicHireDays, rate: f.basicHireRate, amount: f.basicHireAmount },
       { label: "Collision Damage Waiver", days: f.cdwDays, rate: f.cdwRate, amount: f.cdwAmount },
@@ -181,6 +220,7 @@ const CreditHireInvoiceForm = ({
         </Section>
 
         <Section title="Hire Details">
+          {vehicleCards}
           <div className="flex gap-5">
             <DateField label="Hire Start" value={f.hireStart} onChange={(v) => set("hireStart", v)} />
             <DateField label="Hire End" value={f.hireEnd} onChange={(v) => set("hireEnd", v)} />
@@ -194,7 +234,7 @@ const CreditHireInvoiceForm = ({
           <div className="flex gap-5">
             <Text label="Client" value={f.client} onChange={(v) => set("client", v)} width="flex-1" />
           </div>
-          <div className="self-stretch h-px bg-neutral-100" />
+          {vehicleCards}
           <div className="flex gap-5">
             <Text label="Registration Number" value={f.registration} onChange={(v) => set("registration", v)} placeholder="Reg Number" width="flex-1" />
           </div>
@@ -205,6 +245,7 @@ const CreditHireInvoiceForm = ({
         </Section>
 
         <Section title="Hire Charges">
+          {vehicleCards}
           {/* column headers */}
           <div className="self-stretch flex items-center gap-4">
             <div className="flex-1" />

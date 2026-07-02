@@ -89,3 +89,9 @@ export const uploadVCEngineer = async (files: File[], id: any) => {
     throw error;
   }
 };
+// Company Name autocomplete for the Engineer Details screen (name + address).
+export const getEngineerCompanySuggestions = (query: string) => {
+  return axiosInstance.get(
+    `/engineer-details/companies/search/${encodeURIComponent(query)}`,
+  );
+};

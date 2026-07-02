@@ -26,6 +26,37 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
   addNew,
 }) => {
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const emptyPoliceValues = {
+    name: "",
+    referenceNo: "",
+    stationName: "",
+    station_address: "",
+    incident_report_taken: "Yes",
+    reportReceivedDate: "",
+    notes: "",
+  };
+
+  const savePoliceDetails = async (values: any) => {
+    const payload = {
+      claim_id: claimId,
+      name: values.name,
+      reference_no: values.referenceNo,
+      station_name: values.stationName,
+      station_address: values.station_address,
+      incident_report_taken: values.incident_report_taken === "Yes",
+      report_received_date: values.reportReceivedDate
+        ? new Date(values.reportReceivedDate).toISOString().split("T")[0]
+        : null,
+      additional_info: values.notes,
+    };
+
+    if (initialData?.id) {
+      await updatePoliceDetail(initialData.id, payload);
+    } else {
+      await createPoliceDetail(payload);
+    }
+  };
+
   const formik = useFormik({
     initialValues: {
       name: initialData?.name || "",
@@ -39,33 +70,25 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
     validationSchema: Yup.object({}),
     onSubmit: async (values) => {
       try {
-        const payload = {
-          claim_id: claimId,
-          name: values.name,
-          reference_no: values.referenceNo,
-          station_name: values.stationName,
-          station_address: values.station_address,
-          incident_report_taken: values.incident_report_taken === "Yes",
-          report_received_date: values.reportReceivedDate
-            ? new Date(values.reportReceivedDate).toISOString().split("T")[0]
-            : null,
-          additional_info: values.notes,
-        };
-
-        // API Call Logic
-        if (initialData?.id) {
-          await updatePoliceDetail(initialData.id, payload);
-        } else {
-          await createPoliceDetail(payload);
-        }
-
+        await savePoliceDetails(values);
         toast.success("Police details saved successfully");
         onClose();
-      } catch (error) {
+      } catch {
         toast.error("Failed to save police details");
       }
     },
   });
+
+  const handleSaveAndAddNext = async () => {
+    try {
+      await savePoliceDetails(formik.values);
+      toast.success("Police details saved successfully");
+      formik.resetForm({ values: emptyPoliceValues });
+      setShowDatePicker(false);
+    } catch {
+      toast.error("Failed to save police details");
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[70] p-4 font-['Stack_Sans_Headline']">
@@ -266,9 +289,7 @@ export const PoliceDetailsModal: React.FC<PoliceDetailsModalProps> = ({
           {addNew && (
             <button
               type="button"
-              onClick={() => {
-                formik.submitForm().then(() => formik.resetForm());
-              }}
+              onClick={handleSaveAndAddNext}
               className="px-6 py-4 bg-blue-500 text-white rounded font-weight-400 hover:bg-blue-600 transition-colors"
             >
               Save and Add Next Police Detail

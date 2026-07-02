@@ -1,21 +1,25 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import Vehicle from "../../../assets/AutoClaim_icon/Vehicle.svg";
 import DVLA from "../../../assets/AutoClaim_icon/DVLA.svg"
+import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 import ProcessMID from "../../../assets/AutoClaim_icon/ProcessMID.svg";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Select from "react-select";
-import { Calendar, Edit2, Minus, Plus,Trash2, Upload, X } from "lucide-react";
+import { Minus, Plus, Upload } from "lucide-react";
 import { VehicleCheckModal } from "./VehicleCheckModal";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { CustomDatePicker } from "../Components/DatePicker";
 import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
 import trash from "../../../assets/AutoClaim_icon/trash.svg";
 import { toast } from "react-toastify";
 import { V5CUploadModal } from "../UploadModalPopups/V5CUploadModal";
 import * as Yup from 'yup'
-import { ErrorMessage, useFormik } from "formik";
+import { useFormik } from "formik";
 import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";
 import { cleanPayload } from "./ClientDetailsForm";
+import { getTaxiType } from "../../../services/Lookups/Generaldetails";
 export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
 
   const fuelOptions = [
@@ -23,23 +27,84 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
     { value: 2, label: "Diesel" },
     { value: 3, label: "Electric" },
     { value: 4, label: "Hybrid" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
   const transmissionOptions = [
     { value: 1, label: "Automatic" },
     { value: 2, label: "Manual" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
   const categoryOptions = [
     { value: "PCO", label: "PCO" },
     { value: "Standard", label: "Standard" },
     { value: "Commercial", label: "Commercial" },
-  ];const taxiTypeOptions = [
-    { value: 1, label: "Hackney" },
-    { value: 2, label: "Private Hire" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
+  const [taxiTypeOptions, setTaxiTypeOptions] = useState<
+    { value: number; label: string }[]
+  >([]);
+  const [isTaxiTypeLoading, setIsTaxiTypeLoading] = useState(false);
 
-  const removeTPVehicle = (id: number) => {
+  useEffect(() => {
+    const mapTaxiTypeOptions = (rows: any[]) =>
+      rows
+        .map((row: any) => ({
+          value: row.id,
+          label: row.label,
+        }))
+        .filter((option: any) => option.value && option.label);
+
+    const loadTaxiTypes = async () => {
+      setIsTaxiTypeLoading(true);
+      try {
+        const activeRes = await getTaxiType();
+        let options = mapTaxiTypeOptions(
+          Array.isArray(activeRes?.data) ? activeRes.data : [],
+        );
+
+        if (options.length === 0) {
+          const allRes = await getTaxiType(true);
+          options = mapTaxiTypeOptions(
+            Array.isArray(allRes?.data) ? allRes.data : [],
+          );
+        }
+
+        setTaxiTypeOptions(options);
+      } catch {
+        setTaxiTypeOptions([]);
+      } finally {
+        setIsTaxiTypeLoading(false);
+      }
+    };
+
+    loadTaxiTypes();
+  }, []);
+
+  const blankThirdPartyVehicle = () => ({
+    id: null as number | null,
+    make: "",
+    model: "",
+    registration: "",
+    color: "",
+    imagesAvailable: "Yes",
+  });
+
+  const resetThirdPartyModal = () => {
+    setEditingId(null);
+    setEditingIndex(null);
+    setCurrentVehicle(blankThirdPartyVehicle());
+  };
+
+  const openAddThirdPartyVehicleModal = () => {
+    resetThirdPartyModal();
+    setIsModalOpen(true);
+  };
+
+  const closeThirdPartyVehicleModal = () => {
+    setIsModalOpen(false);
+    resetThirdPartyModal();
+  };
+
+  const removeTPVehicle = (id: number | null | undefined, index: number) => {
     // if (formik.values.thirdPartyVehicles.length <= 1) {
     //   toast.error("At least one third party vehicle is mandatory.");
     //   return;
@@ -47,44 +112,68 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
 
     setDeleteConfirm({
       open: true,
-      id,
+      id: id ?? null,
+      index,
     });
-  };const confirmDeleteTPVehicle = () => {
-    if (!deleteConfirm.id) return;
+  };
+
+  const confirmDeleteTPVehicle = () => {
+    const hasDeleteId = deleteConfirm.id !== null && deleteConfirm.id !== undefined;
+    if (!hasDeleteId && deleteConfirm.index === null) return;
 
     formik.setFieldValue(
       "thirdPartyVehicles",
-      formik.values.thirdPartyVehicles.filter(
-        (v: any) => v.id !== deleteConfirm.id,
+      formik.values.thirdPartyVehicles.filter((v: any, index: number) =>
+        hasDeleteId ? v.id !== deleteConfirm.id : index !== deleteConfirm.index,
       ),
     );
 
     setDeleteConfirm({
       open: false,
       id: null,
+      index: null,
     });
 
     toast.success("Third party vehicle deleted successfully");
   };
-  const handleEdit = (vehicle: any) => {
-    setCurrentVehicle(vehicle);
-    setEditingId(vehicle.id);
+  const handleEdit = (vehicle: any, index: number) => {
+    setCurrentVehicle({
+      ...blankThirdPartyVehicle(),
+      ...vehicle,
+      imagesAvailable:
+        vehicle.imagesAvailable || (vehicle.images_available ? "Yes" : "No"),
+    });
+    setEditingId(vehicle.id ?? null);
+    setEditingIndex(index);
     setIsModalOpen(true);
   };
-  const [currentVehicle, setCurrentVehicle] = useState({
-    make: "",
-    model: "",
-    registration: "",
-    color: "",
-    imagesAvailable: "Yes",
-  });
+  const [currentVehicle, setCurrentVehicle] = useState(blankThirdPartyVehicle());
   const claimType = localStorage.getItem("claimType");
   // Validation Logic based on Acceptance Criteria
-  const [checkModal, openModal1] = useState<boolean>(false)
+  const [checkModal, openModal1] = useState<boolean>(false);
   
-  const isVehicleValid =
-    currentVehicle.make && currentVehicle.model && currentVehicle.registration;
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showBadgeExpiryPicker, setShowBadgeExpiryPicker] = useState(false);
+  const badgeExpiryPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showBadgeExpiryPicker) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        badgeExpiryPickerRef.current &&
+        !badgeExpiryPickerRef.current.contains(event.target as Node)
+      ) {
+        setShowBadgeExpiryPicker(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showBadgeExpiryPicker]);
+
   const handleSave = (addNext = false) => {
     // if (!isVehicleValid) {
     //   alert("Please fill in mandatory fields: Make, Model, and Registration.");
@@ -93,10 +182,19 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
 
     let updatedVehicles;
 
-    if (editingId) {
+    const hasEditingId = editingId !== null && editingId !== undefined;
+    const hasEditingIndex = editingIndex !== null && editingIndex !== undefined;
+
+    if (hasEditingId || hasEditingIndex) {
       // ✅ UPDATE existing
-      updatedVehicles = formik.values.thirdPartyVehicles.map((v: any) =>
-        v.id === editingId ? { ...currentVehicle, id: editingId } : v,
+      updatedVehicles = formik.values.thirdPartyVehicles.map(
+        (v: any, index: number) =>
+          (hasEditingId ? v.id === editingId : index === editingIndex)
+            ? {
+                ...currentVehicle,
+                id: editingId ?? currentVehicle.id ?? v.id ?? Date.now(),
+              }
+            : v,
       );
     } else {
       // ✅ ADD new
@@ -110,27 +208,18 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
 
     // Reset
     setEditingId(null);
+    setEditingIndex(null);
 
     if (addNext) {
-      setCurrentVehicle({
-        make: "",
-        model: "",
-        registration: "",
-        color: "",
-        imagesAvailable: "Yes",
-      });
+      setCurrentVehicle(blankThirdPartyVehicle());
     } else {
       setIsModalOpen(false);
-      setCurrentVehicle({
-        make: "",
-        model: "",
-        registration: "",
-        color: "",
-        imagesAvailable: "Yes",
-      });
+      setCurrentVehicle(blankThirdPartyVehicle());
     }
   };
-const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
+  const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
+  const boroughInputStyles =
+    "w-full h-[52px] px-5 py-4 bg-white rounded-sm border border-gray-200 text-neutral-900 text-base font-light leading-4 font-['Stack_Sans_Headline'] placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500";
 
 //   const handleSave = (addNext = false) => {
 //     if (!isVehicleValid) {
@@ -164,14 +253,17 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 //   };
   const [vehicleId, setVehicleId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
-const [deleteConfirm, setDeleteConfirm] = useState<{
-  open: boolean;
-  id: number | null;
-}>({
-  open: false,
-  id: null,
-});
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean;
+    id: number | null;
+    index: number | null;
+  }>({
+    open: false,
+    id: null,
+    index: null,
+  });
   const formik = useFormik({
     initialValues: {
       vehicle: {
@@ -193,6 +285,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
         badgeExpirationDate: "",
         vehicleBadgeNumber: "",
         otherBorough: "No",
+        otherBoroughName: "",
       },
       thirdPartyVehicles: [
         
@@ -272,15 +365,19 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
             badgeExpirationDate: res.borough?.badge_expiration_date || "",
             vehicleBadgeNumber: res.borough?.vehicle_badge_number || "",
             otherBorough: res.borough?.any_other_borough ? "Yes":"No",
+            otherBoroughName: res.borough?.other_borough_name || "",
           },
           thirdPartyVehicles:
-            res.third_party_vehicles?.map((v) => ({
-              make: v.make || "",
-              model: v.model || "",
-              registration: v.registration || "",
-              color: v.color || "",
-              imagesAvailable: v.images_available ? "Yes":"No",
-            })) || [],
+            res.third_party_vehicles
+              ?.filter((v) => v.is_active !== false && v.is_deleted !== true)
+              .map((v) => ({
+                id: v.id ?? null,
+                make: v.make || "",
+                model: v.model || "",
+                registration: v.registration || "",
+                color: v.color || "",
+                imagesAvailable: v.images_available ? "Yes":"No",
+              })) || [],
         };
 
       if (res?.id) setVehicleId(String(res.id));
@@ -297,6 +394,45 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
         formRef.current = formik;
       }
     }, [formRef, formik]);
+
+  useReportCompletion(
+    isAllFilled({
+      vehicle: {
+        make: formik.values.vehicle.make,
+        model: formik.values.vehicle.model,
+        registration: formik.values.vehicle.registration,
+        color: formik.values.vehicle.color,
+        fuelType: formik.values.vehicle.fuelType,
+        engineSize: formik.values.vehicle.engineSize,
+        transmission: formik.values.vehicle.transmission,
+        bodyType: formik.values.vehicle.bodyType,
+        seats: formik.values.vehicle.seats,
+        category: formik.values.vehicle.category,
+      },
+      borough: {
+        name: formik.values.borough.name,
+        taxiType: formik.values.borough.taxiType,
+        clientBadgeNumber: formik.values.borough.clientBadgeNumber,
+        badgeExpirationDate: formik.values.borough.badgeExpirationDate,
+        vehicleBadgeNumber: formik.values.borough.vehicleBadgeNumber,
+        otherBorough: formik.values.borough.otherBorough,
+        otherBoroughName:
+          formik.values.borough.otherBorough === "Yes"
+            ? formik.values.borough.otherBoroughName
+            : "n/a",
+      },
+      thirdPartyVehicles:
+        formik.values.thirdPartyVehicles.length > 0
+          ? formik.values.thirdPartyVehicles.map((vehicle: any) => ({
+              make: vehicle.make,
+              model: vehicle.model,
+              registration: vehicle.registration,
+              color: vehicle.color,
+              imagesAvailable: vehicle.imagesAvailable,
+            }))
+          : "n/a",
+    }),
+  );
   const pollJobStatus = async (vehicleDetails: any) => {
     // Show a global loader for the OCR processing
     // setLoading(true);
@@ -349,7 +485,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
 
       setFieldError(newErrors);
       toast.success("Data extracted successfully!");
-    } catch (e) {
+    } catch {
       toast.error("OCR extraction failed");
     } finally {
       // setLoading(false);
@@ -382,6 +518,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
                   setDeleteConfirm({
                     open: false,
                     id: null,
+                    index: null,
                   })
                 }
                 className="px-6 py-3 rounded border border-gray-200 text-gray-700 text-sm hover:bg-gray-50"
@@ -772,18 +909,17 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
         </div>
         {/* Section 2:  Contact Information */}
         {claimType === "RTA - NA" && (
-          <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center w-full">
-              <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
+          <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col justify-start items-start gap-4 mt-6 animate-in fade-in duration-500">
+            <div className="self-stretch inline-flex justify-start items-center gap-4">
+              <h2 className="text-black text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-5">
                 Borough Details
               </h2>
             </div>
-            <div className="h-px bg-gray-100 w-full" />
+            <div className="self-stretch h-px bg-gray-100" />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Borough Name - Mandatory */}
-              <div className="flex flex-col gap-2">
-                <label className="text-neutral-700 text-[14px] font-weight-500">
+            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="w-full flex flex-col justify-start items-start gap-2">
+                <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
                   Borough
                 </label>
                 <input
@@ -793,25 +929,28 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
                     formik.setFieldValue("borough.name", e.target.value)
                   }
                   placeholder="Enter Name"
-                  className="w-full h-[52px] px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className={boroughInputStyles}
                   required
                 />
               </div>
 
-              {/* Taxi Type Dropdown */}
-              <div className="flex flex-col gap-2">
-                <label className="text-neutral-700 text-[14px] font-weight-500">
+              <div className="w-full flex flex-col justify-start items-start gap-2">
+                <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
                   Taxi Type
                 </label>
-                <Select
+                  <Select
                   options={taxiTypeOptions}
                   placeholder="Select Type"
+                  isLoading={isTaxiTypeLoading}
+                  noOptionsMessage={() =>
+                    isTaxiTypeLoading ? "Loading..." : "No taxi types found"
+                  }
                   styles={customStyles}
                   value={taxiTypeOptions.find(
-                    (op) => op.value === formik.values.taxiType,
+                    (op) => op.value === formik.values.borough.taxiType,
                   )}
                   onChange={(e) =>
-                    formik.setFieldValue("borough.taxiType", e.value)
+                    formik.setFieldValue("borough.taxiType", e?.value || null)
                   }
                   components={{
                     DropdownIndicator: BlueDropdownIndicator,
@@ -819,10 +958,11 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
                   }}
                 />
               </div>
+            </div>
 
-              {/* Client Badge Number */}
-              <div className="flex flex-col gap-2">
-                <label className="text-neutral-700 text-[14px] font-weight-500">
+            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="w-full flex flex-col justify-start items-start gap-2">
+                <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
                   Client Badge Number
                 </label>
                 <input
@@ -835,28 +975,57 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
                   }
                   type="number"
                   placeholder="Enter Number"
-                  className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className={boroughInputStyles}
                 />
               </div>
 
-              {/* Badge Expiry Date */}
-              <div className="flex flex-col gap-2">
-                <label className="text-neutral-700 text-[14px] font-weight-500">
+              <div
+                ref={badgeExpiryPickerRef}
+                className="w-full flex flex-col justify-start items-start gap-2 relative"
+              >
+                <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
                   Badge Expiry Date
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Date"
-                    className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  />
-                  <Calendar className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
+                <div
+                  onClick={() => setShowBadgeExpiryPicker((open) => !open)}
+                  className="w-full h-[52px] px-5 bg-white border border-gray-200 rounded flex items-center justify-between cursor-pointer focus-within:border-blue-500"
+                >
+                  <span
+                    className={
+                      formik.values.borough.badgeExpirationDate
+                        ? "text-gray-900 text-base font-light font-['Stack_Sans_Headline']"
+                        : "text-gray-400 text-base font-light font-['Stack_Sans_Headline']"
+                    }
+                  >
+                    {formik.values.borough.badgeExpirationDate || "Date"}
+                  </span>
+                  <img src={Vector6} className="w-4 h-4" alt="calendar" />
                 </div>
-              </div>
 
-              {/* Vehicle Badge Number */}
-              <div className="flex flex-col gap-2">
-                <label className="text-neutral-700 text-[14px] font-weight-500">
+                {showBadgeExpiryPicker && (
+                  <div className="absolute bottom-[53px] left-0 z-50">
+                  <CustomDatePicker
+                    selectedDate={
+                      formik.values.borough.badgeExpirationDate
+                        ? new Date(formik.values.borough.badgeExpirationDate)
+                        : new Date()
+                    }
+                    onDateSelect={(date) => {
+                      formik.setFieldValue(
+                        "borough.badgeExpirationDate",
+                        date.toLocaleDateString("sv-SE"),
+                      );
+                      setShowBadgeExpiryPicker(false);
+                    }}
+                  />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="w-full flex flex-col justify-start items-start gap-2">
+                <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
                   Vehicle Badge Number
                 </label>
                 <input
@@ -869,69 +1038,68 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
                     )
                   }
                   placeholder="Enter Number"
-                  className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className={boroughInputStyles}
                 />
               </div>
             </div>
 
-            <div className="h-px bg-gray-100 w-full my-2" />
+            <div className="self-stretch h-px bg-gray-100" />
 
-            {/* Other Borough Toggle Row */}
-            <div className="flex justify-between">
-              <div className="flex flex-col gap-5">
-                <label className="text-black text-sm font-weight-400">
+            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+              <div className="w-full flex flex-col justify-start items-start gap-5">
+                <label className="text-black text-sm font-weight-500 font-['Stack_Sans_Headline']">
                   Any Other Borough?
                 </label>
-                <div className="flex items-center gap-5">
+                <div className="inline-flex justify-start items-start gap-5">
                   {["Yes", "No"].map((option) => (
                     <label
                       key={option}
-                      className="flex items-center gap-2 cursor-pointer"
+                      className="flex items-center gap-2.5 cursor-pointer"
                     >
-                      <div className="relative flex items-center justify-center">
-                        <input
-                          type="radio"
-                          name="otherBorough"
-                          className="sr-only"
-                          checked={formik.values.borough.otherBorough}
-                          onChange={(option) =>
-                            formik.setFieldValue("borough.otherBorough", option)
+                      <input
+                        type="radio"
+                        name="otherBorough"
+                        className="sr-only"
+                        checked={formik.values.borough.otherBorough === option}
+                        onChange={() => {
+                          formik.setFieldValue("borough.otherBorough", option);
+                          if (option === "No") {
+                            formik.setFieldValue("borough.otherBoroughName", "");
                           }
-                        />
-
-                        {formik.values.borough.otherBorough === option ? (
-                          <img src={Yes} alt="" />
-                        ) : (
-                          <img src={No} alt="" />
-                        )}
-                      </div>
-                      <span className="text-black text-sm">{option}</span>
+                        }}
+                      />
+                      {formik.values.borough.otherBorough === option ? (
+                        <img src={Yes} alt="" />
+                      ) : (
+                        <img src={No} alt="" />
+                      )}
+                      <span className="text-black text-sm font-weight-400 font-['Stack_Sans_Headline'] leading-4">
+                        {option}
+                      </span>
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* Conditional Other Borough Input */}
-              <div
-                className={`flex flex-col w-[326px] gap-2 transition-opacity duration-300 ${formik.values.borough.otherBorough ? "opacity-100" : "opacity-40 pointer-events-none"}`}
-              >
-                <label className="text-black text-sm font-weight-400">
-                  Borough
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter Name"
-                  disabled={!formik.values.borough.otherBorough}
-                  value={formik.values.borough.otherBoroughName}
-                  onChange={(e) =>
-                    formik.setFieldValue(
-                      "borough.otherBoroughName",
-                      e.target.value,
-                    )
-                  }
-                  className="w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                />
-              </div>
+              {formik.values.borough.otherBorough === "Yes" && (
+                <div className="w-full flex flex-col justify-start items-start gap-2">
+                  <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
+                    Borough
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter Name"
+                    value={formik.values.borough.otherBoroughName}
+                    onChange={(e) =>
+                      formik.setFieldValue(
+                        "borough.otherBoroughName",
+                        e.target.value,
+                      )
+                    }
+                    className={boroughInputStyles}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -943,7 +1111,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
               Third Party Vehicles
             </h2>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={openAddThirdPartyVehicleModal}
               className="h-8 px-3 py-2 rounded flex items-center gap-2.5 text-blue-500 hover:bg-blue-100"
             >
               <Plus className="w-4 h-4" /> Add Vehicle
@@ -956,9 +1124,9 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
             </p>
           ) : (
             <div className="flex flex-col gap-3  font-['Stack_Sans_Headline']">
-              {formik.values.thirdPartyVehicles.map((vehicle: any) => (
+              {formik.values.thirdPartyVehicles.map((vehicle: any, index: number) => (
                 <div
-                  key={vehicle.id}
+                  key={vehicle.id ?? `third-party-vehicle-${index}`}
                   data-layer="Frame 1171277554"
                   className="self-stretch px-4 py-3 bg-white border border-gray-100 rounded-lg inline-flex justify-between items-start hover:shadow-sm transition-shadow"
                 >
@@ -976,7 +1144,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
                         <div className="flex justify-center items-center gap-2.5 text-xs text-gray-700">
                           <span className="font-weight-600">Reg No:</span>
                           <span className="font-weight-300 font-light">
-                            M{vehicle.registration}
+                            {vehicle.registration}
                           </span>
                         </div>
 
@@ -1010,14 +1178,14 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
                       onClick={() => {
                         // setCurrentVehicle(vehicle);
                         // setIsModalOpen(true);
-                        handleEdit(vehicle);
+                        handleEdit(vehicle, index);
                       }}
                       className="text-neutral-900 hover:text-blue-500 transition-colors"
                     >
                       <img src={pencil} alt="" />
                     </button>
                     <button
-                      onClick={() => removeTPVehicle(vehicle.id)}
+                      onClick={() => removeTPVehicle(vehicle.id, index)}
                       className="text-red-500 hover:text-red-700 transition-colors"
                     >
                       <img src={trash} alt="" />
@@ -1161,7 +1329,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
               {/* Modal Actions */}
               <div className="flex justify-end gap-4">
                 <button
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closeThirdPartyVehicleModal}
                   className="px-6 py-4 border border-blue-600 text-blue-600 rounded font-weight-400 hover:bg-blue-50"
                 >
                   Cancel
@@ -1184,7 +1352,7 @@ const [deleteConfirm, setDeleteConfirm] = useState<{
         )}
 
         {/* SECTION: Vehicle Checkpoint */}
-        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
+        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mb-8">
           <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
             Vehicle Checkpoint
           </h2>

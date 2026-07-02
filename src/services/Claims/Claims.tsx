@@ -247,3 +247,18 @@ export const invalidateCaseReference = (claimId: string | number): void => {
     window.dispatchEvent(new CustomEvent("case-reference-updated", { detail: key }));
   }
 };
+// ── Per-screen completion (claim sidebar green checks) ──────────────────────
+// Stored server-side so the sidebar can load every screen's completion in one
+// request instead of probing each screen.
+export const getScreenCompletion = (claimId: string | number) =>
+  axiosInstance.get(`/claims/${claimId}/screen-completion`);
+
+export const updateScreenCompletion = (
+  claimId: string | number,
+  screen_key: string,
+  is_complete: boolean,
+) =>
+  axiosInstance.put(`/claims/${claimId}/screen-completion`, {
+    screen_key,
+    is_complete,
+  });

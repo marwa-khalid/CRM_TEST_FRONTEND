@@ -117,8 +117,24 @@ const QuestionnaireLayoutContent = () => {
   const pdfStep4Ref = useRef(null);
   const pdfRef = useRef<HTMLDivElement>(null);
 
-  // Per-claim reference from the URL's claim_id (was a global localStorage value).
-  const reference = useCaseReference(new URLSearchParams(location.search).get("claim_id"));
+  // Per-claim reference. On the deep-link form the URL has no ?claim_id — the
+  // claim_id lives inside the JWT token, so decode it from there as a fallback.
+  const decodeJwtClaimId = (tk?: string | null): string | null => {
+    if (!tk || !tk.includes(".")) return null;
+    try {
+      const part = tk.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      const json = JSON.parse(decodeURIComponent(escape(atob(part))));
+      return json?.claim_id != null ? String(json.claim_id) : null;
+    } catch {
+      return null;
+    }
+  };
+  const sp = new URLSearchParams(location.search);
+  const resolvedClaimId =
+    sp.get("claim_id") ||
+    decodeJwtClaimId(token) ||
+    decodeJwtClaimId(sp.get("details"));
+  const reference = useCaseReference(resolvedClaimId);
 
   const basePath = token ? `/questionnaire/${token}` : "/questionnaire";
 
@@ -621,7 +637,7 @@ console.log("test");
         {questionLabels.map((question, index) => (
           <div key={index} className="pdf-block px-[56px] py-3">
             <PdfField
-              label={question}
+              label={`${index + 1}. ${question}`}
               value={formData.questionnaire?.[index]}
               height="min-h-[82px]"
             />

@@ -166,15 +166,12 @@ const CoveringLetterForm = ({
             onChange={(v) => set("ourReference", v)}
           />
         </div>
-        <div className="fv-row ">
-          <div className="col-6">
-            <DateField
-              label="Incident Date"
-              value={f.incidentDate}
-              onChange={(v) => set("incidentDate", v)}
-            />
-          </div>
-        </div>
+        <DateField
+          label="Incident Date"
+          value={f.incidentDate}
+          onChange={(v) => set("incidentDate", v)}
+          width="w-1/2"
+        />
       </Section>
 
       <Section title="Schedule of Charges">

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { listTasks } from "../../services/Tasks/Tasks";
 import NotificationsPanel, {
@@ -27,6 +27,12 @@ const NotificationBell: React.FC<{ onOpenTask?: () => void; iconSize?: number }>
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const notifRef = useRef<HTMLDivElement>(null);
 
+  const fetchDbNotifs = useCallback(() => {
+    return getNotifications()
+      .then(({ data }) => setDbNotifs(Array.isArray(data) ? data : []))
+      .catch(() => setDbNotifs([]));
+  }, []);
+
   useEffect(() => {
     listTasks({ status: "Overdue", page_size: 50 })
       .then(({ data }) => setOverdue(data?.items ?? []))
@@ -39,10 +45,8 @@ const NotificationBell: React.FC<{ onOpenTask?: () => void; iconSize?: number }>
         ),
       )
       .catch(() => setDueToday([]));
-    getNotifications()
-      .then(({ data }) => setDbNotifs(Array.isArray(data) ? data : []))
-      .catch(() => setDbNotifs([]));
-  }, []);
+    fetchDbNotifs();
+  }, [fetchDbNotifs]);
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -52,10 +56,9 @@ const NotificationBell: React.FC<{ onOpenTask?: () => void; iconSize?: number }>
     return () => document.removeEventListener("mousedown", h);
   }, [notifOpen]);
 
-  const fetchDbNotifs = () =>
-    getNotifications()
-      .then(({ data }) => setDbNotifs(Array.isArray(data) ? data : []))
-      .catch(() => setDbNotifs([]));
+  useEffect(() => {
+    if (notifOpen) fetchDbNotifs();
+  }, [fetchDbNotifs, notifOpen]);
 
   const notifications = useMemo<NotifItem[]>(
     () => [...dbNotifs, ...buildTaskNotifications(overdue, dueToday)],

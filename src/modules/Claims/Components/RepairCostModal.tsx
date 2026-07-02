@@ -442,7 +442,7 @@ const handleFleetOffHire = async () => {
                 type="button"
                 onClick={handleSendCILAgreement}
                 disabled={cilLoading || clientCilLoading}
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
+                className="w-full py-4 border border-blue-500 text-blue-500 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
               >
                 {cilLoading ? "Generating..." : "CIL Agreement Letter"}
               </button>
@@ -451,7 +451,7 @@ const handleFleetOffHire = async () => {
                 type="button"
                 onClick={handleSendEngToTPI}
                 disabled={tpiLoading}
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide"
+                className="w-full py-4 border border-blue-500 text-blue-500 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide"
               >
                 {tpiLoading ? "Sending..." : "Eng Rep to TPI for Auth"}
               </button>
@@ -459,7 +459,7 @@ const handleFleetOffHire = async () => {
                 type="button"
                 onClick={handleSendCILClient}
                 disabled={cilLoading || clientCilLoading}
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
+                className="w-full py-4 border border-blue-500 text-blue-500 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
               >
                 {clientCilLoading ? "Generating..." : "Send CIL to Client"}
               </button>
@@ -468,7 +468,7 @@ const handleFleetOffHire = async () => {
                 type="button"
                 onClick={handleFleetOffHire}
                 disabled={fleetLoading}
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
+                className="w-full py-4 border border-blue-500 text-blue-500 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
               >
                 {fleetLoading ? "Sending..." : "Instruct Fleet to Off Hire"}
               </button>
@@ -482,13 +482,13 @@ const handleFleetOffHire = async () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 py-2">
               <button
                 type="button"
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 text-sm"
+                className="w-full py-4 border border-blue-500 text-blue-500 rounded font-weight-500 hover:bg-blue-50 text-sm"
               >
                 Instruct Roadworthy to Arrange Hire
               </button>
               <button
                 type="button"
-                className="w-full py-4 border border-blue-600 text-blue-600 rounded font-weight-500 hover:bg-blue-50 text-sm"
+                className="w-full py-4 border border-blue-500 text-blue-500 rounded font-weight-500 hover:bg-blue-50 text-sm"
               >
                 Eng. Rep to TPI for Auth
               </button>

@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
 import trash from "../../../assets/AutoClaim_icon/trash.svg";
@@ -28,7 +29,7 @@ export const AccidentDetailsForm = ({ formRef, claimId }: any) => {
     { value: 5, label: "Foggy" },
     { value: 6, label: "Sunny" },
     { value: 7, label: "Rainy" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
   const toISODateTime = (date: Date | null, time: string | null) => {
     if (!date) return null;
 
@@ -202,6 +203,7 @@ const openLatestWitnessPdf = (w: any) => {
       formRef.current = formik;
     }
   }, [formRef, formik]);
+
   useEffect(() => {
     if (claimId) {
       localStorage.setItem(
@@ -231,10 +233,15 @@ const openLatestWitnessPdf = (w: any) => {
       // Normalize response as the old dev did
       const data = Array.isArray(response)
         ? response
-        : response?.passengers || [];
+        : Array.isArray(response?.passengers)
+          ? response.passengers
+          : Array.isArray(response?.data)
+            ? response.data
+            : [];
       setPassengersList(data);
     } catch (err) {
       console.error("Failed to fetch passengers", err);
+      setPassengersList([]);
     }
   }, [claimId]);
   const [policeList, setPoliceList] = useState<any[]>([]);
@@ -258,13 +265,15 @@ const openLatestWitnessPdf = (w: any) => {
   useEffect(() => {
     refreshPolice();
   }, [refreshPolice]);
-  console.log(passengersList.length);
   useEffect(() => {
-    if (passengersList.length > 0) {
+    if (passengersList.length > 0 && formik.values.passengers !== "Yes") {
       formik.setFieldValue("passengers", "Yes");
+    }
+
+    if (formik.values.numPassengers !== passengersList.length) {
       formik.setFieldValue("numPassengers", passengersList.length);
     }
-  }, [passengersList.length]);
+  }, [passengersList.length, formik.values.numPassengers, formik.values.passengers]);
 
   const [editingPassenger, setEditingPassenger] = useState<any>(null);
   const handleEditClick = (passenger: any) => {
@@ -304,9 +313,11 @@ const openLatestWitnessPdf = (w: any) => {
   const handleDeletePassenger = async (passengerId: number) => {
     try {
       await deletePassenger(passengerId);
-      setPassengersList((prev) => prev.filter((p) => p.id !== passengerId));
+      const nextPassengers = passengersList.filter((p) => p.id !== passengerId);
+      setPassengersList(nextPassengers);
+      formik.setFieldValue("numPassengers", nextPassengers.length);
       toast.success("Passenger detail deleted successfully");
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to delete passenger");
     } finally {
       refreshPassengers();
@@ -351,6 +362,40 @@ const openLatestWitnessPdf = (w: any) => {
       console.error("Failed to fetch witnesses", err);
     }
   }, [claimId]);
+
+  useReportCompletion(
+    isAllFilled({
+      date: formik.values.date,
+      time: formik.values.time,
+      weather: formik.values.weather,
+      location: formik.values.location,
+      versionOfEvents: formik.values.versionOfEvents,
+      servicesDate: formik.values.servicesDate,
+      servicesTime: formik.values.servicesTime,
+      passengers: formik.values.passengers,
+      passengerDetails:
+        formik.values.passengers === "Yes"
+          ? passengersList.length > 0
+            ? "added"
+            : ""
+          : "n/a",
+      hasWitnesses: formik.values.hasWitnesses,
+      witnessDetails:
+        formik.values.hasWitnesses === "Yes"
+          ? witnessesList.length > 0
+            ? "added"
+            : ""
+          : "n/a",
+      policeAttended: formik.values.policeAttended,
+      policeDetails:
+        formik.values.policeAttended === "Yes"
+          ? policeList.length > 0
+            ? "added"
+            : ""
+          : "n/a",
+      dashcamFootage: formik.values.dashcamFootage,
+    }),
+  );
 const handleViewWitnessQuestionnaire = async (witnessId: number) => {
   try {
     const result = await getLatestWitnessQuestionnaire(witnessId);
@@ -393,6 +438,8 @@ const handleViewWitnessQuestionnaire = async (witnessId: number) => {
       rawPhone.length > 5
         ? `${rawPhone.substring(0, 5)} ${rawPhone.substring(5, 11)}`
         : rawPhone;
+    const isIndependent =
+      witness.witness_independent ?? witness.is_independent ?? true;
 
     setEditingWitness({
       id: witness.id,
@@ -403,7 +450,7 @@ const handleViewWitnessQuestionnaire = async (witnessId: number) => {
       postCode: witness.address?.postcode,
       email: witness.address?.email,
       telephone: formattedPhone,
-      isIndependent: witness.is_independent ? "Yes" : "No", // Assuming backend sends boolean
+      isIndependent: isIndependent ? "Yes" : "No",
     });
     setIsWitnessModalOpen(true);
   };
@@ -529,14 +576,13 @@ const timeOptions = generateTimeOptions();
       )}
       {deleteConfirm.open && (
         <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center">
-          <div className="w-[420px] bg-white rounded-xl shadow-xl p-6 flex flex-col gap-4">
+          <div className="w-[420px] bg-white rounded shadow-xl p-6 flex flex-col gap-4">
             <h3 className="text-neutral-900 text-lg font-weight-600">
               Delete {deleteConfirm.type}
             </h3>
 
             <p className="text-neutral-600 text-sm">
-              Are you sure you want to delete this entry? This action cannot be
-              undone.
+              Are you sure you want to delete this record?
             </p>
 
             <div className="flex justify-end gap-3 mt-2">
@@ -1133,11 +1179,22 @@ const timeOptions = generateTimeOptions();
                   </div>
                   <div className="h-px bg-gray-100 w-full my-2" />
                   <div className="flex justify-between items-center text-gray-700 text-xs font-normal font-['Stack_Sans_Headline']">
-                    <div>
-                      Questionnaire Link Sent:{" "}
-                      {witnessQuestStatus[w.id]?.sent_at
-                        ? formatWitnessDate(witnessQuestStatus[w.id].sent_at)
-                        : formatWitnessDate(w.created_at)}
+                    <div className="flex flex-col gap-1">
+                      <div>
+                        Questionnaire Link Sent:{" "}
+                        {witnessQuestStatus[w.id]?.sent_at
+                          ? formatWitnessDate(witnessQuestStatus[w.id].sent_at)
+                          : formatWitnessDate(w.created_at)}
+                      </div>
+
+                      {witnessQuestStatus[w.id]?.completed_at && (
+                        <div>
+                          Questionnaire Received:{" "}
+                          {formatWitnessDate(
+                            witnessQuestStatus[w.id].completed_at,
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {witnessQuestStatus[w.id]?.status === "completed" ? (
@@ -1264,6 +1321,17 @@ const timeOptions = generateTimeOptions();
                           {formatWitnessDate(record.report_received_date)}
                         </span>
                       </div>
+
+                      {(record.additional_info || record.notes) && (
+                        <div className="max-w-[500px] flex flex-col gap-1">
+                          <span className="text-gray-900 text-xs font-weight-600 font-['Stack_Sans_Headline']">
+                            Notes:
+                          </span>
+                          <span className="text-gray-700 text-xs font-normal font-['Stack_Sans_Headline'] leading-5 whitespace-pre-wrap">
+                            {record.additional_info || record.notes}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Right Section: Actions */}

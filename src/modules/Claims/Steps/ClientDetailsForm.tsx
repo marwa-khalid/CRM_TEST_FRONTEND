@@ -1,3 +1,4 @@
+import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
 import Vulnerable from "../../../assets/AutoClaim_icon/Vulnerable.svg";
@@ -22,7 +23,7 @@ const handlerOptions = [
   { value: "Private Hire Driver", label: "Private Hire Driver" },
   { value: "Taxi Driver", label: "Taxi Driver" },
   { value: "Others", label: "Others" },
-];
+].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 export const cleanPayload = (obj: any) => {
   if (obj === "") return null;
 
@@ -62,6 +63,7 @@ export const ClientDetailsForm = ({ formRef, claimId }: any) => {
       id: "",
       clientSpeakEnglish: "Yes",
       clientPreferredLanguage: null,
+      otherLanguage: "",
       alternativeContact: "No",
       contactName: "",
       contactTelephone: "",
@@ -111,6 +113,8 @@ export const ClientDetailsForm = ({ formRef, claimId }: any) => {
           is_vulnerable: values.vulnerablePerson === "Yes",
           vulnerable_note: values.vulnerablePersonWhy,
           language_id: values.clientPreferredLanguage,
+          other_language:
+            values.clientPreferredLanguage === 5 ? values.otherLanguage : null,
           speaks_clear_english: values.clientSpeakEnglish === "Yes",
           contact_via_alternative_person: values.alternativeContact === "Yes",
           alter_person: values.contactName,
@@ -180,6 +184,7 @@ export const ClientDetailsForm = ({ formRef, claimId }: any) => {
             email: clientData.address?.email || "",
             clientSpeakEnglish: clientData.speaks_clear_english ? "Yes" : "No",
             clientPreferredLanguage: clientData.language_id || null,
+            otherLanguage: clientData.other_language || "",
             alternativeContact: clientData.contact_via_alternative_person
               ? "Yes"
               : "No",
@@ -229,6 +234,60 @@ export const ClientDetailsForm = ({ formRef, claimId }: any) => {
         formRef.current = formik;
       }
     }, [formRef, formik]);
+
+  // Conditional fields only count toward completion when they are actually
+  // shown (alternative-contact details, and the "Other" language free-text).
+  useReportCompletion(
+    isAllFilled({
+      clientFirstName: formik.values.clientFirstName,
+      clientSurname: formik.values.clientSurname,
+      dateOfBirth: formik.values.dateOfBirth,
+      age: formik.values.age,
+      niNumber: formik.values.niNumber,
+      occupation: formik.values.occupation,
+      customOccupation:
+        formik.values.occupation === "Others"
+          ? formik.values.customOccupation
+          : "n/a",
+      driverCode: formik.values.driverCode,
+      dayNightDriver: formik.values.dayNightDriver,
+      driverBase: formik.values.driverBase,
+      dependents: formik.values.dependents,
+      partner: formik.values.partner,
+      children: formik.values.children,
+      caringForElderly: formik.values.caringForElderly,
+      dependentsDetails: formik.values.dependentsDetails,
+      address: formik.values.address,
+      postcode: formik.values.postcode,
+      email: formik.values.email,
+      homeTelephone: formik.values.homeTelephone,
+      mobileTelephone: formik.values.mobileTelephone,
+      clientPreferredLanguage: formik.values.clientPreferredLanguage,
+      contactName:
+        formik.values.alternativeContact === "Yes"
+          ? formik.values.contactName
+          : "n/a",
+      contactTelephone:
+        formik.values.alternativeContact === "Yes"
+          ? formik.values.contactTelephone
+          : "n/a",
+      otherLanguage:
+        formik.values.clientPreferredLanguage === 5
+          ? formik.values.otherLanguage
+          : "n/a",
+      clientSpeakEnglish: formik.values.clientSpeakEnglish,
+      alternativeContact: formik.values.alternativeContact,
+      sortCode: formik.values.sortCode,
+      accountNumber: formik.values.accountNumber,
+      payDriverNotificationDate: formik.values.payDriverNotificationDate,
+      vatRegistered: formik.values.vatRegistered,
+      vulnerablePerson: formik.values.vulnerablePerson,
+      vulnerablePersonWhy:
+        formik.values.vulnerablePerson === "Yes"
+          ? formik.values.vulnerablePersonWhy
+          : "n/a",
+    }),
+  );
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
@@ -266,13 +325,13 @@ export const ClientDetailsForm = ({ formRef, claimId }: any) => {
     { value: 3, label: "Punjabi" },
     { value:4, label: "Bengali" },
     { value: 5, label: "Other" },
-  ];
+  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
    const handleNotifyManager = async () => {
       try {
         await notifyManager(parseInt(claimId));
         toast.success("Manager Notified");
       } catch (e) {
-        toast.error("Failed to notify manager");
+        toast.error("Failed to Notify Manager");
       }
     };
   const [showPayDatePicker, setShowPayDatePicker] = useState(false);
@@ -597,22 +656,31 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 <input
                   placeholder="Enter number of dependents"
                   value={formik.values.dependents}
-                  onChange={(e) => formik.setFieldValue("dependents", e.target.value)}
+                  onChange={(e) =>
+                    formik.setFieldValue("dependents", e.target.value)
+                  }
                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
                 />
               </div>
               <div className="col-span-6 flex flex-col gap-3 pb-2">
-                <span className="text-black text-sm font-weight-400">Partner</span>
+                <span className="text-black text-sm font-weight-400">
+                  Partner
+                </span>
                 <div className="flex gap-8">
                   {["Yes", "No"].map((option) => (
-                    <label key={option} className="flex items-center gap-2 cursor-pointer">
+                    <label
+                      key={option}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
                       <div className="relative flex items-center justify-center">
                         <input
                           type="radio"
                           name="partner"
                           className="peer appearance-none transition-all"
                           checked={formik.values.partner === option}
-                          onChange={() => formik.setFieldValue("partner", option)}
+                          onChange={() =>
+                            formik.setFieldValue("partner", option)
+                          }
                         />
                         {formik.values.partner === option ? (
                           <img src={Yes} />
@@ -634,9 +702,11 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   Children
                 </label>
                 <input
-                  placeholder="Enter Name"
+                  placeholder="Enter Number"
                   value={formik.values.children}
-                  onChange={(e) => formik.setFieldValue("children", e.target.value)}
+                  onChange={(e) =>
+                    formik.setFieldValue("children", e.target.value)
+                  }
                   className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
                 />
               </div>
@@ -646,14 +716,19 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 </span>
                 <div className="flex gap-8">
                   {["Yes", "No"].map((option) => (
-                    <label key={option} className="flex items-center gap-2 cursor-pointer">
+                    <label
+                      key={option}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
                       <div className="relative flex items-center justify-center">
                         <input
                           type="radio"
                           name="caringForElderly"
                           className="peer appearance-none transition-all"
                           checked={formik.values.caringForElderly === option}
-                          onChange={() => formik.setFieldValue("caringForElderly", option)}
+                          onChange={() =>
+                            formik.setFieldValue("caringForElderly", option)
+                          }
                         />
                         {formik.values.caringForElderly === option ? (
                           <img src={Yes} />
@@ -677,7 +752,9 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 <textarea
                   placeholder="Enter details..."
                   value={formik.values.dependentsDetails}
-                  onChange={(e) => formik.setFieldValue("dependentsDetails", e.target.value)}
+                  onChange={(e) =>
+                    formik.setFieldValue("dependentsDetails", e.target.value)
+                  }
                   className={`w-full bg-white border border-gray-200 rounded outline-none text-neutral-700 font-light min-h-[52px] resize-none px-5 py-4 ${inputStyles}`}
                 />
               </div>
@@ -730,7 +807,12 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   onChange={(v) => formik.setFieldValue("postcode", v)}
                   onAddressSelect={(addr) => {
                     formik.setFieldValue("postcode", addr.postcode);
-                    formik.setFieldValue("address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+                    formik.setFieldValue(
+                      "address",
+                      [addr.line1, addr.line2, addr.line3]
+                        .filter(Boolean)
+                        .join(", "),
+                    );
                   }}
                   inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light ${inputStyles}`}
                 />
@@ -810,6 +892,16 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                     formik.setFieldValue("clientPreferredLanguage", opt.value)
                   }
                 />
+                {formik.values.clientPreferredLanguage === 5 && (
+                  <input
+                    value={formik.values.otherLanguage}
+                    onChange={(e) =>
+                      formik.setFieldValue("otherLanguage", e.target.value)
+                    }
+                    placeholder="Enter language"
+                    className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 outline-none focus:border-blue-500 font-light placeholder:text-gray-300 mt-1"
+                  />
+                )}
               </div>
               <div className="col-span-6 flex flex-col gap-3 pb-2">
                 <span className="text-black text-sm font-weight-400">
@@ -874,6 +966,50 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   </label>
                 ))}
               </div>
+
+              {formik.values.alternativeContact === "Yes" && (
+                <div className="grid grid-cols-12 gap-5 w-full mt-1">
+                  <div className="col-span-6 flex flex-col gap-2">
+                    <label className="text-neutral-700 text-[14px] font-weight-500">
+                      Name
+                    </label>
+                    <input
+                      value={formik.values.contactName}
+                      onChange={(e) =>
+                        formik.setFieldValue("contactName", e.target.value)
+                      }
+                      placeholder="Enter Name"
+                      className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 outline-none focus:border-blue-500 font-light placeholder:text-gray-300"
+                    />
+                  </div>
+
+                  <div className="col-span-6 flex flex-col gap-2">
+                    <label className="text-neutral-700 text-[14px] font-weight-500">
+                      Contact
+                    </label>
+                    <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
+                      <span className="text-gray-400 text-base font-light">
+                        +44
+                      </span>
+                      <input
+                        type="tel"
+                        maxLength={11}
+                        value={formik.values.contactTelephone}
+                        onChange={(e) => {
+                          let value = e.target.value
+                            .replace(/\D/g, "")
+                            .slice(0, 10);
+                          if (value.length > 4) {
+                            value = value.slice(0, 4) + " " + value.slice(4);
+                          }
+                          formik.setFieldValue("contactTelephone", value);
+                        }}
+                        className="w-full bg-transparent mb-0.5 outline-none text-neutral-700 font-light placeholder:text-gray-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1034,7 +1170,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           </div>
         </div>
         {/* Section 5: Vulnerable Persons Policy */}
-        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
+        <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6 mb-8">
           {/* Header with Policy Link Button */}
           <div className="self-stretch flex justify-between items-center  cursor-pointer ">
             <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">

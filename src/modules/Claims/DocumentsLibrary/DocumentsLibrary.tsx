@@ -23,8 +23,43 @@ import {
   createDocumentShareLink,
   getClaimPhotos,
   getAllDocumentLibrary,
+  getDocumentPresignedUrl,
 } from "../../../services/DocumentLibrary/DocumentLibrary";
 import DocumentLibrarySlider from "./DocumentLibrarySlider";
+import { getCaseActivityPresignedUrl } from "../../../services/HistoryActivities/HistoryActivities";
+
+// Renders an S3/local image and, on "Access Denied / expired" errors, refetches
+// a fresh presigned URL from the object key so it never stays broken.
+const S3Image: React.FC<{
+  src: string;
+  s3Key?: string;
+  alt?: string;
+  className?: string;
+}> = ({ src, s3Key, alt, className }) => {
+  const [url, setUrl] = useState(src);
+  const tried = useRef(false);
+  useEffect(() => {
+    setUrl(src);
+    tried.current = false;
+  }, [src]);
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className={className}
+      onError={async () => {
+        if (tried.current || !s3Key) return;
+        tried.current = true;
+        try {
+          const fresh = await getCaseActivityPresignedUrl(s3Key);
+          if (fresh) setUrl(fresh);
+        } catch {
+          /* leave broken image */
+        }
+      }}
+    />
+  );
+};
 
 const DocumentsLibrary = () => {
   const [activeTab, setActiveTab] = useState("Show All");
@@ -202,6 +237,18 @@ const filteredDocs = useMemo(() => {
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, searchQuery]);
+
+  // Always open documents via a FRESH presigned URL so S3-backed files never
+  // hit "Access Denied / Request has expired" from a stale stored URL.
+  const openDocument = async (doc: any) => {
+    try {
+      const res = await getDocumentPresignedUrl(doc.id);
+      const url = res?.url || res || doc.file_url;
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      if (doc.file_url) window.open(doc.file_url, "_blank", "noopener,noreferrer");
+    }
+  };
 const openDetail = async (
   documentId: number,
   initialTab: "File Preview" | "Meta Data" | "Version History" | "Audit Log" =
@@ -453,8 +500,9 @@ Regards`;
                     className="w-[720px] max-w-[85vw] max-h-[82vh] bg-white rounded shadow-[0px_20px_60px_rgba(0,0,0,0.25)] border border-gray-200 overflow-hidden p-3 cursor-default"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <img
+                    <S3Image
                       src={hoveredPhoto.file_url}
+                      s3Key={hoveredPhoto.s3_key || hoveredPhoto.id}
                       alt={hoveredPhoto.file_name}
                       className="w-full max-h-[74vh] object-contain rounded bg-white"
                     />
@@ -485,8 +533,9 @@ Regards`;
                             : "border-gray-200 hover:border-blue-300"
                         }`}
                       >
-                        <img
+                        <S3Image
                           src={photo.file_url}
+                          s3Key={photo.s3_key || photo.id}
                           alt={photo.file_name}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
@@ -607,7 +656,7 @@ Regards`;
                   <ActionButton
                     icon={DownloadIcon}
                     label="Download"
-                    onClick={() => window.open(doc.file_url, "_blank")}
+                    onClick={() => openDocument(doc)}
                   />
                   <ActionButton
                     icon={ShareIcon}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PackScreen, Section, Text, DateField, ReadField, toNum, gbp, money } from "./paymentPackUi";
 import ABIHireBreakdownDoc from "./ABIHireBreakdownDoc";
+import VehicleCards from "./VehicleCards";
 
 // Editable "Payment Pack: ABI Hire Breakdown" screen. Breakdown inputs are
 // editable; the three "Total …" fields derive live from them.
@@ -24,30 +25,56 @@ export type ABIHireBreakdownPrefill = {
 };
 
 const ABIHireBreakdownForm = ({
-  prefill = {}, vehicleGroups = [], claimId, onClose, onEmailSent,
+  prefill = {}, prefills, vehicleGroups = [], claimId, onClose, onEmailSent,
 }: {
   prefill?: ABIHireBreakdownPrefill;
+  prefills?: ABIHireBreakdownPrefill[];
   vehicleGroups?: string[];
   claimId?: string | number;
   onClose: () => void;
   onEmailSent?: (sentDate?: string) => void;
 }) => {
-  const [f, setF] = useState({
-    ourReference: prefill.ourReference || "",
-    yourReference: prefill.yourReference || "",
-    vehicle: prefill.vehicle || "",
-    registration: prefill.registration || "",
-    vehicleGroup: prefill.vehicleGroup || "",
-    hireStart: prefill.hireStart || "",
-    hireEnd: prefill.hireEnd || "",
-    totalHireDays: String(prefill.totalHireDays ?? ""),
-    abiRatePerDay: money(prefill.abiRatePerDay),
-    extras: money(prefill.extras),
-    towBar: money(prefill.towBar),
-    dualControl: money(prefill.dualControl),
-    other: money(prefill.other),
+  // All local to this form — editing/deleting never touches the actual claim.
+  const list = prefills && prefills.length ? prefills : [prefill];
+  const [shared, setShared] = useState({
+    ourReference: list[0].ourReference || "",
+    yourReference: list[0].yourReference || "",
   });
-  const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const initV = (p: ABIHireBreakdownPrefill) => ({
+    vehicle: p.vehicle || "",
+    registration: p.registration || "",
+    vehicleGroup: p.vehicleGroup || "",
+    hireStart: p.hireStart || "",
+    hireEnd: p.hireEnd || "",
+    totalHireDays: String(p.totalHireDays ?? ""),
+    abiRatePerDay: money(p.abiRatePerDay),
+    extras: money(p.extras),
+    towBar: money(p.towBar),
+    dualControl: money(p.dualControl),
+    other: money(p.other),
+  });
+  const [vForms, setVForms] = useState(list.map(initV));
+  const [active, setActive] = useState(0);
+  const SHARED_KEYS = new Set(["ourReference", "yourReference"]);
+  const f = { ...shared, ...(vForms[active] ?? vForms[0]) };
+  const set = (k: string, v: string) => {
+    if (SHARED_KEYS.has(k)) setShared((p) => ({ ...p, [k]: v }));
+    else setVForms((p) => p.map((vf, i) => (i === active ? { ...vf, [k]: v } : vf)));
+  };
+  const deleteVehicle = (i: number) => {
+    if (vForms.length <= 1) return;
+    setVForms((p) => p.filter((_, idx) => idx !== i));
+    setActive((a) => (i < a ? a - 1 : i === a ? Math.min(a, vForms.length - 2) : a));
+  };
+  // Vehicle switcher — only renders for 2+ vehicles (single stays as before).
+  const vehicleCards = (
+    <VehicleCards
+      vehicles={vForms.map((vf) => ({ registration: vf.registration }))}
+      activeIndex={active}
+      onSelect={setActive}
+      onDelete={(_, i) => deleteVehicle(i)}
+    />
+  );
 
   // Derived totals.
   const totalAdditionalDaily = toNum(f.extras) + toNum(f.towBar) + toNum(f.dualControl) + toNum(f.other);
@@ -60,7 +87,7 @@ const ABIHireBreakdownForm = ({
       data={{
         ourReference: f.ourReference,
         yourReference: f.yourReference,
-        dated: prefill.dated,
+        dated: list[active]?.dated ?? list[0]?.dated,
         vehicle: f.vehicle,
         registration: f.registration,
         group: f.vehicleGroup,
@@ -93,6 +120,8 @@ const ABIHireBreakdownForm = ({
           <Text label="Your Reference" value={f.yourReference} onChange={(v) => set("yourReference", v)} />
         </div>
       </Section>
+
+      {vehicleCards}
 
       <Section title="Vehicle Group">
         <div className="flex gap-5">

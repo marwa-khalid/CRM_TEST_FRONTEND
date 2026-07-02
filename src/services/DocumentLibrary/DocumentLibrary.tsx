@@ -21,9 +21,15 @@ export const uploadDocument = async (
   );
   return response.data;
 };
-export const getDocumentPresignedUrl = async (documentId: number | string) => {
+export const getDocumentPresignedUrl = async (
+  documentId: number | string,
+  options?: { download?: boolean },
+) => {
   const response = await axiosInstance.get(
     `/document-library/${documentId}/presigned-url`,
+    {
+      params: options?.download ? { download: true } : undefined,
+    },
   );
   return response.data;
 };
@@ -90,9 +96,15 @@ export const getClaimPhotos = async (claimId: string | number) => {
   return response.data;
 };
 
-export const getDocumentPreviewPages = async (documentId: number | string) => {
+export const getDocumentPreviewPages = async (
+  documentId: number | string,
+  options?: { compact?: boolean },
+) => {
   const response = await axiosInstance.get(
     `/document-library/${documentId}/preview-pages`,
+    {
+      params: options?.compact ? { compact: true } : undefined,
+    },
   );
 
   return response.data;

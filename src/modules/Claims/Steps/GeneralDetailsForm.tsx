@@ -121,6 +121,34 @@ export const customStyles: StylesConfig<any, false> = {
     fontWeight: 400,
   }),
 };
+// Fields the debounced field-level autosave is allowed to persist. Must match
+// the backend `ClaimUpdate` schema so untouched columns are never sent.
+const AUTOSAVE_FIELDS = [
+  "claim_type_id",
+  "handler_id",
+  "target_debt_id",
+  "case_status_id",
+  "source_id",
+  "source_staff_user_id",
+  "prospects_id",
+  "present_position_id",
+  "credit_hire_accepted",
+  "non_fault_accident",
+  "any_passengers",
+  "client_injured",
+  "client_going_abroad",
+  "abroad_date",
+  "rejection_reason",
+];
+
+// Convert a form value to the API shape (Yes/No toggles -> booleans).
+const toApiValue = (field: string, v: any) => {
+  if (field === "credit_hire_accepted" || field === "client_going_abroad") {
+    return v === "Yes" || v === true;
+  }
+  return v;
+};
+
 // --- COMPONENT ---
 const GeneralDetailsForm = ({ formRef, claimId, onClaimCreated }: any) => {
   const { id } = useParams();
@@ -146,6 +174,10 @@ const GeneralDetailsForm = ({ formRef, claimId, onClaimCreated }: any) => {
   }, []);
      const datepickerRef = useRef<HTMLDivElement>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    // Field-level autosave: snapshot of the last-persisted (API-shaped) values +
+    // a debounce timer so we only PATCH the fields that actually changed.
+    const lastSavedRef = useRef<Record<string, any> | null>(null);
+    const autosaveTimer = useRef<any>(null);
   
 useEffect(() => {
   const handleClickOutside = (event: MouseEvent) => {
@@ -224,6 +256,11 @@ useEffect(() => {
           client_going_abroad: res.client_going_abroad ? "Yes" :"No"
         };
        formik.setValues(formData);
+       // Baseline for the field-level autosave diff (API-shaped).
+       lastSavedRef.current = AUTOSAVE_FIELDS.reduce((acc: Record<string, any>, f) => {
+         acc[f] = toApiValue(f, (formData as any)[f]);
+         return acc;
+       }, {});
     setIsAnalyzing(false);
 
      }
@@ -231,6 +268,39 @@ useEffect(() => {
        fetchData();
      }
       }, []);
+
+  // Debounced field-level autosave: whenever a General Details field changes and
+  // the claim already exists, PATCH only the changed fields (not the whole form),
+  // so navigating away and back preserves the edit without the big all-fields save.
+  useEffect(() => {
+    if (!claimId) return;                // only for existing claims
+    if (!lastSavedRef.current) return;   // wait until initial data has loaded
+    const cid = parseInt(claimId);
+    if (!cid) return;
+
+    const diff: Record<string, any> = {};
+    for (const f of AUTOSAVE_FIELDS) {
+      const cur = toApiValue(f, (formik.values as any)[f]);
+      const prev = lastSavedRef.current[f];
+      if (JSON.stringify(cur ?? null) !== JSON.stringify(prev ?? null)) {
+        diff[f] = cur;
+      }
+    }
+    if (Object.keys(diff).length === 0) return;
+
+    clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(async () => {
+      try {
+        await ClaimsApi.patchClaim(cid, diff);
+        lastSavedRef.current = { ...lastSavedRef.current, ...diff };
+      } catch (err) {
+        // Silent: the full save on step navigation is the fallback.
+        console.error("Field autosave failed", err);
+      }
+    }, 800);
+
+    return () => clearTimeout(autosaveTimer.current);
+  }, [formik.values, claimId]);
 
   const formik = useFormik({
     initialValues: {

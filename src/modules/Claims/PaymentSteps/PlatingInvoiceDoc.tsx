@@ -3,7 +3,14 @@ import { gbp, slash, m, cellBase, headBase, DocShell, DocHeader, SectionLabel, D
 // Print/PDF document for the Plating Costs Invoice (non-editable). Built from the
 // edited form values. Lists every vehicle on the claim in Vehicle Details.
 
-export type PlatingDocVehicle = { vehicle?: string; registration?: string };
+export type PlatingDocVehicle = {
+  vehicle?: string;
+  registration?: string;
+  // Multi-vehicle: per-vehicle charge columns + subtotal.
+  privateHireMot?: string | number;
+  privateHirePlatingCosts?: string | number;
+  subtotal?: number;
+};
 
 export type PlatingInvoiceDocData = {
   ourReference?: string;
@@ -21,7 +28,7 @@ export type PlatingInvoiceDocData = {
 const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
   const vehicles = data.vehicles && data.vehicles.length ? data.vehicles : [{}];
   const multi = vehicles.length > 1;
-  const vehiclesLabel = multi ? `${vehicles.length} (Multiple)` : "1 (Single)";
+  const vehiclesLabel = multi ? `${vehicles.length} (Swap)` : "1 (Single)";
 
   return (
     <DocShell>
@@ -95,11 +102,21 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
         </table>
       </div>
 
-      <SectionLabel no="01." title="VEHICLE DETAILS" />
+      <SectionLabel
+        no="01."
+        title="VEHICLE DETAILS"
+        right={
+          multi ? (
+            <div className="px-1.5 py-px outline outline-1 outline-offset-[-1px] outline-black text-[10px] leading-4">
+              Vehicle Swap
+            </div>
+          ) : undefined
+        }
+      />
       <table className="w-full border-collapse">
         <thead>
           <tr>
-            <th className={`${headBase} text-left w-14`}>Veh</th>
+            <th className={`${headBase} text-left w-14`}>{multi ? "#" : "Veh"}</th>
             <th className={`${headBase} text-left`}>Vehicle</th>
             <th className={`${headBase} text-left`}>Registration</th>
           </tr>
@@ -116,28 +133,76 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
       </table>
 
       <SectionLabel no="02." title="CHARGES" />
-      <table className="w-full border-collapse">
-        <thead>
-          <tr>
-            <th className={`${headBase} text-left`}>Details</th>
-            <th className={`${headBase} text-right w-44`}>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td className={cellBase}>Private Hire MOT</td>
-            <td className={`${cellBase} text-right`}>
-              {m(data.privateHireMot)}
-            </td>
-          </tr>
-          <tr>
-            <td className={cellBase}>Private Hire Plating Costs</td>
-            <td className={`${cellBase} text-right`}>
-              {m(data.privateHirePlatingCosts)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {multi ? (
+        <table className="w-full border-collapse table-fixed">
+          <colgroup>
+            <col style={{ width: "39%" }} />
+            {vehicles.map((_, i) => (
+              <col key={i} style={{ width: `${61 / vehicles.length}%` }} />
+            ))}
+          </colgroup>
+          <thead>
+            <tr>
+              <th className={`${headBase} text-left align-middle`}>Details</th>
+              {vehicles.map((v, i) => (
+                <th
+                  key={i}
+                  className="border border-black px-1.5 py-1 bg-gray-200 text-black text-right align-middle"
+                >
+                  <div className="text-[10px] font-bold leading-[1.4]">Vehicle {i + 1}</div>
+                  <div className="text-[9px] font-normal leading-[1.3]">
+                    {v.vehicle || "—"}
+                    {v.registration ? ` · ${v.registration}` : ""}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className={`${cellBase} text-left`}>Private Hire MOT</td>
+              {vehicles.map((v, i) => (
+                <td key={i} className={`${cellBase} text-right`}>{m(v.privateHireMot)}</td>
+              ))}
+            </tr>
+            <tr>
+              <td className={`${cellBase} text-left`}>Private Hire Plating Costs</td>
+              {vehicles.map((v, i) => (
+                <td key={i} className={`${cellBase} text-right`}>{m(v.privateHirePlatingCosts)}</td>
+              ))}
+            </tr>
+            <tr>
+              <td className={`${cellBase} text-left font-bold`}>Vehicle Subtotal</td>
+              {vehicles.map((v, i) => (
+                <td key={i} className={`${cellBase} text-right font-bold`}>{gbp(v.subtotal || 0)}</td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      ) : (
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <th className={`${headBase} text-left`}>Details</th>
+              <th className={`${headBase} text-right w-44`}>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className={cellBase}>Private Hire MOT</td>
+              <td className={`${cellBase} text-right`}>
+                {m(data.privateHireMot)}
+              </td>
+            </tr>
+            <tr>
+              <td className={cellBase}>Private Hire Plating Costs</td>
+              <td className={`${cellBase} text-right`}>
+                {m(data.privateHirePlatingCosts)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
 
       {/* Total Due */}
       <div className="self-stretch pt-2.5 flex flex-col items-end">

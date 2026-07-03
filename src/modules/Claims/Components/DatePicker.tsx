@@ -32,13 +32,23 @@ const safeSelectedDate = selectedDate
     : selectedDate
   : new Date();
 
-const [view, setView] = useState<"days" | "months">("days");
+const [view, setView] = useState<"days" | "months" | "years">("days");
 
 // 2. USE THE SAFE DATE: For your navigation state
 const [navDate, setNavDate] = useState(new Date(safeSelectedDate));
 
 const year = navDate.getFullYear();
 const month = navDate.getMonth();
+
+// Start year of the 12-year block shown in the year grid (paged by ‹ ›).
+const [yearStart, setYearStart] = useState(() =>
+  Math.floor(navDate.getFullYear() / 12) * 12,
+);
+// Open the year grid on the block that contains the currently-navigated year.
+const openYears = () => {
+  setYearStart(Math.floor(year / 12) * 12);
+  setView("years");
+};
   // Calendar Math
   const getDaysInMonth = (y: number, m: number) =>
     new Date(y, m + 1, 0).getDate();
@@ -125,6 +135,42 @@ const month = navDate.getMonth();
             </div>
           </div>
         </div>
+      ) : view === "years" ? (
+        /* --- YEAR PICKER VIEW (fast 12-year grid) --- */
+        <div className="Datepickeryear w-96 px-10 py-6 bg-white rounded-lg shadow-[0px_4px_4px_0px_rgba(0,0,0,0.08)] flex flex-col items-center gap-6">
+          <div className="self-stretch px-2 flex justify-between items-center">
+            <button
+              onClick={() => setYearStart((s) => s - 12)}
+              className="p-2 hover:bg-gray-50 rounded-full"
+            >
+              <img src={ArrowLeft} alt="" />
+            </button>
+            <div className="text-gray-900 text-sm font-weight-600">
+              {yearStart} – {yearStart + 11}
+            </div>
+            <button
+              onClick={() => setYearStart((s) => s + 12)}
+              className="p-2 hover:bg-gray-50 rounded-full"
+            >
+              <img src={ArrowRight} alt="" />
+            </button>
+          </div>
+          <div className="grid grid-cols-4 gap-y-4 gap-x-2">
+            {Array.from({ length: 12 }, (_, i) => yearStart + i).map((y) => (
+              <button
+                key={y}
+                onClick={() => {
+                  setNavDate(new Date(y, month, 1));
+                  setView("months");
+                }}
+                className={`w-16 h-8 rounded text-xs font-weight-600 flex items-center justify-center transition-colors
+                  ${year === y ? "bg-blue-500 text-white" : "text-gray-700 hover:bg-blue-50"}`}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+        </div>
       ) : (
         /* --- MONTH/YEAR PICKER VIEW --- */
         <div className="Datepickeryear w-96 px-10 py-6 bg-white rounded-lg shadow-[0px_4px_4px_0px_rgba(0,0,0,0.08)] flex flex-col items-center gap-6">
@@ -135,7 +181,12 @@ const month = navDate.getMonth();
             >
               <img src={ArrowLeft} alt="" />
             </button>
-            <div className="text-gray-900 text-sm font-weight-600">{year}</div>
+            <div
+              className="cursor-pointer text-gray-900 text-sm font-weight-600 hover:text-blue-500 transition-colors"
+              onClick={openYears}
+            >
+              {year}
+            </div>
             <button
               onClick={() => setNavDate(new Date(year + 1, month, 1))}
               className="p-2 hover:bg-gray-50 rounded-full"

@@ -27,7 +27,7 @@ export const ConfirmModal = ({
           <span className="text-blue-500 text-base font-weight-400 leading-4">{cancelLabel}</span>
         </button>
         <button
-          className="px-6 py-4 bg-blue-500 rounded flex justify-center items-center gap-2.5"
+          className="px-6 py-4 bg-red-500 rounded flex justify-center items-center gap-2.5"
           onClick={onConfirm}
         >
           <span className="text-white text-base font-weight-400 leading-4">{confirmLabel}</span>

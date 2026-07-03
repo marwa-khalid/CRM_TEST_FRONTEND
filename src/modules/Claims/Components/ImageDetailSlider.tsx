@@ -61,6 +61,10 @@ const ImageDetailSlider: React.FC<Props> = ({
 }) => {
   if (!isOpen) return null;
 
+  // Per-image severity counts for the legend.
+  const severityCount = (sev: string) =>
+    (predictions || []).filter((p) => normalizeSeverity(p.severity) === sev).length;
+
   return (
     <>
       <div
@@ -111,15 +115,15 @@ const ImageDetailSlider: React.FC<Props> = ({
             <div className="flex gap-5">
               <div className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
-                <span className="text-sm text-gray-700">High Severity</span>
+                <span className="text-sm text-gray-700">High Severity ({severityCount("High")})</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded-full bg-orange-400 inline-block" />
-                <span className="text-sm text-gray-700">Medium Severity</span>
+                <span className="text-sm text-gray-700">Medium Severity ({severityCount("Medium")})</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
-                <span className="text-sm text-gray-700">Low Severity</span>
+                <span className="text-sm text-gray-700">Low Severity ({severityCount("Low")})</span>
               </div>
             </div>
           </div>

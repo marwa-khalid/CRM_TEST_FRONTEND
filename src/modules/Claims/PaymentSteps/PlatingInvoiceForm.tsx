@@ -77,11 +77,17 @@ const PlatingInvoiceForm = ({
 
   const total = toNum(f.privateHireMot) + toNum(f.privateHirePlatingCosts);
 
-  // Print/PDF document — the active vehicle's costs + every vehicle listed.
+  // Print/PDF document — every vehicle in natural order (row 1, 2, …). For 2+
+  // vehicles the Charges table adds an Amount column per vehicle with subtotals.
+  const multi = vForms.length > 1;
   const docVehicles = vForms.map((vf) => ({
     vehicle: [vf.make, vf.model].filter(Boolean).join(" "),
     registration: vf.registration,
+    privateHireMot: vf.privateHireMot,
+    privateHirePlatingCosts: vf.privateHirePlatingCosts,
+    subtotal: toNum(vf.privateHireMot) + toNum(vf.privateHirePlatingCosts),
   }));
+  const allVehiclesTotal = docVehicles.reduce((a, v) => a + v.subtotal, 0);
   const docNode = (
     <PlatingInvoiceDoc
       data={{
@@ -91,10 +97,10 @@ const PlatingInvoiceForm = ({
         yourReference: f.yourReference,
         client: f.client,
         billTo: f.billTo,
-        vehicles: [docVehicles[active], ...docVehicles.filter((_, i) => i !== active)].filter(Boolean),
+        vehicles: docVehicles,
         privateHireMot: f.privateHireMot,
         privateHirePlatingCosts: f.privateHirePlatingCosts,
-        total,
+        total: multi ? allVehiclesTotal : total,
       }}
     />
   );

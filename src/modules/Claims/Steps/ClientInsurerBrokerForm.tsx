@@ -273,7 +273,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       </div>
 
       {/* 2. Cover Details Section [cite: 16] */}
-      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
+      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mb-8">
         <div className="flex justify-between items-center">
           <h2 className="text-neutral-900 text-[20px] font-weight-600">Cover Details</h2>
           {/* <button
@@ -356,7 +356,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         {formik.values.type_of_policy === 1 && (
           <div className="grid grid-cols-3 gap-5 p-4 bg-gray-50 rounded-lg animate-in fade-in duration-300">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">
+              <label className="text-[14px] text-gray-500">
                 Additional Drivers
               </label>
               <input
@@ -368,7 +368,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">
+              <label className="text-[14px] text-gray-500">
                 Vehicles on Policy
               </label>
               <input
@@ -380,7 +380,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">Vehicles in Use</label>
+              <label className="text-[14px] text-gray-500">Vehicles in Use</label>
               <input
                 type="number"
                 name="no_of_vehicles_use"

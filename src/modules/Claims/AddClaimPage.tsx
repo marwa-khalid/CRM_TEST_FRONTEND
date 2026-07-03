@@ -199,13 +199,18 @@ const AddClaimPage = () => {
     { label: "Settlement Received Date" },
   ];
 
-  const saveCurrentScreen = async () => {
+  const saveCurrentScreen = async (silent = false) => {
     const activeFormRef = activeMode === "claim" ? formRef : paymentFormRef;
     if (activeFormRef.current?.submitForm) {
       setIsSavingScreen(true);
+      // Sidebar navigation still saves, but silently — suppress the per-form
+      // "saved successfully" toast (Save & Next keeps it). Errors still show.
+      const originalSuccess = toast.success;
+      if (silent) (toast as any).success = () => "";
       try {
         await activeFormRef.current.submitForm();
       } finally {
+        if (silent) (toast as any).success = originalSuccess;
         setIsSavingScreen(false);
       }
     }
@@ -236,7 +241,7 @@ const AddClaimPage = () => {
     isSidebarSaveInProgressRef.current = true;
 
     try {
-      await saveCurrentScreen();
+      await saveCurrentScreen(true);
       setActiveMode("claim");
       setCurrentStep(idx);
     } catch {
@@ -252,7 +257,7 @@ const AddClaimPage = () => {
     isSidebarSaveInProgressRef.current = true;
 
     try {
-      await saveCurrentScreen();
+      await saveCurrentScreen(true);
       setActiveMode("payment");
       setCurrentPaymentStep(idx);
     } catch {

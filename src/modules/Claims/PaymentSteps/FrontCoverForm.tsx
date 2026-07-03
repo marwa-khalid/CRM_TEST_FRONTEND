@@ -11,6 +11,7 @@ export type FrontCoverPrefill = {
   policyNumber?: string;
   yourReference?: string;
   incidentDate?: string;
+  billTo?: string;
   caseType?: string;
   dated?: string;
 };
@@ -29,6 +30,7 @@ const FrontCoverForm = ({
     policyNumber: prefill.policyNumber || "",
     yourReference: prefill.yourReference || "",
     incidentDate: prefill.incidentDate || "",
+    billTo:prefill.billTo || "",
     caseType: prefill.caseType || "",
   });
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
@@ -42,11 +44,17 @@ const FrontCoverForm = ({
       policyNumber: prev.policyNumber || prefill.policyNumber || "",
       yourReference: prev.yourReference || prefill.yourReference || "",
       incidentDate: prev.incidentDate || prefill.incidentDate || "",
+      billTo: prev.billTo || prefill.billTo || "",
       caseType: prev.caseType || prefill.caseType || "",
     }));
   }, [
-    prefill.ourReference, prefill.yourInsured, prefill.policyNumber,
-    prefill.yourReference, prefill.incidentDate, prefill.caseType,
+    prefill.ourReference,
+    prefill.yourInsured,
+    prefill.policyNumber,
+    prefill.yourReference,
+    prefill.incidentDate,
+    prefill.billTo,
+    prefill.caseType,
   ]);
 
   const docNode = (
@@ -71,7 +79,13 @@ const FrontCoverForm = ({
       renderDoc={docNode}
       onEmailSent={onEmailSent}
     >
+      <Section title="Bill to">
+              <div className="flex gap-5">
+                <Text label="Bill to" value={f.billTo} onChange={(v) => set("billTo", v)} />
+              </div>
+            </Section>
       <Section title="Cover Details">
+       
         <div className="flex gap-5">
           <Text
             label="Your Insured"
@@ -96,7 +110,6 @@ const FrontCoverForm = ({
             onChange={(v) => set("yourReference", v)}
           />
         </div>
-
       </Section>
     </PackScreen>
   );

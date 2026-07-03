@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { PackScreen, DateField } from "./paymentPackUi";
-import CreditHireInvoiceDoc, { type CreditHireDocVehicle, type CreditHireDocData } from "./CreditHireInvoiceDoc";
+import CreditHireInvoiceDoc, { type CreditHireDocVehicle, type CreditHireDocData, type CreditHireDocCharge } from "./CreditHireInvoiceDoc";
 import VehicleCards from "./VehicleCards";
 
 // Editable "Payment Pack: Credit Hire Invoice" screen (opened from the Generate
@@ -167,8 +167,9 @@ const CreditHireInvoiceForm = ({
   const vat = subTotal * 0.2;
   const totalDue = subTotal + vat;
 
-  // Print/PDF document — the active vehicle's charges, plus every vehicle listed
-  // in Vehicle Details (active vehicle first).
+  // Print/PDF document — every vehicle in natural order (row 1, 2, …). For 2+
+  // vehicles the Hire Charges table groups columns per vehicle with subtotals.
+  const multi = vForms.length > 1;
   const docVehicles: CreditHireDocVehicle[] = vForms.map((vf) => ({
     vehicle: [vf.make, vf.model].filter(Boolean).join(" "),
     registration: vf.registration,
@@ -176,6 +177,20 @@ const CreditHireInvoiceForm = ({
     hireEnd: vf.hireEnd,
     days: vf.totalHireDays,
   }));
+  // Per-vehicle charge lists (same labels/order for every vehicle) + subtotals.
+  const vehicleCharges: CreditHireDocCharge[][] = vForms.map((vf) => [
+    { label: "Basic Hire Rate", days: vf.basicHireDays, rate: vf.basicHireRate, amount: vf.basicHireAmount },
+    { label: "Collision Damage Waiver", days: vf.cdwDays, rate: vf.cdwRate, amount: vf.cdwAmount },
+    { label: "Collection & Delivery Charge", rate: vf.collectionRate, amount: vf.collectionAmount },
+    { label: "Admin Fee", rate: vf.adminRate, amount: vf.adminAmount },
+  ]);
+  const vehicleSubtotals = vForms.map(
+    (vf) => toNum(vf.basicHireAmount) + toNum(vf.cdwAmount) + toNum(vf.collectionAmount) + toNum(vf.adminAmount),
+  );
+  const allVehiclesSub = vehicleSubtotals.reduce((a, b) => a + b, 0);
+  const allVehiclesVat = allVehiclesSub * 0.2;
+  const allVehiclesTotal = allVehiclesSub + allVehiclesVat;
+
   const docData: CreditHireDocData = {
     ourReference: f.ourReference,
     invoiceNumber: f.invoiceNumber,
@@ -183,16 +198,13 @@ const CreditHireInvoiceForm = ({
     yourReference: f.yourReference,
     client: f.client,
     billTo: f.billTo,
-    vehicles: [docVehicles[active], ...docVehicles.filter((_, i) => i !== active)].filter(Boolean),
-    charges: [
-      { label: "Basic Hire Rate", days: f.basicHireDays, rate: f.basicHireRate, amount: f.basicHireAmount },
-      { label: "Collision Damage Waiver", days: f.cdwDays, rate: f.cdwRate, amount: f.cdwAmount },
-      { label: "Collection & Delivery Charge", rate: f.collectionRate, amount: f.collectionAmount },
-      { label: "Admin Fee", rate: f.adminRate, amount: f.adminAmount },
-    ],
-    subTotal,
-    vat,
-    totalDue,
+    vehicles: docVehicles,
+    charges: vehicleCharges[active] ?? vehicleCharges[0],
+    vehicleCharges,
+    vehicleSubtotals,
+    subTotal: multi ? allVehiclesSub : subTotal,
+    vat: multi ? allVehiclesVat : vat,
+    totalDue: multi ? allVehiclesTotal : totalDue,
   };
   const doc = <CreditHireInvoiceDoc data={docData} />;
 

@@ -871,7 +871,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             </div>
 
             {/* Row 4: Language & English Proficiency */}
-            <div className="grid grid-cols-12 gap-5 w-full items-end">
+            <div className="grid grid-cols-12 gap-5 w-full items-center">
               <div className="col-span-6 flex flex-col gap-2">
                 <label className="text-neutral-700 text-[14px] font-weight-500">
                   Client's Preferred Language
@@ -892,18 +892,8 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                     formik.setFieldValue("clientPreferredLanguage", opt.value)
                   }
                 />
-                {formik.values.clientPreferredLanguage === 5 && (
-                  <input
-                    value={formik.values.otherLanguage}
-                    onChange={(e) =>
-                      formik.setFieldValue("otherLanguage", e.target.value)
-                    }
-                    placeholder="Enter language"
-                    className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 outline-none focus:border-blue-500 font-light placeholder:text-gray-300 mt-1"
-                  />
-                )}
               </div>
-              <div className="col-span-6 flex flex-col gap-3 pb-2">
+              <div className="col-span-6 flex flex-col gap-2">
                 <span className="text-black text-sm font-weight-400">
                   Does the client speak clear english?
                 </span>
@@ -934,7 +924,19 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 </div>
               </div>
             </div>
-
+             <div className="grid grid-cols-12 gap-5 w-full items-center">
+              <div className="col-span-6 flex flex-col gap-2">{formik.values.clientPreferredLanguage === 5 && (
+              <input
+                value={formik.values.otherLanguage}
+                onChange={(e) =>
+                  formik.setFieldValue("otherLanguage", e.target.value)
+                }
+                placeholder="Enter language"
+                className="w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 outline-none focus:border-blue-500 font-light placeholder:text-gray-300 mt-1"
+              />
+            )}
+              </div>
+              </div>
             {/* Row 5: Alternative Contact Person Request */}
             <div className="col-span-12 flex flex-col gap-3">
               <span className="text-black text-sm font-weight-400">
@@ -971,7 +973,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 <div className="grid grid-cols-12 gap-5 w-full mt-1">
                   <div className="col-span-6 flex flex-col gap-2">
                     <label className="text-neutral-700 text-[14px] font-weight-500">
-                      Name
+                      Contact Name
                     </label>
                     <input
                       value={formik.values.contactName}
@@ -985,7 +987,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
                   <div className="col-span-6 flex flex-col gap-2">
                     <label className="text-neutral-700 text-[14px] font-weight-500">
-                      Contact
+                      Mobile Number
                     </label>
                     <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
                       <span className="text-gray-400 text-base font-light">

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useCaseReference } from "../../../hooks/useCaseReference";
+import { useCurrentUser } from "../../../context/AuthContext";
 import {
   aiAnalyze,
   getLatestVehicleDamageReport,
@@ -39,6 +40,11 @@ const DamageSummaryRow = ({
 export const VehicleDamageAI = ({ formRef, claimId }: any) => {
   const claimID = claimId;
   const caseReference = useCaseReference(claimId); // per-claim ref (was localStorage)
+  const { user: currentUser } = useCurrentUser();
+  // Claim handler shown on the AI report = the backend's stored handler name,
+  // else the logged-in user's name (email before "@").
+  const reportHandler = () =>
+    aiResult?.uploaded_by || currentUser?.name || "Claim Handler";
 useEffect(() => {
   const loadSavedReport = async () => {
     try {
@@ -52,6 +58,10 @@ useEffect(() => {
         images: payload.images || [],
         count: payload.count || 0,
         high_severity_count: payload.high_severity_count || 0,
+        uploaded_by: payload.uploaded_by || "",
+        report_pdf_url: payload.report_pdf_url || "",
+        report_pdf_s3_key: payload.report_pdf_s3_key || "",
+        report_payload: payload,
       });
 
       setAssessmentType(payload.assessmentType || "Client vehicle only");
@@ -189,6 +199,48 @@ useEffect(() => {
       setIsAnalyzing(false);
     }
   };
+  // "Add more images" — upload only NEW images; the backend merges the already
+  // analysed ones (no re-analysis) into one consolidated report.
+  const [addImagesOpen, setAddImagesOpen] = useState(false);
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
+  const newImageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleNewImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setNewImageFiles((prev) => [...prev, ...Array.from(e.target.files as FileList)]);
+    }
+  };
+
+  const handleAnalyzeNew = async () => {
+    if (newImageFiles.length === 0) {
+      toast.warn("Please add images first");
+      return;
+    }
+    setIsAnalyzing(true);
+    try {
+      const formData = new FormData();
+      formData.append("claim_id", String(claimID));
+      formData.append("assessment_type", assessmentType);
+      newImageFiles.forEach((file) => formData.append("images", file));
+      // Already-analysed images are merged server-side (not re-analysed).
+      formData.append("existing_images", JSON.stringify(aiResult?.images || []));
+
+      const response = await aiAnalyze(formData);
+      setAiResult(response);
+      setSelectedImageIndex(0);
+      setCurrentPredictions(response.images?.[0]?.predictions || []);
+      setNewImageFiles([]);
+      setAddImagesOpen(false);
+      toast.success("New images analysed and merged");
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.detail || "AI analysis failed. Please try again.";
+      toast.error(message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const [currentPredictions, setCurrentPredictions] = useState<any>();
 
   useEffect(() => {
@@ -301,7 +353,7 @@ useEffect(() => {
           new Date().toISOString(),
 
         claim_reference: caseReference || "",
-        uploaded_by: user?.email || "Claim Handler",
+        uploaded_by: reportHandler(),
         source_name: "Claim Portal",
         assessment_type: assessmentType,
 
@@ -310,7 +362,7 @@ useEffect(() => {
 
         audit_trail: [
           {
-            doneBy: user?.email || "Claim Handler",
+            doneBy: reportHandler(),
             action: "Generated Collective AI Report",
             timestamp:
               aiResult?.generated_at ||
@@ -338,6 +390,78 @@ useEffect(() => {
         imageIndex={sliderImageIndex}
       />
 
+      {addImagesOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-[600px] p-6 bg-white rounded-lg flex flex-col gap-6 font-['Stack_Sans_Headline']">
+            <div className="flex justify-between items-center">
+              <div className="text-neutral-900 text-[20px] font-weight-600">Add More Images</div>
+              <button
+                onClick={() => { setAddImagesOpen(false); setNewImageFiles([]); }}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="h-px bg-gray-100 w-full" />
+
+            <div
+              onClick={() => newImageInputRef.current?.click()}
+              className="p-10 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center gap-3 cursor-pointer hover:bg-blue-50 transition-colors"
+            >
+              <img src={AI} alt="" className="w-8 h-8" />
+              <div className="text-center">
+                <div className="text-black text-base font-weight-600">Choose images or Drag &amp; Drop here</div>
+                <div className="text-gray-500 text-sm">Only the new images will be analysed &amp; merged</div>
+              </div>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                ref={newImageInputRef}
+                onChange={handleNewImagesChange}
+                className="hidden"
+              />
+            </div>
+
+            {newImageFiles.length > 0 && (
+              <div className="flex flex-col gap-2 max-h-52 overflow-auto">
+                {newImageFiles.map((f, i) => (
+                  <div key={i} className="p-3 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex items-center gap-3">
+                    <img src={URL.createObjectURL(f)} alt="" className="w-9 h-9 rounded object-cover" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-black line-clamp-1">{f.name}</div>
+                      <div className="text-xs text-gray-400">{(f.size / 1024).toFixed(0)}KB</div>
+                    </div>
+                    <button
+                      onClick={() => setNewImageFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="text-gray-400 hover:text-red-500 text-lg leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end items-center gap-4">
+              <button
+                onClick={() => { setAddImagesOpen(false); setNewImageFiles([]); }}
+                className="px-6 py-3 bg-white border border-blue-600 rounded text-blue-600 text-base font-medium hover:bg-blue-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAnalyzeNew}
+                disabled={isAnalyzing || newImageFiles.length === 0}
+                className="px-6 py-3 bg-blue-600 rounded text-white text-base font-medium disabled:opacity-50"
+              >
+                {isAnalyzing ? "Analysing…" : "Analyse New Images"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {open && (
         <AIDamageReportSlider
           isOpen={open}
@@ -354,6 +478,11 @@ useEffect(() => {
               aiResult?.images?.[0]?.report_pdf_url ||
               "",
 
+            report_pdf_s3_key:
+              aiResult?.report_pdf_s3_key ||
+              aiResult?.report_payload?.report_pdf_s3_key ||
+              "",
+
             generated_at:
               aiResult?.generated_at ||
               aiResult?.images?.[0]?.generated_at ||
@@ -363,9 +492,7 @@ useEffect(() => {
 
             predictions: getAllDamageRows(),
 
-            uploaded_by:
-              JSON.parse(localStorage.getItem("activeUser") || "{}")?.email ||
-              "Claim Handler",
+            uploaded_by: reportHandler(),
 
             source_name: "Claim Portal",
 
@@ -373,9 +500,7 @@ useEffect(() => {
 
             audit_trail: [
               {
-                doneBy:
-                  JSON.parse(localStorage.getItem("activeUser") || "{}")
-                    ?.email || "Claim Handler",
+                doneBy: reportHandler(),
                 action: "Generated Collective AI Report",
                 timestamp:
                   aiResult?.generated_at ||
@@ -616,11 +741,7 @@ useEffect(() => {
                   </div>
 
                   <button
-                    onClick={() => {
-                      setAiResult(null);
-                      setSelectedImageIndex(0);
-                      setCurrentPredictions([]);
-                    }}
+                    onClick={() => setAddImagesOpen(true)}
                     className="h-8 px-3 py-2 bg-white rounded outline outline-1 outline-blue-600 text-blue-600 text-sm flex items-center gap-2"
                   >
                     <img src={Plus} alt="" />

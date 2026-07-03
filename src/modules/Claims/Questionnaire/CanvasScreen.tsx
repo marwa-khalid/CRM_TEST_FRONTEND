@@ -667,7 +667,11 @@ const saveSketchToState = async () => {
               isDrawingEnabled ? "cursor-crosshair" : "cursor-default"
             }`}
           />
-          <div className="absolute inset-0 z-20">
+          {/* Objects layer sits above the canvas, but must let clicks on empty
+              space fall through to the drawing canvas below (each object re-enables
+              pointer events via `pointer-events-auto`). Without this, the full-area
+              overlay swallows every click and you can't draw. */}
+          <div className="absolute inset-0 z-20 pointer-events-none">
             {placedObjects.map((obj) => (
               <Draggable
                 key={obj.id}

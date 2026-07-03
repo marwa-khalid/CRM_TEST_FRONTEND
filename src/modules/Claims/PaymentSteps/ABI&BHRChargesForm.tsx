@@ -603,6 +603,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             yourReference: insurerReference,
             policyNumber,
             incidentDate,
+            billTo: insurerName,
             caseType: vehicles.length > 1 ? "Multiple Vehicles" : "Single Vehicle",
             dated: String(
               formik.values.payment_pack_raised_date || dateToISO(new Date()),

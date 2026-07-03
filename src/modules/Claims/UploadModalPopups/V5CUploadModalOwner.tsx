@@ -4,6 +4,8 @@ import { uploadVCDocs } from "../../../services/VehicleOwner/vehicleOwner";
 import Complete from "../../../assets/AutoClaim_icon/Complete.svg"
 import Upload from "../../../assets/AutoClaim_icon/Upload.svg";
 import Processing from "../../../assets/AutoClaim_icon/Processing.svg";
+import PdfTypeIcon from "../../../assets/FileTypes/PDF.svg";
+import ImgTypeIcon from "../../../assets/FileTypes/PNG.svg";
 import { X } from "lucide-react";
 
 
@@ -23,24 +25,28 @@ export const V5CUploadModalOwner: React.FC<V5CModalProps> = ({
   formik,
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [file, setFile] = useState<File | null>(null);
+  // Single PDF or several images (2–3) — the OCR merges them into one result.
+  const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   if (!isOpen) return null;
 
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+  const displayName = files.length === 1 ? files[0].name : `${files.length} files selected`;
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length) {
+      setFiles(selectedFiles);
       setStep(2);
-      await simulateUpload(selectedFile);
+      await simulateUpload(selectedFiles);
     }
   };
 
   // This simulates the UI progress bar before calling your actual handleUpload logic
-const simulateUpload = async (selectedFile: File) => {
+const simulateUpload = async (selectedFiles: File[]) => {
   let currentProgress = 0;
   setIsUploading(true);
 
@@ -50,13 +56,13 @@ const simulateUpload = async (selectedFile: File) => {
 
     if (currentProgress >= 90) {
       clearInterval(interval);
-      executeActualUpload(selectedFile);
+      executeActualUpload(selectedFiles);
     }
   }, 120);
 };
-const executeActualUpload = async (selectedFile: File) => {
+const executeActualUpload = async (selectedFiles: File[]) => {
   try {
-    const response = await uploadVCDocs([selectedFile], parseInt(claimId));
+    const response = await uploadVCDocs(selectedFiles, parseInt(claimId));
 
 setProgress(100);
 setStep(3);
@@ -94,7 +100,7 @@ onClose();
 
 setStep(1);
 setProgress(0);
-setFile(null);
+setFiles([]);
 setIsUploading(false);
 }, 2000);
   } catch (error) {
@@ -137,6 +143,7 @@ setIsUploading(false);
             onChange={handleFileChange}
             className="hidden"
             accept=".jpg,.png,.pdf,.csv"
+            multiple
           />
 
           {/* Icon Mapping */}
@@ -154,14 +161,14 @@ setIsUploading(false);
           {/* Text Content */}
           <div className="flex flex-col items-center gap-2">
             <div className="text-black text-base font-weight-600 font-['Stack_Sans_Headline']">
-              {step === 1 && "Choose a file or Drag & Drop here"}
+              {step === 1 && "Choose file(s) or Drag & Drop here"}
               {step === 2 &&
-                `Uploaded - ${formatSize((file?.size || 0) * (progress / 100))} of ${formatSize(file?.size || 0)}`}
+                `Uploading - ${formatSize(totalSize * (progress / 100))} of ${formatSize(totalSize)}`}
               {step === 3 &&
-                `Uploaded - ${formatSize(file?.size || 0)} of ${formatSize(file?.size || 0)}`}
+                `Uploaded - ${formatSize(totalSize)} of ${formatSize(totalSize)}`}
             </div>
             <div className="text-gray-500 text-sm font-normal font-['Stack_Sans_Headline']">
-              {step === 1 ? "JPG, PNG, PDF, CSV Supported" : file?.name}
+              {step === 1 ? "Single PDF or multiple images (JPG, PNG) supported" : displayName}
             </div>
           </div>
 
@@ -175,6 +182,33 @@ setIsUploading(false);
             </div>
           )}
         </div>
+
+        {/* Selected files list */}
+        {files.length > 0 && (
+          <div className="self-stretch flex flex-col gap-2 overflow-auto" style={{ maxHeight: 200 }}>
+            {files.map((f, i) => (
+              <div
+                key={i}
+                className="p-3 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex items-center gap-3"
+              >
+                <img
+                  src={f.name.toLowerCase().endsWith(".pdf") ? PdfTypeIcon : ImgTypeIcon}
+                  alt=""
+                  className="w-9 h-9"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-black text-sm font-weight-500 line-clamp-1">{f.name}</div>
+                  <div className="text-gray-400 text-xs">{formatSize(f.size)}</div>
+                </div>
+                {step === 2 ? (
+                  <img src={Processing} className="w-5 h-5 animate-[spin_2s_linear_infinite]" />
+                ) : step === 3 ? (
+                  <img src={Complete} className="w-5 h-5" />
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="self-stretch flex justify-end items-center gap-4">

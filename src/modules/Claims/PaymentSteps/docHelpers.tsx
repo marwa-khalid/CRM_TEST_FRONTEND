@@ -82,11 +82,14 @@ export const DocHeader = ({
   </div>
 );
 
-export const SectionLabel = ({ no, title }: { no: string; title: string }) => (
+export const SectionLabel = ({
+  no, title, right,
+}: { no: string; title: string; right?: React.ReactNode }) => (
   <div className="self-stretch pt-4 pb-1.5">
     <div className="self-stretch pb-[3px] border-b border-black flex items-center gap-1.5">
       <span className="text-xs font-bold leading-4">{no}</span>
       <span className="text-xs font-bold uppercase leading-4">{title}</span>
+      {right ? <div className="ml-auto">{right}</div> : null}
     </div>
   </div>
 );

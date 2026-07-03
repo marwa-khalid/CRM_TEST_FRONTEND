@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Download, FileText } from "lucide-react";
+import { X, Download, FileText, Printer, Mail } from "lucide-react";
+import Select from "react-select";
+import { customStyles, BlueDropdownIndicator } from "../Steps/GeneralDetailsForm";
+import EmailAttachmentModal from "../DocumentsLibrary/EmailAttachmentModal";
 
 import BlackFront from "../../../assets/Black/Group.svg";
 import BlackRear from "../../../assets/Black/Group-1.svg";
@@ -58,6 +61,7 @@ interface ReportImageItem {
 interface CollectiveReportData {
   report_id?: string | number;
   report_pdf_url?: string;
+  report_pdf_s3_key?: string;
   pdf_report_url?: string;
   generated_at?: string;
   images?: ReportImageItem[];
@@ -279,7 +283,12 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
   }, [initialAdjustments]);
 
   const handleDownloadPDF = () => setTimeout(() => window.print(), 50);
+  const handlePrint = () => setTimeout(() => window.print(), 50);
   const handleSave = () => onSaveToClaim?.({ decisions, notes, vehicleStatus });
+
+  const [emailOpen, setEmailOpen] = useState(false);
+  const reportPdfUrl = reportData?.report_pdf_url || reportData?.pdf_report_url || "";
+  const reportPdfS3Key = reportData?.report_pdf_s3_key || "";
 
   if (!isOpen) return null;
 
@@ -318,6 +327,20 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
                     onClick={handleDownloadPDF}
                   >
                     <Download className="w-4 h-4" /> Download PDF
+                  </button>
+
+                  <button
+                    className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center gap-2 text-blue-600 text-sm font-weight-400 disabled:opacity-50"
+                    onClick={handlePrint}
+                  >
+                    <Printer className="w-4 h-4" /> Print
+                  </button>
+
+                  <button
+                    className="h-8 px-3 py-2 bg-blue-50 rounded flex items-center gap-2 text-blue-600 text-sm font-weight-400 disabled:opacity-50"
+                    onClick={() => setEmailOpen(true)}
+                  >
+                    <Mail className="w-4 h-4" /> Email
                   </button>
 
                   <button
@@ -536,13 +559,16 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
                   {vehicleStatus}
                 </div>
               ) : (
-                <select
-                  value={vehicleStatus}
-                  onChange={(e) => setVehicleStatus(e.target.value)}
-                  className="px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 text-base font-light text-neutral-700 outline-none focus:outline-blue-300"
-                >
-                  {vehicleStatusOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
+                <Select
+                  options={vehicleStatusOptions.map((opt) => ({ value: opt, label: opt }))}
+                  value={{ value: vehicleStatus, label: vehicleStatus }}
+                  onChange={(opt: any) => setVehicleStatus(opt?.value || "")}
+                  styles={customStyles}
+                  components={{
+                    DropdownIndicator: BlueDropdownIndicator,
+                    IndicatorSeparator: () => null,
+                  }}
+                />
               )}
             </div>
           </div>
@@ -586,6 +612,21 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
           </div>
         </div>
       </div>
+
+      {emailOpen && (
+        <EmailAttachmentModal
+          attachments={[
+            {
+              id: "ai-report",
+              file_url: reportPdfUrl,
+              file_name: "AI Damage Report.pdf",
+              s3_key: reportPdfS3Key,
+            },
+          ]}
+          onClose={() => setEmailOpen(false)}
+          onRemoveAttachment={() => setEmailOpen(false)}
+        />
+      )}
     </>
   );
 };

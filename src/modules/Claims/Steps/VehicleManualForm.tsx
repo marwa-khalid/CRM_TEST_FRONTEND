@@ -203,7 +203,7 @@ const RightPanel = useCallback(
     const selectedZones = formik.values[section].areaDamage;
 
     return (
-      <div className="flex-1 min-w-0 flex flex-col gap-4 font-['Stack_Sans_Headline']">
+      <div className="xl:col-span-4 min-w-0 flex flex-col gap-4 font-['Stack_Sans_Headline']">
         <div className="flex flex-col gap-2 w-full">
           <div className="text-neutral-700 text-sm font-weight-400">
             {title} Area of Damage
@@ -310,8 +310,8 @@ const SectionHeader = ({ title }: { title: string }) => {
       {/* CLIENT VEHICLE */}
       <div className="border rounded-xl p-6 flex flex-col gap-10">
         <SectionHeader title="Client Vehicle Damage Areas" />
-        <div className="flex flex-col xl:flex-row gap-6 xl:gap-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-neutral-100 p-4 sm:p-6 rounded-lg w-full xl:w-auto">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 xl:gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-neutral-100 p-4 sm:p-6 rounded-lg xl:col-span-8 min-w-0">
             {renderZones("client")}
           </div>
 
@@ -322,8 +322,8 @@ const SectionHeader = ({ title }: { title: string }) => {
       {/* THIRD PARTY */}
       <div className="border rounded-xl p-6 flex flex-col gap-10">
         <SectionHeader title="Third Party Vehicle Damage Areas" />
-        <div className="flex flex-col xl:flex-row gap-6 xl:gap-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-neutral-100 p-4 sm:p-6 rounded-lg w-full xl:w-auto">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 xl:gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-neutral-100 p-4 sm:p-6 rounded-lg xl:col-span-8 min-w-0">
             {renderZones("thirdParty")}
           </div>
 

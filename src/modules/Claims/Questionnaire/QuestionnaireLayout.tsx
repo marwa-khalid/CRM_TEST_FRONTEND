@@ -362,7 +362,10 @@ const generateWitnessPdfBlob = async () => {
 
     const remainingHeight = pageHeight - currentY - marginBottom;
 
-    if (i !== 0 && imgHeight > remainingHeight) {
+    // A block can request to start on a fresh page (keeps a section heading with
+    // its content instead of orphaning it at the bottom of the previous page).
+    const forceBreak = block.dataset.pageBreakBefore === "true";
+    if (i !== 0 && (forceBreak || imgHeight > remainingHeight)) {
       pdf.addPage();
       currentY = marginTop;
     }
@@ -624,7 +627,7 @@ console.log("test");
           </section>
         </div>
 
-        <div className="pdf-block px-[56px] py-4">
+        <div className="pdf-block px-[56px] py-4" data-page-break-before="true">
           <section className="p-5 rounded-lg border border-gray-100 shadow-sm bg-white flex flex-col gap-6">
             <h3 className="text-neutral-900 text-[20px] font-weight-600">
               Questionnaire

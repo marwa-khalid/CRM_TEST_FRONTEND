@@ -9,6 +9,7 @@ import * as Yup from 'yup'
 import { createStorageRecovery, getStorageRecoveryProvider, updateStorageRecovery } from "../../../services/StorageRecovery/StorageRecovery";
 import { StorageProviderModal } from "./StorageProviderModal";
 import { RecoveryProviderModal } from "./RecoveryProviderModal";
+import { ConfirmModal } from "../../../components/common/ConfirmModal";
 
 export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
   const [storageRecoveryId, setStorageRecoveryId] = useState<string | null>(null);
@@ -64,14 +65,37 @@ export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
         };
 
         const payloadToSend = cleanPayload(payload);
-        // return
         let response;
-        if (claimId && storageRecoveryId) {
+        if (claimId) {
+          // Claim-scoped upsert: updates existing rows, inserts new ones and
+          // soft-deletes removed ones — so re-saving never duplicates records.
           response = await updateStorageRecovery(payloadToSend, parseInt(claimId));
         } else {
           response = await createStorageRecovery(payloadToSend);
         }
-        if (response?.id) setStorageRecoveryId(String(response.id));
+        // Re-sync the saved rows (with their ids) back into the form so the next
+        // save matches them instead of inserting fresh duplicates.
+        const saved = response?.data || response;
+        if (saved && (saved.storages || saved.recoveries)) {
+          formik.setValues({
+            storages: (saved.storages || []).map((s: any) => ({
+              ...s,
+              claim_id: claimId,
+              id: Number(s.id),
+              total_storage_days: Number(s.total_storage_days || ""),
+              charge_per_day: Number(s.charge_per_day || 25),
+              total_storage_charges: Number(s.total_storage_charges || ""),
+              currency: s.currency || "GBP",
+            })),
+            recoveries: (saved.recoveries || []).map((r: any) => ({
+              ...r,
+              claim_id: claimId,
+              id: Number(r.id),
+              recovery_charges: Number(r.recovery_charges || ""),
+              currency: r.currency || "GBP",
+            })),
+          });
+        }
         toast.success("Storage recovery details saved successfully");
       } catch (error) {
         toast.error("Error saving storage recovery details");
@@ -144,17 +168,28 @@ export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
     setRecoveryProviderModalOpen(true);
   };
 
-  // --- DELETE LOGIC ---
+  // --- DELETE LOGIC (with confirmation) ---
+  const [pendingDelete, setPendingDelete] = useState<
+    { type: "storage" | "recovery"; id: any } | null
+  >(null);
+
   const handleDeleteStorage = (id: any) => {
     const updated = formik.values.storages.filter((s: any) => s.id !== id);
     formik.setFieldValue("storages", updated);
-    toast.success("Storage provider removed");
+    toast.success("Storage Provider Removed");
   };
 
   const handleDeleteRecovery = (id: any) => {
     const updated = formik.values.recoveries.filter((r: any) => r.id !== id);
     formik.setFieldValue("recoveries", updated);
-    toast.success("Recovery provider removed");
+    toast.success("Recovery Provider Removed");
+  };
+
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    if (pendingDelete.type === "storage") handleDeleteStorage(pendingDelete.id);
+    else handleDeleteRecovery(pendingDelete.id);
+    setPendingDelete(null);
   };
 
 
@@ -174,6 +209,15 @@ export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
           claimId={claimId}
           initialData={editingRecoveryProvider}
           formik={formik}
+        />
+      )}
+      {pendingDelete && (
+        <ConfirmModal
+          title={`Remove ${pendingDelete.type === "storage" ? "Storage" : "Recovery"} Provider`}
+          message="Are you sure you want to remove this record?"
+          confirmLabel="Remove"
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
         />
       )}
       {/* Container matching left-[534px] and top-[157px] from source */}
@@ -235,7 +279,7 @@ export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
                     <img
                       src={trash}
                       className="w-4 h-4 cursor-pointer"
-                      onClick={() => handleDeleteStorage(s.id)}
+                      onClick={() => setPendingDelete({ type: "storage", id: s.id })}
                     />
                   </div>
                 </div>
@@ -310,7 +354,7 @@ export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
                     <img
                       src={trash}
                       className="w-4 h-4 cursor-pointer"
-                      onClick={() => handleDeleteRecovery(r.id)}
+                      onClick={() => setPendingDelete({ type: "recovery", id: r.id })}
                     />
                   </div>
                 </div>

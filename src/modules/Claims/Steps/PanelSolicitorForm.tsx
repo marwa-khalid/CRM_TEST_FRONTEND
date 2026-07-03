@@ -5,7 +5,6 @@ import { toast } from "react-toastify";
 import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
 import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
 import { CustomDatePicker } from "../Components/DatePicker";
-import { getCompanySuggestions } from "../../../services/Referrer/Referrer";
 import {
   getVehicleOwner,
   updateVehicleOwner,
@@ -17,34 +16,9 @@ import { createPanelSolicitors, getPanelSolicitorDetails, updatePanelSolicitors 
 
 export const PanelSolicitorForm = ({ formRef, claimId }: any) => {
   const [panelId, setPanelId] = useState<string | null>(null);
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
-  
-   useEffect(() => {
-     const fetchCompanies = async () => {
-       try {
-         const response = await getCompanySuggestions(searchTerm); // Replace with your API endpoint
 
-         console.log(response);
-         // Normalize empty strings to null
-         //  const normalized = response.data.map((r) => ({
-         //    company_name: r.company_name,
-         //    address: r.address?.trim() || null,
-         //    post_code: r.postcode?.trim() || null,
-         //  }));
-
-         setCompanies(response.data);
-       } catch (err) {
-         console.error(err);
-       }
-     };
-     if (searchTerm) {
-       fetchCompanies();
-     }
-   }, [searchTerm]);
    useEffect(() => {
      const handleClickOutside = (event: MouseEvent) => {
        if (
@@ -174,18 +148,6 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       console.error("Sync back failed");
     }
   };
-  const handleCompanySelect = (selected: any) => {
-    // Update input field to show full company name
-    setSearchTerm(selected.company_name);
-
-    // Close dropdown
-    setShowDropdown(false);
-console.log(selected)
-    // Set Formik fields (correct backend keys!)
-    formik.setFieldValue("company_name", selected.company_name);
-    formik.setFieldValue("address.address", selected.address ?? "");
-    formik.setFieldValue("address.postcode", selected.postcode ?? "");
-  };
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, ""); // remove non-digits
 
@@ -209,7 +171,7 @@ console.log(selected)
       </h1>
 
       {/* 1. Client Insurers Section [cite: 7] */}
-      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
+      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mb-8">
         <h2 className="text-neutral-900 text-[20px] font-weight-600">
           Solicitor Details
         </h2>
@@ -221,25 +183,10 @@ console.log(selected)
           </label>
           <input
             className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
-            value={searchTerm || formik.values.company_name}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setShowDropdown(true);
-            }}
+            value={formik.values.company_name}
+            onChange={(e) => formik.setFieldValue("company_name", e.target.value)}
+            placeholder="Enter Company Name"
           />
-          {showDropdown && searchTerm && (
-            <div className="absolute top-[80px] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-              {companies.map((r, i) => (
-                <div
-                  key={i}
-                  onClick={() => handleCompanySelect(r)}
-                  className="px-5 py-3 hover:bg-gray-50 cursor-pointer text-sm text-gray-700 border-b border-gray-50 last:border-none"
-                >
-                  {r.company_name}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="flex flex-col gap-2">

@@ -140,7 +140,15 @@ export const ClaimsApi = {
       console.error(`Error updating claim ${claimId}:`, error);
       throw error;
     }
-  }
+  },
+
+  // Field-level (partial) save. Sends ONLY the provided keys — the backend
+  // `ClaimUpdate` schema + `exclude_unset=True` means untouched columns are
+  // left alone. Used for debounced autosave so we don't re-send every field.
+  patchClaim: async (claimId: number, partial: Record<string, any>) => {
+    const response = await axiosInstance.put(`/claims/${claimId}`, partial);
+    return response.data;
+  },
 };
 
 export const convertToApiPayload = (formData: any): ClaimFormPayload => {

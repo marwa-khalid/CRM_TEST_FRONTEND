@@ -31,6 +31,11 @@ export const WitnessDetailsModal = ({
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [sentMethods, setSentMethods] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState(false);
+  // Remember the witness once created, so re-saving / re-sending the link updates
+  // the same record instead of inserting a duplicate.
+  const [savedWitnessId, setSavedWitnessId] = useState<number | string | null>(
+    initialData?.id ?? null,
+  );
   const [processingMethod, setProcessingMethod] = useState<string | null>(null);
 
   const claimRef = useCaseReference(claimId); // per-claim ref (was localStorage)
@@ -143,25 +148,53 @@ export const WitnessDetailsModal = ({
       delivery_method: selectedMethod,
     };
 
-    if (initialData?.id) {
-      await updateWitness(initialData.id, payload);
-      return initialData.id;
+    // savedWitnessId is the single source of truth for the current record
+    // (seeded from initialData) — so resetting it starts a brand-new witness.
+    if (savedWitnessId) {
+      await updateWitness(savedWitnessId, payload);
+      return savedWitnessId;
     }
 
     const response = await createWitness(payload);
-    return response?.id || response?.data?.id;
+    const newId = response?.id || response?.data?.id;
+    if (newId) setSavedWitnessId(newId);
+    return newId;
+  };
+
+  const resetForNewWitness = () => {
+    setWitness({
+      title: null,
+      firstName: "",
+      surname: "",
+      address: "",
+      postCode: "",
+      email: "",
+      telephone: "",
+      isIndependent: "Yes",
+      questionnaireReceived: "No",
+    });
+    setSavedWitnessId(null);
+    setStep(1);
+    setSelectedMethod(null);
+    setSentMethods({});
+    setQuestionnaireId(null);
+    setDeepLink("");
   };
 
   const handleAction = async (addNext) => {
     try {
+      const wasExisting = !!savedWitnessId;
       await saveWitness();
       toast.success(
-        initialData?.id
+        wasExisting
           ? "Witness updated successfully"
           : "Witness added successfully",
       );
 
-      if (!addNext) {
+      if (addNext) {
+        // Open a fresh, empty witness form for the next entry.
+        resetForNewWitness();
+      } else {
         onClose();
       }
     } catch {
@@ -245,10 +278,11 @@ export const WitnessDetailsModal = ({
 
   useEffect(() => {
     const fetchQuestionnaireStatus = async () => {
-      if (!claimId || !initialData?.id) return;
+      const witnessId = initialData?.id || savedWitnessId;
+      if (!claimId || !witnessId) return;
 
       try {
-        const res = await getQuestionnaireStatus(claimId, initialData.id);
+        const res = await getQuestionnaireStatus(claimId, witnessId);
 
         if (!res) return;
 
@@ -283,7 +317,7 @@ export const WitnessDetailsModal = ({
     };
 
     fetchQuestionnaireStatus();
-  }, [claimId, initialData?.id]);
+  }, [claimId, initialData?.id, savedWitnessId]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-[70] p-4 font-['Stack_Sans_Headline']">

@@ -76,10 +76,32 @@ const ABIHireBreakdownForm = ({
     />
   );
 
-  // Derived totals.
+  // Derived totals (active vehicle — drives the single-vehicle document).
   const totalAdditionalDaily = toNum(f.extras) + toNum(f.towBar) + toNum(f.dualControl) + toNum(f.other);
   const totalDailyABIRate = toNum(f.abiRatePerDay) + totalAdditionalDaily;
   const totalABICosts = totalDailyABIRate * toNum(f.totalHireDays);
+
+  // Per-vehicle breakdown for the multi-vehicle document (natural order, 1..N).
+  const vehiclesData = vForms.map((vf) => {
+    const addl = toNum(vf.extras) + toNum(vf.towBar) + toNum(vf.dualControl) + toNum(vf.other);
+    const dailyRate = toNum(vf.abiRatePerDay) + addl;
+    const cost = dailyRate * toNum(vf.totalHireDays);
+    return {
+      vehicle: vf.vehicle,
+      registration: vf.registration,
+      group: vf.vehicleGroup,
+      hireStart: vf.hireStart,
+      hireEnd: vf.hireEnd,
+      days: vf.totalHireDays,
+      abiHireRate: toNum(vf.abiRatePerDay),
+      towBar: toNum(vf.towBar),
+      dualControl: toNum(vf.dualControl),
+      totalAdditionalDaily: addl,
+      totalDailyRate: dailyRate,
+      totalABICost: cost,
+    };
+  });
+  const combinedABICost = vehiclesData.reduce((a, v) => a + v.totalABICost, 0);
 
   // Print/PDF document — built live from the edited values.
   const docNode = (
@@ -102,6 +124,8 @@ const ABIHireBreakdownForm = ({
         totalAdditionalDaily,
         totalDailyRate: totalDailyABIRate,
         totalABICost: totalABICosts,
+        vehicles: vehiclesData,
+        combinedABICost,
       }}
     />
   );

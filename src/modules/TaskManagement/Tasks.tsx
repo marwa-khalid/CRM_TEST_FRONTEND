@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Select from "react-select";
@@ -397,14 +398,33 @@ const QuickActions = ({
   task, onAction,
 }: { task: any; onAction: (action: string, task: any) => void }) => {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  // Fixed-viewport position — the menu is portalled to <body> so the list's
+  // overflow container can't clip it (flips up when near the bottom).
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!btnRef.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+
+  // Fixed-positioned, so close on scroll/resize instead of floating detached.
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [open]);
+
   const items = [
     { key: "viewDetail", label: "View Detail" },
     { key: "complete", label: "Mark as Complete" },
@@ -413,31 +433,60 @@ const QuickActions = ({
     { key: "edit", label: "Edit Task" },
     { key: "delete", label: "Delete Task", danger: true },
   ];
+
+  const MENU_W = 180;
+  const MENU_H = 200; // ~5 items
+  const toggle = () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (rect) {
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top =
+        spaceBelow < MENU_H + 12 ? Math.max(8, rect.top - MENU_H) : rect.bottom + 4;
+      const left = Math.max(
+        8,
+        Math.min(rect.right - MENU_W, window.innerWidth - MENU_W - 8),
+      );
+      setPos({ top, left });
+    }
+    setOpen(true);
+  };
+
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative">
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         className="p-1 text-neutral-400 hover:text-neutral-600 rounded"
       >
         <MoreVertical size={16} />
       </button>
-      {open && (
-        <div className="absolute z-30 top-full mt-1 right-0 min-w-[180px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1">
-          {items.map((it) => (
-            <button
-              key={it.key}
-              type="button"
-              onClick={() => { setOpen(false); onAction(it.key, task); }}
-              className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-100 ${
-                (it as any).danger ? "text-red-600 hover:bg-red-100" : "text-neutral-700"
-              }`}
-            >
-              {it.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {open && pos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{ position: "fixed", top: pos.top, left: pos.left, width: MENU_W }}
+            className="z-[1000] bg-white rounded-lg border border-neutral-200 shadow-lg py-1"
+          >
+            {items.map((it) => (
+              <button
+                key={it.key}
+                type="button"
+                onClick={() => { setOpen(false); onAction(it.key, task); }}
+                className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-100 ${
+                  (it as any).danger ? "text-red-600 hover:bg-red-100" : "text-neutral-700"
+                }`}
+              >
+                {it.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

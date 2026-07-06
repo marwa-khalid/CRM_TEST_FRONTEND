@@ -48,7 +48,7 @@ const groupHeadCls =
 const CreditHireInvoiceDoc = ({ data }: { data: CreditHireDocData }) => {
   const vehicles = data.vehicles && data.vehicles.length ? data.vehicles : [{}];
   const multi = vehicles.length > 1;
-  const vehiclesLabel = multi ? `${vehicles.length} (Swap)` : "1 (Single)";
+  const vehiclesLabel = `${vehicles.length} Vehicle${vehicles.length === 1 ? "" : "s"}`;
   const charges = data.charges || [];
   const vehicleCharges = data.vehicleCharges || [];
   const vehicleSubtotals = data.vehicleSubtotals || [];

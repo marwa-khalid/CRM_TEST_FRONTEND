@@ -145,18 +145,23 @@ const CoveringLetterDoc = ({ data }: { data: CoveringLetterDocData }) => {
         </div>
       </div>
 
-      <SectionLabel no="02." title="SETTLEMENT NOTICES" />
-      <div className="self-stretch flex flex-col gap-2 pt-1.5">
-        <div className="self-stretch px-2 py-1.5 border border-black">
-          <div className="text-xs font-bold underline leading-4">ABI Insurers</div>
-          <div className="text-xs leading-4">
-            Should settlement go beyond 60 days from the date of this payment pack, this will fall outside of the ABI GTA and our Basic Hire Rate will apply. Our file will be passed to solicitors without further notice in order to commence litigation.
+      {/* Settlement Notices start on a fresh page (the section was splitting
+          across the page boundary). pageBreakBefore is honoured by html2pdf's
+          "css" pagebreak mode; breakInside keeps each notice box whole. */}
+      <div style={{ breakBefore: "page", pageBreakBefore: "always" }}>
+        <SectionLabel no="02." title="SETTLEMENT NOTICES" />
+        <div className="self-stretch flex flex-col gap-2 pt-1.5">
+          <div className="self-stretch px-2 py-1.5 border border-black" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+            <div className="text-xs font-bold underline leading-4">ABI Insurers</div>
+            <div className="text-xs leading-4">
+              Should settlement go beyond 60 days from the date of this payment pack, this will fall outside of the ABI GTA and our Basic Hire Rate will apply. Our file will be passed to solicitors without further notice in order to commence litigation.
+            </div>
           </div>
-        </div>
-        <div className="self-stretch px-2 py-1.5 border border-black">
-          <div className="text-xs font-bold underline leading-4">Non-ABI Insurers</div>
-          <div className="text-xs leading-4">
-            As you do not subscribe to the ABI GTA, our full Basic Hire Rate applies at all times. Settlement should be received strictly within 30 days. Should settlement go beyond 30 days, our file will be passed to solicitors in order to commence litigation.
+          <div className="self-stretch px-2 py-1.5 border border-black" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+            <div className="text-xs font-bold underline leading-4">Non-ABI Insurers</div>
+            <div className="text-xs leading-4">
+              As you do not subscribe to the ABI GTA, our full Basic Hire Rate applies at all times. Settlement should be received strictly within 30 days. Should settlement go beyond 30 days, our file will be passed to solicitors in order to commence litigation.
+            </div>
           </div>
         </div>
       </div>

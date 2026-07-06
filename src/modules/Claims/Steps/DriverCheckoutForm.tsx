@@ -117,10 +117,6 @@ export const DriverCheckoutForm = ({ formRef, claimId }: any) => {
             v?.hire_start_date ||
             v?.hire_end_date,
         );
-      const vList = (Array.isArray(vehicleData) ? vehicleData : []).filter(
-        hasVehicleInfo,
-      );
-      setVehicles(vList);
 
       const map: Record<number, any> = {};
       if (Array.isArray(checkoutData)) {
@@ -129,6 +125,19 @@ export const DriverCheckoutForm = ({ formRef, claimId }: any) => {
         });
       }
       setCheckoutMap(map);
+
+      // Only vehicles that have been OFF-HIRED belong on the Driver Checkout
+      // screen — an on-hire vehicle has no checkout form yet, so it never shows
+      // here. (hire_vehicle_status_id 1 = On Hire; anything else = off-hired.)
+      // A saved checkout record also qualifies it, as a safety net.
+      const ON_HIRE_STATUS = 1;
+      const isOffHired = (v: any) =>
+        Number(v?.hire_vehicle_status_id) !== ON_HIRE_STATUS ||
+        map[v?.id] !== undefined;
+      const vList = (Array.isArray(vehicleData) ? vehicleData : []).filter(
+        (v: any) => hasVehicleInfo(v) && isOffHired(v),
+      );
+      setVehicles(vList);
 
       // Auto-select the first vehicle that has saved checkout data
       const firstWithData = vList.findIndex((v: any) => map[v.id] !== undefined);

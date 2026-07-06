@@ -83,6 +83,24 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     getHireProvidedVehicles(claimId).then((vs) => setVehicles(Array.isArray(vs) ? vs : []));
   }, [claimId]);
 
+  // Only OFF-HIRED vehicles belong in the payment pack — a vehicle still on hire
+  // has no end date, so its hire days can't be finalised and it isn't billed
+  // yet. Pair each provided vehicle with its hire record (by index) and keep the
+  // ones whose hire has ended; the whole pack then operates on these only.
+  const packPairs = useMemo(
+    () =>
+      vehicles
+        .map((v, i) => ({ v, rec: hireRecords[i] }))
+        .filter(
+          ({ rec }) =>
+            Boolean(rec?.hire_back || rec?.hire_end_date) ||
+            toF(rec?.final_total_no_of_hire_days) > 0,
+        ),
+    [vehicles, hireRecords],
+  );
+  const packVehicles = packPairs.map((p) => p.v) as ClaimVehicle[];
+  const packRecords = packPairs.map((p) => p.rec);
+
   // Document-only claim data: policy number + insurer (TPI), client (Screen 3),
   // and incident date (accident details).
   useEffect(() => {
@@ -105,11 +123,18 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       .catch(() => {});
   }, [claimId]);
 
-  // Logged-in user — signatory name is the part before the "@" in their email.
+  // Claims handler (the logged-in user generating the pack) — signs the covering
+  // letter. Prefer their real name; fall back to the email handle.
   const signatory = (() => {
     try {
-      const u = JSON.parse(localStorage.getItem("user") || "{}");
-      return String(u.email || "").split("@")[0] || "";
+      const u = JSON.parse(
+        localStorage.getItem("user") || localStorage.getItem("activeUser") || "{}",
+      );
+      const name =
+        u.name ||
+        u.full_name ||
+        [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
+      return name || String(u.email || "").split("@")[0] || "";
     } catch {
       return "";
     }
@@ -238,25 +263,31 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     if (!claimId) return;
     getHireRecords(claimId)
       .then(({ data }: any) => {
-        const records: any[] = Array.isArray(data) ? data : [];
-        setHireRecords(records);
+        const allRecords: any[] = Array.isArray(data) ? data : [];
+        setHireRecords(allRecords);
+        // Only OFF-HIRED records are billed: no end date ⇒ no finalised days, so
+        // on-hire vehicles contribute nothing (no "days so far" fallback either).
+        const records = allRecords.filter(
+          (r: any) =>
+            Boolean(r?.hire_back || r?.hire_end_date) ||
+            toF(r?.final_total_no_of_hire_days) > 0,
+        );
         const first = records[0];
         if (!first) return;
-        // Total days = sum of every vehicle's total hire days
+        // Total days = sum of every off-hired vehicle's finalised hire days
         const days = records.reduce(
-          (sum: number, r: any) =>
-            sum + toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far),
+          (sum: number, r: any) => sum + toF(r.final_total_no_of_hire_days),
           0,
         );
         // ABI hire = sum of each vehicle's (its own rate × its own days).
         // e.g. (142.88 × 7) + (61.59 × 6) = 1369.70. One vehicle = rate × days.
         const abiHire = records.reduce((sum: number, r: any) => {
-          const d = toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far);
+          const d = toF(r.final_total_no_of_hire_days);
           return sum + d * toF(r.abi_hire_charge_per_day);
         }, 0);
         // BHR hire = Σ(each vehicle's BHR rate × its days) — the actual BHR rate.
         const bhrHire = records.reduce((sum: number, r: any) => {
-          const d = toF(r.final_total_no_of_hire_days ?? r.no_of_days_hire_so_far);
+          const d = toF(r.final_total_no_of_hire_days);
           return sum + d * toF(r.bhr_hire_charge_per_day);
         }, 0);
         setAbiDailyRate(abiHire);
@@ -492,8 +523,13 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     const days = perVehicle && rec
       ? toF(rec.final_total_no_of_hire_days ?? rec.no_of_days_hire_so_far)
       : noOfDays;
-    const abiHire = perVehicle && rec ? days * toF(rec.abi_hire_charge_per_day) : abiDailyRate;
-    const admin = (!perVehicle || i === 0) ? abiAdminFee : 0;
+    // Credit Hire is billed on the BHR (Basic Hire Rate), NOT the ABI rate — so
+    // it uses the BHR daily rate, the BHR admin fee, and adds CDW + Collection &
+    // Delivery (£60 each, same as the covering-letter BHR column). Claim-level
+    // charges (admin, CDW, C&D) only sit on the first vehicle card.
+    const bhrRate = rec ? toF(rec.bhr_hire_charge_per_day) : (noOfDays ? bhrHireSum / noOfDays : undefined);
+    const bhrHire = perVehicle && rec ? days * toF(rec.bhr_hire_charge_per_day) : bhrHireSum;
+    const firstCard = !perVehicle || i === 0;
     return {
       ourReference: caseReference,
       yourReference: insurerReference,
@@ -508,9 +544,11 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       hireEnd: String(rec?.hire_end_date || rec?.hire_back || "").slice(0, 10),
       totalHireDays: days || "",
       basicHireDays: days || "",
-      basicHireRate: rec ? toF(rec.abi_hire_charge_per_day) : (noOfDays ? abiDailyRate / noOfDays : undefined),
-      basicHireAmount: abiHire,
-      adminAmount: admin || undefined,
+      basicHireRate: bhrRate,
+      basicHireAmount: bhrHire,
+      cdwAmount: firstCard ? 60 : undefined,
+      collectionAmount: firstCard ? 60 : undefined,
+      adminAmount: firstCard ? (bhrAdminFee || 60) : undefined,
     };
   });
 

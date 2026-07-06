@@ -41,6 +41,10 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
   const [companies, setCompanies] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  // The Incorrect MID Search Log is hidden until the user opts in — but it auto-
+  // reveals (once) if the claim already has saved MID data, so nothing is hidden.
+  const [showMidLog, setShowMidLog] = useState(false);
+  const midAutoShown = useRef(false);
   const [notifDates, setNotifDates] = useState(() => {
     const saved = localStorage.getItem(NOTIF_KEY(claimId));
     return saved ? JSON.parse(saved) : { abi_1st_notif_date: "", payment_pack_date: "" };
@@ -291,6 +295,24 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
   useEffect(() => {
     if (formRef) formRef.current = formik;
   }, [formik]);
+
+  // Auto-reveal the Incorrect MID Search Log (once) if saved MID data loaded,
+  // so opting-out never hides existing data.
+  useEffect(() => {
+    if (midAutoShown.current) return;
+    const v = formik.values;
+    if (
+      v.incorrect_mid_reference ||
+      v.new_mid_search_ref ||
+      v.incorrect_reg ||
+      v.new_mid ||
+      v.incorrect_acc ||
+      v.initial_eng_made
+    ) {
+      setShowMidLog(true);
+      midAutoShown.current = true;
+    }
+  }, [formik.values]);
 
   useReportCompletion(isAllFilled(formik.values));
 
@@ -543,7 +565,16 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
         </div>
       </div>
 
-      {/* 4. Incorrect MID Search Log — visually distinct (indigo background) */}
+      {/* 4. Incorrect MID Search Log — hidden until opted in via the checkbox */}
+      <div
+        className="flex items-center gap-2 cursor-pointer"
+        onClick={() => setShowMidLog((v) => !v)}
+      >
+        <div className={`w-5 h-5 rounded ${showMidLog ? "bg-blue-600 border-[6px] border-blue-200" : "bg-neutral-300"}`} />
+        <span className="text-sm">Show Incorrect MID Search Log</span>
+      </div>
+
+      {showMidLog && (
       <div className="self-stretch p-5 bg-indigo-50 rounded-lg border border-indigo-100 flex flex-col gap-4">
         <h2 className="text-neutral-900 text-[20px] font-weight-600">Incorrect MID Search Log</h2>
         <div className="h-px bg-indigo-200 opacity-40" />
@@ -595,6 +626,7 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
           <span className="text-sm">New MID Search Processed?</span>
         </div>
       </div>
+      )}
 
       {/* 5. Notifications Section */}
       <div className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">

@@ -221,6 +221,15 @@ export const getActivityNotes = async (
   return response.data;
 };
 
+// Standalone note threads created from the Notes tab (no backing activity).
+// Pass a claimId to scope to one claim, omit for the all-cases view.
+export const getManualNoteThreads = async (claimId?: number | string) => {
+  const response = await axiosInstance.get(`/case-activity/manual-notes`, {
+    params: claimId ? { claim_id: claimId } : {},
+  });
+  return Array.isArray(response.data) ? response.data : [];
+};
+
 export const createActivityNote = async (
   claimId: number | string,
   activityId: number | string,

@@ -2,8 +2,14 @@ import axiosInstance from "../axiosConfig";
 
 // Real dashboard aggregates (tenant-scoped) — see backend dashboard_service.py.
 // Headline stats are all-time tenant totals.
-export const getDashboard = (period?: string) =>
-  axiosInstance.get("/dashboard", { params: period ? { period } : {} });
+export const getDashboard = (period?: string, start?: string, end?: string) =>
+  axiosInstance.get("/dashboard", {
+    params: {
+      period: period || undefined,
+      start: start || undefined,
+      end: end || undefined,
+    },
+  });
 
 // Trend series for claims and hired vehicles.
 // mode: YoY compares the selected period with the same period last year.

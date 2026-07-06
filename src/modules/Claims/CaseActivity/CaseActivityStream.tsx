@@ -25,7 +25,12 @@ import {
   createActivityReply,
   deleteActivityNote,
   deleteActivityReply,
+  getManualNoteThreads,
 } from "../../../services/HistoryActivities/HistoryActivities";
+import { getClaims } from "../../../services/Claims/Claims";
+import { getUsers, type SystemUser } from "../../../services/Notifications/Notifications";
+import Select from "react-select";
+import { customStyles, BlueDropdownIndicator } from "../Steps/GeneralDetailsForm";
 
 type ActivityType =
   | "All"
@@ -147,6 +152,112 @@ const CaseActivityStream = () => {
   const [activityNotes, setActivityNotes] = useState<
     Record<string, ActivityNote[]>
   >({});
+
+  // ---- New standalone note thread (Notes tab) ----
+  const [newNoteOpen, setNewNoteOpen] = useState(false);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [newNoteFiles, setNewNoteFiles] = useState<File[]>([]);
+  const [newNoteClaimId, setNewNoteClaimId] = useState<string>("");
+  const [newNoteSaving, setNewNoteSaving] = useState(false);
+  // Claim picker options for the all-cases view.
+  const [claimOptions, setClaimOptions] = useState<{ id: string; ref: string }[]>([]);
+  // Threads created here (no backing activity) -> remembered so the Notes list
+  // can show a proper "New note thread — <ref>" title and claim reference.
+  const [manualThreads, setManualThreads] = useState<
+    Record<string, { claimId: string; claimRef: string }>
+  >({});
+  // @-mention tagging in the new-note box.
+  const [mentionUsers, setMentionUsers] = useState<SystemUser[]>([]);
+  const [mention, setMention] = useState<{ open: boolean; query: string }>({ open: false, query: "" });
+
+  // Load users (for tagging) + claim options (for the picker) when the composer opens.
+  useEffect(() => {
+    if (!newNoteOpen) return;
+    if (mentionUsers.length === 0) {
+      getUsers().then(({ data }: any) => setMentionUsers(Array.isArray(data) ? data : [])).catch(() => {});
+    }
+    if (isAllCasesView && claimOptions.length === 0) {
+      getClaims()
+        .then((rows: any) => {
+          const list = Array.isArray(rows) ? rows : rows?.data || [];
+          setClaimOptions(
+            list.map((c: any) => ({
+              id: String(c.id),
+              ref: c.our_reference || c.claim_no || c.claim_number || `Claim ${c.id}`,
+            })),
+          );
+        })
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newNoteOpen]);
+
+  const handleNewNoteChange = (value: string) => {
+    setNewNoteText(value);
+    const m = value.match(/@([A-Za-z0-9._-]*)$/);
+    setMention(m ? { open: true, query: m[1] } : { open: false, query: "" });
+  };
+  const insertMention = (u: SystemUser) => {
+    setNewNoteText((prev) => prev.replace(/@([A-Za-z0-9._-]*)$/, `@${u.name} `));
+    setMention({ open: false, query: "" });
+  };
+  const mentionMatches = mention.open
+    ? mentionUsers
+        .filter(
+          (u) =>
+            (u.name || "").toLowerCase().includes(mention.query.toLowerCase()) ||
+            (u.email || "").toLowerCase().includes(mention.query.toLowerCase()),
+        )
+        .slice(0, 6)
+    : [];
+
+  const handleCreateNoteThread = async () => {
+    const targetClaimId = isAllCasesView ? newNoteClaimId : claimId;
+    if (!targetClaimId) {
+      toast.error("Select a claim for this note");
+      return;
+    }
+    if (!newNoteText.trim() && newNoteFiles.length === 0) {
+      toast.error("Write a note or attach a file");
+      return;
+    }
+    try {
+      setNewNoteSaving(true);
+      // Synthetic thread ref (no backing activity) — the backend stores it as
+      // the note's activity_ref, and replies attach by note id as usual.
+      const ref = `manual-note-${targetClaimId}-${Date.now()}`;
+      const formData = new FormData();
+      if (newNoteText.trim()) formData.append("note", newNoteText.trim());
+      newNoteFiles.forEach((file) => formData.append("files", file));
+      await axiosInstance.post(
+        `/case-activity/claims/${targetClaimId}/activities/${ref}/notes`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+      const notes = await getActivityNotes(ref);
+      setActivityNotes((prev) => ({ ...prev, [String(ref)]: notes || [] }));
+      const claimRef =
+        (isAllCasesView
+          ? claimOptions.find((c) => c.id === String(targetClaimId))?.ref
+          : "") || "";
+      setManualThreads((prev) => ({
+        ...prev,
+        [String(ref)]: { claimId: String(targetClaimId), claimRef },
+      }));
+      toast.success("Note thread created");
+      setNewNoteOpen(false);
+      setNewNoteText("");
+      setNewNoteFiles([]);
+      setNewNoteClaimId("");
+      setMention({ open: false, query: "" });
+      if (filter !== "All" && filter !== "Note") setFilter("Note");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to create note thread");
+    } finally {
+      setNewNoteSaving(false);
+    }
+  };
 
   const activeUser = (() => {
     try {
@@ -500,7 +611,7 @@ const CaseActivityStream = () => {
       ) {
         return "Witness deactivated";
       }
-      return "Witness Questionnaire Submitted";
+      return "Witness Questionnaire Received";
     }
     if (activity.type === "AI Report")
       return "Damage Assessment Report generated";
@@ -781,9 +892,8 @@ Nationwide Assist Team`,
         // saturating the browser's ~6 connections and starving every other API
         // ("stuck in queue"). Skip it here — notes still load when a detail is
         // opened. On a single-claim view the count is bounded, so keep prefetch.
-        if (isAllCasesView) {
-          setActivityNotes({});
-        } else {
+        let baseNotes: Record<string, ActivityNote[]> = {};
+        if (!isAllCasesView) {
           const notesEntries = await Promise.all(
             normalized
               .filter(
@@ -796,14 +906,35 @@ Nationwide Assist Team`,
 
                 try {
                   const notes = await getActivityNotes(activityId);
-                  return [String(activityId), notes || []];
+                  return [String(activityId), notes || []] as const;
                 } catch {
-                  return [String(activityId), []];
+                  return [String(activityId), []] as const;
                 }
               }),
           );
+          baseNotes = Object.fromEntries(notesEntries);
+        }
 
-          setActivityNotes(Object.fromEntries(notesEntries));
+        // Standalone note threads created from the Notes tab have no backing
+        // activity, so they must be loaded explicitly (all-cases: every claim;
+        // single-claim: this claim) and merged so they persist across reloads.
+        try {
+          const threads = await getManualNoteThreads(
+            isAllCasesView ? undefined : claimId,
+          );
+          const threadNotes: Record<string, ActivityNote[]> = {};
+          const threadMeta: Record<string, { claimId: string; claimRef: string }> = {};
+          for (const t of threads) {
+            threadNotes[String(t.activity_ref)] = t.notes || [];
+            threadMeta[String(t.activity_ref)] = {
+              claimId: String(t.claim_id ?? ""),
+              claimRef: t.claim_reference || "",
+            };
+          }
+          setActivityNotes({ ...baseNotes, ...threadNotes });
+          setManualThreads((prev) => ({ ...threadMeta, ...prev }));
+        } catch {
+          setActivityNotes(baseNotes);
         }
       } catch (error) {
         console.error("Failed to fetch case activity:", error);
@@ -1105,13 +1236,21 @@ Nationwide Assist Team`,
         const relatedActivity = activities.find(
           (activity) => String(activity.id) === String(activityId),
         );
+        // Standalone threads created from the Notes tab have no backing activity.
+        const manual = manualThreads[String(activityId)];
+        const title = relatedActivity
+          ? `Note added on ${(relatedActivity.title || "activity")
+              .replace(/\s+for claim\s+.*$/i, "")
+              .trim()}`
+          : manual
+            ? `New note thread${manual.claimRef ? ` — ${manual.claimRef}` : ""}`
+            : "Note added on activity";
 
         return {
           id: `note-${note.id}`,
           type: "Note" as Exclude<ActivityType, "All">,
-          title: `Note added on ${(relatedActivity?.title || "activity")
-            .replace(/\s+for claim\s+.*$/i, "")
-            .trim()}`,
+          title,
+          claim_reference: relatedActivity?.claim_reference || manual?.claimRef || "",
           timestamp: note.createdAt,
           summary: note.text,
           detail_text: note.text,
@@ -1125,13 +1264,14 @@ Nationwide Assist Team`,
           body_text: note.text,
           meta: {
             parent_activity_id: activityId,
-            parent_activity_title: relatedActivity?.title || "",
+            parent_activity_title: relatedActivity?.title || (manual ? title : ""),
+            claim_id: manual?.claimId,
             replies_count: note.replies?.length || 0,
           },
         };
       }),
     );
-  }, [activityNotes, activities]);
+  }, [activityNotes, activities, manualThreads]);
 
   const getActivityTimestamp = (activity: ActivityItem) => {
     const value =
@@ -1403,6 +1543,17 @@ Nationwide Assist Team`,
               {btn.label}
             </button>
           ))}
+
+          {filter === "Note" && (
+            <button
+              type="button"
+              onClick={() => setNewNoteOpen(true)}
+              className="ml-auto px-4 py-2 rounded flex items-center gap-2 text-sm bg-blue-500 text-white shadow-md hover:bg-blue-600 transition-all"
+            >
+              <span className="text-base leading-none">+</span>
+              New Note
+            </button>
+          )}
         </div>
 
         <div className="relative border-l border-gray-100 ml-4 pl-10 space-y-8">
@@ -1836,7 +1987,7 @@ Nationwide Assist Team`,
                               </div>
 
                               <div className="text-black text-base font-weight-600 font-['Stack_Sans_Headline']">
-                                Witness Questionnaire Submitted
+                                Witness Questionnaire Received
                               </div>
                             </div>
 
@@ -2029,6 +2180,117 @@ Nationwide Assist Team`,
           </div>
         </div>
       </main>
+
+      {newNoteOpen && (
+        <div
+          className="fixed inset-0 z-[9998] bg-black/40 flex items-center justify-center p-4 font-['Stack_Sans_Headline']"
+          onClick={() => !newNoteSaving && setNewNoteOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-white rounded shadow-2xl p-6 flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-black text-xl font-weight-600">New Note Thread</h3>
+              <button
+                type="button"
+                onClick={() => !newNoteSaving && setNewNoteOpen(false)}
+                className="text-neutral-400 hover:text-neutral-700 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            {isAllCasesView && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-neutral-700 text-sm font-weight-500">Claim Reference</label>
+                <Select
+                  options={claimOptions.map((c) => ({ value: c.id, label: c.ref }))}
+                  value={
+                    claimOptions
+                      .map((c) => ({ value: c.id, label: c.ref }))
+                      .find((o) => o.value === newNoteClaimId) || null
+                  }
+                  onChange={(opt: any) => setNewNoteClaimId(opt?.value || "")}
+                  placeholder="Select a claim…"
+                  styles={{
+                    ...customStyles,
+                    menuPortal: (base: any) => ({ ...base, zIndex: 10000 }),
+                  }}
+                  components={{
+                    DropdownIndicator: BlueDropdownIndicator,
+                    IndicatorSeparator: () => null,
+                  }}
+                  menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5 relative">
+              <label className="text-neutral-700 text-sm font-weight-500">Note</label>
+              <textarea
+                value={newNoteText}
+                onChange={(e) => handleNewNoteChange(e.target.value)}
+                rows={4}
+                placeholder="Write a note — type @ to tag someone"
+                className="w-full px-4 py-3 bg-white border border-neutral-200 rounded text-sm text-neutral-700 outline-none focus:border-blue-500 resize-none placeholder:text-neutral-300"
+              />
+              {mention.open && mentionMatches.length > 0 && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-56 overflow-auto bg-white border border-neutral-200 rounded-lg shadow-xl">
+                  {mentionMatches.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => insertMention(u)}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-blue-50"
+                    >
+                      <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-500 text-xs font-weight-600 flex items-center justify-center shrink-0">
+                        {(u.name || "?").charAt(0).toUpperCase()}
+                      </span>
+                      <span className="flex flex-col min-w-0">
+                        <span className="text-sm text-blue-500 font-weight-500 truncate">@{u.name}</span>
+                        <span className="text-xs text-neutral-400 truncate">{u.email}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <label className="inline-flex items-center gap-2 text-sm text-blue-500 cursor-pointer hover:underline">
+                <img src={attachmentt} alt="" className="w-4 h-4" />
+                <span>{newNoteFiles.length ? `${newNoteFiles.length} file(s)` : "Attach files"}</span>
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => setNewNoteFiles(Array.from(e.target.files || []))}
+                />
+              </label>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewNoteOpen(false)}
+                  disabled={newNoteSaving}
+                  className="px-4 py-2 rounded text-sm text-neutral-600 hover:bg-neutral-100 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateNoteThread}
+                  disabled={newNoteSaving}
+                  className="px-4 py-2 rounded text-sm bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
+                >
+                  {newNoteSaving ? "Creating…" : "Create Note"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

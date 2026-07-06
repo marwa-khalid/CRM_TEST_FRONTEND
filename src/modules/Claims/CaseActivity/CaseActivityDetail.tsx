@@ -156,6 +156,38 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
     null,
   );
   const [replyText, setReplyText] = useState("");
+
+  // Collapsible note threads — replies are hidden by default so a long notes
+  // list stays scannable; expand per thread to read/one reply at a time.
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+  const toggleThread = (id: number | string) =>
+    setExpandedThreads((prev) => {
+      const next = new Set(prev);
+      const key = String(id);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+
+  // @-mention tagging in the reply box (mirrors the note box).
+  const [replyMention, setReplyMention] = useState<{ open: boolean; query: string }>({ open: false, query: "" });
+  const handleReplyChange = (value: string) => {
+    setReplyText(value);
+    const m = value.match(/@([A-Za-z0-9._-]*)$/);
+    setReplyMention(m ? { open: true, query: m[1] } : { open: false, query: "" });
+  };
+  const insertReplyMention = (u: SystemUser) => {
+    setReplyText((prev) => prev.replace(/@([A-Za-z0-9._-]*)$/, `@${u.name} `));
+    setReplyMention({ open: false, query: "" });
+  };
+  const replyMentionMatches = replyMention.open
+    ? mentionUsers
+        .filter(
+          (u) =>
+            (u.name || "").toLowerCase().includes(replyMention.query.toLowerCase()) ||
+            (u.email || "").toLowerCase().includes(replyMention.query.toLowerCase()),
+        )
+        .slice(0, 6)
+    : [];
   const [deleteModal, setDeleteModal] = useState<{
     open: boolean;
     noteId?: number | string;
@@ -427,6 +459,9 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
   const handleSubmitReply = (parentNoteId: number | string) => {
     if (!replyText.trim() && replyFiles.length === 0) return;
 
+    // Expand the thread so the newly-added reply is visible.
+    setExpandedThreads((prev) => new Set(prev).add(String(parentNoteId)));
+
     const formattedReply = applyNoteFormatting(replyText.trim());
 
     onAddNote?.({
@@ -609,7 +644,19 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
               )}
             </div>
 
-            {note.replies?.map((reply) => (
+            {note.replies && note.replies.length > 0 && (
+              <button
+                type="button"
+                onClick={() => toggleThread(note.id)}
+                className="self-start ml-[72px] text-blue-500 text-xs font-weight-500 hover:underline"
+              >
+                {expandedThreads.has(String(note.id))
+                  ? `Hide ${note.replies.length} ${note.replies.length === 1 ? "reply" : "replies"}`
+                  : `Show ${note.replies.length} ${note.replies.length === 1 ? "reply" : "replies"}`}
+              </button>
+            )}
+
+            {expandedThreads.has(String(note.id)) && note.replies?.map((reply) => (
               <div
                 key={reply.id}
                 className="w-[628px] max-w-[calc(100%-72px)] p-4 rounded outline outline-1 outline-offset-[-1px] outline-blue-200 flex flex-col justify-start items-start gap-4"
@@ -696,10 +743,10 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
             ))}
 
             {replyingToId === note.id && (
-              <div className="w-[628px] max-w-[calc(100%-72px)]">
+              <div className="w-[628px] max-w-[calc(100%-72px)] relative">
                 {renderRichTextBox({
                   value: replyText,
-                  onChange: setReplyText,
+                  onChange: handleReplyChange,
                   placeholder: (
                     <div className="justify-start">
                       <span className="text-[#A6AAB1] text-sm font-weight-500 font-['Stack_Sans_Headline']">
@@ -709,6 +756,9 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                       <span className="text-[#245BDB] text-sm font-weight-500 font-['Stack_Sans_Headline']">
                         {note.createdByName}
                       </span>
+                      <span className="text-[#A6AAB1] text-sm font-weight-500 font-['Stack_Sans_Headline']">
+                        {" "}— type @ to tag someone
+                      </span>
                     </div>
                   ),
                   onSubmit: () => handleSubmitReply(note.id),
@@ -716,6 +766,26 @@ const ActivityDetailSlider: React.FC<ActivityDetailSliderProps> = ({
                   files: replyFiles,
                   onFilesChange: setReplyFiles,
                 })}
+                {replyMention.open && replyMentionMatches.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 bottom-full mb-2 max-h-56 overflow-auto bg-white border border-neutral-200 rounded-lg shadow-xl">
+                    {replyMentionMatches.map((u) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => insertReplyMention(u)}
+                        className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-blue-50"
+                      >
+                        <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-500 text-xs font-weight-600 flex items-center justify-center shrink-0">
+                          {(u.name || "?").charAt(0).toUpperCase()}
+                        </span>
+                        <span className="flex flex-col min-w-0">
+                          <span className="text-sm text-blue-500 font-weight-500 truncate">@{u.name}</span>
+                          <span className="text-xs text-neutral-400 truncate">{u.email}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

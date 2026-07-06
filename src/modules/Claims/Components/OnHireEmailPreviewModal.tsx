@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { createPortal } from "react-dom";
 import logo from "../../../assets/AutoClaim_icon/logo.svg";
@@ -34,16 +35,17 @@ export const OnHireEmailPreviewModal = ({
   onClose,
   data,
 }: OnHirePreviewProps) => {
-  if (!isOpen) return null;
   const previewData = data || ({} as NonNullable<OnHirePreviewProps["data"]>);
-  const recipients = String(previewData?.to || "")
-    .split(";")
-    .map((email) => email.trim())
-    .filter(Boolean);
+  // Editable recipients — users can add / edit who the email goes to.
+  const [toValue, setToValue] = useState<string>("");
+  useEffect(() => {
+    if (isOpen) setToValue(String(data?.to || ""));
+  }, [isOpen, data?.to]);
+  if (!isOpen) return null;
 
   const sendEmail = async () => {
     try {
-      const res = await sendOnHireMail(previewData);
+      const res = await sendOnHireMail({ ...previewData, to: toValue });
       if (res.status === 200) {
         toast.success(res.data.msg || "On-Hire Email sent successfully");
         onClose();
@@ -83,20 +85,17 @@ export const OnHireEmailPreviewModal = ({
             <span className="text-neutral-500 text-sm font-medium w-16 pt-1">
               To:
             </span>
-            <div className="flex flex-wrap gap-2 flex-1">
-              {recipients.map((email, index) => (
-                <span
-                  key={index}
-                  className="px-2 py-1 bg-gray-50 text-darkGray border border-gray rounded text-xs"
-                >
-                  {email.trim()}
-                </span>
-              ))}
-              {recipients.length === 0 && (
-                <span className="text-neutral-500 text-xs">
-                  No recipient selected
-                </span>
-              )}
+            <div className="flex-1">
+              <input
+                type="text"
+                value={toValue}
+                onChange={(e) => setToValue(e.target.value)}
+                placeholder="Enter recipient email(s)"
+                className="w-full px-3 py-1.5 bg-white border border-neutral-200 rounded text-sm text-neutral-800 outline-none focus:border-blue-500"
+              />
+              <p className="text-neutral-400 text-[11px] mt-1">
+                Separate multiple recipients with a semicolon (;)
+              </p>
             </div>
           </div>
           <div className="flex items-start gap-4">

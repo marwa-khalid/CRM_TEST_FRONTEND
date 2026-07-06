@@ -11,6 +11,7 @@ import { Minus, Plus } from "lucide-react";
 import { PassengerDetailsModal } from "./PassengerDetailsModal";
 import { WitnessDetailsModal } from "./WitnessDetailsmodal";
 import { createAccidentDetail, getAccidentDetailById, updateAccidentDetail } from "../../../services/Accidents/accident";
+import { getClaimById } from "../../../services/Claims/Claims";
 import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from 'yup'
@@ -153,8 +154,29 @@ const openLatestWitnessPdf = (w: any) => {
     },
   });
   useEffect(() => {
+    // Passengers is linked to General Details' "Any Passengers?" — if that is
+    // YES, the accident-details Passengers toggle defaults to Yes too.
+    const fetchGeneralPassengers = async (): Promise<boolean> => {
+      try {
+        const claim = await getClaimById(parseInt(claimId));
+        return String(claim?.any_passengers).toUpperCase() === "YES";
+      } catch {
+        return false;
+      }
+    };
     const fetchData = async () => {
-      const accidentData = await getAccidentDetailById(parseInt(claimId));
+      const generalPassengersYes = await fetchGeneralPassengers();
+      let accidentData: any = null;
+      try {
+        accidentData = await getAccidentDetailById(parseInt(claimId));
+      } catch (err: any) {
+        if (err?.response?.status !== 404) console.log("Failed to load accident details");
+      }
+      // No saved accident detail yet: seed the Passengers toggle from General.
+      if (!accidentData) {
+        if (generalPassengersYes) formik.setFieldValue("passengers", "Yes");
+        return;
+      }
 
       const mappedValues = {
         date: accidentData.date_time ? new Date(accidentData.date_time) : "",
@@ -193,9 +215,7 @@ const openLatestWitnessPdf = (w: any) => {
       formik.setValues(mappedValues);
     };
     if (claimId) {
-      fetchData().catch((err: any) => {
-        if (err?.response?.status !== 404) console.log("Failed to load accident details");
-      });
+      fetchData().catch(() => {});
     }
   }, [claimId]);
   useEffect(() => {

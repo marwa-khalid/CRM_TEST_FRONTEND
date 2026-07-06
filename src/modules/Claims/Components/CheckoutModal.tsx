@@ -118,7 +118,7 @@ const formatMoneyOnBlur = (field: string) => {
 };
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 font-['Stack_Sans_Headline']">
-      <div className="w-[640px] bg-white rounded-lg p-6 flex flex-col gap-4 shadow-xl">
+      <div className="w-[640px] max-h-[90vh] bg-white rounded-lg p-6 flex flex-col gap-4 shadow-xl">
         {/* Header */}
         <div className="flex justify-between items-center">
           <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5">
@@ -144,6 +144,9 @@ const formatMoneyOnBlur = (field: string) => {
         </div>
 
         <div className="h-px bg-slate-100 w-full" />
+
+        {/* Scrollable body so a long step never gets cut off by the viewport */}
+        <div className="flex-1 min-h-0 overflow-y-auto -mr-2 pr-2 flex flex-col gap-4">
 
         {/* Step 1: Interior */}
         {step === 1 && (
@@ -299,7 +302,7 @@ const formatMoneyOnBlur = (field: string) => {
 
         {/* Step 3: Charges */}
         {step === 3 && (
-          <div className="flex flex-col gap-6 overflow-y-auto max-h-[400px] pr-2">
+          <div className="flex flex-col gap-6">
             <h3 className="text-black text-base font-weight-600">Charges</h3>
 
             <ModalRadioGroup
@@ -421,6 +424,7 @@ const formatMoneyOnBlur = (field: string) => {
             )}
           </div>
         )}
+        </div>
 
         <div className="h-px bg-slate-100 w-full" />
 

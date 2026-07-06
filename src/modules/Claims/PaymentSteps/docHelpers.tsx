@@ -53,8 +53,8 @@ export const d = (v?: string | number) => {
 // A tall line-height (vs a small fixed leading) is what actually vertical-centers
 // the single line of text when html2canvas rasterises the table for the PDF —
 // `align-middle` alone is not honoured reliably by html2canvas.
-export const cellBase = "border border-black px-1.5 py-0.5 text-black text-xs leading-[2.2] align-middle";
-export const headBase = "border border-black px-1.5 py-0.5 bg-gray-200 text-black text-[10px] font-bold leading-[2.2] align-middle";
+export const cellBase = "border border-black px-1.5 py-1.5 text-black text-xs leading-[2.2] align-middle";
+export const headBase = "border border-black px-1.5 py-1.5 bg-gray-200 text-black text-[10px] font-bold leading-[2.2] align-middle";
 
 // Shared document chrome --------------------------------------------------------
 

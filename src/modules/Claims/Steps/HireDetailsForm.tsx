@@ -666,7 +666,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     setPreviewModalOpen(true);
   };
   const handleAction = (type: string) => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = new Date().toLocaleDateString("sv-SE");
     const currentVehicles = formik.values.thirdPartyVehicles;
     const activeVehicle = currentVehicles[activeVehicleTab];
 
@@ -1615,7 +1615,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                       onDateSelect={(date) => {
                         formik.setFieldValue(
                           `thirdPartyVehicles[${activeVehicleTab}].hireOutDate`,
-                          date.toISOString().split("T")[0],
+                          date.toLocaleDateString("sv-SE"),
                         );
                         setShowProvisionStartPicker(false);
                       }}
@@ -1640,7 +1640,25 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   >
                     {currentVehicle.hireBackDate || "Select Date"}
                   </span>
-                  <img src={Vector6} alt="" />
+                  <div className="flex items-center gap-2">
+                    {currentVehicle.hireBackDate && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          formik.setFieldValue(
+                            `thirdPartyVehicles[${activeVehicleTab}].hireBackDate`,
+                            null,
+                          );
+                        }}
+                        className="text-gray-400 hover:text-gray-700 leading-none text-xs"
+                        aria-label="Clear date"
+                      >
+                        ✕
+                      </button>
+                    )}
+                    <img src={Vector6} alt="" />
+                  </div>
                 </div>
                 {showProvisionEndPicker && (
                   <div className="absolute bottom-[54px] left-0 z-100">
@@ -1653,7 +1671,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                       onDateSelect={(date) => {
                         formik.setFieldValue(
                           `thirdPartyVehicles[${activeVehicleTab}].hireBackDate`,
-                          date.toISOString().split("T")[0],
+                          date.toLocaleDateString("sv-SE"),
                         );
                         setShowProvisionEndPicker(false);
                       }}
@@ -1693,7 +1711,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                       onDateSelect={(date) => {
                         formik.setFieldValue(
                           `thirdPartyVehicles[${activeVehicleTab}].hireOutDate`,
-                          date.toISOString().split("T")[0],
+                          date.toLocaleDateString("sv-SE"),
                         );
                         setShowHireOutPicker(false);
                       }}
@@ -1714,7 +1732,25 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   >
                     {currentVehicle.hireBackDate || "Select Date"}
                   </span>
-                  <img src={Vector6} alt="" />
+                  <div className="flex items-center gap-2">
+                    {currentVehicle.hireBackDate && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          formik.setFieldValue(
+                            `thirdPartyVehicles[${activeVehicleTab}].hireBackDate`,
+                            null,
+                          );
+                        }}
+                        className="text-gray-400 hover:text-gray-700 leading-none text-xs"
+                        aria-label="Clear date"
+                      >
+                        ✕
+                      </button>
+                    )}
+                    <img src={Vector6} alt="" />
+                  </div>
                 </div>
                 {showHireBackPicker && (
                   <div className="absolute bottom-[54px] left-0 z-100">
@@ -1727,7 +1763,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                       onDateSelect={(date) => {
                         formik.setFieldValue(
                           `thirdPartyVehicles[${activeVehicleTab}].hireBackDate`,
-                          date.toISOString().split("T")[0],
+                          date.toLocaleDateString("sv-SE"),
                         );
                         setShowHireBackPicker(false);
                       }}
@@ -1865,7 +1901,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           isOpen={showCheckoutModal}
           onClose={() => setShowCheckoutModal(false)}
           onSave={async (capturedFormData) => {
-            const todayStr = new Date().toISOString().split("T")[0];
+            const todayStr = new Date().toLocaleDateString("sv-SE");
             let hvpId: number | null =
               formik.values.thirdPartyVehicles[activeVehicleTab]?.id ?? null;
 

@@ -13,6 +13,15 @@ import BlackNearsideRear from "../../../assets/Black/Group-5.svg";
 import BlackOffsideFront from "../../../assets/Black/Group-6.svg";
 import BlackOffsideMiddle from "../../../assets/Black/Group-7.svg";
 import BlackOffsideRear from "../../../assets/Black/Group-8.svg";
+import RedFront from "../../../assets/Red/Group.svg";
+import RedRear from "../../../assets/Red/Group-1.svg";
+import RedRoof from "../../../assets/Red/Group-2.svg";
+import RedNearsideFront from "../../../assets/Red/Group-3.svg";
+import RedNearsideMiddle from "../../../assets/Red/Group-4.svg";
+import RedNearsideRear from "../../../assets/Red/Group-5.svg";
+import RedOffsideFront from "../../../assets/Red/Group-6.svg";
+import RedOffsideMiddle from "../../../assets/Red/Group-7.svg";
+import RedOffsideRear from "../../../assets/Red/Group-8.svg";
 
 interface DamageDetection {
   width?: number;
@@ -109,16 +118,18 @@ export interface ManualAdjustmentState {
   vehicleStatus: string;
 }
 
+// Each location carries both the client (black) and third party (red) car
+// diagram; the render picks by the selected vehicle tab.
 const locationConfig = [
-  { key: "Front", label: "Front", image: BlackFront },
-  { key: "Rear", label: "Rear", image: BlackRear },
-  { key: "Roof", label: "Roof", image: BlackRoof },
-  { key: "Nearside Front", label: "Nearside Front", image: BlackNearsideFront },
-  { key: "Nearside Middle", label: "Nearside Middle", image: BlackNearsideMiddle },
-  { key: "Nearside Rear", label: "Nearside Rear", image: BlackNearsideRear },
-  { key: "Offside Front", label: "Offside Front", image: BlackOffsideFront },
-  { key: "Offside Middle", label: "Offside Middle", image: BlackOffsideMiddle },
-  { key: "Offside Rear", label: "Offside Rear", image: BlackOffsideRear },
+  { key: "Front", label: "Front", image: BlackFront, red: RedFront },
+  { key: "Rear", label: "Rear", image: BlackRear, red: RedRear },
+  { key: "Roof", label: "Roof", image: BlackRoof, red: RedRoof },
+  { key: "Nearside Front", label: "Nearside Front", image: BlackNearsideFront, red: RedNearsideFront },
+  { key: "Nearside Middle", label: "Nearside Middle", image: BlackNearsideMiddle, red: RedNearsideMiddle },
+  { key: "Nearside Rear", label: "Nearside Rear", image: BlackNearsideRear, red: RedNearsideRear },
+  { key: "Offside Front", label: "Offside Front", image: BlackOffsideFront, red: RedOffsideFront },
+  { key: "Offside Middle", label: "Offside Middle", image: BlackOffsideMiddle, red: RedOffsideMiddle },
+  { key: "Offside Rear", label: "Offside Rear", image: BlackOffsideRear, red: RedOffsideRear },
 ];
 
 const VEHICLE_STATUS_OPTIONS = ["Roadworthy", "Non-Roadworthy", "Total Loss", "Under Repair"];
@@ -436,7 +447,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
                       onClick={() => canSwitch && setSelectedVehicle("third_party")}
                       className={`flex-1 p-5 rounded-lg flex flex-col gap-1 ${canSwitch ? "cursor-pointer transition-colors" : ""} ${
                         active
-                          ? "bg-blue-100 outline outline-2 outline-offset-[-2px] outline-blue-500"
+                          ? "bg-blue-100"
                           : "bg-white outline outline-1 outline-blue-200"
                       }`}
                     >
@@ -646,7 +657,12 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
             <div className="text-black text-xl font-weight-600 leading-5">Damage By Location</div>
             <div className="grid grid-cols-3 w-full gap-4">
               {locationConfig.map((item) => (
-                <LocationBox key={item.key} count={sideCounts[item.key] || 0} image={item.image} label={item.label} />
+                <LocationBox
+                  key={item.key}
+                  count={sideCounts[item.key] || 0}
+                  image={selectedVehicle === "third_party" ? item.red : item.image}
+                  label={item.label}
+                />
               ))}
             </div>
           </div>

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { ChevronLeft } from "lucide-react";
 import { toast } from "react-toastify";
 import { useCaseReference } from "../../../hooks/useCaseReference";
 import { useCurrentUser } from "../../../context/AuthContext";
@@ -86,10 +87,16 @@ useEffect(() => {
       //     (img: any) => img.annotated_image_url || img.original_image_url,
       //   ) || [],
       // );
+      // Split saved images back into their client / third party sections so a
+      // report reopened in "Both" mode shows each vehicle's images in its own
+      // box (and lets the user add the other vehicle and merge).
+      const savedImages: any[] = payload.images || [];
+      const urlOf = (img: any) => img.original_image_url || img.annotated_image_url;
       setPreviews(
-        payload.images?.map(
-          (img: any) => img.original_image_url || img.annotated_image_url,
-        ) || [],
+        savedImages.filter((im) => (im.vehicle_type || "client") === "client").map(urlOf),
+      );
+      setTpPreviews(
+        savedImages.filter((im) => im.vehicle_type === "third_party").map(urlOf),
       );
     } catch (err) {
       console.error("Failed to load saved report", err);
@@ -115,7 +122,18 @@ useEffect(() => {
           year: v.year ?? v.manufacture_year ?? null,
           color: v.color ?? v.colour ?? null,
         });
-        const tp = v.third_party_vehicle_detail || v.third_party_vehicle || null;
+        // Third party make/model/reg come from the third party vehicle area on
+        // the vehicle details screen. That is a list; if more than one, take the
+        // latest (highest id, falling back to sequence). Skip deleted rows.
+        const tpList: any[] = Array.isArray(v.third_party_vehicles)
+          ? v.third_party_vehicles.filter((t: any) => t && !t.is_deleted)
+          : [];
+        const tp =
+          tpList.length > 0
+            ? tpList.reduce((a: any, b: any) =>
+                (b?.id ?? b?.sequence ?? 0) >= (a?.id ?? a?.sequence ?? 0) ? b : a,
+              )
+            : v.third_party_vehicle_detail || v.third_party_vehicle || null;
         if (tp) {
           setThirdPartyVehicle({
             registration: tp.registration ?? null,
@@ -148,6 +166,24 @@ useEffect(() => {
   const tpFileInputRef = useRef<HTMLInputElement>(null);
   // Vehicle Status shown beside the summary cards on the analyzed screen.
   const [vehicleStatus, setVehicleStatus] = useState<string>("");
+
+  // Keep the client / third party upload boxes aligned with the saved report:
+  // whenever the analysed image set changes (fresh analysis or reload), re-derive
+  // each box from the images' vehicle_type tags so the third party box never
+  // mirrors the client one. Keyed on the images array reference so unrelated
+  // aiResult updates (e.g. a refreshed PDF URL) don't wipe in-progress uploads.
+  useEffect(() => {
+    const imgs: any[] = aiResult?.images || [];
+    if (!imgs.length) return;
+    const urlOf = (im: any) => im.original_image_url || im.annotated_image_url;
+    setPreviews(
+      imgs.filter((im) => (im.vehicle_type || "client") === "client").map(urlOf),
+    );
+    setTpPreviews(
+      imgs.filter((im) => im.vehicle_type === "third_party").map(urlOf),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiResult?.images]);
   // Autosave baseline (last-persisted status) + debounce timer, so prefilling
   // never triggers a save and only a real user change persists.
   const lastSavedStatusRef = useRef<string | null>(null);
@@ -190,12 +226,25 @@ useEffect(() => {
   // --- AI Integration Logic (from old VehicleDamage.tsx) ---
   const handleAnalyze = async () => {
     const isBoth = assessmentType === "Both";
+    // Images already analysed in a prior session (e.g. the client vehicle) —
+    // these satisfy a vehicle's requirement without re-uploading, and are merged
+    // server-side so switching to "Both" and adding the third party keeps both.
+    const existingImages: any[] = aiResult?.images || [];
+    const existingClient = existingImages.filter(
+      (im) => (im.vehicle_type || "client") === "client",
+    ).length;
+    const existingTp = existingImages.filter(
+      (im) => im.vehicle_type === "third_party",
+    ).length;
+
     if (isBoth) {
-      if (uploadedFiles.length === 0 || tpFiles.length === 0) {
-        toast.warn("Please upload images for both the client and third party vehicles");
+      const hasClient = uploadedFiles.length > 0 || existingClient > 0;
+      const hasTp = tpFiles.length > 0 || existingTp > 0;
+      if (!hasClient || !hasTp) {
+        toast.warn("Please provide images for both the client and third party vehicles");
         return;
       }
-    } else if (uploadedFiles.length === 0) {
+    } else if (uploadedFiles.length === 0 && existingImages.length === 0) {
       toast.warn("Please upload images first");
       return;
     }
@@ -211,9 +260,17 @@ useEffect(() => {
       if (isBoth) {
         tpFiles.forEach((file) => formData.append("third_party_images", file));
       }
+      // Merge previously-analysed images (kept, not re-analysed) so a client set
+      // done earlier survives when the third party is added under "Both".
+      if (isBoth && existingImages.length > 0) {
+        formData.append("existing_images", JSON.stringify(existingImages));
+      }
 
       const response = await aiAnalyze(formData);
       setAiResult(response);
+      setUploadedFiles([]);
+      setTpFiles([]);
+      setShowUploadEditor(false);
       setCurrentPredictions(
         response.predictions?.filter(
           (p: any) => p.image_index === selectedImageIndex,
@@ -231,6 +288,10 @@ useEffect(() => {
       setIsAnalyzing(false);
     }
   };
+  // Reveal the upload/assessment-type editor again over an existing report, so
+  // the user can go back, pick a different vehicle type (e.g. Both) and add its
+  // images — existing images are kept and merged on re-analyze.
+  const [showUploadEditor, setShowUploadEditor] = useState(false);
   // "Add more images" — upload only NEW images; the backend merges the already
   // analysed ones (no re-analysis) into one consolidated report.
   const [addImagesOpen, setAddImagesOpen] = useState(false);
@@ -718,7 +779,7 @@ useEffect(() => {
           />
         ) : (
           <button
-            className="h-8 px-3 py-2 rounded border border-blue-500 text-blue-500 text-sm hover:bg-blue-50"
+            className="h-8 px-3 rounded border border-blue-500 text-blue-500 text-sm hover:bg-blue-50 inline-flex items-center justify-center leading-none"
             onClick={() => setEntryMode("Manual")}
           >
             Manual Details
@@ -748,15 +809,35 @@ useEffect(() => {
             {/* <img src={Document} alt="" /> */}
             View Full Report
           </button>
+          {!showUploadEditor && (
+            <button
+              type="button"
+              aria-label="Back to vehicle selection"
+              title="Back to vehicle selection"
+              onClick={() => setShowUploadEditor(true)}
+              className="ml-auto flex items-center justify-center w-9 h-9 rounded border border-blue-500 text-blue-500 hover:bg-blue-50"
+            >
+              <ChevronLeft size={18} />
+            </button>
+          )}
         </div>
       )}
       {entryMode === "Manual" ? (
         <VehicleManualForm formRef={formRef} claimId={claimID} />
       ) : (
         <>
-          {!aiResult ? (
+          {!aiResult || showUploadEditor ? (
             /* --- UPLOAD STATE --- */
             <div className="space-y-10">
+              {aiResult && showUploadEditor && (
+                <button
+                  type="button"
+                  onClick={() => setShowUploadEditor(false)}
+                  className="text-blue-500 text-sm hover:underline"
+                >
+                  ← Back to Report
+                </button>
+              )}
               <div>
                 <label className="text-black text-sm block mb-5">
                   What would you like to assess?

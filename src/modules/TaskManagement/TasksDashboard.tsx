@@ -1087,9 +1087,10 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const [debtorsStatus, setDebtorsStatus] = useState("All Status");
   const [collectionPayment, setCollectionPayment] = useState<CollectionPaymentStatus | null>(null);
   const [collectionPerf, setCollectionPerf] = useState<any>(null);
-  const [period, setPeriod] = useState("WTD");
-  // Global custom date range (when period === "Custom") — drives the charts that
-  // support a date range (Income + Claims/Hire trends).
+  const [period, setPeriod] = useState("MTD");
+  // Custom date range for the TOP stat cards only (when period === "Custom").
+  // This filter is scoped to the top widgets — it does NOT drive the charts
+  // below, which each have their own period selector.
   const [gFrom, setGFrom] = useState("");
   const [gTo, setGTo] = useState("");
   const [gCalOpen, setGCalOpen] = useState<null | "from" | "to">(null);
@@ -1099,13 +1100,25 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
     if (gCalOpen) document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [gCalOpen]);
-  // Headline aggregates are all-time totals; the selected period is kept for the UI.
+  // Top stat cards are scoped to the selected period (WTD/MTD/YTD/Custom).
   useEffect(() => {
-    getDashboard(period)
-      .then(({ data }) => setDash(data))
-      .catch(() => setDash(null))
-      .finally(() => setLoaded(true));
-  }, [period]);
+    if (period === "Custom") {
+      // Wait for a full range before fetching; keep the UI up meanwhile.
+      if (!gFrom || !gTo) {
+        setLoaded(true);
+        return;
+      }
+      getDashboard("CUSTOM", gFrom, gTo)
+        .then(({ data }) => setDash(data))
+        .catch(() => setDash(null))
+        .finally(() => setLoaded(true));
+    } else {
+      getDashboard(period)
+        .then(({ data }) => setDash(data))
+        .catch(() => setDash(null))
+        .finally(() => setLoaded(true));
+    }
+  }, [period, gFrom, gTo]);
   useEffect(() => {
     // Always fetch so the MTD / YTD / All-Time period works on its own; the
     // paid/pending dropdown is an optional extra filter (undefined = all).
@@ -1222,31 +1235,20 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
 
   const open = (f: TaskFilters) => onOpen?.(f);
 
-  // The top period tabs are GLOBAL: picking WTD/MTD/YTD here drives every chart on
-  // the dashboard, overriding any per-chart selection and clearing YoY/MoM modes.
+  // The top period tabs are scoped to the TOP stat cards only — they no longer
+  // cascade to the charts below (Income, Claims/Hire trends, Collection,
+  // Debtors), each of which keeps its own independent period selector.
   const applyGlobalPeriod = (p: string) => {
     setPeriod(p);
-    if (p === "Custom") {
-      // Custom date range drives the date-range charts (Income + Claims/Hire trends).
-      setIncomePeriod("Custom"); setIncomeFrom(gFrom); setIncomeTo(gTo);
-      setTrendPeriod("Custom"); setTrendMode(""); setTrendExpanded(true);
-      setHirePeriod("Custom"); setHireMode(""); setHireExpanded(true);
-      return;
+    // Picking a preset clears any top-widget custom range.
+    if (p !== "Custom") {
+      setGFrom("");
+      setGTo("");
     }
-    // Picking a preset clears any global custom range.
-    setGFrom(""); setGTo("");
-    setIncomePeriod(p); setIncomeFrom(""); setIncomeTo("");
-    setTrendPeriod(p); setTrendMode(""); setTrendExpanded(true);
-    setHirePeriod(p); setHireMode(""); setHireExpanded(true);
-    // Collection & Debtors have no WTD bucket — use MTD as the narrowest period.
-    const narrowed = (p === "WTD" ? "MTD" : p) as "MTD" | "YTD" | "All Time";
-    setCollPeriod(narrowed);
-    setDebtorsPeriod(narrowed);
   };
-  // Update the global custom range and mirror it into the income chart's range.
+  // Top-widget custom range (does not touch the charts below).
   const setGlobalRange = (from: string, to: string) => {
     setGFrom(from); setGTo(to);
-    setIncomePeriod("Custom"); setIncomeFrom(from); setIncomeTo(to);
   };
 
   // value helpers off the real aggregates (fallback "—" until loaded)
@@ -1286,15 +1288,12 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
     if (trendMode) {
       view = trendExpanded ? "detail" : "summary";
     } else if (trendPeriod === "Custom") {
-      if (gFrom && gTo) {
-        // Global custom date range → single series over the range (no comparison).
-        from = gFrom; to = gTo; view = undefined;
-      } else {
-        if (!trendCmpA || !trendCmpB) return;
-        view = trendCmpType;
-        from = trendCmpA;
-        to = trendCmpB;
-      }
+      // Claims Trend's own custom compare (Year/Month) — independent of the top
+      // stat-card period filter.
+      if (!trendCmpA || !trendCmpB) return;
+      view = trendCmpType;
+      from = trendCmpA;
+      to = trendCmpB;
     }
     getDashboardTrends(trendPeriod, trendMode, trendRef, trendStatus, from, to, view)
       .then(({ data }) => {
@@ -1302,7 +1301,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
         setClaimsTrendPrev(data?.claims_trend_prev || []);
         setTrendLabels(data?.series_labels);
       }).catch(() => {});
-  }, [trendPeriod, trendMode, trendExpanded, trendRef, trendStatus, trendCmpType, trendCmpA, trendCmpB, gFrom, gTo]);
+  }, [trendPeriod, trendMode, trendExpanded, trendRef, trendStatus, trendCmpType, trendCmpA, trendCmpB]);
   useEffect(() => {
     let view: string | undefined;
     let from: string | undefined;
@@ -1310,14 +1309,12 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
     if (hireMode) {
       view = hireExpanded ? "detail" : "summary";
     } else if (hirePeriod === "Custom") {
-      if (gFrom && gTo) {
-        from = gFrom; to = gTo; view = undefined; // global custom date range → single series
-      } else {
-        if (!hireCmpA || !hireCmpB) return;
-        view = hireCmpType;
-        from = hireCmpA;
-        to = hireCmpB;
-      }
+      // Hire Trend's own custom compare (Year/Month) — independent of the top
+      // stat-card period filter.
+      if (!hireCmpA || !hireCmpB) return;
+      view = hireCmpType;
+      from = hireCmpA;
+      to = hireCmpB;
     }
     getDashboardTrends(hirePeriod, hireMode, hireRef, hireStatus, from, to, view)
       .then(({ data }) => {
@@ -1325,7 +1322,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
         setHireTrendPrev(data?.hire_trend_prev || []);
         setHireLabels(data?.series_labels);
       }).catch(() => {});
-  }, [hirePeriod, hireMode, hireExpanded, hireRef, hireStatus, hireCmpType, hireCmpA, hireCmpB, gFrom, gTo]);
+  }, [hirePeriod, hireMode, hireExpanded, hireRef, hireStatus, hireCmpType, hireCmpA, hireCmpB]);
   useEffect(() => {
     getTrendOptions()
       .then(({ data }) => setTrendOptions({
@@ -1657,7 +1654,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
               active={trendMode ? "" : trendPeriod}
               onChange={(p) => { setTrendPeriod(p); setTrendMode(""); }}
             />
-            {!trendMode && trendPeriod === "Custom" && !gFrom && (
+            {!trendMode && trendPeriod === "Custom" && (
               <CustomCompare
                 type={trendCmpType} a={trendCmpA} b={trendCmpB}
                 onType={(t) => {
@@ -1750,7 +1747,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
               active={hireMode ? "" : hirePeriod}
               onChange={(p) => { setHirePeriod(p); setHireMode(""); }}
             />
-            {!hireMode && hirePeriod === "Custom" && !gFrom && (
+            {!hireMode && hirePeriod === "Custom" && (
               <CustomCompare
                 type={hireCmpType} a={hireCmpA} b={hireCmpB}
                 onType={(t) => {

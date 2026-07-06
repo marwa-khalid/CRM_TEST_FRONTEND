@@ -139,7 +139,13 @@ export const VehicleProvisionSlider = ({
   onClose,
   logs,
 }: SliderProps) => {
-  const displayLogs = logs;
+  // Active (still on-hire) vehicles first — their hire hasn't ended, shown as
+  // "Active"/blank end. Otherwise keep the given order.
+  const isActive = (l: ProvisionLog) => {
+    const end = String(l.end || "").trim().toLowerCase();
+    return end === "" || end === "-" || end === "—" || end === "active";
+  };
+  const displayLogs = [...logs].sort((a, b) => Number(isActive(b)) - Number(isActive(a)));
 
   return (
     <AnimatePresence>

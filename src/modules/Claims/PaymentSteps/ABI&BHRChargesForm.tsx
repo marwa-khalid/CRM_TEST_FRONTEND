@@ -139,7 +139,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       return "";
     }
   })();
-  const perVehicle = vehicles.length >= 2;
+  const perVehicle = packVehicles.length >= 2;
 
   // Date picker visibility state
   const [showRaisedPicker, setShowRaisedPicker] = useState(false);
@@ -418,7 +418,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
   // ── Payment Pack Charges sections — values for the SELECTED vehicle ──────────
   // (For one vehicle, the per-vehicle value equals the total, so nothing changes.)
-  const selRec = hireRecords[activeVehicle];
+  const selRec = packRecords[activeVehicle];
   const vDays = perVehicle && selRec
     ? toF(selRec.final_total_no_of_hire_days ?? selRec.no_of_days_hire_so_far)
     : noOfDays;
@@ -435,8 +435,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
   // Other vehicles on the claim — printed under the edited vehicle in the
   // Credit Hire document (read-only), so multi-vehicle packs list every vehicle.
-  const otherVehicleRows = vehicles
-    .map((v, i) => ({ v, rec: hireRecords[i] as any, i }))
+  const otherVehicleRows = packVehicles
+    .map((v, i) => ({ v, rec: packRecords[i] as any, i }))
     .filter(({ i }) => i !== activeVehicle)
     .map(({ v, rec }) => ({
       vehicle: [(v as any)?.make, (v as any)?.model].filter(Boolean).join(" "),
@@ -517,8 +517,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   // ── Per-vehicle prefills for the payment-pack forms ─────────────────────────
   // Each vehicle is fully editable inside the form; editing/deleting there never
   // touches the claim. One prefill per vehicle so the form can persist edits.
-  const creditHirePrefills = vehicles.map((v, i) => {
-    const rec = hireRecords[i] as any;
+  const creditHirePrefills = packVehicles.map((v, i) => {
+    const rec = packRecords[i] as any;
     const vv = v as any;
     const days = perVehicle && rec
       ? toF(rec.final_total_no_of_hire_days ?? rec.no_of_days_hire_so_far)
@@ -552,8 +552,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     };
   });
 
-  const abiPrefills = vehicles.map((v, i) => {
-    const rec = hireRecords[i] as any;
+  const abiPrefills = packVehicles.map((v, i) => {
+    const rec = packRecords[i] as any;
     const vv = v as any;
     const days = perVehicle && rec
       ? toF(rec.final_total_no_of_hire_days ?? rec.no_of_days_hire_so_far)
@@ -576,8 +576,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     };
   });
 
-  const platingPrefills = vehicles.map((v, i) => {
-    const rec = hireRecords[i] as any;
+  const platingPrefills = packVehicles.map((v, i) => {
+    const rec = packRecords[i] as any;
     const vv = v as any;
     return {
       ourReference: caseReference,
@@ -615,7 +615,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           onEmailSent={handlePaymentPackEmailSent}
           onClose={() => setShowAbiBreakdown(false)}
           vehicleGroups={
-            vehicles.map((v) => (v as any).category).filter(Boolean) as string[]
+            packVehicles.map((v) => (v as any).category).filter(Boolean) as string[]
           }
           prefills={abiPrefills}
         />
@@ -642,7 +642,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             policyNumber,
             incidentDate,
             billTo: insurerName,
-            caseType: vehicles.length > 1 ? "Multiple Vehicles" : "Single Vehicle",
+            caseType: packVehicles.length > 1 ? "Multiple Vehicles" : "Single Vehicle",
             dated: String(
               formik.values.payment_pack_raised_date || dateToISO(new Date()),
             ).slice(0, 10),
@@ -664,7 +664,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             dated: String(
               formik.values.payment_pack_raised_date || dateToISO(new Date()),
             ).slice(0, 10),
-            vehicleCount: vehicles.length || 1,
+            vehicleCount: packVehicles.length || 1,
             valetingFee: 30,
             signatory,
             charges: coveringCharges,
@@ -860,7 +860,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
         {/* Vehicle switcher — sections below show the selected vehicle (2+ only) */}
         <VehicleCards
-          vehicles={vehicles}
+          vehicles={packVehicles}
           activeIndex={activeVehicle}
           onSelect={setActiveVehicle}
         />

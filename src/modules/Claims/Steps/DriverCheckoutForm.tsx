@@ -106,7 +106,20 @@ export const DriverCheckoutForm = ({ formRef, claimId }: any) => {
       getHireRecords(claimId).catch(() => ({ data: [] })),
       getCheckoutDetails(claimId).catch(() => ({ data: [] })),
     ]).then(([{ data: vehicleData }, { data: checkoutData }]) => {
-      const vList = Array.isArray(vehicleData) ? vehicleData : [];
+      // The Hire Details screen persists even its default blank vehicle row, so
+      // a claim with no hire vehicle provided can still have an empty hire
+      // record. Only show cards for records that actually describe a vehicle.
+      const hasVehicleInfo = (v: any) =>
+        Boolean(
+          String(v?.hire_vehicle_registration || "").trim() ||
+            String(v?.make || "").trim() ||
+            String(v?.model || "").trim() ||
+            v?.hire_start_date ||
+            v?.hire_end_date,
+        );
+      const vList = (Array.isArray(vehicleData) ? vehicleData : []).filter(
+        hasVehicleInfo,
+      );
       setVehicles(vList);
 
       const map: Record<number, any> = {};
@@ -243,6 +256,11 @@ export const DriverCheckoutForm = ({ formRef, claimId }: any) => {
         ))}
       </div>
 
+      {vehicles.length === 0 ? (
+        <div className="w-full rounded-lg border border-gray-100 p-8 text-center text-sm text-gray-400 bg-white mt-2">
+          No hire vehicle was provided for this claim, so there are no driver checkout charges.
+        </div>
+      ) : (
       <div className="flex w-full flex-col gap-4 rounded-lg border border-gray-100 p-5 shadow-sm mt-4 bg-white">
         <div className="flex w-full items-center justify-between">
           <h3 className="text-xl font-weight-600 leading-5 text-black">
@@ -253,7 +271,7 @@ export const DriverCheckoutForm = ({ formRef, claimId }: any) => {
             onClick={() => handleEditCheckout(activeVehicleTab)}
             className="flex items-center gap-2 text-blue-300 text-sm hover:bg-blue-50 px-3 py-2 rounded-md"
           >
-            {hasData ? "Edit" : "Add Checkout"}
+            {hasData && "Edit"}
           </button>
         </div>
 
@@ -297,6 +315,7 @@ export const DriverCheckoutForm = ({ formRef, claimId }: any) => {
           </>
         )}
       </div>
+      )}
     </div>
   );
 };

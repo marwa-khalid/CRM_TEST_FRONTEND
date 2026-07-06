@@ -317,7 +317,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
             placeholder="Value"
             rows={3}
             maxLength={500}
-            value={formik.values.note}
+            value={formik.values.note ?? ""}
             name="note"
             onChange={formik.handleChange}
           />

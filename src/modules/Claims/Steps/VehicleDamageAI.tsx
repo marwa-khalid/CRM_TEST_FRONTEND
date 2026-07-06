@@ -19,6 +19,17 @@ import low from "../../../assets/AutoClaim_icon/low.svg";
 import VehicleManualForm from "./VehicleManualForm";
 import AIDamageReportSlider from "../Components/AIReportSlider";
 import ImageDetailSlider from "../Components/ImageDetailSlider";
+import Select from "react-select";
+import { customStyles, BlueDropdownIndicator } from "./GeneralDetailsForm";
+
+// Keep in sync with the report slider's VEHICLE_STATUS_OPTIONS so a status set
+// there (saved via manual adjustments) prefills this dropdown correctly.
+const vehicleStatusOptions = [
+  { value: "Roadworthy", label: "Roadworthy" },
+  { value: "Non-Roadworthy", label: "Non-Roadworthy" },
+  { value: "Total Loss", label: "Total Loss" },
+  { value: "Under Repair", label: "Under Repair" },
+];
 
 
 // Reusing the summary field logic from the story
@@ -29,7 +40,7 @@ const DamageSummaryRow = ({
   label: string;
   value: string | number;
 }) => (
-  <div className="w-96 p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col gap-[5px]">
+  <div className="flex-1 min-w-[200px] p-4 rounded-lg outline outline-1 outline-offset-[-1px] outline-gray-200 inline-flex flex-col gap-[5px]">
     <div className="text-gray-700 text-2xl font-weight-600 leading-6">
       {value}
     </div>
@@ -131,6 +142,16 @@ useEffect(() => {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Second upload box (third-party vehicle) — only used when "Both" is selected.
+  const [tpFiles, setTpFiles] = useState<File[]>([]);
+  const [tpPreviews, setTpPreviews] = useState<string[]>([]);
+  const tpFileInputRef = useRef<HTMLInputElement>(null);
+  // Vehicle Status shown beside the summary cards on the analyzed screen.
+  const [vehicleStatus, setVehicleStatus] = useState<string>("");
+  // Autosave baseline (last-persisted status) + debounce timer, so prefilling
+  // never triggers a save and only a real user change persists.
+  const lastSavedStatusRef = useRef<string | null>(null);
+  const statusSaveTimer = useRef<any>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Save manual adjustments → backend rebuilds the PDF (ReportLab) and re-points
@@ -168,7 +189,13 @@ useEffect(() => {
 
   // --- AI Integration Logic (from old VehicleDamage.tsx) ---
   const handleAnalyze = async () => {
-    if (uploadedFiles.length === 0) {
+    const isBoth = assessmentType === "Both";
+    if (isBoth) {
+      if (uploadedFiles.length === 0 || tpFiles.length === 0) {
+        toast.warn("Please upload images for both the client and third party vehicles");
+        return;
+      }
+    } else if (uploadedFiles.length === 0) {
       toast.warn("Please upload images first");
       return;
     }
@@ -178,7 +205,12 @@ useEffect(() => {
       const formData = new FormData();
       formData.append("claim_id", String(claimID));
       formData.append("assessment_type", assessmentType);
+      // For "Both", `images` = client vehicle, `third_party_images` = third party.
+      // Otherwise the single set goes in `images` (tagged by assessment_type).
       uploadedFiles.forEach((file) => formData.append("images", file));
+      if (isBoth) {
+        tpFiles.forEach((file) => formData.append("third_party_images", file));
+      }
 
       const response = await aiAnalyze(formData);
       setAiResult(response);
@@ -248,6 +280,50 @@ useEffect(() => {
       aiResult?.images?.[selectedImageIndex]?.predictions || [],
     );
   }, [aiResult, selectedImageIndex]);
+  // Prefill the main-screen Vehicle Status from saved manual adjustments, and
+  // keep the autosave baseline in sync so prefilling never triggers a save.
+  useEffect(() => {
+    const saved = savedAdjustments?.vehicleStatus || "";
+    if (saved) setVehicleStatus(saved);
+    lastSavedStatusRef.current = saved;
+  }, [savedAdjustments]);
+
+  // Auto-save the main-screen Vehicle Status when the handler changes it.
+  // Persists via the manual-adjustments path (stores the status in the report +
+  // rebuilds the PDF), preserving any existing accept/reject decisions & notes.
+  useEffect(() => {
+    if (!claimID || !aiResult) return;
+    if (lastSavedStatusRef.current === null) return;        // not initialised yet
+    if (vehicleStatus === lastSavedStatusRef.current) return; // unchanged / just prefilled
+
+    clearTimeout(statusSaveTimer.current);
+    statusSaveTimer.current = setTimeout(async () => {
+      const status = vehicleStatus;
+      try {
+        const res = await saveManualAdjustments({
+          claim_id: claimID,
+          decisions: savedAdjustments?.decisions || {},
+          notes: savedAdjustments?.notes || "",
+          vehicleStatus: status || "Roadworthy",
+        });
+        lastSavedStatusRef.current = status;
+        setSavedAdjustments((prev: any) => ({ ...(prev || {}), vehicleStatus: status }));
+        const freshUrl = res?.pdf_report_url;
+        if (freshUrl) {
+          setAiResult((prev: any) => ({
+            ...(prev || {}),
+            report_pdf_url: freshUrl,
+            pdf_report_url: freshUrl,
+          }));
+        }
+        toast.success("Vehicle status saved");
+      } catch (err) {
+        toast.error("Failed to save vehicle status");
+      }
+    }, 700);
+
+    return () => clearTimeout(statusSaveTimer.current);
+  }, [vehicleStatus, claimID, aiResult]);
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
@@ -255,6 +331,22 @@ useEffect(() => {
       const newPreviews = files.map((file) => URL.createObjectURL(file));
       setPreviews((prev) => [...prev, ...newPreviews]);
     }
+  };
+  const handleTpFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setTpFiles((prev) => [...prev, ...files]);
+      const newPreviews = files.map((file) => URL.createObjectURL(file));
+      setTpPreviews((prev) => [...prev, ...newPreviews]);
+    }
+  };
+  const removeClientImage = (i: number) => {
+    setPreviews((prev) => prev.filter((_, idx) => idx !== i));
+    setUploadedFiles((prev) => prev.filter((_, idx) => idx !== i));
+  };
+  const removeTpImage = (i: number) => {
+    setTpPreviews((prev) => prev.filter((_, idx) => idx !== i));
+    setTpFiles((prev) => prev.filter((_, idx) => idx !== i));
   };
   const [entryMode, setEntryMode] = useState<string>("Manual");
      const reportRef = useRef<HTMLDivElement>(null);
@@ -354,7 +446,7 @@ useEffect(() => {
 
         claim_reference: caseReference || "",
         uploaded_by: reportHandler(),
-        source_name: "Claim Portal",
+        source_name: "Upload",
         assessment_type: assessmentType,
 
         images: aiResult?.images || [],
@@ -372,6 +464,76 @@ useEffect(() => {
         ],
       };
     };
+
+    // Reusable upload box (used once for single modes, twice for "Both").
+    const renderUploadBox = (opts: {
+      title: string;
+      previews: string[];
+      inputRef: React.RefObject<HTMLInputElement>;
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+      onRemove: (i: number) => void;
+    }) => (
+      <div className="w-full p-6 bg-white border rounded-lg flex flex-col gap-6">
+        <div className="pb-4 border-b">
+          <h3 className="text-xl font-weight-600">{opts.title}</h3>
+          <p className="text-gray-500 text-sm">You can upload more than one image</p>
+        </div>
+
+        <div
+          onClick={() => opts.inputRef.current?.click()}
+          className="p-10 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center gap-6 cursor-pointer hover:bg-blue-50"
+        >
+          <input
+            type="file"
+            multiple
+            ref={opts.inputRef}
+            className="hidden"
+            onChange={opts.onChange}
+            accept="image/*"
+          />
+          <img src={downloadd} alt="upload icon" />
+          <div className="text-center">
+            <div className="text-black font-weight-600">
+              Choose a file or Drag & Drop here
+            </div>
+            <div className="text-gray-500 text-xs uppercase">JPG, PNG</div>
+          </div>
+        </div>
+
+        {opts.previews.length > 0 && (
+          <div className="inline-flex items-center justify-start gap-6 p-4 overflow-x-auto">
+            <div
+              onClick={() => opts.inputRef.current?.click()}
+              className="w-16 h-16 shrink-0 rounded-lg border border-blue-600 bg-white flex items-center justify-center cursor-pointer hover:bg-blue-50 transition-colors"
+            >
+              <img src={Plus} alt="" />
+            </div>
+
+            <div className="flex items-center gap-6">
+              {opts.previews.map((src, i) => (
+                <div key={i} className="relative group">
+                  <img
+                    src={src}
+                    className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                    alt={`preview-${i}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      opts.onRemove(i);
+                    }}
+                    className="absolute -top-1 -right-1 bg-white text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
 
   return (
     <div className="MainContent w-full flex flex-col items-stretch gap-6 py-6 font-['Stack_Sans_Headline']">
@@ -494,7 +656,7 @@ useEffect(() => {
 
             uploaded_by: reportHandler(),
 
-            source_name: "Claim Portal",
+            source_name: "Upload",
 
             assessment_type: assessmentType,
 
@@ -515,7 +677,7 @@ useEffect(() => {
           clientName={
             JSON.parse(localStorage.getItem("activeUser") || "{}")?.email || ""
           }
-          sourceName="Claim Portal"
+          sourceName="Upload"
           clientVehicle={clientVehicle}
           thirdPartyVehicle={thirdPartyVehicle}
           initialAdjustments={savedAdjustments}
@@ -563,8 +725,8 @@ useEffect(() => {
           </button>
         )}
       </div>
-      {/* Actions */}
-      {entryMode !== "Manual" && (
+      {/* Actions — only once a report exists (no images/report = nothing to download or view) */}
+      {entryMode !== "Manual" && aiResult && (
         <div className="flex gap-4">
           <button
             className="bg-blue-100 text-primary px-4 py-2 rounded text-sm"
@@ -589,7 +751,7 @@ useEffect(() => {
         </div>
       )}
       {entryMode === "Manual" ? (
-        <VehicleManualForm formRef={formRef} />
+        <VehicleManualForm formRef={formRef} claimId={claimID} />
       ) : (
         <>
           {!aiResult ? (
@@ -621,96 +783,69 @@ useEffect(() => {
                 </div>
               </div>
 
-              <div className="w-full p-6 bg-white border rounded-lg flex flex-col gap-6">
-                <div className="pb-4 border-b">
-                  <h3 className="text-xl font-weight-600">
-                    Upload Accident Images
-                  </h3>
-                  <p className="text-gray-500 text-sm">
-                    You can upload more than one image
-                  </p>
+              {assessmentType === "Both" ? (
+                /* Two boxes (client + third party), one analyze button. */
+                <div className="flex flex-col gap-6">
+                  {renderUploadBox({
+                    title: "Upload Client Vehicle Images",
+                    previews,
+                    inputRef: fileInputRef,
+                    onChange: handleFileChange,
+                    onRemove: removeClientImage,
+                  })}
+                  {renderUploadBox({
+                    title: "Upload Third Party Vehicle Images",
+                    previews: tpPreviews,
+                    inputRef: tpFileInputRef,
+                    onChange: handleTpFileChange,
+                    onRemove: removeTpImage,
+                  })}
+                  {(previews.length > 0 || tpPreviews.length > 0) && (
+                    <div className="text-end">
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={
+                          isAnalyzing ||
+                          previews.length === 0 ||
+                          tpPreviews.length === 0
+                        }
+                        className="px-10 py-4 bg-blue-500 rounded text-white text-base font-weight-400 font-['Stack_Sans_Headline'] hover:bg-blue-500 transition disabled:opacity-50"
+                      >
+                        {isAnalyzing ? "Analyzing..." : "Analyze Images"}
+                      </button>
+                    </div>
+                  )}
                 </div>
-
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-10 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center gap-6 cursor-pointer hover:bg-blue-50"
-                >
-                  <input
-                    type="file"
-                    multiple
-                    ref={fileInputRef}
-                    className="hidden"
-                    onChange={handleFileChange}
-                    accept="image/*"
-                  />
-                  <img src={downloadd} alt="upload icon" />
-                  <div className="text-center">
-                    <div className="text-black font-weight-600">
-                      Choose a file or Drag & Drop here
+              ) : (
+                <div className="flex flex-col gap-6">
+                  {renderUploadBox({
+                    title:
+                      assessmentType === "Third Party Vehicle Only"
+                        ? "Upload Third Party Vehicle Images"
+                        : "Upload Client Vehicle Images",
+                    previews,
+                    inputRef: fileInputRef,
+                    onChange: handleFileChange,
+                    onRemove: removeClientImage,
+                  })}
+                  {previews.length > 0 && (
+                    <div className="text-end">
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={isAnalyzing || previews.length === 0}
+                        className="px-10 py-4 bg-blue-500 rounded text-white text-base font-weight-400 font-['Stack_Sans_Headline'] hover:bg-blue-500 transition disabled:opacity-50"
+                      >
+                        {isAnalyzing ? "Analyzing..." : "Analyze Images"}
+                      </button>
                     </div>
-                    <div className="text-gray-500 text-xs uppercase">
-                      JPG, PNG
-                    </div>
-                  </div>
+                  )}
                 </div>
-
-                {previews.length > 0 && (
-                  <div className="inline-flex items-center justify-start gap-6 p-4 overflow-x-auto">
-                    {/* The "+" Placeholder Button [cite: 19, 20] */}
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-16 h-16 shrink-0 rounded-lg border border-blue-600 bg-white flex items-center justify-center cursor-pointer hover:bg-blue-50 transition-colors"
-                    >
-                      <img src={Plus} alt="" />
-                    </div>
-
-                    {/* Image Previews */}
-                    <div className="flex items-center gap-6">
-                      {previews.map((src, i) => (
-                        <div key={i} className="relative group">
-                          <img
-                            src={src}
-                            className="w-16 h-16 object-cover rounded-lg border border-gray-200"
-                            alt={`preview-${i}`}
-                          />
-                          {/* Optional: Remove button from old logic */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const updatedPreviews = [...previews];
-                              const updatedFiles = [...uploadedFiles];
-                              updatedPreviews.splice(i, 1);
-                              updatedFiles.splice(i, 1);
-                              setPreviews(updatedPreviews);
-                              setUploadedFiles(updatedFiles);
-                            }}
-                            className="absolute -top-1 -right-1 bg-white text-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {previews.length > 0 && (
-                  <div className="text-end">
-                    <button
-                      onClick={handleAnalyze}
-                      disabled={isAnalyzing || previews.length === 0}
-                      className="px-10 py-4 bg-blue-500 rounded text-white text-base font-weight-400 font-['Stack_Sans_Headline'] hover:bg-blue-500 transition"
-                    >
-                      {isAnalyzing ? "Analyzing..." : "Analyze Images"}
-                    </button>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           ) : (
             /* --- ANALYZED STATE (Figma Requirements) --- */
             <div ref={reportRef} className="space-y-6">
-              <div className="flex gap-4">
+              <div className="flex gap-4 items-stretch">
                 <DamageSummaryRow
                   label="Total Damages Identified"
                   value={aiResult?.count || getAllDamageRows().length || 0}
@@ -724,6 +859,24 @@ useEffect(() => {
                     0
                   }
                 />
+
+                <div className="flex-1 min-w-[220px] flex flex-col gap-1.5 justify-center">
+                  <label className="text-neutral-700 text-sm">Vehicle Status</label>
+                  <Select
+                    options={vehicleStatusOptions}
+                    value={
+                      vehicleStatusOptions.find((o) => o.value === vehicleStatus) ||
+                      null
+                    }
+                    onChange={(opt: any) => setVehicleStatus(opt?.value || "")}
+                    placeholder="Value"
+                    styles={customStyles}
+                    components={{
+                      DropdownIndicator: BlueDropdownIndicator,
+                      IndicatorSeparator: () => null,
+                    }}
+                  />
+                </div>
               </div>
 
               <div className="w-full p-4 rounded-lg outline outline-1 outline-gray-100 flex flex-col gap-4">

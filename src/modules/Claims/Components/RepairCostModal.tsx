@@ -7,10 +7,9 @@ import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 import {
   costRepairApi,
+  downloadCILAgreement,
   getRepairData,
   instructFleetOffHireFromRepair,
-  sendCILAgreement,
-  sendCILAgreementClient,
   sendCILToClient,
   sendEngReportToTPI,
   updateCostRepair,
@@ -263,15 +262,19 @@ console.log(repairRecordId);
     URL.revokeObjectURL(url);
   };
 
-const handleSendCILAgreement = async () => {
+// CIL Agreement Letter is a DOWNLOAD, not an email — fetch the .docx and save it.
+const handleDownloadCILAgreement = async () => {
   if (!claimId) return toast.error("Claim ID is missing");
 
   setCilLoading(true);
   try {
-    await sendCILAgreement(claimId);
-    toast.success("CIL Agreement sent successfully");
+    const response = await downloadCILAgreement(claimId);
+    downloadDocument(response.data, `CIL_Agreement_Letter_${claimId}.docx`);
+    toast.success("CIL Agreement Letter downloaded");
   } catch (error: any) {
-    toast.error(error?.response?.data?.detail || "Failed to send");
+    toast.error(
+      error?.response?.data?.detail || "Failed to download CIL Agreement Letter",
+    );
   } finally {
     setCilLoading(false);
   }
@@ -440,11 +443,11 @@ const handleFleetOffHire = async () => {
             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 mt-2">
               <button
                 type="button"
-                onClick={handleSendCILAgreement}
+                onClick={handleDownloadCILAgreement}
                 disabled={cilLoading || clientCilLoading}
                 className="w-full py-4 border border-blue-500 text-blue-500 rounded font-weight-500 hover:bg-blue-50 uppercase text-xs tracking-wide disabled:opacity-60"
               >
-                {cilLoading ? "Generating..." : "CIL Agreement Letter"}
+                {cilLoading ? "Downloading..." : "CIL Agreement Letter"}
               </button>
 
               <button

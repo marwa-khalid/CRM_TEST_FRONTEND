@@ -1088,7 +1088,7 @@
             - Source:{" "}
           </span>
           <span class="text-Color-Neutral-700 text-xs font-weight-600 font-['Stack_Sans_Headline']">
-            Claim Portal{" "}
+            Upload{" "}
           </span>
           <span class="text-Color-Neutral-700 text-xs font-normal font-['Stack_Sans_Headline']">
             - 02-22-26 5:30PM{" "}

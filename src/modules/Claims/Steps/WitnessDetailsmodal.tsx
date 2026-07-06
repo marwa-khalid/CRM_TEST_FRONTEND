@@ -31,6 +31,12 @@ export const WitnessDetailsModal = ({
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [sentMethods, setSentMethods] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Re-entrancy lock shared by BOTH save paths (Save / Save-and-Add and the
+  // step-2 send methods). Because a new witness's id is only known after the
+  // create POST resolves, without this a double-click / concurrent save would
+  // fire createWitness twice and insert duplicate records.
+  const busyRef = React.useRef(false);
   // Remember the witness once created, so re-saving / re-sending the link updates
   // the same record instead of inserting a duplicate.
   const [savedWitnessId, setSavedWitnessId] = useState<number | string | null>(
@@ -182,6 +188,9 @@ export const WitnessDetailsModal = ({
   };
 
   const handleAction = async (addNext) => {
+    if (busyRef.current) return; // ignore double-clicks / concurrent saves
+    busyRef.current = true;
+    setSaving(true);
     try {
       const wasExisting = !!savedWitnessId;
       await saveWitness();
@@ -199,6 +208,9 @@ export const WitnessDetailsModal = ({
       }
     } catch {
       toast.error("Error saving witness details");
+    } finally {
+      busyRef.current = false;
+      setSaving(false);
     }
   };
 
@@ -213,15 +225,16 @@ export const WitnessDetailsModal = ({
   };
 
   const handleFunctionality = async (method: any) => {
+    if (!witness.email && method.id !== "download") {
+      toast.error("Please enter witness email first");
+      return;
+    }
+    if (busyRef.current) return; // a save (or another send) is already in flight
+    busyRef.current = true;
     setIsProcessing(true);
     setProcessingMethod(method.id);
 
     try {
-      if (!witness.email && method.id !== "download") {
-        toast.error("Please enter witness email first");
-        return;
-      }
-
       const witnessId = await saveWitness();
 
       if (method.id === "pdf" || method.id === "link" || method.id === "download") {
@@ -271,6 +284,7 @@ export const WitnessDetailsModal = ({
     } catch {
       toast.error("Failed to process request");
     } finally {
+      busyRef.current = false;
       setIsProcessing(false);
       setProcessingMethod(null);
     }
@@ -550,7 +564,7 @@ export const WitnessDetailsModal = ({
                     <button
                       type="button"
                       onClick={() => handleFunctionality(method)}
-                      disabled={isProcessing}
+                      disabled={isProcessing || saving}
                       className={`w-full px-4 py-3 rounded-lg flex justify-between items-center transition-all group ${
                         isCurrentActionLoading
                           ? "bg-neutral-100"
@@ -640,15 +654,17 @@ export const WitnessDetailsModal = ({
               <>
                 <button
                   onClick={() => handleAction(false)}
-                  className="px-6 py-4 bg-blue-600 text-white rounded font-weight-400 hover:bg-blue-700"
+                  disabled={saving || isProcessing}
+                  className="px-6 py-4 bg-blue-600 text-white rounded font-weight-400 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Save
+                  {saving ? "Saving..." : "Save"}
                 </button>
 
                 {addNew && (
                   <button
                     onClick={() => handleAction(true)}
-                    className="px-6 py-4 bg-blue-600 text-white rounded font-weight-400 hover:bg-blue-700"
+                    disabled={saving || isProcessing}
+                    className="px-6 py-4 bg-blue-600 text-white rounded font-weight-400 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     Save and Add Next Witness
                   </button>

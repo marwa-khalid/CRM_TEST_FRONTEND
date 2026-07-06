@@ -71,7 +71,7 @@ const EmailAttachmentModal: React.FC<Props> = ({
           <div className="flex items-center gap-2.5">
             <Mail className="w-5 h-5 text-blue-500" />
             <h2 className="text-neutral-900 text-lg font-weight-600">
-              Compose Email
+              Forward
             </h2>
           </div>
           <button
@@ -145,7 +145,8 @@ const EmailAttachmentModal: React.FC<Props> = ({
           <div className="flex items-center gap-2 mb-2">
             <Paperclip className="w-4 h-4 text-gray-400" />
             <span className="text-xs text-gray-500 font-weight-500">
-              {attachments.length} attachment{attachments.length !== 1 ? "s" : ""}
+              {attachments.length} attachment
+              {attachments.length !== 1 ? "s" : ""}
             </span>
           </div>
           <div className="flex gap-3 flex-wrap">

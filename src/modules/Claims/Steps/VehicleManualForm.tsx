@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import Select from "react-select";
@@ -130,6 +130,10 @@ const VehicleManualForm = ({formRef, claimId}:any) => {
     const [clientVehicleId, setClientVehicleId] = React.useState("");
     const [thirdPartyVehicleId, setThirdPartyVehicleId] = React.useState("");
     const [isLoading, setIsLoading] = React.useState(false);
+    // Field-level autosave: snapshot of the last-persisted damage values + a
+    // debounce timer, so leaving the screen (without "Save & Next") still saves.
+    const lastSavedRef = React.useRef<string | null>(null);
+    const autosaveTimer = React.useRef<any>(null);
         useEffect(() => {
           if (formRef) {
             formRef.current = formik;
@@ -186,6 +190,66 @@ const loadData = async () => {
     loadData();
   }
 }, [claimId]);
+
+// Debounced autosave: once the vehicle records are loaded, PATCH the damage
+// fields whenever they change so navigating away (not just "Save & Next")
+// persists them. The manual `onSubmit` (Save & Next) remains the fallback.
+useEffect(() => {
+  const cvid = parseInt(clientVehicleId) || 0;
+  const tpid = parseInt(thirdPartyVehicleId) || 0;
+  if (!claimId) return;
+  if (!cvid && !tpid) return; // vehicle records not loaded yet — nothing to update
+
+  const snapshot = JSON.stringify({
+    c: {
+      a: formik.values.client.areaDamage,
+      u: formik.values.client.unrelatedDamage || "",
+      s: formik.values.client.status?.value ?? null,
+    },
+    t: {
+      a: formik.values.thirdParty.areaDamage,
+      u: formik.values.thirdParty.unrelatedDamage || "",
+      s: formik.values.thirdParty.status?.value ?? null,
+    },
+  });
+
+  // First run after load: set the baseline, don't save.
+  if (lastSavedRef.current === null) {
+    lastSavedRef.current = snapshot;
+    return;
+  }
+  if (snapshot === lastSavedRef.current) return;
+
+  clearTimeout(autosaveTimer.current);
+  autosaveTimer.current = setTimeout(async () => {
+    try {
+      await updateVehicleDamage({
+        claim_id: parseInt(claimId) || 0,
+        vehicle_detail: cvid
+          ? {
+              id: cvid,
+              client_area_of_damage: formik.values.client.areaDamage.join(", "),
+              client_unrelated_damage: formik.values.client.unrelatedDamage || "",
+              client_vehicle_status_id: formik.values.client.status?.value || null,
+            }
+          : undefined,
+        third_party_vehicle_detail: tpid
+          ? {
+              id: tpid,
+              client_area_of_damage: formik.values.thirdParty.areaDamage.join(", "),
+              client_unrelated_damage: formik.values.thirdParty.unrelatedDamage || "",
+              client_vehicle_status_id: formik.values.thirdParty.status?.value || null,
+            }
+          : undefined,
+      });
+      lastSavedRef.current = snapshot;
+    } catch (err) {
+      console.error("Manual damage autosave failed", err);
+    }
+  }, 800);
+
+  return () => clearTimeout(autosaveTimer.current);
+}, [formik.values, clientVehicleId, thirdPartyVehicleId, claimId]);
   const toggleZone = (section: DamageSection, zone: string) => {
     const current = formik.values[section].areaDamage;
 
@@ -198,8 +262,12 @@ const loadData = async () => {
       formik.setFieldValue(`${section}.areaDamage`, [...current, zone]);
     }
   };
-const RightPanel = useCallback(
-  ({ section, title }: { section: DamageSection; title: string }) => {
+// NB: called as a plain function (not <RightPanel/>) so React doesn't treat it
+// as a remounting component boundary — that would drop focus from the textarea
+// on every keystroke. It uses no hooks, so calling it inline is safe.
+const renderRightPanel = (
+  { section, title }: { section: DamageSection; title: string },
+) => {
     const selectedZones = formik.values[section].areaDamage;
 
     return (
@@ -211,7 +279,7 @@ const RightPanel = useCallback(
 
           <div className="min-h-12 p-2.5 rounded border border-neutral-200 flex items-center flex-wrap gap-2">
             {selectedZones.length === 0 && (
-              <span className="text-neutral-400 text-sm">No area selected</span>
+              <span className="text-neutral-400 text-sm">No Area Selected</span>
             )}
 
             {selectedZones.map((z) => (
@@ -237,11 +305,22 @@ const RightPanel = useCallback(
           </label>
 
           <textarea
+            ref={(el) => {
+              // Auto-size to content (also handles the value loaded from the API).
+              if (!el) return;
+              el.style.height = "auto";
+              el.style.height = `${el.scrollHeight}px`;
+            }}
+            rows={1}
             name={`${section}.unrelatedDamage`}
             value={formik.values[section].unrelatedDamage}
-            onChange={formik.handleChange}
+            onChange={(e) => {
+              formik.handleChange(e);
+              e.currentTarget.style.height = "auto";
+              e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+            }}
             placeholder="Enter Description"
-            className="h-24 px-5 py-4 border border-neutral-200 rounded resize-none text-base"
+            className="min-h-12 px-2.5 py-2.5 border border-neutral-200 rounded resize-none text-base leading-6 overflow-hidden outline-none transition-colors hover:border-blue-500 focus:border-[#0352FD]"
           />
         </div>
 
@@ -263,9 +342,7 @@ const RightPanel = useCallback(
         </div>
       </div>
     );
-  },
-  [formik.values],
-);
+  };
   const renderZones = (section: DamageSection) => {
     return zones.map((zone) => {
       const selected = formik.values[section].areaDamage.includes(zone.label);
@@ -315,7 +392,7 @@ const SectionHeader = ({ title }: { title: string }) => {
             {renderZones("client")}
           </div>
 
-          <RightPanel section="client" title="Client" />
+          {renderRightPanel({ section: "client", title: "Client" })}
         </div>
       </div>
 
@@ -327,7 +404,7 @@ const SectionHeader = ({ title }: { title: string }) => {
             {renderZones("thirdParty")}
           </div>
 
-          <RightPanel section="thirdParty" title="Third Party" />
+          {renderRightPanel({ section: "thirdParty", title: "Third Party" })}
         </div>
       </div>
 

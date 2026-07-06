@@ -269,39 +269,6 @@ useEffect(() => {
      }
       }, []);
 
-  // Debounced field-level autosave: whenever a General Details field changes and
-  // the claim already exists, PATCH only the changed fields (not the whole form),
-  // so navigating away and back preserves the edit without the big all-fields save.
-  useEffect(() => {
-    if (!claimId) return;                // only for existing claims
-    if (!lastSavedRef.current) return;   // wait until initial data has loaded
-    const cid = parseInt(claimId);
-    if (!cid) return;
-
-    const diff: Record<string, any> = {};
-    for (const f of AUTOSAVE_FIELDS) {
-      const cur = toApiValue(f, (formik.values as any)[f]);
-      const prev = lastSavedRef.current[f];
-      if (JSON.stringify(cur ?? null) !== JSON.stringify(prev ?? null)) {
-        diff[f] = cur;
-      }
-    }
-    if (Object.keys(diff).length === 0) return;
-
-    clearTimeout(autosaveTimer.current);
-    autosaveTimer.current = setTimeout(async () => {
-      try {
-        await ClaimsApi.patchClaim(cid, diff);
-        lastSavedRef.current = { ...lastSavedRef.current, ...diff };
-      } catch (err) {
-        // Silent: the full save on step navigation is the fallback.
-        console.error("Field autosave failed", err);
-      }
-    }, 800);
-
-    return () => clearTimeout(autosaveTimer.current);
-  }, [formik.values, claimId]);
-
   const formik = useFormik({
     initialValues: {
       id: claimId || 0,
@@ -374,6 +341,39 @@ useEffect(() => {
     formRef.current = formik;
   }
 }, [formRef, formik]);
+
+  // Debounced field-level autosave: whenever a General Details field changes and
+  // the claim already exists, PATCH only the changed fields (not the whole form),
+  // so navigating away and back preserves the edit without the big all-fields save.
+  useEffect(() => {
+    if (!claimId) return;                // only for existing claims
+    if (!lastSavedRef.current) return;   // wait until initial data has loaded
+    const cid = parseInt(claimId);
+    if (!cid) return;
+
+    const diff: Record<string, any> = {};
+    for (const f of AUTOSAVE_FIELDS) {
+      const cur = toApiValue(f, (formik.values as any)[f]);
+      const prev = lastSavedRef.current[f];
+      if (JSON.stringify(cur ?? null) !== JSON.stringify(prev ?? null)) {
+        diff[f] = cur;
+      }
+    }
+    if (Object.keys(diff).length === 0) return;
+
+    clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(async () => {
+      try {
+        await ClaimsApi.patchClaim(cid, diff);
+        lastSavedRef.current = { ...lastSavedRef.current, ...diff };
+      } catch (err) {
+        // Silent: the full save on step navigation is the fallback.
+        console.error("Field autosave failed", err);
+      }
+    }, 800);
+
+    return () => clearTimeout(autosaveTimer.current);
+  }, [formik.values, claimId]);
 
   const selectedCaseStatus = caseStatusOptions.find(
     (option) => option.value === formik.values.case_status_id,

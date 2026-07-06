@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { SpinnerLoader } from "../../components/common/SpinnerLoader";
 
 // Lazy-loaded views — code-split so switching between Claims / Dashboard / Tasks
@@ -84,6 +85,10 @@ const Dashboard: React.FC = () => {
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [rowMenu, setRowMenu] = useState<number | null>(null);
+  // Fixed-viewport position for the row action menu — it's portalled to <body>
+  // so the table wrapper's `overflow-hidden` can't clip it (opened downward, or
+  // flipped up when there isn't room below).
+  const [rowMenuPos, setRowMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [exportMenu, setExportMenu] = useState(false);
   const [caseStatuses, setCaseStatuses] = useState<{ id: number; label: string }[]>([]);
   const bulkMenuRef = useRef<HTMLDivElement>(null);
@@ -100,6 +105,39 @@ const Dashboard: React.FC = () => {
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+
+  // The row menu is fixed-positioned, so close it on scroll/resize instead of
+  // letting it float detached from its row.
+  useEffect(() => {
+    if (rowMenu === null) return;
+    const close = () => setRowMenu(null);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true); // capture: catch nested scrollers
+    return () => {
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [rowMenu]);
+
+  // Open the row action menu anchored to its ⋮ button (viewport coords). Flips
+  // upward when the button is near the bottom of the screen.
+  const ROW_MENU_W = 160;
+  const ROW_MENU_H = 92;
+  const openRowMenu = (e: React.MouseEvent, claimId: number) => {
+    if (rowMenu === claimId) {
+      setRowMenu(null);
+      return;
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow < ROW_MENU_H + 12 ? rect.top - ROW_MENU_H : rect.bottom + 4;
+    const left = Math.max(
+      8,
+      Math.min(rect.right - ROW_MENU_W, window.innerWidth - ROW_MENU_W - 8),
+    );
+    setRowMenuPos({ top, left });
+    setRowMenu(claimId);
+  };
 
   useEffect(() => {
     getCaseStatuses()
@@ -713,21 +751,27 @@ const Dashboard: React.FC = () => {
                           <TableCell className="w-10 text-right relative" onClick={(e: any) => e.stopPropagation()}>
                             <button
                               type="button"
-                              onClick={() => setRowMenu(rowMenu === claim.claim_id ? null : claim.claim_id)}
+                              onClick={(e) => openRowMenu(e, claim.claim_id)}
                               className="px-2 py-1 text-neutral-300 hover:text-neutral-500"
                             >
                               <MoreVertical size={16} />
                             </button>
-                            {rowMenu === claim.claim_id && (
-                              <div ref={rowMenuRef} className="absolute right-4 top-9 z-20 min-w-[150px] bg-white rounded-lg border border-neutral-200 shadow-lg py-1 text-left">
-                                <button type="button" onClick={() => { setRowMenu(null); navigate(claim.claim_id ? `/add-claim/${claim.claim_id}` : "/add-claim"); }} className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
-                                  View / Edit
-                                </button>
-                                <button type="button" onClick={() => { setRowMenu(null); setDeleteTarget(claim); }} className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50">
-                                  Delete
-                                </button>
-                              </div>
-                            )}
+                            {rowMenu === claim.claim_id && rowMenuPos &&
+                              createPortal(
+                                <div
+                                  ref={rowMenuRef}
+                                  style={{ position: "fixed", top: rowMenuPos.top, left: rowMenuPos.left, width: ROW_MENU_W }}
+                                  className="z-[1000] bg-white rounded-lg border border-neutral-200 shadow-lg py-1 text-left"
+                                >
+                                  <button type="button" onClick={() => { setRowMenu(null); navigate(claim.claim_id ? `/add-claim/${claim.claim_id}` : "/add-claim"); }} className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
+                                    View / Edit
+                                  </button>
+                                  <button type="button" onClick={() => { setRowMenu(null); setDeleteTarget(claim); }} className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50">
+                                    Delete
+                                  </button>
+                                </div>,
+                                document.body,
+                              )}
                           </TableCell>
                         </tr>
                       ))}

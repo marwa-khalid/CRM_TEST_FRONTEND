@@ -45,6 +45,12 @@ export const sendCILAgreement = (claimId: number, to_email?: string) =>
     to_email,
   });
 
+// CIL Agreement Letter is a DOWNLOAD (not an email) — returns the .docx bytes.
+export const downloadCILAgreement = (claimId: number) =>
+  axiosInstance.get(`/clients/download-cil-agreement-letter/${claimId}`, {
+    responseType: "arraybuffer",
+  });
+
 export const sendCILToClient = (claimId: number, to_email?: string) =>
   axiosInstance.post(`/route-repairs/send-cil-client/${claimId}`, {
     to_email,

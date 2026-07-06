@@ -639,6 +639,13 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           claimId={claimId}
           onEmailSent={handlePaymentPackEmailSent}
           onClose={() => setShowHirePeriod(false)}
+          prefill={{
+            ourReference: caseReference,
+            yourReference: insurerReference,
+            dated: String(
+              formik.values.payment_pack_raised_date || dateToISO(new Date()),
+            ).slice(0, 10),
+          }}
         />
       )}
 

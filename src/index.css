@@ -396,6 +396,19 @@ input.w-auto.p-2.border.border-gray-300.rounded-lg.focus\:outline-none.focus\:ri
   }
 }
 
+/* Remove the up/down spinner arrows from every <input type="number"> app-wide,
+   without having to switch fields to type="text". Keyboard/paste still work. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .animate-loaderFade {
   animation: loaderFade 1s linear infinite;
 }

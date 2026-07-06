@@ -65,8 +65,29 @@ const openYears = () => {
     onDateSelect(newDate);
   };
 
+  // When the calendar opens, if it's cut off at the bottom (or top) of the
+  // viewport, auto-scroll the page/container just enough to reveal it fully —
+  // so the user never has to scroll manually. `scroll-mb-6` leaves breathing
+  // room below; `block: "nearest"` means it only scrolls when actually needed.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const el = rootRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const viewportH = window.innerHeight || document.documentElement.clientHeight;
+      if (rect.bottom > viewportH || rect.top < 0) {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   return (
-    <div className="absolute top-14 left-0 z-50 animate-in fade-in zoom-in-95 duration-200">
+    <div
+      ref={rootRef}
+      className="absolute top-14 left-0 z-50 scroll-mb-6 animate-in fade-in zoom-in-95 duration-200"
+    >
       {view === "days" ? (
         /* --- DAY PICKER VIEW --- */
         <div className="Datepicker w-96 px-10 py-6 bg-white rounded-lg shadow-[4px_4px_4px_4px_rgba(0,0,0,0.08)] flex flex-col items-center gap-6">

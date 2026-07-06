@@ -71,7 +71,9 @@ const PackEmailModal = ({
         <div className="px-6 py-4 flex justify-between items-center border-b border-gray-100">
           <div className="flex items-center gap-2.5">
             <Mail className="w-5 h-5 text-blue-500" />
-            <h2 className="text-neutral-900 text-lg font-weight-600">Compose Email</h2>
+            <h2 className="text-neutral-900 text-lg font-weight-600">
+              Forward
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -139,7 +141,9 @@ const PackEmailModal = ({
         <div className="px-6 py-3 border-t border-gray-100 bg-gray-50">
           <div className="flex items-center gap-2 mb-2">
             <Paperclip className="w-4 h-4 text-gray-400" />
-            <span className="text-xs text-gray-500 font-weight-500">1 attachment</span>
+            <span className="text-xs text-gray-500 font-weight-500">
+              1 attachment
+            </span>
           </div>
           <a
             href={attachment.url}
@@ -154,7 +158,9 @@ const PackEmailModal = ({
               <span className="block text-xs text-neutral-700 font-weight-500 truncate">
                 {attachment.name}
               </span>
-              <span className="block text-[10px] text-gray-400 uppercase tracking-wide">PDF</span>
+              <span className="block text-[10px] text-gray-400 uppercase tracking-wide">
+                PDF
+              </span>
             </span>
           </a>
         </div>

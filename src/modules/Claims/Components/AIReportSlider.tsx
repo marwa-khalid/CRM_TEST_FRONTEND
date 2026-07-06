@@ -216,40 +216,70 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
     return `RPT-${datePart}-${randomPart}`;
   }, []);
 
-  const imageItems = useMemo(() => {
+  const allImageItems = useMemo(() => {
     if (reportData?.images?.length) return reportData.images;
     if (currentImage) return [currentImage];
     return [];
   }, [reportData?.images, currentImage]);
 
-  const data = useMemo(() => {
+  const allData = useMemo(() => {
     if (reportData?.predictions?.length) return reportData.predictions;
     if (reportData?.all_predictions?.length) return reportData.all_predictions;
-    const rowsFromImages = imageItems.flatMap((image, imageIndex) =>
+    const rowsFromImages = allImageItems.flatMap((image, imageIndex) =>
       (image.predictions || []).map((prediction) => ({
         ...prediction,
         image_index: prediction.image_index ?? image.image_index ?? imageIndex,
+        vehicle_type: (prediction as any).vehicle_type ?? (image as any).vehicle_type,
       })),
     );
     if (rowsFromImages.length > 0) return rowsFromImages;
     return currentImage?.predictions || [];
-  }, [reportData?.predictions, reportData?.all_predictions, imageItems, currentImage?.predictions]);
-
-  const total = data.length;
-  const high = data.filter((d) => normalizeSeverity(d.severity) === "High").length;
-  const med = data.filter((d) => normalizeSeverity(d.severity) === "Medium").length;
-  const low = data.filter((d) => normalizeSeverity(d.severity) === "Low").length;
+  }, [reportData?.predictions, reportData?.all_predictions, allImageItems, currentImage?.predictions]);
 
   const reference = claimReference || "-";
   const reportId = reportData?.report_id || currentImage?.report_id || fallbackReportId;
   const generatedAt = formatDateTime(reportData?.generated_at || currentImage?.generated_at);
   const uploadedBy = reportData?.uploaded_by || currentImage?.uploaded_by || clientName || "Client";
-  const source = reportData?.source_name || currentImage?.source_name || sourceName || "Claim Portal";
+  const source = reportData?.source_name || currentImage?.source_name || sourceName || "Upload";
   const assessmentLabel = reportData?.assessment_type || currentImage?.assessment_type || selectedType || "-";
 
   const showClientCard = assessmentLabel !== "Third Party Vehicle Only";
   const showThirdPartyCard =
     assessmentLabel === "Both" || assessmentLabel === "Third Party Vehicle Only";
+
+  // Per-vehicle switching: when the report carries vehicle_type tags AND both
+  // cards are shown ("Both"), the vehicle cards act as tabs that filter the
+  // images/damages to the selected vehicle.
+  const hasVehicleTags = useMemo(
+    () =>
+      allImageItems.some((img: any) => img.vehicle_type) ||
+      allData.some((d: any) => d.vehicle_type),
+    [allImageItems, allData],
+  );
+  const canSwitch = hasVehicleTags && showClientCard && showThirdPartyCard;
+  const [selectedVehicle, setSelectedVehicle] = useState<"client" | "third_party">("client");
+  useEffect(() => {
+    setSelectedVehicle(showClientCard ? "client" : "third_party");
+  }, [showClientCard, showThirdPartyCard, assessmentLabel]);
+
+  const imageItems = useMemo(() => {
+    if (!canSwitch) return allImageItems;
+    return allImageItems.filter(
+      (img: any) => (img.vehicle_type || "client") === selectedVehicle,
+    );
+  }, [allImageItems, canSwitch, selectedVehicle]);
+
+  const data = useMemo(() => {
+    if (!canSwitch) return allData;
+    return allData.filter(
+      (d: any) => (d.vehicle_type || "client") === selectedVehicle,
+    );
+  }, [allData, canSwitch, selectedVehicle]);
+
+  const total = data.length;
+  const high = data.filter((d) => normalizeSeverity(d.severity) === "High").length;
+  const med = data.filter((d) => normalizeSeverity(d.severity) === "Medium").length;
+  const low = data.filter((d) => normalizeSeverity(d.severity) === "Low").length;
 
   const auditTrail = reportData?.audit_trail?.length
     ? reportData.audit_trail
@@ -374,30 +404,57 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
         </div>
 
         <div className="p-6 flex flex-col gap-6">
-          {/* ---- Vehicle cards ---- */}
+          {/* ---- Vehicle cards (clickable tabs when "Both") ---- */}
           {(showClientCard || showThirdPartyCard) && (
-            <div data-pdf-section className="flex gap-6">
-              {showClientCard && (
-                <div className="flex-1 p-5 bg-blue-100 rounded-lg flex flex-col gap-1">
-                  <div className="text-black text-xl font-weight-600 leading-5">Client Vehicle</div>
-                  <div className="text-neutral-700 text-sm">
-                    <span className="font-normal">Reg# </span>
-                    <span className="font-weight-600">
-                      {[clientVehicle?.registration, vehicleLine(clientVehicle)].filter(Boolean).join(", ") || "-"}
-                    </span>
-                  </div>
-                </div>
-              )}
-              {showThirdPartyCard && (
-                <div className="flex-1 p-5 bg-white rounded-lg outline outline-1 outline-blue-200 flex flex-col gap-1">
-                  <div className="text-black text-xl font-weight-600 leading-5">Third party Vehicle</div>
-                  <div className="text-neutral-700 text-sm">
-                    <span className="font-normal">Reg# </span>
-                    <span className="font-weight-600">
-                      {[thirdPartyVehicle?.registration, vehicleLine(thirdPartyVehicle)].filter(Boolean).join(", ") || "-"}
-                    </span>
-                  </div>
-                </div>
+            <div data-pdf-section className="flex flex-col gap-2">
+              <div className="flex gap-6">
+                {showClientCard && (() => {
+                  const active = !canSwitch ? true : selectedVehicle === "client";
+                  return (
+                    <div
+                      onClick={() => canSwitch && setSelectedVehicle("client")}
+                      className={`flex-1 p-5 rounded-lg flex flex-col gap-1 ${canSwitch ? "cursor-pointer transition-colors" : ""} ${
+                        active
+                          ? "bg-blue-100 "
+                          : "bg-white outline outline-1 outline-blue-200"
+                      }`}
+                    >
+                      <div className="text-black text-xl font-weight-600 leading-5">Client Vehicle</div>
+                      <div className="text-neutral-700 text-sm">
+                        <span className="font-normal">Reg# </span>
+                        <span className="font-weight-600">
+                          {[clientVehicle?.registration, vehicleLine(clientVehicle)].filter(Boolean).join(", ") || "-"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+                {showThirdPartyCard && (() => {
+                  const active = !canSwitch ? !showClientCard : selectedVehicle === "third_party";
+                  return (
+                    <div
+                      onClick={() => canSwitch && setSelectedVehicle("third_party")}
+                      className={`flex-1 p-5 rounded-lg flex flex-col gap-1 ${canSwitch ? "cursor-pointer transition-colors" : ""} ${
+                        active
+                          ? "bg-blue-100 outline outline-2 outline-offset-[-2px] outline-blue-500"
+                          : "bg-white outline outline-1 outline-blue-200"
+                      }`}
+                    >
+                      <div className="text-black text-xl font-weight-600 leading-5">Third party Vehicle</div>
+                      <div className="text-neutral-700 text-sm">
+                        <span className="font-normal">Reg# </span>
+                        <span className="font-weight-600">
+                          {[thirdPartyVehicle?.registration, vehicleLine(thirdPartyVehicle)].filter(Boolean).join(", ") || "-"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              {canSwitch && (
+                <p className="px-1 text-neutral-500 text-xs" data-pdf-hide>
+                  Showing {selectedVehicle === "client" ? "client" : "third party"} vehicle — click a card to switch.
+                </p>
               )}
             </div>
           )}

@@ -543,71 +543,75 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
               className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
             />
 
-            {showCompanyDropdown && (formik.values.companyName || "").trim() && (
-              <div className="absolute top-[80px] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-                {(() => {
-                  const term = (formik.values.companyName || "").trim();
-                  const hasExact = companyOptions.some(
-                    (c) =>
-                      (c.company_name || "").trim().toLowerCase() ===
-                      term.toLowerCase(),
-                  );
-                  const canAdd = term.length > 0 && !hasExact;
-                  return (
-                    <>
-                      {canAdd && (
-                        <div
-                          onMouseDown={(ev) => {
-                            ev.preventDefault();
-                            formik.setFieldValue("companyName", term);
-                            setShowCompanyDropdown(false);
-                          }}
-                          className="px-5 py-3 hover:bg-blue-50 cursor-pointer text-sm text-blue-700 border-b border-gray-50 font-medium"
-                        >
-                          Add "{term}"
-                        </div>
-                      )}
-                      {companyOptions.length > 0 ? (
-                        companyOptions.map((c, i) => (
+            {showCompanyDropdown &&
+              (formik.values.companyName || "").trim() && (
+                <div className="absolute top-[80px] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                  {(() => {
+                    const term = (formik.values.companyName || "").trim();
+                    const hasExact = companyOptions.some(
+                      (c) =>
+                        (c.company_name || "").trim().toLowerCase() ===
+                        term.toLowerCase(),
+                    );
+                    const canAdd = term.length > 0 && !hasExact;
+                    return (
+                      <>
+                        {canAdd && (
                           <div
-                            key={i}
                             onMouseDown={(ev) => {
                               ev.preventDefault();
-                              formik.setFieldValue("companyName", c.company_name || "");
-                              if (c.address)
-                                formik.setFieldValue(
-                                  "engineer_address.address",
-                                  c.address,
-                                );
-                              if (c.postcode)
-                                formik.setFieldValue(
-                                  "engineer_address.postcode",
-                                  c.postcode,
-                                );
+                              formik.setFieldValue("companyName", term);
                               setShowCompanyDropdown(false);
                             }}
-                            className="px-5 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-none"
+                            className="px-5 py-3 hover:bg-blue-50 cursor-pointer text-sm text-blue-700 border-b border-gray-50 font-medium"
                           >
-                            <div className="text-sm text-gray-700">
-                              {c.company_name}
-                            </div>
-                            {c.address && (
-                              <div className="text-xs text-gray-400">
-                                {c.address}
-                              </div>
-                            )}
+                            Add "{term}"
                           </div>
-                        ))
-                      ) : !canAdd ? (
-                        <div className="px-5 py-3 text-sm text-gray-400">
-                          No company found
-                        </div>
-                      ) : null}
-                    </>
-                  );
-                })()}
-              </div>
-            )}
+                        )}
+                        {companyOptions.length > 0 ? (
+                          companyOptions.map((c, i) => (
+                            <div
+                              key={i}
+                              onMouseDown={(ev) => {
+                                ev.preventDefault();
+                                formik.setFieldValue(
+                                  "companyName",
+                                  c.company_name || "",
+                                );
+                                if (c.address)
+                                  formik.setFieldValue(
+                                    "engineer_address.address",
+                                    c.address,
+                                  );
+                                if (c.postcode)
+                                  formik.setFieldValue(
+                                    "engineer_address.postcode",
+                                    c.postcode,
+                                  );
+                                setShowCompanyDropdown(false);
+                              }}
+                              className="px-5 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-none"
+                            >
+                              <div className="text-sm text-gray-700">
+                                {c.company_name}
+                              </div>
+                              {c.address && (
+                                <div className="text-xs text-gray-400">
+                                  {c.address}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : !canAdd ? (
+                          <div className="px-5 py-3 text-sm text-gray-400">
+                            No company found
+                          </div>
+                        ) : null}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -616,10 +620,15 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
             </label>
             <AddressAutocomplete
               address={formik.values.engineer_address.address}
-              onChange={(v) => formik.setFieldValue("engineer_address.address", v)}
+              onChange={(v) =>
+                formik.setFieldValue("engineer_address.address", v)
+              }
               onPlaceSelected={(place) => {
                 formik.setFieldValue("engineer_address.address", place.address);
-                formik.setFieldValue("engineer_address.postcode", place.postcode);
+                formik.setFieldValue(
+                  "engineer_address.postcode",
+                  place.postcode,
+                );
               }}
               inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
             />
@@ -632,10 +641,20 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
               </label>
               <PostcodeLookup
                 postcode={formik.values.engineer_address.postcode}
-                onChange={(v) => formik.setFieldValue("engineer_address.postcode", v)}
+                onChange={(v) =>
+                  formik.setFieldValue("engineer_address.postcode", v)
+                }
                 onAddressSelect={(addr) => {
-                  formik.setFieldValue("engineer_address.postcode", addr.postcode);
-                  formik.setFieldValue("engineer_address.address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+                  formik.setFieldValue(
+                    "engineer_address.postcode",
+                    addr.postcode,
+                  );
+                  formik.setFieldValue(
+                    "engineer_address.address",
+                    [addr.line1, addr.line2, addr.line3]
+                      .filter(Boolean)
+                      .join(", "),
+                  );
                 }}
                 inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
               />
@@ -660,12 +679,10 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="flex flex-col gap-2">
               <label className="text-neutral-700 text-[14px] font-weight-500">
-               Mobile Number
+                Mobile Number
               </label>
               <div className="relative h-[52px] px-5 bg-white rounded border border-gray-200 flex items-center gap-2.5 focus-within:border-blue-500 transition-all">
-                <span className="text-gray-400 text-base font-light">
-                  +44
-                </span>
+                <span className="text-gray-400 text-base font-light">+44</span>
                 <input
                   type="text"
                   onChange={handleHomeNumberChange}
@@ -722,10 +739,15 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
             </label>
             <AddressAutocomplete
               address={formik.values.vehicle_address.address}
-              onChange={(v) => formik.setFieldValue("vehicle_address.address", v)}
+              onChange={(v) =>
+                formik.setFieldValue("vehicle_address.address", v)
+              }
               onPlaceSelected={(place) => {
                 formik.setFieldValue("vehicle_address.address", place.address);
-                formik.setFieldValue("vehicle_address.postcode", place.postcode);
+                formik.setFieldValue(
+                  "vehicle_address.postcode",
+                  place.postcode,
+                );
               }}
               inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
             />
@@ -738,10 +760,20 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
               </label>
               <PostcodeLookup
                 postcode={formik.values.vehicle_address.postcode}
-                onChange={(v) => formik.setFieldValue("vehicle_address.postcode", v)}
+                onChange={(v) =>
+                  formik.setFieldValue("vehicle_address.postcode", v)
+                }
                 onAddressSelect={(addr) => {
-                  formik.setFieldValue("vehicle_address.postcode", addr.postcode);
-                  formik.setFieldValue("vehicle_address.address", [addr.line1, addr.line2, addr.line3].filter(Boolean).join(", "));
+                  formik.setFieldValue(
+                    "vehicle_address.postcode",
+                    addr.postcode,
+                  );
+                  formik.setFieldValue(
+                    "vehicle_address.address",
+                    [addr.line1, addr.line2, addr.line3]
+                      .filter(Boolean)
+                      .join(", "),
+                  );
                 }}
                 inputClassName={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
               />
@@ -759,12 +791,12 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
 
           <div className="flex flex-col gap-5">
             <div className="w-full md:w-1/2">
-              <label className="block text-gray-700 text-sm font-weight-400 mb-2">
+              <label className="block text-neutral-700 text-sm font-weight-400 mb-2">
                 Actual Fee
               </label>
 
               <div className="relative">
-                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-base font-light">
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 text-base font-light">
                   £
                 </span>
                 <input
@@ -776,10 +808,13 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
                     formik.setFieldValue("actual_fee", e.target.value)
                   }
                   onBlur={(e) =>
-                    formik.setFieldValue("actual_fee", formatTwoDecimals(e.target.value))
+                    formik.setFieldValue(
+                      "actual_fee",
+                      formatTwoDecimals(e.target.value),
+                    )
                   }
                   placeholder="0.00"
-                  className="w-full pl-10 pr-5 py-4 bg-white rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-base font-light"
+                  className={`w-full h-[52px] pl-10 pr-5 bg-white rounded border border-gray-200 ${inputStyles}`}
                 />
               </div>
             </div>
@@ -792,7 +827,7 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
                 setShowInvRec,
                 invRecRef,
                 "invoice_received_on",
-                false
+                false,
               )}
 
               {renderDatePickerField(
@@ -802,7 +837,7 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
                 setShowInvPaid,
                 invPaidRef,
                 "invoice_paid_on",
-                false
+                false,
               )}
             </div>
 
@@ -814,7 +849,7 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
                 setShowInvSettled,
                 invSettledRef,
                 "invoice_settled_on",
-                false
+                false,
               )}
 
               <div className="flex flex-col gap-2">
@@ -838,7 +873,10 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
                       )
                     }
                     onBlur={(e) =>
-                      formik.setFieldValue("invoice_settled_amount", formatTwoDecimals(e.target.value))
+                      formik.setFieldValue(
+                        "invoice_settled_amount",
+                        formatTwoDecimals(e.target.value),
+                      )
                     }
                     placeholder="0.00"
                     className={`w-full h-[52px] pl-10 pr-5 bg-white rounded border border-gray-200 ${inputStyles}`}
@@ -894,7 +932,8 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
             <div className="flex gap-6 items-center">
               {["Yes", "No"].map((option) => {
                 const isYes = option === "Yes";
-                const selected = formik.values.engineer_report_received === isYes;
+                const selected =
+                  formik.values.engineer_report_received === isYes;
                 return (
                   <label
                     key={option}
@@ -907,9 +946,15 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
                         className="sr-only"
                         checked={selected}
                         onChange={() => {
-                          formik.setFieldValue("engineer_report_received", isYes);
+                          formik.setFieldValue(
+                            "engineer_report_received",
+                            isYes,
+                          );
                           if (!isYes) {
-                            formik.setFieldValue("engineer_report_received_date", "");
+                            formik.setFieldValue(
+                              "engineer_report_received_date",
+                              "",
+                            );
                             setShowUploadModal(false);
                             setShowReportRec(false);
                           }
@@ -995,7 +1040,10 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
                         formik.setFieldValue("engineer_fee", e.target.value)
                       }
                       onBlur={(e) =>
-                        formik.setFieldValue("engineer_fee", formatTwoDecimals(e.target.value))
+                        formik.setFieldValue(
+                          "engineer_fee",
+                          formatTwoDecimals(e.target.value),
+                        )
                       }
                       placeholder="0.00"
                       className={`w-full h-[52px] pl-10 pr-5 bg-white rounded border border-gray-200 ${inputStyles}`}

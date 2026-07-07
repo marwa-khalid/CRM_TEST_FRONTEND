@@ -12,11 +12,33 @@ import { customStyles, BlueDropdownIndicator } from "../../modules/Claims/Steps/
  */
 
 const OFFSETS = [1440, 60, 30, 15]; // minutes before start (default when none chosen)
-// Overdue Task-Management deadlines re-remind at these 4 hours every day.
-const OVERDUE_SLOTS = [9, 12, 15, 18];
 const REMINDER_MIN: Record<string, number> = { "15m": 15, "30m": 30, "1h": 60, "1d": 1440 };
 const POLL_MS = 60_000;       // re-check every minute
 const CATCHUP_MS = 90_000;    // only fire if the reminder became due within this window
+
+// Daily overdue nudge state — which task was nudged on which day — persisted in
+// localStorage so a same-day page reload doesn't re-fire it (that was the "pops
+// up all the time" problem). Keyed "taskId|YYYY-MM-DD"; entries older than 45
+// days are pruned on read so it never grows unbounded.
+const OVERDUE_STORE_KEY = "reminder_overdue_daily_shown";
+const readOverdueShown = (): Record<string, number> => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(OVERDUE_STORE_KEY) || "{}");
+    const cutoff = Date.now() - 45 * 86_400_000;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw)) if (typeof v === "number" && v >= cutoff) out[k] = v;
+    return out;
+  } catch {
+    return {};
+  }
+};
+const writeOverdueShown = (map: Record<string, number>) => {
+  try {
+    localStorage.setItem(OVERDUE_STORE_KEY, JSON.stringify(map));
+  } catch {
+    /* storage full / unavailable — non-fatal */
+  }
+};
 
 // Offsets to remind at for an event: the ones the user selected (comma-separated,
 // may be multiple), or all four defaults if they didn't pick any. "none" means the
@@ -116,7 +138,8 @@ const ReminderWatcher: React.FC = () => {
       const now = Date.now();
       const today = new Date();
       const todayKey = dateKey(today);
-      // Look back too, so overdue Task-Management deadlines are caught and re-nagged.
+      // Upcoming events (before-start offsets) + still-overdue tasks (a daily
+      // nudge until done), so look back a few months to catch older deadlines.
       const start = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 90));
       const end = dateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2));
 
@@ -156,32 +179,40 @@ const ReminderWatcher: React.FC = () => {
         });
       });
 
-      // Overdue Task-Management deadlines keep reminding the user 4× a day (at the
-      // OVERDUE_SLOTS hours) until they're done, so an overdue task is never
-      // silently forgotten. We fire the most-recent slot that's arrived — so each
-      // slot time during the day triggers a fresh reminder, and opening the app
-      // mid-day catches up the current one (rather than bursting all four at once).
-      const slot = OVERDUE_SLOTS.filter((h) => today.getHours() >= h).slice(-1)[0];
-      if (slot !== undefined) {
-        events.forEach((e) => {
-          const isTaskEvent = (e as any).source_type === "task_due" || !!(e as any).task_id;
-          if (!isTaskEvent || !e.start_date || e.start_date >= todayKey) return;
-          const st = (e.status || "").toLowerCase();
-          if (st === "cancelled" || st === "completed" || st === "rejected") return;
-          const key = `overdue|${e.id}|${e.start_date}|${todayKey}|h${slot}`;
-          if (shownRef.current.has(key)) return;
-          shownRef.current.add(key);
-          const [y, m, d] = e.start_date.split("-").map(Number);
-          const tm = e.start_time && e.start_time.includes(":") ? e.start_time.split(":").map(Number) : [9, 0];
-          newPopups.push({
-            id: key,
-            title: e.title || "Overdue Task",
-            startMs: new Date(y, m - 1, d, tm[0] || 0, tm[1] || 0).getTime(),
-            timeLabel: formatTime12(e.start_time),
-            subtitle: e.event_type || "",
-          });
+      // Daily overdue nudge: while a task is past its deadline and still not done,
+      // remind ONCE PER DAY — at (or after) its due time each day — every day until
+      // it's completed. The per-day flag is persisted in localStorage, so a same-
+      // day reload doesn't re-fire it (no "pops up on every screen all the time").
+      const overdueShown = readOverdueShown();
+      let overdueDirty = false;
+      events.forEach((e) => {
+        const isTaskEvent = (e as any).source_type === "task_due" || !!(e as any).task_id;
+        if (!isTaskEvent || !e.start_date || !e.start_time || !e.start_time.includes(":")) return;
+        const startMs = eventStartMs(e);
+        if (!startMs || startMs > now) return; // only overdue (past-due) tasks
+        const st = (e.status || "").toLowerCase();
+        if (st === "cancelled" || st === "completed" || st === "rejected") return;
+
+        // Fire once today, at/after the task's due time on this day.
+        const [hh, mm] = e.start_time.split(":").map(Number);
+        const todayDueMs = new Date(
+          today.getFullYear(), today.getMonth(), today.getDate(), hh || 0, mm || 0,
+        ).getTime();
+        if (now < todayDueMs) return;
+
+        const dayKey = `${e.id}|${todayKey}`;
+        if (overdueShown[dayKey]) return; // already nudged for this task today
+        overdueShown[dayKey] = now;
+        overdueDirty = true;
+        newPopups.push({
+          id: `overdue|${e.id}|${e.start_date}|${todayKey}`,
+          title: e.title || "Overdue Task",
+          startMs,
+          timeLabel: formatTime12(e.start_time),
+          subtitle: e.event_type || "",
         });
-      }
+      });
+      if (overdueDirty) writeOverdueShown(overdueShown);
 
       // Completed / cancelled events lose any pending reminders — pruned here by
       // event id (handles both the offset and the overdue popup id formats).

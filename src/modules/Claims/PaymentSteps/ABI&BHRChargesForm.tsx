@@ -157,6 +157,10 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const penaltyDue61Ref = useRef<HTMLDivElement>(null);
   const penaltyDue90Ref = useRef<HTMLDivElement>(null);
   const packMenuRef = useRef<HTMLDivElement>(null);
+  // Raised-date picker shown inside the "Generate Payment Pack" dropdown — this
+  // date drives the debtors age analysis (aged from the settlement date).
+  const [showPackDatePicker, setShowPackDatePicker] = useState(false);
+  const packDateRef = useRef<HTMLDivElement>(null);
 
   const [penaltyDueDate30, setPenaltyDueDate30] = useState("");
   const [penaltyDueDate60, setPenaltyDueDate60] = useState("");
@@ -820,6 +824,25 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
                   )}
                 </React.Fragment>
               ))}
+
+              {/* Payment Pack Raised Date — drives the debtors age analysis
+                  (days from this date to the settlement date). */}
+              <div className="h-px bg-slate-100 w-full" />
+              <div onClick={(e) => e.stopPropagation()}>
+                <DatePickerField
+                  label="Payment Pack Raised Date"
+                  value={formik.values.payment_pack_raised_date}
+                  onSelect={(d) =>
+                    formik.setFieldValue("payment_pack_raised_date", dateToISO(d))
+                  }
+                  show={showPackDatePicker}
+                  containerRef={packDateRef}
+                  onToggle={() => setShowPackDatePicker((p) => !p)}
+                />
+                <p className="text-[11px] text-neutral-400 mt-1">
+                  Used to age debtors from the settlement date.
+                </p>
+              </div>
               {/* <div className="h-px bg-slate-100 w-full" /> */}
               {/* <button
                 type="button"

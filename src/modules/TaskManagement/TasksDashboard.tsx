@@ -1500,7 +1500,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
               </div>
             </div>
           ))}
-        </div>
+          </div>
 
         {/* Attention required */}
         <div>

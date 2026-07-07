@@ -193,9 +193,18 @@ const Dashboard: React.FC = () => {
     },
   ];
 
+  // Fetch the claims list whenever the Claims tab is the active view — not at
+  // mount. This honours "only call when on the claims list": no wasted call when
+  // you land on the Dashboard, a fresh call every time you open Claims, and it
+  // self-heals a load that failed on a previous visit. Other tabs (dashboard,
+  // tasks, calendar) don't consume `claims`, so they don't need this data.
   useEffect(() => {
+    if (activePage !== "claims") return;
     let cancelled = false;
     let retried = false;
+    // Keep any previously loaded rows on screen and refetch silently; only show
+    // the full-screen spinner on the very first load (nothing to display yet).
+    setClaimsLoading((prev) => (claims.length === 0 ? true : prev));
     const fetchClaims = async () => {
       try {
         const res: any = await getClaims();
@@ -220,7 +229,9 @@ const Dashboard: React.FC = () => {
           }, 1200);
           return;
         }
-        setClaims([]);
+        // Don't wipe existing rows on a refetch failure — only clear if we never
+        // had any to begin with.
+        setClaims((prev) => (prev.length === 0 ? [] : prev));
       } finally {
         if (!cancelled) setClaimsLoading(false);
       }
@@ -231,7 +242,7 @@ const Dashboard: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activePage]);
 
   // Month-over-month trends for the KPI cards, computed server-side.
   useEffect(() => {

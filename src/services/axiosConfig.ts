@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const rawApiBaseUrl =
-  import.meta.env.VITE_BACKEND_BASE_URL2 ||
   import.meta.env.VITE_BACKEND_BASE_URL ||
+  import.meta.env.VITE_BACKEND_BASE_URL2 ||
   "";
 
 export const API_BASE_URL = String(rawApiBaseUrl).trim().replace(/\/+$/, "");

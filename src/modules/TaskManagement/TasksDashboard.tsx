@@ -893,6 +893,26 @@ const PeriodTabs = ({ active, onChange, hideCustom = false }: { active: string; 
   </div>
 );
 
+const InlineDashboardLoader = () => (
+  <div className="absolute inset-0 z-20 rounded-lg bg-white/75 flex items-center justify-center font-['Stack_Sans_Headline']">
+    <div className="flex flex-col items-center gap-3 rounded-lg bg-white/90 px-5 py-4 shadow-sm border border-neutral-100">
+      <div className="relative w-[48px] h-[48px]">
+        {Array.from({ length: 12 }).map((_, index) => (
+          <span
+            key={index}
+            className="absolute left-1/2 top-1/2 w-[4px] h-[11px] rounded-full bg-[#9b9b9b] animate-loaderFade"
+            style={{
+              transform: `translate(-50%, -50%) rotate(${index * 30}deg) translateY(-17px)`,
+              animationDelay: `${index * 0.08}s`,
+            }}
+          />
+        ))}
+      </div>
+      <span className="text-neutral-500 text-sm">Loading dashboard stats...</span>
+    </div>
+  </div>
+);
+
 // Custom comparison picker (Claims + Hire trend only): compare two years
 // month-by-month, or two months week-by-week. "A vs B" — A is the baseline (grey),
 // B is the current (blue) series.
@@ -1078,6 +1098,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   const me = user?.name || ""; // logged-in user's name (email-before-@)
   const [dash, setDash] = useState<any>(null); // real dashboard aggregates
   const [loaded, setLoaded] = useState(false); // keep the loader up until headline data is in
+  const [statsLoading, setStatsLoading] = useState(false); // top-widget period refetch (WTD/MTD/YTD/Custom)
   const [missingOpen, setMissingOpen] = useState(false);
   const [srOpen, setSrOpen] = useState<null | "storage" | "recovery">(null);
   const [collPeriod, setCollPeriod] = useState<"MTD" | "YTD" | "All Time">("YTD");
@@ -1108,15 +1129,23 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
         setLoaded(true);
         return;
       }
+      setStatsLoading(true);
       getDashboard("CUSTOM", gFrom, gTo)
         .then(({ data }) => setDash(data))
         .catch(() => setDash(null))
-        .finally(() => setLoaded(true));
+        .finally(() => {
+          setLoaded(true);
+          setStatsLoading(false);
+        });
     } else {
+      setStatsLoading(true);
       getDashboard(period)
         .then(({ data }) => setDash(data))
         .catch(() => setDash(null))
-        .finally(() => setLoaded(true));
+        .finally(() => {
+          setLoaded(true);
+          setStatsLoading(false);
+        });
     }
   }, [period, gFrom, gTo]);
   useEffect(() => {
@@ -1239,6 +1268,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   // cascade to the charts below (Income, Claims/Hire trends, Collection,
   // Debtors), each of which keeps its own independent period selector.
   const applyGlobalPeriod = (p: string) => {
+    if (p !== period) setStatsLoading(true);
     setPeriod(p);
     // Picking a preset clears any top-widget custom range.
     if (p !== "Custom") {
@@ -1421,6 +1451,13 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
           )}
         </div>
 
+        <div className="relative">
+          {loaded && statsLoading && <InlineDashboardLoader />}
+          <div
+            className={`flex flex-col gap-8 ${
+              loaded && statsLoading ? "pointer-events-none opacity-60" : ""
+            }`}
+          >
         {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           {STAT_CARDS.map((c) => (
@@ -1507,6 +1544,8 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
             >
               <ChevronRight size={20} />
             </button> */}
+          </div>
+        </div>
           </div>
         </div>
 

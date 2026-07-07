@@ -20,6 +20,11 @@ import low from "../../../assets/AutoClaim_icon/low.svg";
 import VehicleManualForm from "./VehicleManualForm";
 import AIDamageReportSlider from "../Components/AIReportSlider";
 import ImageDetailSlider from "../Components/ImageDetailSlider";
+import AIImageUploadProgressModal, {
+  AIImageUploadProgressPanel,
+  type AIUploadPhase,
+  type AIUploadProgressItem,
+} from "../Components/AIImageUploadProgressModal";
 import Select from "react-select";
 import { customStyles, BlueDropdownIndicator } from "./GeneralDetailsForm";
 
@@ -153,6 +158,33 @@ useEffect(() => {
   const [imageSliderOpen, setImageSliderOpen] = useState(false);
   const [sliderImageIndex, setSliderImageIndex] = useState<number>(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{
+    isOpen: boolean;
+    items: AIUploadProgressItem[];
+    phase: AIUploadPhase;
+    loadedBytes: number;
+    totalBytes: number;
+    speedBps: number;
+    errorMessage: string;
+    context: "standalone" | "add" | null;
+  }>({
+    isOpen: false,
+    items: [],
+    phase: "uploading",
+    loadedBytes: 0,
+    totalBytes: 0,
+    speedBps: 0,
+    errorMessage: "",
+    context: null,
+  });
+  const uploadProgressItemsRef = useRef<AIUploadProgressItem[]>([]);
+  const uploadProgressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const uploadProgressStatsRef = useRef({
+    lastLoaded: 0,
+    lastTime: Date.now(),
+  });
   const [aiResult, setAiResult] = useState<any>(null);
   // Manual adjustments persisted with the report (prefill the slider on reopen).
   const [savedAdjustments, setSavedAdjustments] = useState<any>(null);
@@ -166,6 +198,136 @@ useEffect(() => {
   const tpFileInputRef = useRef<HTMLInputElement>(null);
   // Vehicle Status shown beside the summary cards on the analyzed screen.
   const [vehicleStatus, setVehicleStatus] = useState<string>("");
+
+  const revokeUploadProgressItems = (items: AIUploadProgressItem[]) => {
+    items.forEach((item) => {
+      if (item.previewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+    });
+  };
+
+  const closeUploadProgressModal = () => {
+    if (uploadProgressTimerRef.current) {
+      clearTimeout(uploadProgressTimerRef.current);
+      uploadProgressTimerRef.current = null;
+    }
+    revokeUploadProgressItems(uploadProgressItemsRef.current);
+    uploadProgressItemsRef.current = [];
+    setUploadProgress({
+      isOpen: false,
+      items: [],
+      phase: "uploading",
+      loadedBytes: 0,
+      totalBytes: 0,
+      speedBps: 0,
+      errorMessage: "",
+      context: null,
+    });
+  };
+
+  const startUploadProgressModal = (
+    groups: { label: string; files: File[] }[],
+    context: "standalone" | "add" = "standalone",
+  ) => {
+    if (uploadProgressTimerRef.current) {
+      clearTimeout(uploadProgressTimerRef.current);
+      uploadProgressTimerRef.current = null;
+    }
+    revokeUploadProgressItems(uploadProgressItemsRef.current);
+    let index = 0;
+    const items = groups.flatMap((group) =>
+      group.files.map((file) => ({
+        id: `${group.label}-${Date.now()}-${index++}`,
+        name: file.name,
+        size: file.size,
+        previewUrl: URL.createObjectURL(file),
+        group: group.label,
+      })),
+    );
+    const totalBytes = items.reduce((sum, item) => sum + item.size, 0);
+
+    uploadProgressItemsRef.current = items;
+    uploadProgressStatsRef.current = {
+      lastLoaded: 0,
+      lastTime: Date.now(),
+    };
+    setUploadProgress({
+      isOpen: true,
+      items,
+      phase: "uploading",
+      loadedBytes: 0,
+      totalBytes,
+      speedBps: 0,
+      errorMessage: "",
+      context,
+    });
+
+    return totalBytes;
+  };
+
+  const createUploadProgressHandler = (fallbackTotalBytes: number) => {
+    return (event: any) => {
+      const now = Date.now();
+      const loadedBytes = event.loaded || 0;
+      const totalBytes = event.total || fallbackTotalBytes;
+      const elapsedSeconds = Math.max(
+        (now - uploadProgressStatsRef.current.lastTime) / 1000,
+        0.1,
+      );
+      const bytesDelta =
+        loadedBytes - uploadProgressStatsRef.current.lastLoaded;
+      const speedBps = Math.max(0, bytesDelta / elapsedSeconds);
+
+      uploadProgressStatsRef.current = {
+        lastLoaded: loadedBytes,
+        lastTime: now,
+      };
+
+      setUploadProgress((prev) => ({
+        ...prev,
+        phase:
+          totalBytes > 0 && loadedBytes >= totalBytes
+            ? "processing"
+            : "uploading",
+        loadedBytes,
+        totalBytes: totalBytes || prev.totalBytes || fallbackTotalBytes,
+        speedBps: speedBps || prev.speedBps,
+      }));
+    };
+  };
+
+  const markUploadProgressComplete = (afterClose?: () => void) => {
+    setUploadProgress((prev) => ({
+      ...prev,
+      phase: "complete",
+      loadedBytes: prev.totalBytes || prev.loadedBytes,
+      speedBps: 0,
+      errorMessage: "",
+    }));
+    uploadProgressTimerRef.current = setTimeout(() => {
+      closeUploadProgressModal();
+      afterClose?.();
+    }, 600);
+  };
+
+  const markUploadProgressError = (message: string) => {
+    setUploadProgress((prev) => ({
+      ...prev,
+      phase: "error",
+      errorMessage: message,
+      speedBps: 0,
+    }));
+  };
+
+  useEffect(() => {
+    return () => {
+      if (uploadProgressTimerRef.current) {
+        clearTimeout(uploadProgressTimerRef.current);
+      }
+      revokeUploadProgressItems(uploadProgressItemsRef.current);
+    };
+  }, []);
 
   // Keep the client / third party upload boxes aligned with the saved report:
   // whenever the analysed image set changes (fresh analysis or reload), re-derive
@@ -249,6 +411,25 @@ useEffect(() => {
       return;
     }
 
+    const uploadGroups = [
+      {
+        label:
+          assessmentType === "Third Party Vehicle Only"
+            ? "Third party vehicle"
+            : "Client vehicle",
+        files: uploadedFiles,
+      },
+      ...(isBoth
+        ? [{ label: "Third party vehicle", files: tpFiles }]
+        : []),
+    ].filter((group) => group.files.length > 0);
+
+    if (uploadGroups.length === 0) {
+      toast.warn("Please upload new images first");
+      return;
+    }
+
+    const fallbackTotalBytes = startUploadProgressModal(uploadGroups);
     setIsAnalyzing(true);
     try {
       const formData = new FormData();
@@ -266,7 +447,9 @@ useEffect(() => {
         formData.append("existing_images", JSON.stringify(existingImages));
       }
 
-      const response = await aiAnalyze(formData);
+      const response = await aiAnalyze(formData, {
+        onUploadProgress: createUploadProgressHandler(fallbackTotalBytes),
+      });
       setAiResult(response);
       setUploadedFiles([]);
       setTpFiles([]);
@@ -277,12 +460,14 @@ useEffect(() => {
         ) || [],
       );
       // Filter predictions for current image
+      markUploadProgressComplete();
       toast.success("AI Analysis Complete");
       // PDF is now generated on the backend (secure ReportLab path); no frontend capture.
     } catch (error: any) {
       const message =
         error?.response?.data?.detail ||
         "AI analysis failed. Please try again.";
+      markUploadProgressError(message);
       toast.error(message);
     } finally {
       setIsAnalyzing(false);
@@ -304,11 +489,22 @@ useEffect(() => {
     }
   };
 
+  const closeAddImagesModal = () => {
+    if (uploadProgress.context === "add") {
+      closeUploadProgressModal();
+    }
+    setAddImagesOpen(false);
+    setNewImageFiles([]);
+  };
+
   const handleAnalyzeNew = async () => {
     if (newImageFiles.length === 0) {
       toast.warn("Please add images first");
       return;
     }
+    const fallbackTotalBytes = startUploadProgressModal([
+      { label: "New image", files: newImageFiles },
+    ], "add");
     setIsAnalyzing(true);
     try {
       const formData = new FormData();
@@ -318,16 +514,19 @@ useEffect(() => {
       // Already-analysed images are merged server-side (not re-analysed).
       formData.append("existing_images", JSON.stringify(aiResult?.images || []));
 
-      const response = await aiAnalyze(formData);
+      const response = await aiAnalyze(formData, {
+        onUploadProgress: createUploadProgressHandler(fallbackTotalBytes),
+      });
       setAiResult(response);
       setSelectedImageIndex(0);
       setCurrentPredictions(response.images?.[0]?.predictions || []);
       setNewImageFiles([]);
-      setAddImagesOpen(false);
+      markUploadProgressComplete(() => setAddImagesOpen(false));
       toast.success("New images analysed and merged");
     } catch (error: any) {
       const message =
         error?.response?.data?.detail || "AI analysis failed. Please try again.";
+      markUploadProgressError(message);
       toast.error(message);
     } finally {
       setIsAnalyzing(false);
@@ -596,6 +795,13 @@ useEffect(() => {
       </div>
     );
 
+    const isAddUploadActive =
+      uploadProgress.isOpen && uploadProgress.context === "add";
+    const isAddUploadBusy =
+      isAddUploadActive &&
+      (uploadProgress.phase === "uploading" ||
+        uploadProgress.phase === "processing");
+
   return (
     <div className="MainContent w-full flex flex-col items-stretch gap-6 py-6 font-['Stack_Sans_Headline']">
       {" "}
@@ -613,73 +819,121 @@ useEffect(() => {
         imageIndex={sliderImageIndex}
       />
 
+      <AIImageUploadProgressModal
+        isOpen={uploadProgress.isOpen && uploadProgress.context !== "add"}
+        items={uploadProgress.items}
+        phase={uploadProgress.phase}
+        loadedBytes={uploadProgress.loadedBytes}
+        totalBytes={uploadProgress.totalBytes}
+        speedBps={uploadProgress.speedBps}
+        errorMessage={uploadProgress.errorMessage}
+        onClose={closeUploadProgressModal}
+      />
+
       {addImagesOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
           <div className="w-[600px] p-6 bg-white rounded-lg flex flex-col gap-6 font-['Stack_Sans_Headline']">
             <div className="flex justify-between items-center">
               <div className="text-neutral-900 text-[20px] font-weight-600">Add More Images</div>
               <button
-                onClick={() => { setAddImagesOpen(false); setNewImageFiles([]); }}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                onClick={closeAddImagesModal}
+                disabled={isAddUploadBusy}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 ×
               </button>
             </div>
             <div className="h-px bg-gray-100 w-full" />
 
-            <div
-              onClick={() => newImageInputRef.current?.click()}
-              className="p-10 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center gap-3 cursor-pointer hover:bg-blue-50 transition-colors"
-            >
-              <img src={AI} alt="" className="w-8 h-8" />
-              <div className="text-center">
-                <div className="text-black text-base font-weight-600">Choose images or Drag &amp; Drop here</div>
-                <div className="text-gray-500 text-sm">Only the new images will be analysed &amp; merged</div>
-              </div>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                ref={newImageInputRef}
-                onChange={handleNewImagesChange}
-                className="hidden"
+            {isAddUploadActive ? (
+              <AIImageUploadProgressPanel
+                items={uploadProgress.items}
+                phase={uploadProgress.phase}
+                loadedBytes={uploadProgress.loadedBytes}
+                totalBytes={uploadProgress.totalBytes}
+                speedBps={uploadProgress.speedBps}
+                errorMessage={uploadProgress.errorMessage}
               />
-            </div>
-
-            {newImageFiles.length > 0 && (
-              <div className="flex flex-col gap-2 max-h-52 overflow-auto">
-                {newImageFiles.map((f, i) => (
-                  <div key={i} className="p-3 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex items-center gap-3">
-                    <img src={URL.createObjectURL(f)} alt="" className="w-9 h-9 rounded object-cover" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm text-black line-clamp-1">{f.name}</div>
-                      <div className="text-xs text-gray-400">{(f.size / 1024).toFixed(0)}KB</div>
-                    </div>
-                    <button
-                      onClick={() => setNewImageFiles((prev) => prev.filter((_, idx) => idx !== i))}
-                      className="text-gray-400 hover:text-red-500 text-lg leading-none"
-                    >
-                      ×
-                    </button>
+            ) : (
+              <>
+                <div
+                  onClick={() => newImageInputRef.current?.click()}
+                  className="p-10 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center gap-3 cursor-pointer hover:bg-blue-50 transition-colors"
+                >
+                  <img src={AI} alt="" className="w-8 h-8" />
+                  <div className="text-center">
+                    <div className="text-black text-base font-weight-600">Choose images or Drag &amp; Drop here</div>
+                    <div className="text-gray-500 text-sm">Only the new images will be analysed &amp; merged</div>
                   </div>
-                ))}
-              </div>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    ref={newImageInputRef}
+                    onChange={handleNewImagesChange}
+                    className="hidden"
+                  />
+                </div>
+
+                {newImageFiles.length > 0 && (
+                  <div className="flex flex-col gap-2 max-h-52 overflow-auto">
+                    {newImageFiles.map((f, i) => (
+                      <div key={i} className="p-3 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 flex items-center gap-3">
+                        <img src={URL.createObjectURL(f)} alt="" className="w-9 h-9 rounded object-cover" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-black line-clamp-1">{f.name}</div>
+                          <div className="text-xs text-gray-400">{(f.size / 1024).toFixed(0)}KB</div>
+                        </div>
+                        <button
+                          onClick={() => setNewImageFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="text-gray-400 hover:text-red-500 text-lg leading-none"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
 
             <div className="flex justify-end items-center gap-4">
-              <button
-                onClick={() => { setAddImagesOpen(false); setNewImageFiles([]); }}
-                className="px-6 py-3 bg-white border border-blue-600 rounded text-blue-600 text-base font-medium hover:bg-blue-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAnalyzeNew}
-                disabled={isAnalyzing || newImageFiles.length === 0}
-                className="px-6 py-3 bg-blue-600 rounded text-white text-base font-medium disabled:opacity-50"
-              >
-                {isAnalyzing ? "Analysing…" : "Analyse New Images"}
-              </button>
+              {isAddUploadActive ? (
+                uploadProgress.phase === "error" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={closeUploadProgressModal}
+                      className="px-6 py-3 bg-white border border-blue-600 rounded text-blue-600 text-base font-medium hover:bg-blue-50"
+                    >
+                      Back to Images
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeAddImagesModal}
+                      className="px-6 py-3 bg-blue-600 rounded text-white text-base font-medium"
+                    >
+                      Close
+                    </button>
+                  </>
+                )
+              ) : (
+                <>
+                  <button
+                    onClick={closeAddImagesModal}
+                    className="px-6 py-3 bg-white border border-blue-600 rounded text-blue-600 text-base font-medium hover:bg-blue-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAnalyzeNew}
+                    disabled={isAnalyzing || newImageFiles.length === 0}
+                    className="px-6 py-3 bg-blue-600 rounded text-white text-base font-medium disabled:opacity-50"
+                  >
+                    {isAnalyzing ? "Analysing…" : "Analyse New Images"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -746,7 +1000,7 @@ useEffect(() => {
           saving={savingAdjustments}
         />
       )}
-      {isAnalyzing && (
+      {isAnalyzing && !uploadProgress.isOpen && (
         <div className="fixed inset-0 z-[9999] bg-[#e8e6df]/80 flex items-center justify-center font-['Stack_Sans_Headline']">
           <div className="relative w-[73px] h-[73px]">
             {Array.from({ length: 12 }).map((_, index) => (

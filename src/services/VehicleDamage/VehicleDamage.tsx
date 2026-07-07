@@ -1,4 +1,5 @@
 import axiosInstance from "../axiosConfig";
+import type { AxiosRequestConfig } from "axios";
 
 export const updateVehicleDamage = async (data: any) => {
   try {
@@ -9,15 +10,22 @@ export const updateVehicleDamage = async (data: any) => {
   }
 };
 
-export const aiAnalyze = async (formData: FormData) => {
+export const aiAnalyze = async (
+  formData: FormData,
+  config: AxiosRequestConfig = {},
+) => {
   const response = await axiosInstance.post(
     `/vehicle-damage-reports/analyze`,
     formData,
     {
-      headers: { "Content-Type": "multipart/form-data" },
+      ...config,
+      headers: {
+        ...(config.headers || {}),
+        "Content-Type": "multipart/form-data",
+      },
       // AI analysis runs many images through Roboflow and takes well over the
       // default 30s timeout; allow up to 5 minutes so axios doesn't cancel it.
-      timeout: 300000,
+      timeout: config.timeout || 300000,
     },
   );
   return response.data;

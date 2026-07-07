@@ -3,6 +3,7 @@ import { X, Download, FileText, Printer, Mail } from "lucide-react";
 import Select from "react-select";
 import { customStyles, BlueDropdownIndicator } from "../Steps/GeneralDetailsForm";
 import EmailAttachmentModal from "../DocumentsLibrary/EmailAttachmentModal";
+import { getCaseActivityPresignedUrl } from "../../../services/HistoryActivities/HistoryActivities";
 
 import BlackFront from "../../../assets/Black/Group.svg";
 import BlackRear from "../../../assets/Black/Group-1.svg";
@@ -180,6 +181,29 @@ const vehicleLine = (v?: VehicleInfo | null) => {
   return tail;
 };
 
+const sanitizeFilename = (value: string) =>
+  value.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim();
+
+const downloadBlobUrl = (blob: Blob, fileName: string) => {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 500);
+};
+
+const downloadFileFromUrl = async (url: string, fileName: string) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Download failed with ${response.status}`);
+  }
+  const blob = await response.blob();
+  downloadBlobUrl(blob, fileName);
+};
+
 /**
  * Print-only stylesheet. Hides everything except the slider, then forces it to
  * render as one continuous block so the browser paints it as a single PDF.
@@ -323,7 +347,29 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
     if (initialAdjustments.vehicleStatus) setVehicleStatus(initialAdjustments.vehicleStatus);
   }, [initialAdjustments]);
 
-  const handleDownloadPDF = () => setTimeout(() => window.print(), 50);
+  const handleDownloadPDF = async () => {
+    const fileName = sanitizeFilename(
+      `AI Damage Report ${reference && reference !== "-" ? reference : reportId}.pdf`,
+    );
+
+    const downloadUrl = reportPdfS3Key
+      ? await getCaseActivityPresignedUrl(reportPdfS3Key, true)
+      : reportPdfUrl;
+
+    if (!downloadUrl) return;
+
+    try {
+      await downloadFileFromUrl(downloadUrl, fileName);
+    } catch (error) {
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = fileName;
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+  };
   const handlePrint = () => setTimeout(() => window.print(), 50);
   const handleSave = () => onSaveToClaim?.({ decisions, notes, vehicleStatus });
 

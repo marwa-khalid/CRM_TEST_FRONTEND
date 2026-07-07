@@ -189,11 +189,14 @@ export const getEmailAttachmentBlob = (fileUrl: string) => {
   });
 };
 
-export const getCaseActivityPresignedUrl = async (s3Key: string) => {
+export const getCaseActivityPresignedUrl = async (
+  s3Key: string,
+  download = false,
+) => {
   const response = await axiosInstance.get(
     `/case-activity/document/presigned-url`,
     {
-      params: { s3_key: s3Key },
+      params: { s3_key: s3Key, download },
     },
   );
 

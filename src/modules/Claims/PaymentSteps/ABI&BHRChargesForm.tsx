@@ -193,6 +193,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [loading, setLoading] = useState(true);
 
   // Formik — only the Payment Pack Sent Detail fields are saved to DB
+  const raisedDateSavePromiseRef = useRef<Promise<string> | null>(null);
+  const raisedDateValueRef = useRef("");
   const formik = useFormik({
     initialValues: {
       payment_pack_raised_date: "",
@@ -217,6 +219,44 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       }
     },
   });
+
+  useEffect(() => {
+    raisedDateValueRef.current = formik.values.payment_pack_raised_date || "";
+  }, [formik.values.payment_pack_raised_date]);
+
+  const ensurePaymentPackRaisedDate = async () => {
+    const existing =
+      raisedDateValueRef.current || formik.values.payment_pack_raised_date;
+    if (existing) return existing;
+
+    if (raisedDateSavePromiseRef.current) {
+      return raisedDateSavePromiseRef.current;
+    }
+
+    const today = dateToISO(new Date());
+    raisedDateValueRef.current = today;
+    formik.setFieldValue("payment_pack_raised_date", today, false);
+
+    if (!claimId) return today;
+
+    raisedDateSavePromiseRef.current = saveABIBHRCharges({
+      claim_id: Number(claimId),
+      payment_pack_raised_date: today,
+      payment_pack_sent_date: formik.values.payment_pack_sent_date || null,
+      invoice_number: formik.values.invoice_number || null,
+      date_hire_paid: formik.values.date_hire_paid || null,
+    })
+      .then(() => today)
+      .catch(() => {
+        toast.error("Failed to save payment pack raised date");
+        return today;
+      })
+      .finally(() => {
+        raisedDateSavePromiseRef.current = null;
+      });
+
+    return raisedDateSavePromiseRef.current;
+  };
 
   // Expose to parent so "Save & Next" works
   useEffect(() => {
@@ -694,7 +734,13 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         <div className="relative" ref={packMenuRef}>
           <button
             type="button"
-            onClick={() => setShowPackModal((v) => !v)}
+            onClick={() => {
+              setShowPackModal((v) => {
+                const shouldOpen = !v;
+                if (shouldOpen) void ensurePaymentPackRaisedDate();
+                return shouldOpen;
+              });
+            }}
             disabled={isGenerating}
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-100 disabled:bg-blue-100 text-blue-500 text-sm font-weight-500 rounded transition-all"
           >
@@ -761,7 +807,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
                 <React.Fragment key={item.label}>
                   <div
                     className="text-blue-500 text-sm cursor-pointer hover:bg-slate-50 p-1"
-                    onClick={() => {
+                    onClick={async () => {
+                      await ensurePaymentPackRaisedDate();
                       setShowPackModal(false);
                       item.open();
                     }}

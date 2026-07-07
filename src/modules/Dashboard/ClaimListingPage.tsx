@@ -194,35 +194,43 @@ const Dashboard: React.FC = () => {
   ];
 
   useEffect(() => {
+    let cancelled = false;
+    let retried = false;
     const fetchClaims = async () => {
       try {
-        const res = await getClaims();
-
-        if (Array.isArray(res)) {
-          setClaims(res);
-          return;
-        }
-
-        if (Array.isArray(res?.data)) {
-          setClaims(res.data);
-          return;
-        }
-
-        if (Array.isArray(res?.items)) {
-          setClaims(res.items);
-          return;
-        }
-
-        setClaims([]);
+        const res: any = await getClaims();
+        if (cancelled) return;
+        const list = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.data)
+            ? res.data
+            : Array.isArray(res?.items)
+              ? res.items
+              : [];
+        setClaims(list);
       } catch (error) {
         console.error("Failed to fetch claims:", error);
+        if (cancelled) return;
+        // A single transient failure (e.g. a cold auth cookie on first load)
+        // shouldn't leave the list permanently empty — retry once shortly.
+        if (!retried) {
+          retried = true;
+          setTimeout(() => {
+            if (!cancelled) fetchClaims();
+          }, 1200);
+          return;
+        }
         setClaims([]);
       } finally {
-        setClaimsLoading(false);
+        if (!cancelled) setClaimsLoading(false);
       }
     };
 
     fetchClaims();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Month-over-month trends for the KPI cards, computed server-side.

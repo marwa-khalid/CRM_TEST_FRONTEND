@@ -1,1 +1,9 @@
-/* /index.html   200
+# Proxy API calls to the Railway backend so the browser sees them as SAME-ORIGIN
+# with the SPA (https://claims-crm.netlify.app/api/...). This keeps the httpOnly
+# auth cookie first-party, so it's sent on every request — a cross-site cookie
+# (netlify.app -> railway.app) is blocked by Safari/Chrome and caused the 401s.
+# This rule MUST come before the SPA catch-all below (Netlify: first match wins).
+/api/*  https://crm-test-backend-production.up.railway.app/:splat  200
+
+# SPA fallback — every other path serves index.html for client-side routing.
+/*  /index.html  200

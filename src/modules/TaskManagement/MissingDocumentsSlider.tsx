@@ -15,12 +15,15 @@ const cleanLabel = (l: string) =>
 const MissingDocumentsSlider = ({ onClose }: { onClose: () => void }) => {
   const navigate = useNavigate();
   const [items, setItems] = useState<MissingDoc[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
+    setLoading(true);
     getMissingDocuments()
       .then(({ data }) => setItems(Array.isArray(data?.items) ? data.items : []))
-      .catch(() => setItems([]));
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const shown = query.trim()
@@ -52,7 +55,7 @@ const MissingDocumentsSlider = ({ onClose }: { onClose: () => void }) => {
         {/* count + search */}
         <div className="flex justify-between items-center gap-4">
           <div className="text-black text-xl font-weight-600 leading-5">
-            {shown.length} Missing Documents Found
+            {loading ? "…" : `${shown.length} Missing Documents Found`}
           </div>
           <input
             value={query}
@@ -62,7 +65,13 @@ const MissingDocumentsSlider = ({ onClose }: { onClose: () => void }) => {
           />
         </div>
 
-        {/* list */}
+        {/* list: loader while fetching, otherwise the results */}
+        {loading ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+            <div className="text-neutral-400 text-sm">Loading missing documents…</div>
+          </div>
+        ) : (
         <div className="flex-1 overflow-auto flex flex-col gap-2">
           {shown.map((it, i) => (
             <div
@@ -86,6 +95,7 @@ const MissingDocumentsSlider = ({ onClose }: { onClose: () => void }) => {
             <div className="text-neutral-400 text-sm py-10 text-center">No missing documents.</div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

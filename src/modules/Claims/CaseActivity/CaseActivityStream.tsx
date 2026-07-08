@@ -10,6 +10,7 @@ import {
   getCaseActivityPresignedUrl,
 } from "../../../services/HistoryActivities/HistoryActivities";
 import MailIcon from "../../../assets/case_activity/email.svg";
+import { parseServerDate, serverTime } from "../../../utils/serverDate";
 import AIReportIcon from "../../../assets/case_activity/ai_report.svg";
 import NotesIcon from "../../../assets/case_activity/note.svg";
 import UpdateIcon from "../../../assets/case_activity/update.svg";
@@ -1281,9 +1282,7 @@ Nationwide Assist Team`,
       activity.meta?.created_at ||
       "";
 
-    const time = new Date(value).getTime();
-
-    return Number.isNaN(time) ? 0 : time;
+    return serverTime(value);
   };
 
   const filteredActivities = useMemo(() => {
@@ -1334,8 +1333,8 @@ Nationwide Assist Team`,
     setCurrentPage(1);
   }, [filter, search]);
   const formatDateTime = (dateStr?: string) => {
-    if (!dateStr) return "";
-    const date = new Date(dateStr);
+    const date = parseServerDate(dateStr);
+    if (!date) return "";
     return date
       .toLocaleString("en-GB", {
         day: "2-digit",

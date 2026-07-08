@@ -4,6 +4,7 @@ import Select from "react-select";
 import { customStyles, BlueDropdownIndicator } from "../Steps/GeneralDetailsForm";
 import EmailAttachmentModal from "../DocumentsLibrary/EmailAttachmentModal";
 import { getCaseActivityPresignedUrl } from "../../../services/HistoryActivities/HistoryActivities";
+import { parseServerDate } from "../../../utils/serverDate";
 
 import BlackFront from "../../../assets/Black/Group.svg";
 import BlackRear from "../../../assets/Black/Group-1.svg";
@@ -147,8 +148,8 @@ const getSuggestedRepair = (damageType?: string) => {
 
 const formatDateTime = (value?: string) => {
   if (!value) return "-";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
+  const parsed = parseServerDate(value);
+  if (!parsed) return value;
   return parsed.toLocaleString("en-GB", {
     day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
   });

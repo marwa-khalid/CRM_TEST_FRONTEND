@@ -17,6 +17,7 @@ import {
   registerDocumentPreview,
 } from "../../../services/DocumentLibrary/DocumentLibrary";
 import { Document, Page, pdfjs } from "react-pdf";
+import { parseServerDate, serverTime } from "../../../utils/serverDate";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -280,8 +281,8 @@ const getDocumentVersions = () => {
   });
 
   const sortedAscending = Array.from(mergedMap.values()).sort((a, b) => {
-    const aTime = new Date(a.created_at || 0).getTime();
-    const bTime = new Date(b.created_at || 0).getTime();
+    const aTime = serverTime(a.created_at);
+    const bTime = serverTime(b.created_at);
     return aTime - bTime;
   });
 
@@ -296,9 +297,10 @@ const getDocumentVersions = () => {
 };
 
 const formatDateTime = (dateStr?: string) => {
-  if (!dateStr) return "-";
+  const parsed = parseServerDate(dateStr);
+  if (!parsed) return "-";
 
-  return new Date(dateStr).toLocaleString("en-GB", {
+  return parsed.toLocaleString("en-GB", {
     day: "2-digit",
     month: "2-digit",
     year: "2-digit",
@@ -336,7 +338,7 @@ const formatDateTime = (dateStr?: string) => {
                 <div className="text-[#6B7280] text-xs font-weight-300">
                   {fileSizeLabel} • Uploaded{" "}
                   {document.created_at
-                    ? new Date(document.created_at).toLocaleString()
+                    ? (parseServerDate(document.created_at)?.toLocaleString() ?? "-")
                     : ""}
                 </div>
               </div>
@@ -541,7 +543,7 @@ const formatDateTime = (dateStr?: string) => {
                     [
                       "Upload Date Time",
                       document.created_at
-                        ? new Date(document.created_at).toLocaleString()
+                        ? (parseServerDate(document.created_at)?.toLocaleString() ?? "-")
                         : "-",
                     ],
                   ].map(([label, value], idx) => (
@@ -634,7 +636,7 @@ const formatDateTime = (dateStr?: string) => {
                     </div>
                     <div className="text-[#374151] text-sm">
                       {version.created_at
-                        ? new Date(version.created_at).toLocaleString()
+                        ? (parseServerDate(version.created_at)?.toLocaleString() ?? "-")
                         : "-"}
                     </div>
                   </div>

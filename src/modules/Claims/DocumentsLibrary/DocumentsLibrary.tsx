@@ -27,6 +27,7 @@ import {
 } from "../../../services/DocumentLibrary/DocumentLibrary";
 import DocumentLibrarySlider from "./DocumentLibrarySlider";
 import { getCaseActivityPresignedUrl } from "../../../services/HistoryActivities/HistoryActivities";
+import { parseServerDate } from "../../../utils/serverDate";
 
 // Renders an S3/local image and, on "Access Denied / expired" errors, refetches
 // a fresh presigned URL from the object key so it never stays broken.
@@ -339,10 +340,11 @@ Regards`;
   };
   
   const getRelativeTime = (dateStr?: string) => {
-    if (!dateStr) return "";
+    const parsed = parseServerDate(dateStr);
+    if (!parsed) return "";
 
     const now = new Date().getTime();
-    const date = new Date(dateStr).getTime();
+    const date = parsed.getTime();
     const diff = Math.floor((now - date) / 1000); // seconds
 
     if (diff < 60) return `${diff} sec${diff !== 1 ? "s" : ""} ago`;

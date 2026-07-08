@@ -828,7 +828,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
               {/* Payment Pack Raised Date — drives the debtors age analysis
                   (days from this date to the settlement date). */}
               <div className="h-px bg-slate-100 w-full" />
-              <div onClick={(e) => e.stopPropagation()}>
+              {/* <div onClick={(e) => e.stopPropagation()}>
                 <DatePickerField
                   label="Payment Pack Raised Date"
                   value={formik.values.payment_pack_raised_date}
@@ -842,7 +842,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
                 <p className="text-[11px] text-neutral-400 mt-1">
                   Used to age debtors from the settlement date.
                 </p>
-              </div>
+              </div> */}
               {/* <div className="h-px bg-slate-100 w-full" /> */}
               {/* <button
                 type="button"

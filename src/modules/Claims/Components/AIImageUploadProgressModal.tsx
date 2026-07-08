@@ -67,6 +67,11 @@ export const AIImageUploadProgressPanel: React.FC<
   errorMessage,
 }) => {
   const [visibleAnalysedCount, setVisibleAnalysedCount] = React.useState(0);
+  // Simulated "generating the report" progress. Once every image has been
+  // analysed, the backend still needs a few seconds to compose the report — an
+  // indeterminate wait. Rather than freeze the bar at ~98%, we trickle it upward
+  // (80 -> 99%) so it always looks like it's moving.
+  const [finalizeProgress, setFinalizeProgress] = React.useState(0);
   const itemKey = items.map((item) => item.id).join("|");
   const fileTotal = items.reduce((sum, item) => sum + item.size, 0);
   const progressBase = totalBytes || fileTotal || 1;
@@ -74,20 +79,33 @@ export const AIImageUploadProgressPanel: React.FC<
     100,
     Math.round((loadedBytes / progressBase) * 100),
   );
-  const processingProgress = Math.round(
-    90 +
-      (Math.min(visibleAnalysedCount, items.length) /
-        Math.max(items.length, 1)) *
-        8,
-  );
-  const progress = phase === "complete"
-    ? 100
-    : phase === "processing"
-      ? Math.min(98, Math.max(90, processingProgress))
-      : uploadProgress;
+
+  // Progress budget: uploading fills 0-60%, per-image analysis 60-80%, and the
+  // final report-generation step creeps 80-99% (finalizeProgress). Complete = 100%.
+  const analysedRatio =
+    Math.min(visibleAnalysedCount, items.length) / Math.max(items.length, 1);
+  const uploadingBarProgress = Math.round((uploadProgress / 100) * 60);
+  const analysisBarProgress = Math.round(60 + analysedRatio * 20);
+  const finalisingStarted =
+    phase === "processing" &&
+    items.length > 0 &&
+    visibleAnalysedCount >= items.length;
+
+  const progress =
+    phase === "complete"
+      ? 100
+      : phase === "error"
+        ? Math.max(uploadingBarProgress, analysisBarProgress)
+        : phase === "processing"
+          ? finalisingStarted
+            ? Math.round(Math.max(analysisBarProgress, finalizeProgress))
+            : analysisBarProgress
+          : uploadingBarProgress;
+
+  // Per-file upload ticks off real bytes (independent of the rescaled bar %).
   const equivalentLoaded = Math.min(
     fileTotal,
-    fileTotal * (progress / 100),
+    fileTotal * (uploadProgress / 100),
   );
 
   React.useEffect(() => {
@@ -122,6 +140,24 @@ export const AIImageUploadProgressPanel: React.FC<
       if (timer) clearTimeout(timer);
     };
   }, [phase, itemKey, items.length]);
+
+  // Once all images are analysed, trickle the bar 80 -> 99% while the backend
+  // composes the report, so the final wait never looks frozen at ~98%.
+  React.useEffect(() => {
+    if (!finalisingStarted) {
+      setFinalizeProgress(0);
+      return;
+    }
+    let current = 80;
+    setFinalizeProgress(current);
+    const timer = setInterval(() => {
+      // Ease-out toward 99%: bigger steps early, tiny steps near the cap. It
+      // never reaches 100 — only the real "complete" phase does that.
+      current = Math.min(99, current + Math.max(0.4, (99 - current) * 0.12));
+      setFinalizeProgress(current);
+    }, 350);
+    return () => clearInterval(timer);
+  }, [finalisingStarted]);
 
   const getItemState = (index: number) => {
     if (phase === "complete") return "done";

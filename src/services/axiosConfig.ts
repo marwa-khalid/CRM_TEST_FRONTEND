@@ -7,6 +7,26 @@ const rawApiBaseUrl =
 
 export const API_BASE_URL = String(rawApiBaseUrl).trim().replace(/\/+$/, "");
 
+// --- Auth token (Bearer) --------------------------------------------------
+// Netlify (netlify.app) and the API (railway.app) are different sites, so the
+// httpOnly auth cookie is a third-party cookie the browser refuses to send in
+// production. The backend also accepts `Authorization: Bearer <token>` (see
+// libauth/auth.py, which prefers the header and only falls back to the cookie),
+// and headers aren't subject to cross-site cookie rules. So we persist the token
+// returned by /auth/verify-otp and attach it to every request. The cookie still
+// works same-origin (local dev) as a bonus.
+const AUTH_TOKEN_KEY = "access_token";
+
+export const setAuthToken = (token: string) => {
+  try { localStorage.setItem(AUTH_TOKEN_KEY, token); } catch { /* ignore */ }
+};
+export const getAuthToken = (): string | null => {
+  try { return localStorage.getItem(AUTH_TOKEN_KEY); } catch { return null; }
+};
+export const clearAuthToken = () => {
+  try { localStorage.removeItem(AUTH_TOKEN_KEY); } catch { /* ignore */ }
+};
+
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   // Send/receive the httpOnly auth cookie — the access token is no longer kept
@@ -18,6 +38,17 @@ const axiosInstance = axios.create({
     "ngrok-skip-browser-warning": "69420",
   },
   timeout: 30000,
+});
+
+// Attach the Bearer token (if present) to every request. This is what actually
+// authenticates in production, where the cross-site cookie can't be sent.
+axiosInstance.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers = config.headers ?? {};
+    (config.headers as Record<string, string>).Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 // Auth/public pages where a 401 should NOT bounce to /login.
@@ -48,6 +79,7 @@ axiosInstance.interceptors.response.use(
     const status = error.response?.status;
     const path = window.location.pathname;
     if (status === 401 && !isPublicPath(path)) {
+      clearAuthToken();
       window.location.href = "/login";
     }
     return Promise.reject(error);

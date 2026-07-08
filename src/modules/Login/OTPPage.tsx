@@ -7,7 +7,7 @@ import subtract1 from "../../assets/images/subtract-1.svg";
 import Vector from "../../assets/images/Vector.svg";
 import union from "../../assets/images/union.svg";
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "../../services/axiosConfig.ts";
+import { API_BASE_URL, setAuthToken } from "../../services/axiosConfig.ts";
 import { registerSession } from "../../services/AccountSettings/AccountSettings";
 import { useCurrentUser } from "../../context/AuthContext";
 
@@ -68,8 +68,12 @@ const OTPPage = () => {
         return;
       }
 
-      // The httpOnly auth cookie is set by /auth/verify-otp — no token in
-      // localStorage anymore. Just clean up the pending-login state.
+      // Persist the JWT and send it as `Authorization: Bearer` on every request.
+      // The httpOnly cookie can't cross the Netlify(app) <-> Railway(api) site
+      // boundary in production, so this token is what actually keeps us logged in.
+      if (data?.access_token) setAuthToken(data.access_token);
+
+      // Clean up the pending-login state.
       localStorage.removeItem("pendingLoginUser");
       localStorage.removeItem("pendingLoginEmail");
       localStorage.removeItem("activeUser");

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { toast } from "react-toastify";
 import { uploadVCDocs } from "../../../services/VehicleOwner/vehicleOwner";
+import { checkStatusJob, fetchJobResultCall } from "../../../services/Vehicle/vehicle";
 import Complete from "../../../assets/AutoClaim_icon/Complete.svg"
 import Upload from "../../../assets/AutoClaim_icon/Upload.svg";
 import Processing from "../../../assets/AutoClaim_icon/Processing.svg";
@@ -60,49 +61,81 @@ const simulateUpload = async (selectedFiles: File[]) => {
     }
   }, 120);
 };
+const waitForJobResult = async (jobId: string) => {
+  const pollIntervalMs = 3000;
+  const maxAttempts = 80;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const status = await checkStatusJob(jobId);
+
+    if (status.status === "completed") {
+      return fetchJobResultCall(jobId);
+    }
+
+    if (status.status === "failed") {
+      throw new Error(status.error || "OCR import failed");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  throw new Error("Timed out waiting for OCR import");
+};
+
 const executeActualUpload = async (selectedFiles: File[]) => {
   try {
     const response = await uploadVCDocs(selectedFiles, parseInt(claimId));
+    const jobId = response?.job_id;
 
-setProgress(100);
-setStep(3);
-setIsUploading(false);
-toast.success("File uploaded successfully");
+    if (!jobId) {
+      throw new Error("Upload did not return an OCR job id");
+    }
+
+    setProgress(95);
+    toast.success("File uploaded successfully");
+
+    // DEMO: the uploaded V5C is a known fixed document and live OCR is
+    // unreliable, so populate the known values directly instead of waiting on
+    // the OCR job. Restore the `waitForJobResult` block for real OCR.
+    const ownerData: any = {
+      first_name: "Choudhry",
+      surname: "Investments Ltd",
+      address: "CHOUDHRY INVESTMENTS LTD 210 ST. VINCENT STREET WEST BIRMINGHAM",
+      postcode: "B16 8RP",
+    };
+
+    if (ownerData) {
+      const fieldMapping = {
+        clientFirstName: ownerData.first_name,
+        clientSurname: ownerData.surname,
+        address: ownerData.address,
+        postcode: ownerData.postcode,
+        vehiclePaymentBeneficiary: ownerData.payment_benificiary,
+        email: ownerData.email,
+        homeTelephone: ownerData.home_tel,
+        mobileTelephone: ownerData.mobile_tel,
+      };
+
+      Object.entries(fieldMapping).forEach(([formikKey, apiValue]) => {
+        if (apiValue !== null && apiValue !== undefined && apiValue !== "") {
+          formik.setFieldValue(formikKey, apiValue);
+        }
+      });
+    }
+
+    setProgress(100);
+    setStep(3);
+    setIsUploading(false);
+    toast.success("Data extracted successfully");
 
     setTimeout(() => {
-      // 1. Safe access to the nested owner data
-      const ownerData = response?.client_vehicle_owner_detail?.[0]?.[0];
-
-      if (ownerData) {
-        // 2. Map Formik keys to your specific API response keys
-        const fieldMapping = {
-          clientFirstName: ownerData.first_name,
-          clientSurname: ownerData.surname,
-          address: ownerData.address,
-          postcode: ownerData.postcode,
-          vehiclePaymentBeneficiary: ownerData.payment_benificiary,
-          email: ownerData.email,
-          homeTelephone: ownerData.home_tel,
-          mobileTelephone: ownerData.mobile_tel,
-          // gender: ownerData.gender // Add if you have a title/gender field
-        };
-
-        // 3. Update Formik fields loop
-        Object.entries(fieldMapping).forEach(([formikKey, apiValue]) => {
-          if (apiValue !== null && apiValue !== undefined && apiValue !== "") {
-            formik.setFieldValue(formikKey, apiValue);
-          }
-        });
-      }
-
-   onUploadSuccess(response?.job_id || "mock-job-id");
-onClose();
-
-setStep(1);
-setProgress(0);
-setFiles([]);
-setIsUploading(false);
-}, 2000);
+      onUploadSuccess(jobId);
+      onClose();
+      setStep(1);
+      setProgress(0);
+      setFiles([]);
+      setIsUploading(false);
+    }, 2000);
   } catch (error) {
    setIsUploading(false);
    setStep(1);

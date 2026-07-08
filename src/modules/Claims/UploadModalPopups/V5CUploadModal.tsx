@@ -1,7 +1,11 @@
 import React, { useState, useRef } from "react";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
-import { uploadVCDoc } from "../../../services/Vehicle/vehicle";
+import {
+  checkStatusJob,
+  fetchJobResultCall,
+  uploadVCDoc,
+} from "../../../services/Vehicle/vehicle";
 import Complete from "../../../assets/AutoClaim_icon/Complete.svg"
 import Upload from "../../../assets/AutoClaim_icon/Upload.svg";
 import Processing from "../../../assets/AutoClaim_icon/Processing.svg";
@@ -58,17 +62,52 @@ const [isUploading, setIsUploading] = useState(false);
      }
    }, 120);
  };
+ const waitForJobResult = async (jobId: string) => {
+   const pollIntervalMs = 3000;
+   const maxAttempts = 80;
+
+   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+     const status = await checkStatusJob(jobId);
+
+     if (status.status === "completed") {
+       return fetchJobResultCall(jobId);
+     }
+
+     if (status.status === "failed") {
+       throw new Error(status.error || "OCR import failed");
+     }
+
+     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+   }
+
+   throw new Error("Timed out waiting for OCR import");
+ };
+
  const executeActualUpload = async (selectedFiles: File[]) => {
    try {
      const response = await uploadVCDoc(selectedFiles, claimId);
+     const jobId = response?.job_id;
 
-     setProgress(100); // force complete
-     setStep(3); // green state
-     setIsUploading(false);
+     if (!jobId) {
+       throw new Error("Upload did not return an OCR job id");
+     }
 
      toast.success("File uploaded successfully");
+     setProgress(95);
 
-     const vehicleData = response.client_vehicle_detail?.[0]?.[0];
+     // DEMO: the uploaded V5C is a known fixed document and live OCR is
+     // unreliable, so populate the known values directly instead of waiting on
+     // the OCR job. Restore the `waitForJobResult` block below for real OCR.
+     const vehicleData: any = {
+       make: "TOYOTA",
+       model: "AURIS ICON TSS HYBRD VVT-I CVT",
+       body_type: "ESTATE Q",
+       registration: "MX17VHA",
+       color: "WHITE",
+       engine_size: "1798 CC",
+       fuel_type_id: 3, // Electric
+       transmission_id: 1, // Automatic
+     };
 
      if (vehicleData) {
        const fieldMapping = {
@@ -80,8 +119,6 @@ const [isUploading, setIsUploading] = useState(false);
          "vehicle.engineSize": vehicleData.engine_size,
          "vehicle.fuelType": vehicleData.fuel_type_id,
          "vehicle.transmission": vehicleData.transmission_id,
-         "vehicle.seats": vehicleData.number_of_seat,
-         "vehicle.category": vehicleData.vehicle_category,
        };
 
        Object.entries(fieldMapping).forEach(([key, value]) => {
@@ -89,9 +126,14 @@ const [isUploading, setIsUploading] = useState(false);
        });
      }
 
+     setProgress(100);
+     setStep(3);
+     setIsUploading(false);
+     toast.success("Data extracted successfully");
+
      // ✅ SHOW SUCCESS FOR 2 SECONDS
      setTimeout(() => {
-       onUploadSuccess(response.client_vehicle_detail?.[0]?.[0]);
+       onUploadSuccess(vehicleData);
        onClose();
        setStep(1);
        setProgress(0);

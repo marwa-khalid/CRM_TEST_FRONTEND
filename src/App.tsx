@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import LoginPage from './modules/Login/login';
 import ClaimListingPage from "./modules/Dashboard/ClaimListingPage";
 import MainLayout from './Layout/layout';
+import { FleetRoutes } from "./fleet";
 import { ToastContainer } from 'react-toastify';
 import ReminderWatcher from "./components/Reminders/ReminderWatcher";
 import OTPPage from './modules/Login/OTPPage';
@@ -84,6 +85,9 @@ const AppInner: React.FC = () => {
         <Route path="/document-library" element={<DocumentLibrary />} />
         <Route path="/settings" element={<AccountSettings />} />
         <Route path="/example1" element={<TeamsCalendarExample />} />
+
+        {/* Fleet module — fully self-contained under /fleet/* (src/fleet). */}
+        <Route path="/fleet/*" element={<FleetRoutes />} />
 
         <Route path="/questionnaire/:token" element={<QuestionnaireLayout />}>
           <Route path="step-1" element={<Step1Witness />} />

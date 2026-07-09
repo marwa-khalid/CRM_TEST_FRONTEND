@@ -187,7 +187,12 @@ const SingleSignOn = () => {
                 </div>
 
                 <div className="flex flex-col gap-4 w-full">
-                  <div className="w-full flex justify-between items-center cursor-pointer hover:opacity-70 transition-opacity">
+                  {/* Skyline Vehicles = the client-side Fleet section (Add New Hire).
+                      Skyline Client Management is the other section (not built yet). */}
+                  <div
+                    onClick={() => navigate("/fleet")}
+                    className="w-full flex justify-between items-center cursor-pointer hover:opacity-70 transition-opacity"
+                  >
                     <div className="flex items-center gap-3">
                       <img src={Fleet} alt="Fleet icon" className="w-8 h-8" />
 
@@ -204,7 +209,7 @@ const SingleSignOn = () => {
 
                   <div className="w-full h-px bg-gray-100" />
 
-                  <div className="w-full flex justify-between items-center cursor-pointer hover:opacity-70 transition-opacity">
+                  <div className="w-full flex justify-between items-center opacity-60">
                     <div className="flex items-center gap-3">
                       <img src={Fleet} alt="Fleet icon" className="w-8 h-8" />
 

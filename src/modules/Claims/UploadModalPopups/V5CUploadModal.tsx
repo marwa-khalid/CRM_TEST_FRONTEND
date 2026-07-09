@@ -95,19 +95,10 @@ const [isUploading, setIsUploading] = useState(false);
      toast.success("File uploaded successfully");
      setProgress(95);
 
-     // DEMO: the uploaded V5C is a known fixed document and live OCR is
-     // unreliable, so populate the known values directly instead of waiting on
-     // the OCR job. Restore the `waitForJobResult` block below for real OCR.
-     const vehicleData: any = {
-       make: "TOYOTA",
-       model: "AURIS ICON TSS HYBRD VVT-I CVT",
-       body_type: "ESTATE Q",
-       registration: "MX17VHA",
-       color: "WHITE",
-       engine_size: "1798 CC",
-       fuel_type_id: 3, // Electric
-       transmission_id: 1, // Automatic
-     };
+     const jobResult = await waitForJobResult(jobId);
+     const vehicleData = Array.isArray(jobResult?.result)
+       ? jobResult.result?.[0]?.[0]
+       : jobResult?.result?.client_vehicle_detail?.[0]?.[0];
 
      if (vehicleData) {
        const fieldMapping = {
@@ -119,6 +110,8 @@ const [isUploading, setIsUploading] = useState(false);
          "vehicle.engineSize": vehicleData.engine_size,
          "vehicle.fuelType": vehicleData.fuel_type_id,
          "vehicle.transmission": vehicleData.transmission_id,
+         "vehicle.seats": vehicleData.number_of_seat,
+         "vehicle.category": vehicleData.vehicle_category,
        };
 
        Object.entries(fieldMapping).forEach(([key, value]) => {

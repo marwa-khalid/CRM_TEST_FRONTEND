@@ -94,15 +94,9 @@ const executeActualUpload = async (selectedFiles: File[]) => {
     setProgress(95);
     toast.success("File uploaded successfully");
 
-    // DEMO: the uploaded V5C is a known fixed document and live OCR is
-    // unreliable, so populate the known values directly instead of waiting on
-    // the OCR job. Restore the `waitForJobResult` block for real OCR.
-    const ownerData: any = {
-      first_name: "Choudhry",
-      surname: "Investments Ltd",
-      address: "CHOUDHRY INVESTMENTS LTD 210 ST. VINCENT STREET WEST BIRMINGHAM",
-      postcode: "B16 8RP",
-    };
+    const jobResult = await waitForJobResult(jobId);
+    const ownerDetails = jobResult?.result?.vehicle_owner_detail;
+    const ownerData = Array.isArray(ownerDetails) ? ownerDetails[0] : ownerDetails;
 
     if (ownerData) {
       const fieldMapping = {

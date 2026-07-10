@@ -9,7 +9,7 @@ interface Props {
 }
 
 const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext }) => (
-  <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center sticky top-0 z-20 font-['Stack_Sans_Headline']">
+  <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center sticky top-0 z-20 font-stack">
     <div className="flex items-center gap-5">
       <button type="button" onClick={onBack} aria-label="Back" className="shrink-0">
         <img src={ArrowBack} alt="" className="w-6 h-6" />

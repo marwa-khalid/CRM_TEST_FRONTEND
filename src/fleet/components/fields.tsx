@@ -9,8 +9,8 @@ const FIELD_BOX =
   "text-base font-light text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 " +
   "disabled:bg-neutral-50 disabled:text-neutral-400 leading-4";
 
-const LABEL = "text-neutral-700 text-sm font-medium font-['Stack_Sans_Headline']";
-const WRAP = "w-full min-w-0 flex flex-col gap-2 font-['Stack_Sans_Headline']";
+const LABEL = "text-neutral-700 text-sm font-medium font-stack";
+const WRAP = "w-full min-w-0 flex flex-col gap-2 font-stack";
 
 // Subtle marker on OCR-auto-filled fields (story: "highlight OCR-filled fields").
 const OcrBadge = () => (
@@ -145,7 +145,7 @@ interface SegmentedProps {
 
 // Yes / No / Withdrawn style segmented control (selected = black, Fleet theme).
 export const FleetSegmented: React.FC<SegmentedProps> = ({ options, value, onChange, disabled }) => (
-  <div className="inline-flex rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 overflow-hidden font-['Stack_Sans_Headline']">
+  <div className="inline-flex rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 overflow-hidden font-stack">
     {options.map((o, idx) => {
       const active = value === o.value;
       return (
@@ -173,7 +173,7 @@ interface YesNoProps {
 
 // Checkbox-style Yes / No single-select (e.g. Privacy Notice Explained to Hirer).
 export const FleetYesNo: React.FC<YesNoProps> = ({ value, onChange, disabled }) => (
-  <div className="flex items-center gap-6 font-['Stack_Sans_Headline']">
+  <div className="flex items-center gap-6 font-stack">
     {["yes", "no"].map((opt) => {
       const active = value === opt;
       return (

@@ -165,7 +165,7 @@ const DriverProofs: React.FC = () => {
   const addressesMatch = bothPresent && normalise(dlFull) === normalise(utilFull);
 
   return (
-    <div className="w-full max-w-[788px] flex flex-col gap-6 font-['Stack_Sans_Headline']">
+    <div className="w-full max-w-[788px] flex flex-col gap-6 font-stack">
       <h2 className="text-black text-2xl font-semibold leading-6">
         Driver Proofs &amp; License Checks with Address Match
       </h2>

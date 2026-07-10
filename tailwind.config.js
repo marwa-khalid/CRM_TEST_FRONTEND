@@ -51,10 +51,30 @@ export default {
       },
       fontFamily: {
         inter: ["Inter", "sans-serif"],
-        // Figma "typo family" — use `font-stack` instead of font-['Stack_Sans_Headline'].
-        // font-normal=400, font-semibold=600, font-bold=700 are Tailwind defaults and
-        // now all have a matching loaded weight (see index.html).
+        // Figma primitive  Typo.Family — use `font-stack` (no more font-['Stack_Sans_Headline']).
         stack: ["'Stack Sans Headline'", "sans-serif"],
+      },
+      // Figma primitive  Typo.Weight -> Tailwind weight utilities (all loaded in index.html):
+      //   Light 300 = font-light | Regular 400 = font-normal | Medium 500 = font-medium
+      //   SemiBold 600 = font-semibold | Bold 700 = font-bold
+      fontWeight: {
+        light: "300",
+        normal: "400",
+        medium: "500",
+        semibold: "600",
+        bold: "700",
+      },
+      // Figma primitive  Size (px) — e.g. text-fig-md = 24px. Kept under a `fig-`
+      // prefix so Tailwind's own text-sm/lg/... (used across Claims) are untouched.
+      fontSize: {
+        "fig-xlg": "2.5rem", // 40
+        "fig-lg": "2rem", // 32
+        "fig-md": "1.5rem", // 24
+        "fig-md2": "1.25rem", // 20
+        "fig-md3": "1rem", // 16
+        "fig-sm": "0.875rem", // 14
+        "fig-sm2": "0.75rem", // 12
+        "fig-xsm": "0.625rem", // 10
       },
       spacing: {
         0.5: "0.125rem",

@@ -18,7 +18,7 @@ const CompleteDot = () => (
 );
 
 const FleetStepper: React.FC<Props> = ({ steps, activeIndex, completed, onSelect }) => (
-  <div className="w-72 shrink-0 font-['Stack_Sans_Headline']">
+  <div className="w-72 shrink-0 font-stack">
     <div className="p-6 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4">
       {steps.map((step, i) => {
         const isComplete = completed.has(i);

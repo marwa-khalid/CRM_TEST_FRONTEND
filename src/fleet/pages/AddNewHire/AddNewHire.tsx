@@ -60,7 +60,7 @@ const AddNewHire: React.FC = () => {
   const StepComponent = STEP_COMPONENTS[activeStep.key];
 
   return (
-    <div className="min-h-screen bg-white font-['Stack_Sans_Headline']">
+    <div className="min-h-screen bg-white font-stack">
       <FleetTopBar title="Add New Hire" onBack={goBack} onDiscard={discard} onSaveNext={saveNext} />
       <div className="px-10 py-10 flex items-start gap-10">
         <FleetStepper steps={HIRE_STEPS} activeIndex={activeIndex} completed={completed} onSelect={selectStep} />

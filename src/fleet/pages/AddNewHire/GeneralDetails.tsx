@@ -67,7 +67,7 @@ const GeneralDetails: React.FC = () => {
   const disabled = form.isClosed;
 
   return (
-    <div className="w-full max-w-[788px] flex flex-col gap-6 font-['Stack_Sans_Headline']">
+    <div className="w-full max-w-[788px] flex flex-col gap-6 font-stack">
       <h2 className="text-black text-2xl font-semibold leading-6">General Details</h2>
 
       {/* File Status */}

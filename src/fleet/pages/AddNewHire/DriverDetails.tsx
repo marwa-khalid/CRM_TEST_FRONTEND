@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetDateField } from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
-import { DriverDetailsForm } from "../../types/hire";
+import type { DriverDetailsForm } from "../../types/hire";
 import { extractDriverDetailsFromLicence } from "../../services/driverService";
 import { useHire } from "./HireContext";
 
@@ -55,32 +55,36 @@ const DriverDetails: React.FC = () => {
     save({ [TO_BACKEND[key]]: form[key] });
   };
 
-  const handleUploaded = (file: File) => {
+  const handleUploaded = async (file: File) => {
     setLicenceFile(file);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
 
-    // OCR extract + auto-populate (Name/Address/Postcode/DL Number/DOB). The rest
-    // (Email/Telephone/Mobile/NI Number) are manual per the story.
-    const data = extractDriverDetailsFromLicence(file);
-    setForm((f) => ({
-      ...f,
-      name: data.name,
-      address: data.address,
-      postcode: data.postcode,
-      drivingLicenceNumber: data.drivingLicenceNumber,
-      dateOfBirth: data.dateOfBirth,
-    }));
-    setOcrFields(new Set(["name", "address", "postcode", "drivingLicenceNumber", "dateOfBirth"]));
-    // Persist the OCR-extracted fields.
-    save({
-      driver_name: data.name,
-      driver_address: data.address,
-      driver_postcode: data.postcode,
-      driving_licence_number: data.drivingLicenceNumber,
-      date_of_birth: data.dateOfBirth,
-    });
-    toast.success("Driver details extracted from licence.");
+    // Real OCR extract + auto-populate (Name/Address/Postcode/DL Number/DOB). The
+    // rest (Email/Telephone/Mobile/NI Number) are manual per the story.
+    const data = await extractDriverDetailsFromLicence(file);
+    const map: [keyof DriverDetailsForm, string][] = [
+      ["name", data.name],
+      ["address", data.address],
+      ["postcode", data.postcode],
+      ["drivingLicenceNumber", data.drivingLicenceNumber],
+      ["dateOfBirth", data.dateOfBirth],
+    ];
+    const updates: Partial<DriverDetailsForm> = {};
+    const back: Record<string, string> = {};
+    const filled = new Set<keyof DriverDetailsForm>();
+    for (const [key, value] of map) {
+      if (value) {
+        updates[key] = value;
+        back[TO_BACKEND[key]] = value;
+        filled.add(key);
+      }
+    }
+    setForm((f) => ({ ...f, ...updates }));
+    setOcrFields(filled);
+    if (Object.keys(back).length) save(back); // persist only what OCR found
+    if (filled.size) toast.success("Driver details extracted from licence.");
+    else toast.info("Couldn't read the licence — please enter the details manually.");
   };
 
   return (

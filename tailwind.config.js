@@ -51,6 +51,10 @@ export default {
       },
       fontFamily: {
         inter: ["Inter", "sans-serif"],
+        // Figma "typo family" — use `font-stack` instead of font-['Stack_Sans_Headline'].
+        // font-normal=400, font-semibold=600, font-bold=700 are Tailwind defaults and
+        // now all have a matching loaded weight (see index.html).
+        stack: ["'Stack Sans Headline'", "sans-serif"],
       },
       spacing: {
         0.5: "0.125rem",

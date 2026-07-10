@@ -8,7 +8,7 @@ import CloseFileIcon from "../../assets/icons/CloseFile.svg";
 import {
   INSURANCE_TYPE_OPTIONS,
   CURRENT_POSITION_OPTIONS,
-  GeneralDetailsForm,
+  type GeneralDetailsForm,
 } from "../../types/hire";
 import { useHire } from "./HireContext";
 

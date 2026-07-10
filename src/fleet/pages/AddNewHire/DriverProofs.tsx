@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import { useHire } from "./HireContext";
 import { uploadHireDocument, deleteHireDocument } from "../../services/hireService";
+import { extractDriverDetailsFromLicence, extractProofOfAddress } from "../../services/driverService";
 
 type DocKey = "firstUtility" | "secondUtility" | "dlFront" | "dlBack";
 
@@ -25,11 +26,6 @@ const receivedToday = () => {
   return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${String(d.getFullYear()).slice(2)}`;
 };
 
-// TODO (backend/OCR): these come from OCR of the uploaded documents.
-const OCR_DL_ADDRESS = "10 Downing Street, London, SW1A 2AA";
-const OCR_UTILITY_ADDRESS = "9 Anderson Drive, Aberdeen, AB15 4ST";
-const OCR_DL_START = "20-06-2012";
-const OCR_DL_END = "19-06-2022";
 const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const UploadPrompt = () => (
@@ -103,6 +99,9 @@ const DriverProofs: React.FC = () => {
     dlBack: null,
   });
   const [activeDoc, setActiveDoc] = useState<DocKey | null>(null);
+  // OCR results driving the licence dates + address comparison.
+  const [dlOcr, setDlOcr] = useState({ address: "", postcode: "", start: "", end: "" });
+  const [utilOcr, setUtilOcr] = useState({ address: "", postcode: "" });
   const { hireId } = useHire();
 
   const openUpload = (key: DocKey) => {
@@ -134,6 +133,15 @@ const DriverProofs: React.FC = () => {
         }
       });
     }
+
+    // Real OCR to drive the licence dates + address match.
+    if (key === "dlFront") {
+      extractDriverDetailsFromLicence(file).then((d) =>
+        setDlOcr({ address: d.address, postcode: d.postcode, start: d.licenceStart, end: d.licenceEnd }),
+      );
+    } else if (key === "firstUtility" || key === "secondUtility") {
+      extractProofOfAddress(file).then((d) => setUtilOcr({ address: d.address, postcode: d.postcode }));
+    }
   };
 
   const removeDoc = (key: DocKey) => {
@@ -144,12 +152,17 @@ const DriverProofs: React.FC = () => {
       if (ex?.previewUrl) URL.revokeObjectURL(ex.previewUrl);
       return { ...prev, [key]: null };
     });
+    if (key === "dlFront") setDlOcr({ address: "", postcode: "", start: "", end: "" });
+    if (key === "firstUtility" || key === "secondUtility") setUtilOcr({ address: "", postcode: "" });
   };
 
   const hasUtility = !!(docs.firstUtility || docs.secondUtility);
   const showLicenceDates = !!docs.dlFront;
   const showCompare = hasUtility && !!docs.dlFront;
-  const addressesMatch = normalise(OCR_DL_ADDRESS) === normalise(OCR_UTILITY_ADDRESS);
+  const dlFull = [dlOcr.address, dlOcr.postcode].filter(Boolean).join(", ");
+  const utilFull = [utilOcr.address, utilOcr.postcode].filter(Boolean).join(", ");
+  const bothPresent = !!dlFull && !!utilFull;
+  const addressesMatch = bothPresent && normalise(dlFull) === normalise(utilFull);
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-['Stack_Sans_Headline']">
@@ -173,10 +186,10 @@ const DriverProofs: React.FC = () => {
           <div className="h-px bg-neutral-100" />
           <div className="flex flex-col gap-3">
             <div className="text-black text-sm">
-              Driving License Start Date : <span className="font-semibold">{OCR_DL_START}</span>
+              Driving License Start Date : <span className="font-semibold">{dlOcr.start || "—"}</span>
             </div>
             <div className="text-black text-sm">
-              Driving License End Date : <span className="font-semibold">{OCR_DL_END}</span>
+              Driving License End Date : <span className="font-semibold">{dlOcr.end || "—"}</span>
             </div>
           </div>
         </section>
@@ -186,7 +199,9 @@ const DriverProofs: React.FC = () => {
         <section className="px-5 py-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <h3 className="text-black text-xl font-semibold leading-5">Compare Address</h3>
-            {addressesMatch ? (
+            {!bothPresent ? (
+              <div className="p-2 bg-neutral-100 rounded-sm flex items-center gap-2 text-neutral-600 text-sm">Reading…</div>
+            ) : addressesMatch ? (
               <div className="p-2 bg-green-100 rounded-sm flex items-center gap-2 text-black text-sm">Match</div>
             ) : (
               <div className="p-2 bg-red-100 rounded-sm flex items-center gap-2 text-black text-sm">
@@ -195,7 +210,7 @@ const DriverProofs: React.FC = () => {
               </div>
             )}
           </div>
-          {!addressesMatch && (
+          {bothPresent && !addressesMatch && (
             <div className="px-4 py-2 bg-red-100 rounded-sm text-neutral-700 text-sm">
               Address does not match between Driving Licence and Utility Bill
             </div>
@@ -203,11 +218,11 @@ const DriverProofs: React.FC = () => {
           <div className="flex items-start gap-6">
             <div className="flex-1 p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3">
               <div className="text-black text-base font-semibold">Driving License Address</div>
-              <div className="text-black text-sm">{OCR_DL_ADDRESS}</div>
+              <div className="text-black text-sm">{dlFull || "Not detected"}</div>
             </div>
             <div className="flex-1 p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3">
               <div className="text-black text-base font-semibold">Utility Bill Address</div>
-              <div className="text-black text-sm">{OCR_UTILITY_ADDRESS}</div>
+              <div className="text-black text-sm">{utilFull || "Not detected"}</div>
             </div>
           </div>
         </section>

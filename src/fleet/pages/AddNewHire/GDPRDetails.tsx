@@ -7,8 +7,8 @@ import {
   LAWFUL_BASIS_OPTIONS,
   CONSENT_METHOD_OPTIONS,
   CONSENT_STATE_OPTIONS,
-  GDPRForm,
-  AuditLogRow,
+  type GDPRForm,
+  type AuditLogRow,
 } from "../../types/hire";
 import { useHire } from "./HireContext";
 

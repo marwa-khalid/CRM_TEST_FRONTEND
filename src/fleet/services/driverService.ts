@@ -1,4 +1,5 @@
 import type { DriverDetailsForm } from "../types/hire";
+import fleetApi from "./fleetApi";
 
 // Field-level save (like the Claims side). TODO: wire to the Fleet backend
 // (fleetApi.patch on the driver record) once the endpoint exists. Silent no-op
@@ -17,15 +18,55 @@ export interface ExtractedDriver {
   postcode: string;
   drivingLicenceNumber: string;
   dateOfBirth: string; // yyyy-mm-dd
+  licenceStart: string; // dd-mm-yyyy
+  licenceEnd: string; // dd-mm-yyyy
 }
 
-// OCR extraction from the uploaded driving licence. TODO: replace this stub with
-// the real Fleet OCR call (fleetApi). Returns sample data so the auto-populate +
-// preview flow is visible client-side.
-export const extractDriverDetailsFromLicence = (_file: File): ExtractedDriver => ({
-  name: "David William Donald Cameron",
-  address: "10 Downing Street, London",
-  postcode: "SW1A 2AA",
-  drivingLicenceNumber: "CAMER009011DW9AB99",
-  dateOfBirth: "1966-10-09",
-});
+const EMPTY_DRIVER: ExtractedDriver = {
+  name: "",
+  address: "",
+  postcode: "",
+  drivingLicenceNumber: "",
+  dateOfBirth: "",
+  licenceStart: "",
+  licenceEnd: "",
+};
+
+// Real OCR of an uploaded driving licence via the self-contained Fleet backend
+// (free Tesseract, optional Vision). Best-effort: returns blanks on failure so
+// the upload flow never errors and the user can type the fields manually.
+export const extractDriverDetailsFromLicence = async (
+  file: File,
+): Promise<ExtractedDriver> => {
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const { data } = await fleetApi.post("/fleet/ocr/driving-licence", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return { ...EMPTY_DRIVER, ...data };
+  } catch {
+    return { ...EMPTY_DRIVER };
+  }
+};
+
+export interface ExtractedAddress {
+  address: string;
+  postcode: string;
+}
+
+// Real OCR of a proof-of-address (utility bill) -> address + postcode.
+export const extractProofOfAddress = async (
+  file: File,
+): Promise<ExtractedAddress> => {
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const { data } = await fleetApi.post("/fleet/ocr/proof-of-address", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return { address: data.address ?? "", postcode: data.postcode ?? "" };
+  } catch {
+    return { address: "", postcode: "" };
+  }
+};

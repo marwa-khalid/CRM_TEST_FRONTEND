@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { X, ChevronLeft } from "lucide-react";
-import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { getStorageProvider } from "../../../services/StorageRecovery/StorageRecovery";
 import { CustomDatePicker } from "../Components/DatePicker";

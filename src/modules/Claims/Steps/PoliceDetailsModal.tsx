@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import Vector6 from '../../../assets/AutoClaim_icon/Vector-6.svg';
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import { toast } from "react-toastify";
 import { createPoliceDetail, updatePoliceDetail } from "../../../services/Accidents/Cards/cards";
 import { CustomDatePicker } from "../Components/DatePicker";

@@ -10,7 +10,7 @@ import EventFormDrawer from "./calendar/EventFormDrawer";
 import EventDetailsDrawer from "./calendar/EventDetailsDrawer";
 import DateField from "./calendar/DateField";
 import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDetailsForm";
-import { SpinnerLoader } from "../../components/common/SpinnerLoader";
+import { SpinnerLoader } from "../../claims/common/SpinnerLoader";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["January", "February", "March", "April", "May", "June",

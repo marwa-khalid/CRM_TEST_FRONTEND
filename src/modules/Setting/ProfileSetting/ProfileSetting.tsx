@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { TagInput } from '../../../components/TagInput/TagInput';
+import { TagInput } from '../../../claims/TagInput/TagInput';
 import { ReferrerConfigurations } from '../ReferrerConfigurations/ReferrerConfiguration';
-import SetBar from '../../../components/SetBar/SetBar';
+import SetBar from '../../../claims/SetBar/SetBar';
 interface Tag {
   id: string;
   label: string;

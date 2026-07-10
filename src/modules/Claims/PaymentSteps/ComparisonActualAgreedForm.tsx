@@ -12,7 +12,7 @@ import { getPlatingTotal, getPlatingCharges } from "../../../services/PlatingCha
 import { getRepairData } from "../../../services/RepairAndCost/RepairAndCost";
 import { getHireProvidedVehicles } from "../../../services/Vehicle/vehicle";
 import VehicleCards, { type ClaimVehicle } from "./VehicleCards";
-import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
+import { SpinnerLoader } from "../../../claims/common/SpinnerLoader";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 

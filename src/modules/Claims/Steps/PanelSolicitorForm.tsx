@@ -2,8 +2,8 @@ import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion"
 import { useEffect, useRef, useState } from "react";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";
-import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import { CustomDatePicker } from "../Components/DatePicker";
 import {
   getVehicleOwner,

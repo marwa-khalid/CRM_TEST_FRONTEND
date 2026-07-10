@@ -17,7 +17,7 @@ import {
 import { customStyles, BlueDropdownIndicator } from "../../Claims/Steps/GeneralDetailsForm";
 import DateField from "./DateField";
 import TaskAttachmentModal, { fileLogo } from "../TaskAttachmentModal";
-import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
+import { SpinnerLoader } from "../../../claims/common/SpinnerLoader";
 
 const EMPTY: any = {
   title: "", event_type: "", status: "Scheduled",

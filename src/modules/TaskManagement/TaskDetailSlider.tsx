@@ -9,7 +9,7 @@ import Download from "../../assets/TaskManagement/Download.svg";
 
 import { getUsers } from "../../services/Notifications/Notifications";
 import TaskAttachmentModal, { fileLogo } from "./TaskAttachmentModal";
-import { ConfirmModal } from "../../components/common/ConfirmModal";
+import { ConfirmModal } from "../../claims/common/ConfirmModal";
 import upload from '../../assets/TaskManagement/upload.svg'
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

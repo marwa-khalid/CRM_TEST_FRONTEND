@@ -17,7 +17,7 @@ import VehicleCards, { type ClaimVehicle } from "./VehicleCards";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import Plus from "../../../assets/AutoClaim_icon/Plus.svg";
-import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
+import { SpinnerLoader } from "../../../claims/common/SpinnerLoader";
 import CreditHireInvoiceForm from "./CreditHireInvoiceForm";
 import ABIHireBreakdownForm from "./ABIHireBreakdownForm";
 import PlatingInvoiceForm from "./PlatingInvoiceForm";

@@ -8,8 +8,8 @@ import {
 } from "../../../services/CalendarEvents/CalendarEvents";
 import { getAttachmentUrl } from "../../../services/Tasks/Tasks";
 import { statusBadgeCls, eventChipCls, REMINDER_OPTIONS } from "./eventMeta";
-import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
-import { ConfirmModal } from "../../../components/common/ConfirmModal";
+import { SpinnerLoader } from "../../../claims/common/SpinnerLoader";
+import { ConfirmModal } from "../../../claims/common/ConfirmModal";
 import TaskAttachmentModal, { fileLogo } from "../TaskAttachmentModal";
 import Download from "../../../assets/TaskManagement/Download.svg";
 import Delete from "../../../assets/TaskManagement/Delete.svg";

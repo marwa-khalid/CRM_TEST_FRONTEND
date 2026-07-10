@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Plus, Upload, MoreVertical, ChevronDown, Calendar } from "lucide-react";
 import { deleteClaim, downloadCSV, getClaims } from "../../services/Claims/Claims.tsx";
-import { ConfirmModal } from "../../components/common/ConfirmModal";
+import { ConfirmModal } from "../../claims/common/ConfirmModal.tsx";
 import FileIcon from "../../assets/Dashboard/File.svg";
 import Clock from "../../assets/Dashboard/Clock.svg";
 import Critical from "../../assets/Dashboard/Critical.svg";

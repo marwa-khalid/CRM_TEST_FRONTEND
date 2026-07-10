@@ -8,8 +8,8 @@ import {
   getReferrer,
   updateReferrer,
 } from "../../../services/Referrer/Referrer";
-import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import * as Yup from "yup";
 import { useFormik } from "formik";
 import { toast } from "react-toastify";

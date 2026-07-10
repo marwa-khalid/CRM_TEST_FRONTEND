@@ -20,6 +20,80 @@ export const CURRENT_POSITION_OPTIONS: Option[] = [
   { label: "Dead Case", value: "dead_case" },
 ];
 
+// Borough (Hire Vehicle Details) — London boroughs (PCO/private-hire context).
+export const BOROUGH_OPTIONS: Option[] = [
+  "Barking and Dagenham", "Barnet", "Bexley", "Brent", "Bromley", "Camden",
+  "City of London", "Croydon", "Ealing", "Enfield", "Greenwich", "Hackney",
+  "Hammersmith and Fulham", "Haringey", "Harrow", "Havering", "Hillingdon",
+  "Hounslow", "Islington", "Kensington and Chelsea", "Kingston upon Thames",
+  "Lambeth", "Lewisham", "Merton", "Newham", "Redbridge", "Richmond upon Thames",
+  "Southwark", "Sutton", "Tower Hamlets", "Waltham Forest", "Wandsworth",
+  "Westminster",
+].map((b) => ({ label: b, value: b.toLowerCase().replace(/[^a-z0-9]+/g, "_") }));
+
+// Swap Reason (Hire Vehicle Details) — why the hire car is being swapped.
+export const SWAP_REASON_OPTIONS: Option[] = [
+  { label: "Accident", value: "accident" },
+  { label: "Breakdown", value: "breakdown" },
+  { label: "Mechanical Issue", value: "mechanical_issue" },
+  { label: "Upgrade", value: "upgrade" },
+  { label: "Customer Request", value: "customer_request" },
+  { label: "Vehicle Recall", value: "vehicle_recall" },
+  { label: "Other", value: "other" },
+];
+
+export interface HireVehicleForm {
+  vehicleCostPerWeek: string;
+  deposit: string;
+  borough: string;
+  registrationNumber: string;
+  make: string;
+  model: string;
+  transmission: string;
+  hireStatus: string; // on_hire | off_hire
+  swapCar: string; // yes | no
+  swapReason: string;
+  swapReasonText: string;
+  hireStartDate: string; // yyyy-mm-dd
+  hireEndDate: string;
+  totalHirePeriod: string;
+  hireInsuranceType: string;
+  dateReceived: string;
+  policyStartDate: string;
+  policyEndDate: string;
+  crossHireProviderName: string;
+  crossHireContactDetails: string;
+  crossHireRate: string;
+}
+
+export const PCN_STATUS_OPTIONS: Option[] = [
+  { label: "New", value: "new" },
+  { label: "Appeal Pending", value: "appeal_pending" },
+  { label: "Appealed", value: "appealed" },
+  { label: "Paid", value: "paid" },
+  { label: "Cancelled", value: "cancelled" },
+  { label: "Overdue", value: "overdue" },
+];
+
+export const LIABILITY_TRANSFER_STATUS_OPTIONS: Option[] = [
+  { label: "Not Started", value: "not_started" },
+  { label: "Pending", value: "pending" },
+  { label: "Submitted", value: "submitted" },
+  { label: "Accepted", value: "accepted" },
+  { label: "Rejected", value: "rejected" },
+];
+
+export interface PcnForm {
+  councilName: string;
+  councilAddress: string;
+  councilPostcode: string;
+  pcnNumber: string;
+  offenceDate: string;
+  pcnStatus: string;
+  liabilityTransferStatus: string;
+  responseDeadline: string;
+}
+
 export interface GeneralDetailsForm {
   fileOpenedDate: string;
   fileOpenedTime: string;
@@ -123,8 +197,8 @@ export const HIRE_STEPS: HireStep[] = [
   { key: "driver", label: "Driver Details" },
   { key: "gdpr", label: "GDPR & Marketing Preferences" },
   { key: "proofs", label: "Driver Proofs & License Checks" },
-  { key: "swap", label: "Hire Vehicle Swap Management" },
   { key: "vehicle", label: "Hire Vehicle Details" },
   { key: "payment", label: "Payment Details" },
   { key: "pcn", label: "Penalty Charges - PCN" },
+  { key: "documents", label: "Documents Checklist" },
 ];

@@ -5,8 +5,8 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
-import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import {
   getClientInsurer,
   updateClientInsurer,

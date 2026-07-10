@@ -8,7 +8,7 @@ import {
 } from "../../../services/PlatingCharges/PlatingCharges";
 import { getHireProvidedVehicles } from "../../../services/Vehicle/vehicle";
 import VehicleCards, { type ClaimVehicle } from "./VehicleCards";
-import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
+import { SpinnerLoader } from "../../../claims/common/SpinnerLoader";
 
 const validationSchema = Yup.object({
   private_hire_plating_fee: Yup.number().min(0).nullable(),

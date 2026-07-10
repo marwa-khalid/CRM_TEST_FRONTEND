@@ -6,10 +6,11 @@ interface Props {
   onBack: () => void;
   onDiscard: () => void;
   onSaveNext: () => void;
+  saving?: boolean;
 }
 
-const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext }) => (
-  <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center sticky top-0 z-20 font-stack">
+const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext, saving }) => (
+  <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center sticky top-0 z-20 font-sans-headline">
     <div className="flex items-center gap-5">
       <button type="button" onClick={onBack} aria-label="Back" className="shrink-0">
         <img src={ArrowBack} alt="" className="w-6 h-6" />
@@ -27,7 +28,8 @@ const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext }) 
       <button
         type="button"
         onClick={onSaveNext}
-        className="px-10 py-4 bg-neutral-900 rounded-sm text-white text-base font-medium leading-4 hover:bg-black transition-colors"
+        disabled={saving}
+        className="px-10 py-4 bg-neutral-900 rounded-sm text-white text-base font-medium leading-4 hover:bg-black transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
       >
         Save &amp; Next
       </button>

@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetSelect, FleetReadonlyField } from "../../components/fields";
+import { FleetTextInput, FleetSelect, FleetReadonlyField, FleetTimeSelect, roundToQuarter } from "../../components/fields";
 import PayReimburseHirerModal from "../../components/PayReimburseHirerModal";
 import Calendar from "../../assets/icons/Calendar.svg";
-import Time from "../../assets/icons/Time.svg";
 import CloseFileIcon from "../../assets/icons/CloseFile.svg";
 import {
   INSURANCE_TYPE_OPTIONS,
@@ -15,6 +14,11 @@ import { useHire } from "./HireContext";
 const now = () => new Date();
 const fmtDate = (d: Date) => d.toLocaleDateString("en-GB"); // dd/mm/yyyy
 const fmtTime = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const fromIso = (value?: string) => {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
 
 // Sort code as XX-XX-XX (up to 6 digits).
 const formatSortCode = (v: string) =>
@@ -35,13 +39,28 @@ const GeneralDetails: React.FC = () => {
     isClosed: false,
   });
   const [payOpen, setPayOpen] = useState(false);
-  const { save } = useHire();
+  const { hire, save } = useHire();
 
-  // File Opened is auto-populated with the file creation date/time (read-only).
+  // File Opened date is auto-populated (read-only); the time defaults to now,
+  // rounded to the nearest 15-min slot, and stays editable via the dropdown.
   useEffect(() => {
-    const d = now();
-    setForm((f) => ({ ...f, fileOpenedDate: fmtDate(d), fileOpenedTime: fmtTime(d) }));
-  }, []);
+    const opened = fromIso(hire?.file_opened_at) || now();
+    const closed = fromIso(hire?.file_closed_at);
+    setForm((f) => ({
+      ...f,
+      fileOpenedDate: fmtDate(opened),
+      fileOpenedTime: roundToQuarter(opened.getHours(), opened.getMinutes()),
+      fileClosedOn: closed ? `${fmtDate(closed)} ${fmtTime(closed)}` : "",
+      insuranceType: hire?.insurance_type || "",
+      rentalAdvisor: hire?.rental_advisor || "",
+      currentPosition: hire?.current_position || "",
+      bankName: hire?.bank_name || "",
+      accountName: hire?.account_name || "",
+      sortCode: hire?.sort_code || "",
+      accountNumber: hire?.account_number || "",
+      isClosed: Boolean(closed),
+    }));
+  }, [hire]);
 
   const set = <K extends keyof GeneralDetailsForm>(key: K, value: GeneralDetailsForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -67,7 +86,7 @@ const GeneralDetails: React.FC = () => {
   const disabled = form.isClosed;
 
   return (
-    <div className="w-full max-w-[788px] flex flex-col gap-6 font-stack">
+    <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       <h2 className="text-black text-2xl font-semibold leading-6">General Details</h2>
 
       {/* File Status */}
@@ -88,7 +107,7 @@ const GeneralDetails: React.FC = () => {
 
         <div className="grid grid-cols-2 gap-5">
           <FleetReadonlyField label="File Opened On" value={form.fileOpenedDate} placeholder="Date" icon={Calendar} />
-          <FleetReadonlyField label="Time" value={form.fileOpenedTime} placeholder="Time" icon={Time} />
+          <FleetTimeSelect label="Time" value={form.fileOpenedTime} onChange={(v) => set("fileOpenedTime", v)} disabled={disabled} />
         </div>
         <div className="grid grid-cols-2 gap-5">
           <FleetReadonlyField label="File Closed On" value={form.fileClosedOn} placeholder="Date" icon={Calendar} />

@@ -3,6 +3,7 @@ import FleetUploadModal from "../../components/FleetUploadModal";
 import { useHire } from "./HireContext";
 import { uploadHireDocument, deleteHireDocument } from "../../services/hireService";
 import { extractDriverDetailsFromLicence, extractProofOfAddress } from "../../services/driverService";
+import { FleetInlineLoader } from "../../components/fields";
 
 type DocKey = "firstUtility" | "secondUtility" | "dlFront" | "dlBack";
 
@@ -99,9 +100,11 @@ const DriverProofs: React.FC = () => {
     dlBack: null,
   });
   const [activeDoc, setActiveDoc] = useState<DocKey | null>(null);
+  const [deleteDocKey, setDeleteDocKey] = useState<DocKey | null>(null);
   // OCR results driving the licence dates + address comparison.
   const [dlOcr, setDlOcr] = useState({ address: "", postcode: "", start: "", end: "" });
   const [utilOcr, setUtilOcr] = useState({ address: "", postcode: "" });
+  const [ocrLoading, setOcrLoading] = useState(false);
   const { hireId } = useHire();
 
   const openUpload = (key: DocKey) => {
@@ -136,11 +139,15 @@ const DriverProofs: React.FC = () => {
 
     // Real OCR to drive the licence dates + address match.
     if (key === "dlFront") {
-      extractDriverDetailsFromLicence(file).then((d) =>
-        setDlOcr({ address: d.address, postcode: d.postcode, start: d.licenceStart, end: d.licenceEnd }),
-      );
+      setOcrLoading(true);
+      extractDriverDetailsFromLicence(file)
+        .then((d) => setDlOcr({ address: d.address, postcode: d.postcode, start: d.licenceStart, end: d.licenceEnd }))
+        .finally(() => setOcrLoading(false));
     } else if (key === "firstUtility" || key === "secondUtility") {
-      extractProofOfAddress(file).then((d) => setUtilOcr({ address: d.address, postcode: d.postcode }));
+      setOcrLoading(true);
+      extractProofOfAddress(file)
+        .then((d) => setUtilOcr({ address: d.address, postcode: d.postcode }))
+        .finally(() => setOcrLoading(false));
     }
   };
 
@@ -165,10 +172,11 @@ const DriverProofs: React.FC = () => {
   const addressesMatch = bothPresent && normalise(dlFull) === normalise(utilFull);
 
   return (
-    <div className="w-full max-w-[788px] flex flex-col gap-6 font-stack">
+    <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       <h2 className="text-black text-2xl font-semibold leading-6">
         Driver Proofs &amp; License Checks with Address Match
       </h2>
+      {ocrLoading && <FleetInlineLoader text="Reading document…" />}
 
       {(Object.keys(DOC_LABELS) as DocKey[]).map((key) => (
         <DocumentCard
@@ -176,7 +184,7 @@ const DriverProofs: React.FC = () => {
           label={DOC_LABELS[key]}
           doc={docs[key]}
           onUploadClick={() => openUpload(key)}
-          onRemove={() => removeDoc(key)}
+          onRemove={() => setDeleteDocKey(key)}
         />
       ))}
 
@@ -234,6 +242,36 @@ const DriverProofs: React.FC = () => {
         onUploaded={handleUploaded}
         title={activeDoc ? DOC_LABELS[activeDoc] : "Upload Document"}
       />
+
+      {deleteDocKey && (
+        <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-[420px] bg-white rounded-lg p-5 shadow-xl flex flex-col gap-4">
+            <div className="text-neutral-900 text-xl font-semibold">Delete Document</div>
+            <div className="text-neutral-700 text-sm">
+              Are you sure you want to delete {DOC_LABELS[deleteDocKey]}?
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteDocKey(null)}
+                className="h-8 px-3 py-2 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  removeDoc(deleteDocKey);
+                  setDeleteDocKey(null);
+                }}
+                className="h-8 px-3 py-2 bg-red-600 rounded-sm text-white text-sm hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -30,7 +30,7 @@ const SCREEN_KEYS = [
   "driver_checkout",
 ];
 import { Header } from "./Components/ClaimHeader";
-import SpinnerLoader from "../../components/common/SpinnerLoader";
+import SpinnerLoader from "../../claims/common/SpinnerLoader";
 import GeneralDetailsForm from "./Steps/GeneralDetailsForm";
 import { ReferrerDetailsForm } from "./Steps/ReferrerDetailsForm";
 import { ClientDetailsForm } from "./Steps/ClientDetailsForm";

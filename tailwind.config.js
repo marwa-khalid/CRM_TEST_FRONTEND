@@ -51,7 +51,9 @@ export default {
       },
       fontFamily: {
         inter: ["Inter", "sans-serif"],
-        // Figma primitive  Typo.Family — use `font-stack` (no more font-['Stack_Sans_Headline']).
+        // Figma primitive Typo.Family. Prefer `font-sans-headline`; keep
+        // `font-stack` as a legacy alias for older Fleet/Claims work.
+        "sans-headline": ["'Stack Sans Headline'", "sans-serif"],
         stack: ["'Stack Sans Headline'", "sans-serif"],
       },
       // Figma primitive  Typo.Weight -> Tailwind weight utilities (all loaded in index.html):

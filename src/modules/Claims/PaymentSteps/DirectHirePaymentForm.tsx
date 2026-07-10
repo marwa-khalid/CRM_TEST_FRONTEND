@@ -8,7 +8,7 @@ import {
 } from "../../../services/DirectHirePayment/DirectHirePayment";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
-import { SpinnerLoader } from "../../../components/common/SpinnerLoader";
+import { SpinnerLoader } from "../../../claims/common/SpinnerLoader";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 

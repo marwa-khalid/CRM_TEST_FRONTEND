@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { FleetSelect, FleetDateField, FleetYesNo, FleetSegmented } from "../../components/fields";
+import { getHireAudit } from "../../services/hireService";
 import CloseFileIcon from "../../assets/icons/CloseFile.svg";
 import {
   FIND_US_OPTIONS,
@@ -43,11 +44,24 @@ const EMPTY: GDPRForm = {
   reasonForWithdrawal: "",
 };
 
-// Placeholder audit log until the backend supplies real change history.
-const AUDIT_ROWS: AuditLogRow[] = [
-  { user: "James Joyce", fieldChanged: "Consent", oldValue: "Yes", newValue: "No", date: "02-22-26" },
-  { user: "James Joyce", fieldChanged: "Consent", oldValue: "Yes", newValue: "No", date: "02-22-26" },
-];
+// Friendly labels for the audit log's "Field Changed" column.
+const FIELD_LABELS: Record<string, string> = {
+  where_found: "Where Found", privacy_notice_explained: "Privacy Notice Explained",
+  privacy_notice_date: "Privacy Notice Date", privacy_notice_method: "Privacy Notice Method",
+  lawful_basis: "Lawful Basis", email_consent: "Email Consent", email_consent_date: "Email Consent Date",
+  email_consent_method: "Email Consent Method", sms_consent: "SMS Consent", phone_consent: "Phone Consent",
+  postal_consent: "Postal Consent", reason_for_withdrawal: "Reason for Withdrawal",
+};
+const prettyField = (f: string) =>
+  FIELD_LABELS[f] || f.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const prettyValue = (v?: string) => (v && v.length ? v : "—");
+const fmtAuditDate = (iso?: string) => {
+  if (!iso) return "—";
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`); // Postgres has no Z
+  if (Number.isNaN(d.getTime())) return "—";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
 
 const ConsentRow: React.FC<{
   label: string;
@@ -62,12 +76,38 @@ const ConsentRow: React.FC<{
 
 const GDPRDetails: React.FC = () => {
   const [form, setForm] = useState<GDPRForm>(EMPTY);
-  const { save } = useHire();
+  const [auditRows, setAuditRows] = useState<AuditLogRow[]>([]);
+  const { hireId, save } = useHire();
+
+  const refreshAudit = useCallback(() => {
+    if (!hireId) return;
+    getHireAudit(hireId).then((entries) =>
+      setAuditRows(
+        entries
+          // Only changes to GDPR-screen fields belong in this screen's audit log.
+          .filter((e) => e.field_changed in FIELD_LABELS)
+          .map((e) => ({
+            user: prettyValue(e.user),
+            fieldChanged: prettyField(e.field_changed),
+            oldValue: prettyValue(e.old_value),
+            newValue: prettyValue(e.new_value),
+            date: fmtAuditDate(e.changed_at),
+          })),
+      ),
+    );
+  }, [hireId]);
+
+  useEffect(() => { refreshAudit(); }, [refreshAudit]);
+
+  // Persist a change, then refresh the audit log once the save has committed.
+  const persist = (partial: Record<string, unknown>) => {
+    Promise.resolve(save(partial)).then(() => refreshAudit());
+  };
 
   // Every change persists (field-level save, like Claims).
   const set = <K extends keyof GDPRForm>(key: K, value: GDPRForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
-    save({ [TO_BACKEND[key]]: value });
+    persist({ [TO_BACKEND[key]]: value });
   };
 
   const allWithdrawn =
@@ -91,7 +131,7 @@ const GDPRDetails: React.FC = () => {
       phoneConsent: "withdrawn",
       postalConsent: "withdrawn",
     }));
-    save({
+    persist({
       email_consent: "withdrawn",
       sms_consent: "withdrawn",
       phone_consent: "withdrawn",
@@ -100,7 +140,7 @@ const GDPRDetails: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-[788px] flex flex-col gap-6 font-stack">
+    <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       <h2 className="text-black text-2xl font-semibold leading-6">GDPR &amp; Marketing Preferences</h2>
 
       {/* GDPR Transparency */}
@@ -169,7 +209,7 @@ const GDPRDetails: React.FC = () => {
             <textarea
               value={form.reasonForWithdrawal}
               onChange={(e) => setForm((f) => ({ ...f, reasonForWithdrawal: e.target.value }))}
-              onBlur={() => save({ reason_for_withdrawal: form.reasonForWithdrawal })}
+              onBlur={() => persist({ reason_for_withdrawal: form.reasonForWithdrawal })}
               placeholder="Value"
               rows={3}
               className="h-24 px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
@@ -189,15 +229,19 @@ const GDPRDetails: React.FC = () => {
             <span>NEW VALUE</span>
             <span>DATE</span>
           </div>
-          {AUDIT_ROWS.map((r, i) => (
-            <div key={i} className="grid grid-cols-5 gap-2 px-4 h-12 items-center text-neutral-700 text-sm border-b border-neutral-100 last:border-b-0">
-              <span>{r.user}</span>
-              <span>{r.fieldChanged}</span>
-              <span>{r.oldValue}</span>
-              <span>{r.newValue}</span>
-              <span>{r.date}</span>
-            </div>
-          ))}
+          {auditRows.length === 0 ? (
+            <div className="px-4 h-12 flex items-center text-neutral-400 text-sm">No changes recorded yet.</div>
+          ) : (
+            auditRows.map((r, i) => (
+              <div key={i} className="grid grid-cols-5 gap-2 px-4 h-12 items-center text-neutral-700 text-sm border-b border-neutral-100 last:border-b-0">
+                <span className="truncate">{r.user}</span>
+                <span className="truncate">{r.fieldChanged}</span>
+                <span className="truncate">{r.oldValue}</span>
+                <span className="truncate">{r.newValue}</span>
+                <span className="truncate">{r.date}</span>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </div>

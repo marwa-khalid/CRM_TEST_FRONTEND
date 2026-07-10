@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import calander from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { useQuestionnaireForm } from "./QuestionnaireLayout";
 import { CustomDatePicker } from "../Components/DatePicker";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 
 const Step1Witness = () => {
   const { formData, updateStepData } = useQuestionnaireForm();

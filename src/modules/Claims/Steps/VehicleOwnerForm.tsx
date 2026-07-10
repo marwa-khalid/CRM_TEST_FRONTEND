@@ -13,8 +13,8 @@ import * as Yup from 'yup'
 import { useFormik } from "formik";
 import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";
 import { cleanPayload } from "./ClientDetailsForm";
-import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import { getVehicleOwner, updateVehicleOwner, VehicleOwnersApi } from "../../../services/VehicleOwner/vehicleOwner";
 
 export const VehicleOwnerForm = ({ formRef, claimId }: any) => {

@@ -1,6 +1,6 @@
 import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
-import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "react-toastify";

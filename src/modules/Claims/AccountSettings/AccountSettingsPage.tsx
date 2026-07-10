@@ -10,7 +10,7 @@ import {
   logSessionExpiry,
   terminateSession,
 } from "../../../services/AccountSettings/AccountSettings";
-import { ConfirmModal } from "../../../components/common/ConfirmModal";
+import { ConfirmModal } from "../../../claims/common/ConfirmModal";
 
 type ViewMode = "settings" | "changePassword" | "success";
 

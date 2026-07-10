@@ -1,6 +1,6 @@
 import React, { useState, type JSX } from 'react';
 import { FileText, Video, Figma, Check, Trash2 } from 'lucide-react';
-import SetBar from '../../../components/SetBar/SetBar';
+import SetBar from '../../../claims/SetBar/SetBar';
 import {
     FiMail,
     FiUploadCloud,

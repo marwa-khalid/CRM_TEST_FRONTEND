@@ -57,7 +57,7 @@ const FleetUploadModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 font-stack">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 font-sans-headline">
       <div className="w-[600px] max-w-full p-6 bg-white rounded-lg flex flex-col gap-6">
         <div className="flex justify-between items-center">
           <div className="text-neutral-900 text-xl font-semibold">{title}</div>

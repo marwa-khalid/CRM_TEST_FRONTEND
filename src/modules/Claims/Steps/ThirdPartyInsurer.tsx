@@ -10,8 +10,8 @@ import No from "../../../assets/AutoClaim_icon/No.svg";
 import TopRightIcon from "../../../assets/AutoClaim_icon/Vulnerable.svg";
 import { ABIInsurerModal } from "./ABIInsurerModal";
 import { CustomDatePicker } from "../Components/DatePicker";
-import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import {
   getHandlers,
   getLiabilityStances,

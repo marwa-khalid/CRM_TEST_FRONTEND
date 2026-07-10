@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetDateField } from "../../components/fields";
+import { FleetTextInput, FleetDateField, FleetInlineLoader } from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import type { DriverDetailsForm } from "../../types/hire";
 import { extractDriverDetailsFromLicence } from "../../services/driverService";
@@ -44,6 +44,7 @@ const DriverDetails: React.FC = () => {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [licenceFile, setLicenceFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
 
   const { save } = useHire();
 
@@ -62,7 +63,13 @@ const DriverDetails: React.FC = () => {
 
     // Real OCR extract + auto-populate (Name/Address/Postcode/DL Number/DOB). The
     // rest (Email/Telephone/Mobile/NI Number) are manual per the story.
-    const data = await extractDriverDetailsFromLicence(file);
+    setOcrLoading(true);
+    let data;
+    try {
+      data = await extractDriverDetailsFromLicence(file);
+    } finally {
+      setOcrLoading(false);
+    }
     const map: [keyof DriverDetailsForm, string][] = [
       ["name", data.name],
       ["address", data.address],
@@ -88,8 +95,9 @@ const DriverDetails: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-[788px] flex flex-col gap-6 font-stack">
+    <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       <h2 className="text-black text-2xl font-semibold leading-6">Driver Details</h2>
+      {ocrLoading && <FleetInlineLoader text="Reading licence…" />}
 
       {/* Driving License upload + preview */}
       <section className="p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4">

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Formik, Field, ErrorMessage, Form } from 'formik';
 import * as Yup from 'yup';
-import LeafletAutocompleteMap from '../../components/GoogleMapAutoComplete/GoogleMapAutoComplete';
+import LeafletAutocompleteMap from '../../claims/GoogleMapAutoComplete/GoogleMapAutoComplete';
 import { CalendarDate } from "@internationalized/date";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import type { DateValue } from "react-aria-components";
-import { DatePicker } from "../../components/application/date-picker/date-picker";
+import { DatePicker } from "../../claims/application/date-picker/date-picker";
 import { toast } from 'react-toastify';
 import { formSubmitquestionaire, getQuestionnaireFromId } from '../../services/Accidents/Cards/cards';
 import { useLocation, useNavigate } from 'react-router-dom';

@@ -1,4 +1,4 @@
-import Header from '../components/Navbar/navbar';
+import Header from '../claims/Navbar/navbar';
 import { Outlet } from 'react-router-dom';
 
 const Layout = () => {

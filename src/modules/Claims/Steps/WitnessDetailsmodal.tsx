@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useCaseReference } from "../../../hooks/useCaseReference";
 import Select from "react-select";
 import { X, ChevronLeft, Loader2 } from "lucide-react";
-import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import {
   createWitness,
   getQuestionnaireStatus,

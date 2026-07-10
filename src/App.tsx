@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import LoginPage from './modules/Login/login';
 import ClaimListingPage from "./modules/Dashboard/ClaimListingPage";
 import MainLayout from './Layout/layout';
 import { FleetRoutes } from "./fleet";
 import { ToastContainer } from 'react-toastify';
-import ReminderWatcher from "./components/Reminders/ReminderWatcher";
+import ReminderWatcher from "./claims/Reminders/ReminderWatcher";
 import OTPPage from './modules/Login/OTPPage';
 import AccountSettings from "./modules/Claims/AccountSettings/AccountSettingsPage";
 import TeamsCalendarExample from "./modules/CalendarExamples/TeamsCalendarExample";
@@ -37,6 +37,7 @@ import { useCurrentUser } from './context/AuthContext';
 
 const AppInner: React.FC = () => {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [sessionExpired, setSessionExpired] = useState(false);
   const { user, logout } = useCurrentUser();
 
@@ -111,7 +112,8 @@ const AppInner: React.FC = () => {
           <Route path="/settings" element={<AccountSettings />} />
         </Route>
       </Routes>
-      <ReminderWatcher />
+      {/* Calendar/reminder polling is a Claims-only concern — never on Fleet. */}
+      {!pathname.startsWith("/fleet") && <ReminderWatcher />}
     </>
   );
 };

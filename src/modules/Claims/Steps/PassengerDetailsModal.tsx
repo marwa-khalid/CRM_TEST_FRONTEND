@@ -3,8 +3,8 @@ import Select from "react-select";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
 import { createPassenger, updatePassenger } from "../../../services/Accidents/Cards/cards";
-import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 
 export const PassengerDetailsModal = ({ onClose, claimId, initialData ,addNew}) => {

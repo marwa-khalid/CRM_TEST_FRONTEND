@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import logoImage from '../../assets/images/Logo.png';
 import { useNavigate, Link } from 'react-router-dom';
-import Modal from '../../components/Modal/Modals';
+import Modal from '../../claims/Modal/Modals';
 import accidentImage from '../../assets/images/1cbcac34591b113950559367e9110f4f4c7bcec3.png'
 import { signup } from '../../services/Authentication/auth';
 

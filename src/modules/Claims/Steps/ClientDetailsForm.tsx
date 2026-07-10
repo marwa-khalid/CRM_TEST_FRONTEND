@@ -10,8 +10,8 @@ import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from "yup"
 import { notifyManager, invalidateCaseReference } from "../../../services/Claims/Claims";
-import { PostcodeLookup } from "../../../components/common/PostcodeLookup";
-import { AddressAutocomplete } from "../../../components/common/AddressAutocomplete";
+import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
+import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";

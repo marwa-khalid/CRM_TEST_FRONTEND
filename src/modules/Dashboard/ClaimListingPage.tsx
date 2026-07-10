@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
-import { SpinnerLoader } from "../../components/common/SpinnerLoader";
+import { SpinnerLoader } from "../../claims/common/SpinnerLoader";
 
 // Lazy-loaded views — code-split so switching between Claims / Dashboard / Tasks
 // / Calendar / Settings shows a loader while the view's chunk loads.
@@ -44,8 +44,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { getClaims, deleteClaim, updateClaimStatus } from "../../services/Claims/Claims";
 import { getDashboard } from "../../services/Dashboard/Dashboard";
 import { getCaseStatuses } from "../../services/Lookups/Generaldetails";
-import { ConfirmModal } from "../../components/common/ConfirmModal";
-import NotificationBell from "../../components/Notifications/NotificationBell";
+import { ConfirmModal } from "../../claims/common/ConfirmModal";
+import NotificationBell from "../../claims/Notifications/NotificationBell";
 import { CustomDatePicker } from "../Claims/Components/DatePicker";
 import { useCurrentUser } from "../../context/AuthContext";
 import type { TaskFilters } from "../../services/Tasks/Tasks";

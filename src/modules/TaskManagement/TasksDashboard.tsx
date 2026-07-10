@@ -8,7 +8,7 @@ import {
   Minimize2,
   X,
 } from "lucide-react";
-import { SpinnerLoader } from "../../components/common/SpinnerLoader";
+import { SpinnerLoader } from "../../claims/common/SpinnerLoader";
 import PendingFollowups from '../../assets/Dashboard/PendingFollowups.svg'
 import Overdue from '../../assets/Dashboard/Overdue.svg'
 import Critical from '../../assets/Dashboard/Critical.svg'

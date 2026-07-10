@@ -15,7 +15,7 @@ import { getClaimById } from "../../../services/Claims/Claims";
 import { toast } from "react-toastify";
 import { useFormik } from "formik";
 import * as Yup from 'yup'
-import LeafletAutocompleteMap from "../../../components/GoogleMapAutoComplete/GoogleMapAutoComplete";
+import LeafletAutocompleteMap from "../../../claims/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import { deletePassenger, deletePoliceDetail, deleteWitness, getLatestWitnessQuestionnaire, getPassengerById, getPoliceDetails, getQuestionnaireStatus, getWitnesses } from "../../../services/Accidents/Cards/cards";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
 import { PoliceDetailsModal } from "./PoliceDetailsModal";

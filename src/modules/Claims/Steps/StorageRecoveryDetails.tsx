@@ -9,7 +9,7 @@ import * as Yup from 'yup'
 import { createStorageRecovery, getStorageRecoveryProvider, updateStorageRecovery } from "../../../services/StorageRecovery/StorageRecovery";
 import { StorageProviderModal } from "./StorageProviderModal";
 import { RecoveryProviderModal } from "./RecoveryProviderModal";
-import { ConfirmModal } from "../../../components/common/ConfirmModal";
+import { ConfirmModal } from "../../../claims/common/ConfirmModal";
 
 export const StorageRecoveryDetails = ({ formRef, claimId }: any) => {
   const [storageRecoveryId, setStorageRecoveryId] = useState<string | null>(null);

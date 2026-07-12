@@ -6,6 +6,8 @@ import PrintIcon from "../../assets/icons/Print.svg";
 import RemoveIcon from "../../assets/icons/Remove.svg";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import FleetUploadModal from "../../components/FleetUploadModal";
+import FleetEmailModal from "../../components/FleetEmailModal";
+import FleetConfirmModal from "../../components/FleetConfirmModal";
 import {
   deleteHireDocument,
   getHireDocuments,
@@ -16,7 +18,6 @@ import { useHire } from "./HireContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
-const BTN_OUTLINE = "h-8 px-3 py-2 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50";
 
 const CHECKLIST_DOCUMENTS = [
   { key: "checklist_bank_statement", label: "Bank Statement" },
@@ -114,6 +115,7 @@ const DocumentChecklist: React.FC = () => {
   const [documents, setDocuments] = useState<HireDocument[]>([]);
   const [activeUpload, setActiveUpload] = useState<ChecklistDoc | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HireDocument | null>(null);
+  const [emailSubject, setEmailSubject] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hireId) return;
@@ -133,8 +135,8 @@ const DocumentChecklist: React.FC = () => {
     if (!hireId || !activeUpload) return;
     const uploaded = await uploadHireDocument(hireId, activeUpload.key, file);
     if (!uploaded) {
-      toast.error("Unable to upload document.");
-      return;
+      // Throw so the upload modal shows the error and stays open.
+      throw new Error("Unable to upload document.");
     }
     setDocuments((current) => [
       ...current.filter((doc) => doc.doc_type !== activeUpload.key),
@@ -152,6 +154,10 @@ const DocumentChecklist: React.FC = () => {
   };
 
   const handleGeneratedAction = (action: string, label: string) => {
+    if (action === "email") {
+      setEmailSubject(label);
+      return;
+    }
     toast.info(`${label} ${action} will be wired when document templates are ready.`);
   };
 
@@ -202,28 +208,22 @@ const DocumentChecklist: React.FC = () => {
         title={activeUpload ? activeUpload.label : "Upload Document"}
       />
 
+      <FleetEmailModal
+        open={emailSubject !== null}
+        onClose={() => setEmailSubject(null)}
+        hireId={hireId}
+        title="Email Document"
+        defaultSubject={emailSubject || ""}
+      />
+
       {deleteTarget && (
-        <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4 font-sans-headline">
-          <div className="w-[420px] max-w-full bg-white rounded-lg p-6 flex flex-col gap-4">
-            <div className="text-neutral-900 text-xl font-semibold">Remove Document</div>
-            <div className="text-neutral-700 text-sm">
-              Are you sure you want to remove {deleteTarget.filename || "this document"}?
-            </div>
-            <div className="h-px bg-neutral-100" />
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setDeleteTarget(null)} className={BTN_OUTLINE}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                className="h-8 px-3 py-2 bg-red-600 rounded-sm text-white text-sm hover:bg-red-700"
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        </div>
+        <FleetConfirmModal
+          title="Remove Document"
+          message={`Are you sure you want to remove ${deleteTarget.filename || "this document"}?`}
+          confirmLabel="Remove"
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

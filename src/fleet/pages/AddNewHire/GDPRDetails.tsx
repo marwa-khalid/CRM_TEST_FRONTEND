@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { FleetSelect, FleetDateField, FleetYesNo, FleetSegmented } from "../../components/fields";
 import { getHireAudit } from "../../services/hireService";
 import CloseFileIcon from "../../assets/icons/CloseFile.svg";
@@ -77,7 +77,28 @@ const ConsentRow: React.FC<{
 const GDPRDetails: React.FC = () => {
   const [form, setForm] = useState<GDPRForm>(EMPTY);
   const [auditRows, setAuditRows] = useState<AuditLogRow[]>([]);
-  const { hireId, save } = useHire();
+  const { hire, hireId, save } = useHire();
+  const hydrated = useRef(false);
+
+  // Pre-fill from the saved hire once (reopen an existing hire / after creation).
+  useEffect(() => {
+    if (hydrated.current || !hire) return;
+    hydrated.current = true;
+    setForm({
+      whereFound: hire.where_found || "",
+      privacyNoticeExplained: hire.privacy_notice_explained || "yes",
+      privacyNoticeDate: hire.privacy_notice_date || "",
+      privacyNoticeMethod: hire.privacy_notice_method || "",
+      lawfulBasis: hire.lawful_basis || "",
+      emailConsent: hire.email_consent || "no",
+      emailConsentDate: hire.email_consent_date || "",
+      emailConsentMethod: hire.email_consent_method || "",
+      smsConsent: hire.sms_consent || "no",
+      phoneConsent: hire.phone_consent || "no",
+      postalConsent: hire.postal_consent || "no",
+      reasonForWithdrawal: hire.reason_for_withdrawal || "",
+    });
+  }, [hire]);
 
   const refreshAudit = useCallback(() => {
     if (!hireId) return;

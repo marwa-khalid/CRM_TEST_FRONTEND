@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import FleetUploadModal from "../../components/FleetUploadModal";
+import FleetConfirmModal from "../../components/FleetConfirmModal";
 import {
   FleetDateField,
   FleetSelect,
   FleetTextArea,
   FleetTextInput,
   FleetTimeSelect,
+  FleetPostcodeLookup,
 } from "../../components/fields";
 import {
   addPcnNote,
@@ -30,6 +32,7 @@ import {
   type PcnForm,
 } from "../../types/hire";
 import { useHire } from "./HireContext";
+import TrashIcon from '../../assets/icons/Remove.svg'
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
@@ -76,13 +79,16 @@ const toDisplayDate = (value?: string) => {
 
 const toDisplayDateTime = (value?: string) => {
   if (!value) return "";
-  const d = new Date(value);
+  // Postgres timestamps come back without a "Z"; treat them as UTC so the local
+  // time (and the AM/PM) is correct rather than offset by the timezone.
+  const iso = /[zZ]|[+-]\d\d:?\d\d$/.test(value) ? value : `${value}Z`;
+  const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return value;
   return `${d.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "2-digit",
     year: "2-digit",
-  })} . ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+  })} . ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}`;
 };
 
 const UploadPrompt = () => (
@@ -92,11 +98,6 @@ const UploadPrompt = () => (
   </svg>
 );
 
-const TrashIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" aria-hidden>
-    <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 
 const mapApiToForm = (data: any): PcnForm => ({
   councilName: data?.council_name ?? "",
@@ -195,13 +196,13 @@ const PenaltyCharges: React.FC = () => {
   const handleDocumentUpload = async (file: File) => {
     if (!hireId || !activeUpload) return;
     const uploaded = await uploadPcnDocument(hireId, activeUpload.key, file);
-    if (uploaded) {
-      toast.success("Document uploaded.");
-      setDocuments((current) => [...current, uploaded]);
-      setAudit(await getHireAudit(hireId).then((rows) => rows.filter((row) => row.field_changed.startsWith("pcn."))));
-    } else {
-      toast.error("Unable to upload document.");
+    if (!uploaded) {
+      // Throw so the upload modal shows the error and stays open.
+      throw new Error("Unable to upload document.");
     }
+    toast.success("Document uploaded.");
+    setDocuments((current) => [...current, uploaded]);
+    setAudit(await getHireAudit(hireId).then((rows) => rows.filter((row) => row.field_changed.startsWith("pcn."))));
   };
 
   const confirmDeleteDocument = async () => {
@@ -240,7 +241,9 @@ const PenaltyCharges: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      <h2 className="text-black text-2xl font-semibold leading-6">Penalty Charges - PCN Management</h2>
+      <h2 className="text-black text-2xl font-semibold leading-6">
+        Penalty Charges - PCN Management
+      </h2>
 
       <section className={SECTION}>
         <h3 className={H3}>Council Details Section</h3>
@@ -260,12 +263,21 @@ const PenaltyCharges: React.FC = () => {
           onBlur={() => savePartial({ councilAddress: form.councilAddress })}
         />
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput
+          <FleetPostcodeLookup
             label="Council PostCode"
-            placeholder="Enter"
-            value={form.councilPostcode}
+            postcode={form.councilPostcode}
             onChange={(v) => set("councilPostcode", v.toUpperCase())}
-            onBlur={() => savePartial({ councilPostcode: form.councilPostcode })}
+            onBlur={() =>
+              savePartial({ councilPostcode: form.councilPostcode })
+            }
+            onAddressSelect={(addr) => {
+              set("councilAddress", addr.address);
+              set("councilPostcode", addr.postcode);
+              savePartial({
+                councilAddress: addr.address,
+                councilPostcode: addr.postcode,
+              });
+            }}
           />
           <div />
         </div>
@@ -340,15 +352,24 @@ const PenaltyCharges: React.FC = () => {
               {rows.length ? (
                 <>
                   <div className="flex justify-between items-center gap-4">
-                    <div className="text-black text-base font-semibold">{type.label}</div>
+                    <div className="text-black text-base font-semibold">
+                      {type.label}
+                    </div>
                     {canUpload && (
-                      <button type="button" onClick={() => setActiveUpload(type)} className={BTN_OUTLINE}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveUpload(type)}
+                        className={BTN_OUTLINE}
+                      >
                         Add File
                       </button>
                     )}
                   </div>
                   {rows.map((doc) => (
-                    <div key={doc.id} className="flex justify-between items-center gap-4">
+                    <div
+                      key={doc.id}
+                      className="flex justify-between items-center gap-4"
+                    >
                       <div className="min-w-0 flex flex-wrap items-center gap-4">
                         <a
                           href={doc.file_url || undefined}
@@ -359,14 +380,22 @@ const PenaltyCharges: React.FC = () => {
                           {doc.filename || "Document"}
                         </a>
                         <span className="text-neutral-700 text-sm">
-                          Uploaded by: <span className="text-neutral-900">{doc.uploaded_by || "Current User"}</span>
+                          Uploaded by:{" "}
+                          <span className="text-neutral-900">
+                            {doc.uploaded_by || "Current User"}
+                          </span>
                         </span>
                         <span className="text-neutral-700 text-sm">
-                          {toDisplayDateTime(doc.created_at) || toDisplayDate(doc.received_on)}
+                          {toDisplayDateTime(doc.created_at) ||
+                            toDisplayDate(doc.received_on)}
                         </span>
                       </div>
-                      <button type="button" onClick={() => setDeleteTarget(doc)} className="text-neutral-900 hover:text-red-600">
-                        <TrashIcon />
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(doc)}
+                        className="text-neutral-900 hover:text-red-600"
+                      >
+                      <img src={TrashIcon} alt="" />
                       </button>
                     </div>
                   ))}
@@ -381,35 +410,56 @@ const PenaltyCharges: React.FC = () => {
                   <div className="flex flex-col items-center gap-2 text-center">
                     <div className="text-black text-base font-semibold">
                       {type.label}
-                      {type.multiple && <span className="text-sm font-normal"> (You Can Add Multiple)</span>}
+                      {type.multiple && (
+                        <span className="text-sm font-normal">
+                          {" "}
+                          (You Can Add Multiple)
+                        </span>
+                      )}
                     </div>
-                    <div className="text-black text-sm">JPG, PNG, PDF Supported</div>
+                    <div className="text-black text-sm">
+                      JPG, PNG, PDF Supported
+                    </div>
                   </div>
                 </button>
               )}
             </div>
           );
         })}
-        <button
-          type="button"
-          onClick={() => toast.info("Liability transfer letter generation will use the saved PCN details.")}
-          className={BTN_DARK}
+
+        <div
+          onClick={() =>
+            toast.info(
+              "Liability transfer letter generation will use the saved PCN details.",
+            )
+          }
+          className="h-8 px-3 w-['Fit-Content'] py-2 bg-neutral-900 rounded inline-flex justify-center items-center gap-2.5"
         >
-          Generate Liability Transfer Letter
-        </button>
+          <div className="justify-start text-white text-sm font-normal font-['Stack_Sans_Headline'] leading-4">
+            Generate Liability Transfer Letter
+          </div>
+        </div>
       </section>
 
       <section className={SECTION}>
         <div className="flex justify-between items-center">
           <h3 className={H3}>Timeline / Activity Log</h3>
-          <button type="button" className={BTN_OUTLINE}>View Complete Activity Log</button>
+          <button type="button" className={BTN_OUTLINE}>
+            View Complete Activity Log
+          </button>
         </div>
         {audit.length > 0 && (
           <div className="flex flex-col gap-2">
             {audit.slice(0, 5).map((row) => (
-              <div key={row.id} className="p-3 bg-neutral-50 rounded-sm text-sm text-neutral-700">
-                <span className="text-neutral-900">{row.user || "User"}</span> updated {row.field_changed.replace("pcn.", "")}
-                {row.changed_at && <span> · {toDisplayDateTime(row.changed_at)}</span>}
+              <div
+                key={row.id}
+                className="p-3 bg-neutral-50 rounded-sm text-sm text-neutral-700"
+              >
+                <span className="text-neutral-900">{row.user || "User"}</span>{" "}
+                updated {row.field_changed.replace("pcn.", "")}
+                {row.changed_at && (
+                  <span> · {toDisplayDateTime(row.changed_at)}</span>
+                )}
               </div>
             ))}
           </div>
@@ -420,20 +470,28 @@ const PenaltyCharges: React.FC = () => {
         <h3 className={H3}>Set Reminders</h3>
         <div className="h-px bg-neutral-100" />
         {REMINDERS.map((reminder) => {
-          const value = reminders[reminder.key] || { reminder_type: reminder.key };
+          const value = reminders[reminder.key] || {
+            reminder_type: reminder.key,
+          };
           return (
             <div key={reminder.key} className="flex flex-col gap-4">
-              <div className="text-black text-base font-semibold">{reminder.label}</div>
+              <div className="text-black text-base font-semibold">
+                {reminder.label}
+              </div>
               <div className="grid grid-cols-2 gap-5">
                 <FleetDateField
                   label="Date & Time"
                   value={value.reminder_date || ""}
-                  onChange={(v) => updateReminder(reminder.key, { reminder_date: v })}
+                  onChange={(v) =>
+                    updateReminder(reminder.key, { reminder_date: v })
+                  }
                 />
                 <FleetTimeSelect
                   label="Time"
                   value={value.reminder_time || ""}
-                  onChange={(v) => updateReminder(reminder.key, { reminder_time: v })}
+                  onChange={(v) =>
+                    updateReminder(reminder.key, { reminder_time: v })
+                  }
                 />
               </div>
             </div>
@@ -444,10 +502,14 @@ const PenaltyCharges: React.FC = () => {
       <section className={SECTION}>
         <h3 className={H3}>Notes</h3>
         {notes.map((note) => (
-          <div key={note.id} className="self-stretch p-5 bg-neutral-100 rounded-lg outline outline-1 outline-neutral-100 flex flex-col gap-2">
+          <div
+            key={note.id}
+            className="self-stretch p-5 bg-neutral-100 rounded-lg outline outline-1 outline-neutral-100 flex flex-col gap-2"
+          >
             <div className="text-neutral-700 text-sm">{note.note}</div>
             <div className="text-neutral-500 text-xs">
-              {note.created_by_name || "User"} {note.created_at ? `- ${toDisplayDateTime(note.created_at)}` : ""}
+              {note.created_by_name || "User"}{" "}
+              {note.created_at ? `- ${toDisplayDateTime(note.created_at)}` : ""}
             </div>
           </div>
         ))}
@@ -459,14 +521,24 @@ const PenaltyCharges: React.FC = () => {
           onChange={setNoteDraft}
         />
         <div className="flex justify-end">
-          <button type="button" onClick={submitNote} className={BTN_DARK} disabled={!noteDraft.trim()}>
+          <button
+            type="button"
+            onClick={submitNote}
+            className={BTN_DARK}
+            disabled={!noteDraft.trim()}
+          >
             Add Note
           </button>
         </div>
       </section>
 
-      <section className="self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex justify-center">
-        <button type="button" onClick={saveAll} disabled={saving} className={BTN_DARK}>
+      <section className="self-stretch p-5 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-100 flex justify-center">
+        <button
+          type="button"
+          onClick={saveAll}
+          disabled={saving}
+          className={BTN_DARK}
+        >
           {saving ? "Saving..." : "Save Penalty Charge"}
         </button>
       </section>
@@ -479,23 +551,13 @@ const PenaltyCharges: React.FC = () => {
       />
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4 font-sans-headline">
-          <div className="w-[420px] max-w-full bg-white rounded-lg p-6 flex flex-col gap-4">
-            <div className="text-neutral-900 text-xl font-semibold">Delete Document</div>
-            <div className="text-neutral-700 text-sm">
-              Are you sure you want to delete {deleteTarget.filename || "this document"}?
-            </div>
-            <div className="h-px bg-neutral-100" />
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setDeleteTarget(null)} className={BTN_OUTLINE}>
-                Cancel
-              </button>
-              <button type="button" onClick={confirmDeleteDocument} className="h-8 px-3 py-2 bg-red-600 rounded-sm text-white text-sm hover:bg-red-700">
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <FleetConfirmModal
+          title="Delete Document"
+          message={`Are you sure you want to delete ${deleteTarget.filename || "this document"}?`}
+          confirmLabel="Delete"
+          onConfirm={confirmDeleteDocument}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

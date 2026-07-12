@@ -15,6 +15,11 @@ const fleetApi = axios.create({
 
 // Attach the shared Bearer token (same one the app stores at login). Read from
 // localStorage directly so Fleet doesn't import any Claims code.
+//
+// NOTE: In production the frontend (netlify.app) and API (railway.app) are
+// cross-site, so the httpOnly cookie is a third-party cookie the browser won't
+// send — the Bearer header is what actually authenticates. Removing this would
+// 401 Fleet on Railway. See project deploy-topology memory before changing.
 fleetApi.interceptors.request.use((config) => {
   try {
     const token = localStorage.getItem("access_token");

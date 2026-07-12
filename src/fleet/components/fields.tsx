@@ -95,6 +95,120 @@ export const FleetTextInput: React.FC<TextProps> = ({
   </div>
 );
 
+// --- Ideal Postcodes lookup (same provider as the Claims side) --------------
+// Enter a UK postcode -> pick from the matching addresses -> the address + tidy
+// postcode are filled in. Fleet-local (no Claims imports) and in Fleet's theme.
+export interface FleetAddressResult {
+  address: string; // line1..line3 joined
+  postcode: string;
+  city: string;
+  county: string;
+}
+
+interface PostcodeLookupProps {
+  label?: string;
+  postcode: string;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+  onAddressSelect: (r: FleetAddressResult) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i;
+
+export const FleetPostcodeLookup: React.FC<PostcodeLookupProps> = ({
+  label = "Post Code", postcode, onChange, onBlur, onAddressSelect, placeholder = "Enter Post Code to Search", disabled,
+}) => {
+  const [addresses, setAddresses] = useState<FleetAddressResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const typing = useRef(false);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  useEffect(() => {
+    if (!typing.current) return;
+    const pc = postcode.trim();
+    if (!UK_POSTCODE.test(pc)) { setAddresses([]); setOpen(false); return; }
+
+    const timer = setTimeout(async () => {
+      typing.current = false;
+      setLoading(true); setError(""); setAddresses([]);
+      try {
+        const key = import.meta.env.VITE_IDEAL_POSTCODES_KEY;
+        const res = await fetch(`https://api.ideal-postcodes.co.uk/v1/postcodes/${encodeURIComponent(pc)}?api_key=${key}`);
+        if (res.status === 404) { setError("No addresses found for this postcode"); setOpen(false); return; }
+        if (res.status === 402) { setError("Postcode lookup limit reached — top up your Ideal Postcodes balance"); setOpen(false); return; }
+        if (!res.ok) { setError("Address lookup failed"); setOpen(false); return; }
+        const data = await res.json();
+        const results: FleetAddressResult[] = (data.result || []).map((a: Record<string, string>) => ({
+          address: [a.line_1, a.line_2, a.line_3].filter(Boolean).join(", "),
+          postcode: a.postcode || pc,
+          city: a.post_town || "",
+          county: a.county || "",
+        }));
+        setAddresses(results);
+        setOpen(results.length > 0);
+        if (results.length === 0) setError("No addresses found for this postcode");
+      } catch {
+        setError("Address lookup failed");
+      } finally {
+        setLoading(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [postcode]);
+
+  const isOpen = loading || (open && addresses.length > 0);
+
+  return (
+    <div className={WRAP}>
+      <FieldLabel text={label} />
+      <div ref={wrapRef} className="relative">
+        <input
+          type="text"
+          inputMode="text"
+          value={postcode}
+          disabled={disabled}
+          placeholder={placeholder}
+          onChange={(e) => { typing.current = true; onChange(e.target.value); setError(""); setOpen(false); }}
+          onBlur={onBlur}
+          className={FIELD_BOX}
+        />
+        {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+        {isOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 shadow-lg z-[200] max-h-52 overflow-y-auto">
+            {loading && (
+              <div className="px-4 py-3 flex items-center gap-2 text-sm text-neutral-400">
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-neutral-200 border-t-neutral-900" />
+                Finding addresses…
+              </div>
+            )}
+            {addresses.map((addr, i) => (
+              <div
+                key={i}
+                onClick={() => { onAddressSelect(addr); setOpen(false); }}
+                className="px-4 py-2.5 hover:bg-neutral-50 cursor-pointer text-sm text-neutral-700 border-b border-neutral-100 last:border-0"
+              >
+                {[addr.address, addr.city, addr.postcode].filter(Boolean).join(", ")}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Currency input — like the Claims side, formats to two decimals on blur.
 // Stores/emits the raw numeric string (no £ symbol) so it round-trips cleanly.
 export const formatMoney = (raw: string): string => {

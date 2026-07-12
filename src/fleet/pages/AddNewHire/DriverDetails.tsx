@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetDateField, FleetInlineLoader } from "../../components/fields";
+import { FleetTextInput, FleetDateField, FleetInlineLoader, FleetPostcodeLookup } from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import type { DriverDetailsForm } from "../../types/hire";
 import { extractDriverDetailsFromLicence } from "../../services/driverService";
@@ -46,7 +46,25 @@ const DriverDetails: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
 
-  const { save } = useHire();
+  const { hire, save } = useHire();
+  const hydrated = useRef(false);
+
+  // Pre-fill from the saved hire once (reopen an existing hire / after creation).
+  useEffect(() => {
+    if (hydrated.current || !hire) return;
+    hydrated.current = true;
+    setForm({
+      name: hire.driver_name || "",
+      address: hire.driver_address || "",
+      postcode: hire.driver_postcode || "",
+      email: hire.driver_email || "",
+      telephone: hire.driver_telephone || "",
+      mobile: hire.driver_mobile || "",
+      drivingLicenceNumber: hire.driving_licence_number || "",
+      nationalInsuranceNumber: hire.national_insurance_number || "",
+      dateOfBirth: hire.date_of_birth || "",
+    });
+  }, [hire]);
 
   const set = <K extends keyof DriverDetailsForm>(key: K, value: DriverDetailsForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -164,13 +182,16 @@ const DriverDetails: React.FC = () => {
         />
 
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput
+          <FleetPostcodeLookup
             label="Post Code"
-            placeholder="Enter Code"
-            value={form.postcode}
+            postcode={form.postcode}
             onChange={(v) => set("postcode", v)}
             onBlur={() => saveField("postcode")}
-            ocrFilled={ocrFields.has("postcode")}
+            onAddressSelect={(addr) => {
+              set("address", addr.address);
+              set("postcode", addr.postcode);
+              save({ [TO_BACKEND.address]: addr.address, [TO_BACKEND.postcode]: addr.postcode });
+            }}
           />
           <FleetTextInput
             label="Email"

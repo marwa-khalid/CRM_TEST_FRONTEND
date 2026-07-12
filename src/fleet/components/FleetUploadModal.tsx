@@ -3,7 +3,9 @@ import React, { useRef, useState } from "react";
 interface Props {
   open: boolean;
   onClose: () => void;
-  onUploaded: (file: File) => void; // parent handles preview + OCR extraction
+  // May be async — the modal stays open (showing progress) until it resolves, and
+  // shows an error (staying open) if it rejects. Parent handles preview + OCR.
+  onUploaded: (file: File) => void | Promise<void>;
   title?: string;
   accept?: string;
 }
@@ -17,13 +19,16 @@ const UploadIcon = () => (
 
 const fmtSize = (bytes: number) => (bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)}KB` : `${(bytes / (1024 * 1024)).toFixed(1)}MB`);
 
-// Claims-style upload flow (choose -> progress -> done) in the black/grey Fleet theme.
+// Claims-style upload flow (choose -> uploading -> done) in the black/grey Fleet
+// theme. Crucially, it waits for the parent's real upload to finish before it
+// closes, so the file/toast are already there when the modal disappears.
 const FleetUploadModal: React.FC<Props> = ({
   open, onClose, onUploaded, title = "Upload Driving License", accept = ".jpg,.jpeg,.png,.pdf",
 }) => {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1); // 1 choose · 2 uploading · 3 done
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   if (!open) return null;
@@ -32,43 +37,57 @@ const FleetUploadModal: React.FC<Props> = ({
     setStep(1);
     setProgress(0);
     setFile(null);
+    setError("");
   };
   const close = () => {
     reset();
     onClose();
   };
 
-  const handleFile = (f: File) => {
+  // Crawl the bar to 90% while the upload is in flight, then jump to 100% and
+  // close on success — never close before the parent's upload actually resolves.
+  const handleFile = async (f: File) => {
     setFile(f);
+    setError("");
     setStep(2);
-    let p = 0;
-    const timer = setInterval(() => {
-      p += 12;
-      setProgress(Math.min(p, 100));
-      if (p >= 100) {
-        clearInterval(timer);
-        setStep(3);
-        setTimeout(() => {
-          onUploaded(f);
-          close();
-        }, 700);
-      }
-    }, 100);
+    setProgress(0);
+    const timer = setInterval(() => setProgress((p) => (p >= 90 ? 90 : p + 8)), 120);
+    try {
+      await Promise.resolve(onUploaded(f));
+      clearInterval(timer);
+      setProgress(100);
+      setStep(3);
+      setTimeout(close, 600);
+    } catch (e) {
+      clearInterval(timer);
+      setProgress(0);
+      setStep(1);
+      setError(e instanceof Error && e.message ? e.message : "Upload failed. Please try again.");
+    }
   };
+
+  const busy = step === 2;
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 font-sans-headline">
       <div className="w-[600px] max-w-full p-6 bg-white rounded-lg flex flex-col gap-6">
         <div className="flex justify-between items-center">
           <div className="text-neutral-900 text-xl font-semibold">{title}</div>
-          <button type="button" onClick={close} className="text-neutral-400 hover:text-neutral-700 text-xl leading-none">×</button>
+          <button
+            type="button"
+            onClick={close}
+            disabled={busy}
+            className="text-neutral-400 hover:text-neutral-700 text-xl leading-none disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            ×
+          </button>
         </div>
         <div className="h-px bg-neutral-100" />
 
         <div
           onClick={() => step === 1 && inputRef.current?.click()}
-          className={`p-10 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-4 transition-colors ${
-            step === 1 ? "border-neutral-200 cursor-pointer hover:bg-neutral-50" : "border-neutral-200 bg-white"
+          className={`p-10 rounded-lg border-2 border-dashed border-neutral-200 flex flex-col items-center justify-center gap-4 transition-colors ${
+            step === 1 ? "cursor-pointer hover:bg-neutral-50" : "bg-white"
           }`}
         >
           <input
@@ -78,6 +97,7 @@ const FleetUploadModal: React.FC<Props> = ({
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
+              e.target.value = ""; // allow re-selecting the same file after an error
               if (f) handleFile(f);
             }}
           />
@@ -85,6 +105,8 @@ const FleetUploadModal: React.FC<Props> = ({
             <span className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
               <span className="w-3 h-1.5 border-l-2 border-b-2 border-white -rotate-45 -translate-y-[1px]" />
             </span>
+          ) : step === 2 ? (
+            <span className="w-10 h-10 rounded-full border-[3px] border-neutral-200 border-t-neutral-900 animate-spin" aria-hidden />
           ) : (
             <UploadIcon />
           )}
@@ -97,6 +119,7 @@ const FleetUploadModal: React.FC<Props> = ({
             <div className="text-neutral-500 text-sm">
               {step === 1 ? "JPG, PNG, PDF Supported" : file ? `${file.name} · ${fmtSize(file.size)}` : ""}
             </div>
+            {error && <div className="text-red-500 text-sm">{error}</div>}
           </div>
 
           {(step === 2 || step === 3) && (
@@ -110,7 +133,8 @@ const FleetUploadModal: React.FC<Props> = ({
           <button
             type="button"
             onClick={close}
-            className="px-6 py-3 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-black text-neutral-900 text-base font-medium hover:bg-neutral-50"
+            disabled={busy}
+            className="px-6 py-3 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-black text-neutral-900 text-base font-medium hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Cancel
           </button>

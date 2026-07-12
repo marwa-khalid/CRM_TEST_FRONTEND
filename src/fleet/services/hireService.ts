@@ -16,6 +16,43 @@ export interface HireRecord {
   account_name?: string;
   sort_code?: string;
   account_number?: string;
+  // Driver Details
+  driver_name?: string;
+  driver_address?: string;
+  driver_postcode?: string;
+  driver_email?: string;
+  driver_telephone?: string;
+  driver_mobile?: string;
+  driving_licence_number?: string;
+  national_insurance_number?: string;
+  date_of_birth?: string;
+  driving_licence_start?: string;
+  driving_licence_end?: string;
+  // GDPR & Marketing
+  where_found?: string;
+  privacy_notice_explained?: string;
+  privacy_notice_date?: string;
+  privacy_notice_method?: string;
+  lawful_basis?: string;
+  email_consent?: string;
+  email_consent_date?: string;
+  email_consent_method?: string;
+  sms_consent?: string;
+  phone_consent?: string;
+  postal_consent?: string;
+  reason_for_withdrawal?: string;
+  // Payment Details
+  payment_hire_start_date?: string;
+  payment_hire_end_date?: string;
+  vehicle_cost_per_day?: string;
+  number_of_weekly_payments?: string;
+  payment_day?: string;
+  security_deposit?: string;
+  weekly_hire_payment?: string;
+  total_planned_hire_cost?: string;
+  initial_amount_due?: string;
+  payment_damage_charges?: string;
+  additional_charges?: string;
 }
 
 export const listHires = async (): Promise<HireRecord[]> => {

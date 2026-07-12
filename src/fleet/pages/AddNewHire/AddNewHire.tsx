@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import FleetTopBar from "../../components/FleetTopBar";
 import FleetStepper, { type StepFill } from "../../components/FleetStepper";
+import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import GeneralDetails from "./GeneralDetails";
 import DriverDetails from "./DriverDetails";
 import GDPRDetails from "./GDPRDetails";
@@ -12,7 +13,17 @@ import PaymentDetails from "./PaymentDetails";
 import PenaltyCharges from "./PenaltyCharges";
 import DocumentChecklist from "./DocumentChecklist";
 import { HireProvider } from "./HireContext";
-import { createHire, getHire, updateHire, type HireRecord } from "../../services/hireService";
+import {
+  createHire,
+  getHire,
+  updateHire,
+  getHireDocuments,
+  getPenaltyCharge,
+  type HireRecord,
+  type HireDocument,
+  type PcnData,
+} from "../../services/hireService";
+import { listVehicles } from "../../services/vehicleService";
 import { HIRE_STEPS } from "../../types/hire";
 
 // Each wizard step maps to a screen component. Steps not yet built (later stories)
@@ -38,6 +49,27 @@ const STEP_FIELDS: Record<string, string[]> = {
   payment: ["payment_hire_start_date", "payment_hire_end_date", "vehicle_cost_per_day", "number_of_weekly_payments", "payment_day", "security_deposit", "weekly_hire_payment", "total_planned_hire_cost", "initial_amount_due", "payment_damage_charges", "additional_charges"],
 };
 
+// Screens whose data lives in child tables — fill state comes from loaded child
+// records/documents rather than the hire row.
+// Proofs = at least one utility bill (dynamic `utility_N`, plus legacy first/second)
+// + driving licence front + back.
+const isUtilityDoc = (t: string) => t.startsWith("utility_") || t === "firstUtility" || t === "secondUtility";
+const CHECKLIST_REQUIRED = ["checklist_bank_statement", "checklist_utility_bill", "checklist_dl_front", "checklist_dl_back", "checklist_taxi_badge"];
+const VEHICLE_KEY_FIELDS = ["registration_number", "make", "model", "transmission", "hire_status"];
+const PCN_FIELDS = ["council_name", "council_address", "council_postcode", "pcn_number", "offence_date", "pcn_status", "liability_transfer_status", "response_deadline"];
+
+// complete = all present, half = 1+, empty = none.
+const fillFromCount = (present: number, total: number): StepFill =>
+  present === 0 ? "empty" : present >= total ? "complete" : "half";
+const fillFromFields = (obj: Record<string, unknown> | null | undefined, fields: string[]): StepFill => {
+  if (!obj) return "empty";
+  const filled = fields.filter((f) => {
+    const v = obj[f];
+    return v !== null && v !== undefined && String(v).trim() !== "";
+  }).length;
+  return fillFromCount(filled, fields.length);
+};
+
 const AddNewHire: React.FC = () => {
   const navigate = useNavigate();
   const { hireId: hireIdParam } = useParams();
@@ -46,6 +78,10 @@ const AddNewHire: React.FC = () => {
   const [hireId, setHireId] = useState<number | null>(null);
   const [hire, setHire] = useState<HireRecord | null>(null);
   const [loadingHire, setLoadingHire] = useState(false);
+  // Child-table data behind the sidebar fill state for vehicle/proofs/pcn/documents.
+  const [vehicles, setVehicles] = useState<Record<string, unknown>[]>([]);
+  const [documents, setDocuments] = useState<HireDocument[]>([]);
+  const [pcn, setPcn] = useState<PcnData | null>(null);
   const hireIdRef = useRef<number | null>(null);
   const createPromiseRef = useRef<Promise<HireRecord | null> | null>(null);
 
@@ -74,6 +110,20 @@ const AddNewHire: React.FC = () => {
       })
       .finally(() => setLoadingHire(false));
   }, [hireIdParam, navigate]);
+
+  // Refresh the child-table data behind the sidebar fill state. Re-runs when the
+  // active step changes so the sidebar reflects edits made on child screens.
+  useEffect(() => {
+    if (!hireId) {
+      setVehicles([]);
+      setDocuments([]);
+      setPcn(null);
+      return;
+    }
+    listVehicles(hireId).then(setVehicles);
+    getHireDocuments(hireId).then(setDocuments);
+    getPenaltyCharge(hireId).then(setPcn);
+  }, [hireId, activeIndex]);
 
   const ensureHire = async (): Promise<number | null> => {
     if (hireIdRef.current) return hireIdRef.current;
@@ -134,17 +184,28 @@ const AddNewHire: React.FC = () => {
   const activeStep = HIRE_STEPS[activeIndex];
   const StepComponent = STEP_COMPONENTS[activeStep.key];
 
-  // Sidebar fill state per step, computed from the saved hire record.
+  // Sidebar fill state per step. Hire-row screens read the hire record; child-table
+  // screens (vehicle/proofs/pcn/documents) read their loaded records/documents.
   const stepStatus = (i: number): StepFill => {
-    const fields = STEP_FIELDS[HIRE_STEPS[i].key];
-    if (!fields || !hire) return "empty";
-    const rec = hire as unknown as Record<string, unknown>;
-    const filled = fields.filter((f) => {
-      const v = rec[f];
-      return v !== null && v !== undefined && String(v).trim() !== "";
-    }).length;
-    if (filled === 0) return "empty";
-    return filled === fields.length ? "complete" : "half";
+    const key = HIRE_STEPS[i].key;
+    const fields = STEP_FIELDS[key];
+    if (fields) return fillFromFields(hire as unknown as Record<string, unknown> | null, fields);
+
+    if (key === "vehicle") return fillFromFields(vehicles[0], VEHICLE_KEY_FIELDS);
+    if (key === "pcn") return fillFromFields(pcn as unknown as Record<string, unknown> | null, PCN_FIELDS);
+    if (key === "proofs") {
+      const present = [
+        documents.some((d) => isUtilityDoc(d.doc_type)),
+        documents.some((d) => d.doc_type === "dlFront"),
+        documents.some((d) => d.doc_type === "dlBack"),
+      ].filter(Boolean).length;
+      return fillFromCount(present, 3);
+    }
+    if (key === "documents") {
+      const count = CHECKLIST_REQUIRED.filter((t) => documents.some((d) => d.doc_type === t)).length;
+      return fillFromCount(count, CHECKLIST_REQUIRED.length);
+    }
+    return "empty";
   };
 
   return (
@@ -175,13 +236,8 @@ const AddNewHire: React.FC = () => {
         </div>
       </div>
 
-      {/* Full-screen saving overlay (like the Claims side). */}
-      {saving && (
-        <div className="fixed inset-0 z-[200] bg-black/40 flex flex-col items-center justify-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/30 border-t-white" />
-          <span className="text-white text-sm">Saving…</span>
-        </div>
-      )}
+      {/* Full-screen grey saving overlay (matches the Claims SpinnerLoader). */}
+      {saving && <FleetSpinnerLoader />}
     </div>
   );
 };

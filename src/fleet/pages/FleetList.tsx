@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { listHires, deleteHire, type HireRecord } from "../services/hireService";
 import { CURRENT_POSITION_OPTIONS } from "../types/hire";
+import FleetConfirmModal from "../components/FleetConfirmModal";
 
 const formatDateTime = (value?: string) => {
   if (!value) return "-";
@@ -192,31 +193,13 @@ const FleetList: React.FC = () => {
       </main>
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-[130] bg-black/40 flex items-center justify-center p-4 font-sans-headline">
-          <div className="w-[420px] max-w-full bg-white rounded-lg p-6 flex flex-col gap-4">
-            <div className="text-neutral-900 text-xl font-semibold">Delete Fleet Record</div>
-            <div className="text-neutral-700 text-sm">
-              Are you sure you want to delete {deleteTarget.fleet_reference || fallbackReference(deleteTarget)}? This cannot be undone.
-            </div>
-            <div className="h-px bg-neutral-100" />
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(null)}
-                className="h-8 px-3 py-2 rounded-sm bg-white text-neutral-900 text-sm outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                className="h-8 px-3 py-2 bg-red-600 rounded-sm text-white text-sm hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <FleetConfirmModal
+          title="Delete Fleet Record"
+          message={`Are you sure you want to delete ${deleteTarget.fleet_reference || fallbackReference(deleteTarget)}? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

@@ -1,8 +1,8 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
 import { useHire } from "./HireContext";
-import { uploadHireDocument, deleteHireDocument } from "../../services/hireService";
+import { uploadHireDocument, deleteHireDocument, getHireDocuments, type HireDocument } from "../../services/hireService";
 import { extractDriverDetailsFromLicence, extractProofOfAddress } from "../../services/driverService";
 import { FleetInlineLoader } from "../../components/fields";
 import TrashIcon from '../../assets/icons/Remove.svg'
@@ -13,11 +13,27 @@ import CheckCircleIcon from "../../assets/icons/CheckCircle.svg";
 type DlKey = "dlFront" | "dlBack";
 
 interface UploadedDoc {
-  file: File;
-  previewUrl: string | null;
+  previewUrl: string | null; // blob URL (fresh upload) or the stored file_url (reopen)
+  name: string;
   receivedOn: string;
   docId?: number; // backend id, when persisted
 }
+
+const IMG_EXT = /\.(png|jpe?g|gif|webp|bmp)$/i;
+const fmtReceived = (iso?: string) => {
+  if (!iso) return "";
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${String(d.getFullYear()).slice(2)}`;
+};
+// A persisted document -> preview card (image shows inline; others show the name).
+const docToUploaded = (d: HireDocument): UploadedDoc => ({
+  previewUrl: IMG_EXT.test(d.filename || "") ? d.file_url || null : null,
+  name: d.filename || "Document",
+  receivedOn: fmtReceived(d.created_at) || fmtReceived(d.received_on),
+  docId: d.id,
+});
 
 // One utility-bill slot. `docType` is stable per slot (never derived from the
 // index) so backend persist/delete stay correct even after middle slots are removed.
@@ -79,7 +95,7 @@ const DocumentCard: React.FC<{
           />
         ) : (
           <div className="px-6 py-8 text-neutral-500 text-sm">
-            PDF uploaded — {doc.file.name}
+            PDF uploaded — {doc.name}
           </div>
         )}
         <div className="h-px bg-neutral-100 w-full" />
@@ -108,16 +124,18 @@ const DocumentCard: React.FC<{
   </section>
 );
 
-// Address on one line, postcode on the next (not comma-joined).
-const AddressBlock: React.FC<{ address: string; postcode: string }> = ({ address, postcode }) =>
-  address || postcode ? (
+// Each address part (split on commas) on its own line, postcode last.
+const AddressBlock: React.FC<{ address: string; postcode: string }> = ({ address, postcode }) => {
+  const lines = address.split(",").map((s) => s.trim()).filter(Boolean);
+  return lines.length || postcode ? (
     <div className="text-black text-sm flex flex-col gap-0.5">
-      {address && <span>{address}</span>}
+      {lines.map((l, i) => <span key={i}>{l}</span>)}
       {postcode && <span>{postcode}</span>}
     </div>
   ) : (
     <div className="text-black text-sm">Not detected</div>
   );
+};
 
 const DriverProofs: React.FC = () => {
   const [utilities, setUtilities] = useState<UtilitySlot[]>([{ docType: "utility_1", doc: null }]);
@@ -132,8 +150,8 @@ const DriverProofs: React.FC = () => {
   const { hireId } = useHire();
 
   const makeDoc = (file: File): UploadedDoc => ({
-    file,
     previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+    name: file.name,
     receivedOn: receivedToday(),
   });
 
@@ -144,6 +162,55 @@ const DriverProofs: React.FC = () => {
     const doc = await uploadHireDocument(hireId, docType, file);
     return doc?.id ?? null;
   };
+
+  // Re-OCR a saved image (best-effort) so the address compare returns on reopen.
+  const urlToFile = async (url: string, name: string): Promise<File | null> => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return new File([blob], name || "doc", { type: blob.type });
+    } catch {
+      return null;
+    }
+  };
+
+  // Restore uploaded previews (and re-run the address compare) when reopening a hire.
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (hydrated.current || !hireId) return;
+    hydrated.current = true;
+    getHireDocuments(hireId).then((docs) => {
+      const utils = docs
+        .filter((d) => d.doc_type.startsWith("utility_"))
+        .sort((a, b) => a.doc_type.localeCompare(b.doc_type, undefined, { numeric: true }));
+      if (utils.length) {
+        setUtilities(utils.map((d) => ({ docType: d.doc_type, doc: docToUploaded(d) })));
+        nextUtilId.current = Math.max(...utils.map((d) => parseInt(d.doc_type.replace("utility_", ""), 10) || 0)) + 1;
+      }
+      const front = docs.find((d) => d.doc_type === "dlFront");
+      const back = docs.find((d) => d.doc_type === "dlBack");
+      if (front || back) {
+        setDl({ dlFront: front ? docToUploaded(front) : null, dlBack: back ? docToUploaded(back) : null });
+      }
+      // Best-effort re-OCR of the first utility + licence front to rebuild the compare.
+      (async () => {
+        setOcrLoading(true);
+        try {
+          if (utils[0]?.file_url) {
+            const f = await urlToFile(utils[0].file_url, utils[0].filename || "utility");
+            if (f) { const r = await extractProofOfAddress(f); setUtilOcr({ address: r.address, postcode: r.postcode }); }
+          }
+          if (front?.file_url) {
+            const f = await urlToFile(front.file_url, front.filename || "licence");
+            if (f) { const r = await extractDriverDetailsFromLicence(f); setDlOcr({ address: r.address, postcode: r.postcode, start: r.licenceStart, end: r.licenceEnd }); }
+          }
+        } finally {
+          setOcrLoading(false);
+        }
+      })();
+    });
+  }, [hireId]);
 
   const addUtility = () =>
     setUtilities((u) => [...u, { docType: `utility_${nextUtilId.current++}`, doc: null }]);

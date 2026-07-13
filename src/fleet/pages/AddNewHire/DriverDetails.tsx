@@ -4,7 +4,11 @@ import { FleetTextInput, FleetDateField, FleetInlineLoader, FleetPostcodeLookup 
 import FleetUploadModal from "../../components/FleetUploadModal";
 import type { DriverDetailsForm } from "../../types/hire";
 import { extractDriverDetailsFromLicence } from "../../services/driverService";
+import { getHireDocuments, uploadHireDocument } from "../../services/hireService";
 import { useHire } from "./HireContext";
+
+const LICENCE_DOC_TYPE = "driving_licence";
+const IMG_EXT = /\.(png|jpe?g|gif|webp|bmp)$/i;
 
 // Form field -> backend column (fleet_hire).
 const TO_BACKEND: Record<keyof DriverDetailsForm, string> = {
@@ -48,12 +52,26 @@ const DriverDetails: React.FC = () => {
   // OCR-target fields that came back empty on the last extraction (show red + hint).
   const [lowConfidence, setLowConfidence] = useState<Set<keyof DriverDetailsForm>>(new Set());
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [licenceFile, setLicenceFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [licenceName, setLicenceName] = useState("");
   const [ocrLoading, setOcrLoading] = useState(false);
 
-  const { hire, save } = useHire();
+  const { hire, hireId, save } = useHire();
   const hydrated = useRef(false);
+  const licenceHydrated = useRef(false);
+
+  // Restore the saved licence preview on reopen (the image is persisted as a doc).
+  useEffect(() => {
+    if (licenceHydrated.current || !hireId) return;
+    licenceHydrated.current = true;
+    getHireDocuments(hireId).then((docs) => {
+      const lic = docs.find((d) => d.doc_type === LICENCE_DOC_TYPE);
+      if (lic) {
+        setLicenceName(lic.filename || "Driving licence");
+        if (IMG_EXT.test(lic.filename || "")) setPreviewUrl(lic.file_url || null);
+      }
+    });
+  }, [hireId]);
 
   // Pre-fill from the saved hire once (reopen an existing hire / after creation).
   useEffect(() => {
@@ -89,9 +107,11 @@ const DriverDetails: React.FC = () => {
   };
 
   const handleUploaded = async (file: File) => {
-    setLicenceFile(file);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setLicenceName(file.name);
+    if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
+    // Persist the licence image so the preview survives leaving/reopening the screen.
+    if (hireId) uploadHireDocument(hireId, LICENCE_DOC_TYPE, file);
 
     // Real OCR extract + auto-populate (Name/Address/Postcode/DL Number/DOB). The
     // rest (Email/Telephone/Mobile/NI Number) are manual per the story.
@@ -137,17 +157,17 @@ const DriverDetails: React.FC = () => {
         <h3 className="text-black text-xl font-semibold leading-5">Driving License</h3>
         <div className="h-px bg-neutral-100" />
 
-        {licenceFile ? (
+        {licenceName ? (
           <div className="flex flex-col gap-3">
             <div className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col items-center gap-3">
               {previewUrl ? (
                 <img src={previewUrl} alt="Driving licence" className="max-h-64 max-w-full rounded object-contain" />
               ) : (
-                <div className="px-6 py-8 text-neutral-500 text-sm">PDF uploaded — {licenceFile.name}</div>
+                <div className="px-6 py-8 text-neutral-500 text-sm">PDF uploaded — {licenceName}</div>
               )}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-neutral-500 text-sm truncate">{licenceFile.name}</span>
+              <span className="text-neutral-500 text-sm truncate">{licenceName}</span>
               <button
                 type="button"
                 onClick={() => setUploadOpen(true)}

@@ -2,24 +2,39 @@ import React, { useEffect, useRef, useState } from "react";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
 import { useHire } from "./HireContext";
-import { uploadHireDocument, deleteHireDocument, getHireDocuments, type HireDocument } from "../../services/hireService";
+import {
+  uploadHireDocument,
+  deleteHireDocument,
+  getHireDocuments,
+  getHireDocumentFileUrl,
+  type HireDocument,
+} from "../../services/hireService";
 import { extractDriverDetailsFromLicence, extractProofOfAddress } from "../../services/driverService";
-import { FleetInlineLoader } from "../../components/fields";
+import { FleetInlineLoader, FleetSegmented } from "../../components/fields";
+import { Eye, FileText } from "lucide-react";
 import TrashIcon from '../../assets/icons/Remove.svg'
 import PlusIcon from "../../assets/icons/Plus.svg";
 import AlertIcon from "../../assets/icons/Alert.svg";
 import CheckCircleIcon from "../../assets/icons/CheckCircle.svg";
 
 type DlKey = "dlFront" | "dlBack";
+type ProofKind = "bank_statement" | "utility_bill";
 
 interface UploadedDoc {
-  previewUrl: string | null; // blob URL (fresh upload) or the stored file_url (reopen)
+  previewUrl: string | null; // blob URL from fresh upload or auth-checked backend file endpoint
+  viewUrl: string | null;
+  isPdf: boolean;
   name: string;
   receivedOn: string;
   docId?: number; // backend id, when persisted
 }
 
 const IMG_EXT = /\.(png|jpe?g|gif|webp|bmp)$/i;
+const PDF_EXT = /\.pdf$/i;
+const PROOF_OPTIONS = [
+  { label: "Bank Statement", value: "bank_statement" },
+  { label: "Utility Bill", value: "utility_bill" },
+];
 const fmtReceived = (iso?: string) => {
   if (!iso) return "";
   const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
@@ -27,17 +42,62 @@ const fmtReceived = (iso?: string) => {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${String(d.getFullYear()).slice(2)}`;
 };
-// A persisted document -> preview card (image shows inline; others show the name).
-const docToUploaded = (d: HireDocument): UploadedDoc => ({
-  previewUrl: IMG_EXT.test(d.filename || "") ? d.file_url || null : null,
-  name: d.filename || "Document",
-  receivedOn: fmtReceived(d.created_at) || fmtReceived(d.received_on),
-  docId: d.id,
-});
+const latestByDocType = (docs: HireDocument[]) => {
+  const latest = new Map<string, HireDocument>();
+  [...docs]
+    .sort((a, b) => b.id - a.id)
+    .forEach((doc) => {
+      if (!latest.has(doc.doc_type)) latest.set(doc.doc_type, doc);
+    });
+  return Array.from(latest.values());
+};
 
-// One utility-bill slot. `docType` is stable per slot (never derived from the
+const proofPrefix = (kind: ProofKind) => (kind === "utility_bill" ? "utility" : "bank_statement");
+const proofDocType = (kind: ProofKind, id: number) => `${proofPrefix(kind)}_${id}`;
+const proofKindFromDocType = (docType: string): ProofKind =>
+  docType.startsWith("utility_") || docType === "firstUtility" || docType === "secondUtility"
+    ? "utility_bill"
+    : "bank_statement";
+const proofIdFromDocType = (docType: string) => {
+  const match = docType.match(/_(\d+)$/);
+  if (match) return Number(match[1]) || 1;
+  if (docType === "secondUtility") return 2;
+  return 1;
+};
+const isProofDocType = (docType: string) =>
+  docType.startsWith("utility_") ||
+  docType.startsWith("bank_statement_") ||
+  docType === "firstUtility" ||
+  docType === "secondUtility";
+const proofKindLabel = (kind: ProofKind) => (kind === "utility_bill" ? "Utility Bill" : "Bank Statement");
+
+// A persisted document -> preview card. Images are loaded through our backend
+// file endpoint, not raw S3 URLs, so the browser does not hit S3 CORS/403.
+const docToUploaded = async (hireId: number, d: HireDocument): Promise<UploadedDoc> => {
+  const viewUrl = await getHireDocumentFileUrl(hireId, d.id);
+  const filename = d.filename || "Document";
+  const isImage = IMG_EXT.test(filename);
+  return {
+    previewUrl: isImage ? viewUrl : null,
+    viewUrl,
+    isPdf: PDF_EXT.test(filename),
+    name: filename,
+    receivedOn: fmtReceived(d.created_at) || fmtReceived(d.received_on),
+    docId: d.id,
+  };
+};
+
+const revokeDocUrls = (doc?: UploadedDoc | null) => {
+  if (!doc) return;
+  if (doc.previewUrl) URL.revokeObjectURL(doc.previewUrl);
+  if (doc.viewUrl && doc.viewUrl !== doc.previewUrl) URL.revokeObjectURL(doc.viewUrl);
+};
+
+// One proof-of-address slot. `docType` is stable per slot (never derived from the
 // index) so backend persist/delete stay correct even after middle slots are removed.
-interface UtilitySlot {
+interface ProofSlot {
+  id: number;
+  proofKind: ProofKind;
   docType: string;
   doc: UploadedDoc | null;
 }
@@ -51,7 +111,7 @@ const DL_LABELS: Record<DlKey, string> = {
 };
 
 const ORDINALS = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"];
-const utilLabel = (i: number) => `${ORDINALS[i] || `#${i + 1}`} Utility Bill`;
+const proofLabel = (i: number, kind: ProofKind) => `${ORDINALS[i] || `#${i + 1}`} ${proofKindLabel(kind)}`;
 
 const receivedToday = () => {
   const d = new Date();
@@ -73,10 +133,22 @@ const DocumentCard: React.FC<{
   doc: UploadedDoc | null;
   onUploadClick: () => void;
   onRemove: () => void;
-}> = ({ label, doc, onUploadClick, onRemove }) => (
+  proofKind?: ProofKind;
+  onProofKindChange?: (value: string) => void;
+}> = ({ label, doc, onUploadClick, onRemove, proofKind, onProofKindChange }) => (
   <section className="p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4">
-    <div className="flex justify-between items-center">
-      <h3 className="text-black text-xl font-semibold leading-5">{label}</h3>
+    <div className="flex flex-wrap justify-between items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <h3 className="text-black text-xl font-semibold leading-5">{label}</h3>
+        {proofKind && onProofKindChange && (
+          <FleetSegmented
+            options={PROOF_OPTIONS}
+            value={proofKind}
+            onChange={onProofKindChange}
+            disabled={!!doc}
+          />
+        )}
+      </div>
       {doc && (
         <span className="text-black text-sm">
           Received On: {doc.receivedOn}
@@ -94,8 +166,26 @@ const DocumentCard: React.FC<{
             className="max-h-72 max-w-full rounded object-contain"
           />
         ) : (
-          <div className="px-6 py-8 text-neutral-500 text-sm">
-            PDF uploaded — {doc.name}
+          <div className="w-full p-4 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-between gap-4">
+            <div className="min-w-0 flex items-center gap-3">
+              <span className="w-10 h-10 shrink-0 rounded-sm bg-red-50 text-red-600 flex items-center justify-center">
+                <FileText size={20} />
+              </span>
+              <div className="min-w-0">
+                <div className="truncate text-neutral-900 text-sm font-medium">{doc.name}</div>
+                <div className="text-neutral-500 text-xs">{doc.isPdf ? "PDF document" : "Document"}</div>
+              </div>
+            </div>
+            {doc.viewUrl && (
+              <button
+                type="button"
+                onClick={() => window.open(doc.viewUrl!, "_blank", "noopener,noreferrer")}
+                className="h-8 px-3 py-2 shrink-0 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50"
+              >
+                <Eye size={16} />
+                View
+              </button>
+            )}
           </div>
         )}
         <div className="h-px bg-neutral-100 w-full" />
@@ -138,7 +228,9 @@ const AddressBlock: React.FC<{ address: string; postcode: string }> = ({ address
 };
 
 const DriverProofs: React.FC = () => {
-  const [utilities, setUtilities] = useState<UtilitySlot[]>([{ docType: "utility_1", doc: null }]);
+  const [utilities, setUtilities] = useState<ProofSlot[]>([
+    { id: 1, proofKind: "bank_statement", docType: "bank_statement_1", doc: null },
+  ]);
   const nextUtilId = useRef(2);
   const [dl, setDl] = useState<Record<DlKey, UploadedDoc | null>>({ dlFront: null, dlBack: null });
   const [activeUpload, setActiveUpload] = useState<Target | null>(null);
@@ -151,6 +243,8 @@ const DriverProofs: React.FC = () => {
 
   const makeDoc = (file: File): UploadedDoc => ({
     previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+    viewUrl: URL.createObjectURL(file),
+    isPdf: file.type === "application/pdf" || PDF_EXT.test(file.name),
     name: file.name,
     receivedOn: receivedToday(),
   });
@@ -161,6 +255,16 @@ const DriverProofs: React.FC = () => {
     if (!hireId) return null;
     const doc = await uploadHireDocument(hireId, docType, file);
     return doc?.id ?? null;
+  };
+
+  const deleteExistingDocType = async (docType: string) => {
+    if (!hireId) return;
+    const existing = await getHireDocuments(hireId);
+    await Promise.all(
+      existing
+        .filter((doc) => doc.doc_type === docType)
+        .map((doc) => deleteHireDocument(hireId, doc.id)),
+    );
   };
 
   // Re-OCR a saved image (best-effort) so the address compare returns on reopen.
@@ -175,47 +279,82 @@ const DriverProofs: React.FC = () => {
     }
   };
 
+  const persistedDocToFile = async (doc: HireDocument, name: string): Promise<File | null> => {
+    if (!hireId) return null;
+    const url = await getHireDocumentFileUrl(hireId, doc.id);
+    if (!url) return null;
+    const file = await urlToFile(url, name);
+    URL.revokeObjectURL(url);
+    return file;
+  };
+
   // Restore uploaded previews (and re-run the address compare) when reopening a hire.
   const hydrated = useRef(false);
   useEffect(() => {
     if (hydrated.current || !hireId) return;
     hydrated.current = true;
-    getHireDocuments(hireId).then((docs) => {
+    (async () => {
+      const docs = latestByDocType(await getHireDocuments(hireId));
       const utils = docs
-        .filter((d) => d.doc_type.startsWith("utility_"))
-        .sort((a, b) => a.doc_type.localeCompare(b.doc_type, undefined, { numeric: true }));
+        .filter((d) => isProofDocType(d.doc_type))
+        .sort((a, b) => proofIdFromDocType(a.doc_type) - proofIdFromDocType(b.doc_type));
       if (utils.length) {
-        setUtilities(utils.map((d) => ({ docType: d.doc_type, doc: docToUploaded(d) })));
-        nextUtilId.current = Math.max(...utils.map((d) => parseInt(d.doc_type.replace("utility_", ""), 10) || 0)) + 1;
+        setUtilities(await Promise.all(utils.map(async (d) => {
+          const id = proofIdFromDocType(d.doc_type);
+          const proofKind = proofKindFromDocType(d.doc_type);
+          return { id, proofKind, docType: proofDocType(proofKind, id), doc: await docToUploaded(hireId, d) };
+        })));
+        nextUtilId.current = Math.max(...utils.map((d) => proofIdFromDocType(d.doc_type))) + 1;
       }
       const front = docs.find((d) => d.doc_type === "dlFront");
       const back = docs.find((d) => d.doc_type === "dlBack");
       if (front || back) {
-        setDl({ dlFront: front ? docToUploaded(front) : null, dlBack: back ? docToUploaded(back) : null });
+        const [frontDoc, backDoc] = await Promise.all([
+          front ? docToUploaded(hireId, front) : null,
+          back ? docToUploaded(hireId, back) : null,
+        ]);
+        setDl({ dlFront: frontDoc, dlBack: backDoc });
       }
       // Best-effort re-OCR of the first utility + licence front to rebuild the compare.
-      (async () => {
+      if (utils[0] || front) {
         setOcrLoading(true);
         try {
-          if (utils[0]?.file_url) {
-            const f = await urlToFile(utils[0].file_url, utils[0].filename || "utility");
+          if (utils[0]) {
+            const f = await persistedDocToFile(utils[0], utils[0].filename || "utility");
             if (f) { const r = await extractProofOfAddress(f); setUtilOcr({ address: r.address, postcode: r.postcode }); }
           }
-          if (front?.file_url) {
-            const f = await urlToFile(front.file_url, front.filename || "licence");
+          if (front) {
+            const f = await persistedDocToFile(front, front.filename || "licence");
             if (f) { const r = await extractDriverDetailsFromLicence(f); setDlOcr({ address: r.address, postcode: r.postcode, start: r.licenceStart, end: r.licenceEnd }); }
           }
         } finally {
           setOcrLoading(false);
         }
-      })();
-    });
+      }
+    })();
   }, [hireId]);
 
   const addUtility = () =>
-    setUtilities((u) => [...u, { docType: `utility_${nextUtilId.current++}`, doc: null }]);
+    setUtilities((u) => {
+      const id = nextUtilId.current++;
+      return [...u, { id, proofKind: "bank_statement", docType: proofDocType("bank_statement", id), doc: null }];
+    });
 
-  const targetLabel = (t: Target) => (t.kind === "utility" ? utilLabel(t.index) : DL_LABELS[t.key]);
+  const changeProofKind = (index: number, value: string) => {
+    const proofKind = value as ProofKind;
+    setUtilities((slots) => {
+      const next = [...slots];
+      const slot = next[index];
+      if (!slot || slot.doc) return slots;
+      next[index] = { ...slot, proofKind, docType: proofDocType(proofKind, slot.id) };
+      return next;
+    });
+  };
+
+  const targetLabel = (t: Target) =>
+    t.kind === "utility"
+      ? proofLabel(t.index, utilities[t.index]?.proofKind || "bank_statement")
+      : DL_LABELS[t.key];
 
   const handleUploaded = async (file: File) => {
     const target = activeUpload;
@@ -227,17 +366,18 @@ const DriverProofs: React.FC = () => {
       setUtilities((u) => {
         const next = [...u];
         const prev = next[i];
-        if (prev?.doc?.previewUrl) URL.revokeObjectURL(prev.doc.previewUrl);
+        revokeDocUrls(prev?.doc);
         next[i] = { ...prev, doc: makeDoc(file) };
         return next;
       });
-      // The first utility bill drives the address comparison (runs in background).
+      // The first proof-of-address document drives the address comparison.
       if (i === 0) {
         setOcrLoading(true);
         extractProofOfAddress(file)
           .then((d) => setUtilOcr({ address: d.address, postcode: d.postcode }))
           .finally(() => setOcrLoading(false));
       }
+      await deleteExistingDocType(docType);
       const id = await uploadDoc(docType, file);
       if (id) {
         setUtilities((u) => {
@@ -251,7 +391,7 @@ const DriverProofs: React.FC = () => {
 
     const key = target.key;
     setDl((prev) => {
-      if (prev[key]?.previewUrl) URL.revokeObjectURL(prev[key]!.previewUrl!);
+      revokeDocUrls(prev[key]);
       return { ...prev, [key]: makeDoc(file) };
     });
     if (key === "dlFront") {
@@ -260,6 +400,7 @@ const DriverProofs: React.FC = () => {
         .then((d) => setDlOcr({ address: d.address, postcode: d.postcode, start: d.licenceStart, end: d.licenceEnd }))
         .finally(() => setOcrLoading(false));
     }
+    await deleteExistingDocType(key);
     const id = await uploadDoc(key, file);
     if (id) setDl((prev) => (prev[key] ? { ...prev, [key]: { ...prev[key]!, docId: id } } : prev));
   };
@@ -269,8 +410,8 @@ const DriverProofs: React.FC = () => {
       const i = target.index;
       const slot = utilities[i];
       if (slot?.doc?.docId && hireId) deleteHireDocument(hireId, slot.doc.docId);
-      if (slot?.doc?.previewUrl) URL.revokeObjectURL(slot.doc.previewUrl);
-      // Keep the "First Utility Bill" card (clear it); remove any extra slot entirely.
+      revokeDocUrls(slot?.doc);
+      // Keep the first proof card (clear it); remove any extra slot entirely.
       setUtilities((u) => (i === 0 ? u.map((s, idx) => (idx === 0 ? { ...s, doc: null } : s)) : u.filter((_, idx) => idx !== i)));
       if (i === 0) setUtilOcr({ address: "", postcode: "" });
       return;
@@ -278,12 +419,14 @@ const DriverProofs: React.FC = () => {
     const key = target.key;
     const ex = dl[key];
     if (ex?.docId && hireId) deleteHireDocument(hireId, ex.docId);
-    if (ex?.previewUrl) URL.revokeObjectURL(ex.previewUrl);
+    revokeDocUrls(ex);
     setDl((prev) => ({ ...prev, [key]: null }));
     if (key === "dlFront") setDlOcr({ address: "", postcode: "", start: "", end: "" });
   };
 
-  const hasUtility = utilities.some((u) => u.doc);
+  const selectedProofKind = utilities[0]?.proofKind || "bank_statement";
+  const selectedProofLabel = proofKindLabel(selectedProofKind);
+  const hasUtility = Boolean(utilities[0]?.doc);
   const showLicenceDates = !!dl.dlFront;
   const showCompare = hasUtility && !!dl.dlFront;
   const dlFull = [dlOcr.address, dlOcr.postcode].filter(Boolean).join(", ");
@@ -298,12 +441,14 @@ const DriverProofs: React.FC = () => {
       </h2>
       {ocrLoading && <FleetInlineLoader text="Reading document…" />}
 
-      {/* Utility bills — First + any added via the CTA below. */}
+      {/* Proof-of-address documents — bank statement by default, utility bill optional. */}
       {utilities.map((slot, i) => (
         <DocumentCard
-          key={slot.docType}
-          label={utilLabel(i)}
+          key={`${slot.docType}-${slot.doc?.docId ?? i}`}
+          label={proofLabel(i, slot.proofKind)}
           doc={slot.doc}
+          proofKind={slot.proofKind}
+          onProofKindChange={(value) => changeProofKind(i, value)}
           onUploadClick={() => setActiveUpload({ kind: "utility", index: i })}
           onRemove={() => setDeleteTarget({ kind: "utility", index: i })}
         />
@@ -316,7 +461,7 @@ const DriverProofs: React.FC = () => {
           className="h-8 px-3 py-2 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 inline-flex justify-center items-center gap-2.5 text-neutral-900 text-sm font-normal leading-4 hover:bg-neutral-50"
         >
           <img src={PlusIcon} alt="" className="w-4 h-4" />
-          Add Another Utility Bill
+          Add Another Proof Document
         </button>
       </div>
 
@@ -374,11 +519,11 @@ const DriverProofs: React.FC = () => {
           {bothPresent &&
             (addressesMatch ? (
               <div className="px-4 py-2 bg-green-100 rounded-sm text-neutral-700 text-sm">
-                Address matched between Driving Licence and Utility Bill
+                Address matched between Driving Licence and {selectedProofLabel}
               </div>
             ) : (
               <div className="px-4 py-2 bg-red-100 rounded-sm text-neutral-700 text-sm">
-                Address does not match between Driving Licence and Utility Bill
+                Address does not match between Driving Licence and {selectedProofLabel}
               </div>
             ))}
           <div className="flex items-start gap-6">
@@ -390,7 +535,7 @@ const DriverProofs: React.FC = () => {
             </div>
             <div className="flex-1 p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3">
               <div className="text-black text-base font-semibold">
-                Utility Bill Address
+                {selectedProofLabel} Address
               </div>
               <AddressBlock address={utilOcr.address} postcode={utilOcr.postcode} />
             </div>

@@ -757,7 +757,7 @@ const CaseActivityStream = () => {
         sender_name: row?.sender_name || "No-Reply",
         sender_email:
           row?.sender_email ||
-          "noreplynationwideassist@yopmail.com via sendgrid.net",
+          "no-replynationwideassist@outlook.com",
         received_at: row?.received_at || row?.timestamp || "",
         body_html: row?.body_html || "",
         body_preview:

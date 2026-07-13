@@ -53,6 +53,8 @@ export interface HireRecord {
   initial_amount_due?: string;
   payment_damage_charges?: string;
   additional_charges?: string;
+  // Vehicle (legacy columns on the hire row)
+  registration_number?: string;
 }
 
 export const listHires = async (): Promise<HireRecord[]> => {
@@ -137,6 +139,17 @@ export const getHireDocuments = async (hireId: number): Promise<HireDocument[]> 
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
+  }
+};
+
+// Fetch a stored document's bytes (auth-checked, S3 or local) as an object URL so it
+// can be shown in an <img>/<a> — the raw file_url isn't directly loadable.
+export const getHireDocumentFileUrl = async (hireId: number, docId: number): Promise<string | null> => {
+  try {
+    const res = await fleetApi.get(`/fleet/hire/${hireId}/documents/${docId}/file`, { responseType: "blob" });
+    return URL.createObjectURL(res.data as Blob);
+  } catch {
+    return null;
   }
 };
 

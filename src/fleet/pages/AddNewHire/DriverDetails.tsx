@@ -1,10 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetDateField, FleetInlineLoader, FleetPostcodeLookup } from "../../components/fields";
+import {
+  FleetTextInput,
+  FleetDateField,
+  FleetPostcodeLookup,
+  FleetUkMobileInput,
+  formatUkMobileDisplay,
+  isValidUkMobile,
+  toUkMobileE164,
+} from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import type { DriverDetailsForm } from "../../types/hire";
 import { extractDriverDetailsFromLicence } from "../../services/driverService";
-import { getHireDocuments, uploadHireDocument } from "../../services/hireService";
+import { getHireDocuments, uploadHireDocument, deleteHireDocument, getHireDocumentFileUrl } from "../../services/hireService";
+import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import { useHire } from "./HireContext";
 
 const LICENCE_DOC_TYPE = "driving_licence";
@@ -44,33 +53,39 @@ const UploadPrompt = () => (
 
 // Fields the licence OCR tries to fill. Any that come back empty are flagged as
 // low-confidence (red) so the user knows to verify / enter them manually.
-const OCR_FIELDS: (keyof DriverDetailsForm)[] = ["name", "address", "postcode", "drivingLicenceNumber", "dateOfBirth"];
-const LOW_CONFIDENCE_MSG = "Low confidence OCR result - please verify.";
+const LOW_CONFIDENCE_MSG = "Low Confidence OCR Result - Please Verify";
 
 const DriverDetails: React.FC = () => {
   const [form, setForm] = useState<DriverDetailsForm>(EMPTY);
-  // OCR-target fields that came back empty on the last extraction (show red + hint).
-  const [lowConfidence, setLowConfidence] = useState<Set<keyof DriverDetailsForm>>(new Set());
+  // True after a licence upload — any OCR-target field still empty then is flagged red.
+  const [ocrAttempted, setOcrAttempted] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [licenceName, setLicenceName] = useState("");
-  const [ocrLoading, setOcrLoading] = useState(false);
+  const [licenceLoading, setLicenceLoading] = useState(false);
 
   const { hire, hireId, save } = useHire();
   const hydrated = useRef(false);
   const licenceHydrated = useRef(false);
 
-  // Restore the saved licence preview on reopen (the image is persisted as a doc).
+  // Restore the saved licence preview on reopen (the image is persisted as a doc and
+  // streamed back through the auth-checked file endpoint).
   useEffect(() => {
     if (licenceHydrated.current || !hireId) return;
     licenceHydrated.current = true;
-    getHireDocuments(hireId).then((docs) => {
-      const lic = docs.find((d) => d.doc_type === LICENCE_DOC_TYPE);
-      if (lic) {
-        setLicenceName(lic.filename || "Driving licence");
-        if (IMG_EXT.test(lic.filename || "")) setPreviewUrl(lic.file_url || null);
-      }
-    });
+    setLicenceLoading(true);
+    getHireDocuments(hireId)
+      .then(async (docs) => {
+        // Newest licence doc (in case an old one hasn't finished deleting yet).
+        const lic = docs.filter((d) => d.doc_type === LICENCE_DOC_TYPE).sort((a, b) => b.id - a.id)[0];
+        if (lic) {
+          setLicenceName(lic.filename || "Driving licence");
+          if (IMG_EXT.test(lic.filename || "")) {
+            setPreviewUrl(await getHireDocumentFileUrl(hireId, lic.id));
+          }
+        }
+      })
+      .finally(() => setLicenceLoading(false));
   }, [hireId]);
 
   // Pre-fill from the saved hire once (reopen an existing hire / after creation).
@@ -83,45 +98,41 @@ const DriverDetails: React.FC = () => {
       postcode: hire.driver_postcode || "",
       email: hire.driver_email || "",
       telephone: hire.driver_telephone || "",
-      mobile: hire.driver_mobile || "",
+      mobile: formatUkMobileDisplay(hire.driver_mobile || ""),
       drivingLicenceNumber: hire.driving_licence_number || "",
       nationalInsuranceNumber: hire.national_insurance_number || "",
       dateOfBirth: hire.date_of_birth || "",
     });
   }, [hire]);
 
-  const set = <K extends keyof DriverDetailsForm>(key: K, value: DriverDetailsForm[K]) => {
+  const set = <K extends keyof DriverDetailsForm>(key: K, value: DriverDetailsForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
-    // Editing a flagged field clears its low-confidence warning (user is verifying it).
-    setLowConfidence((prev) => {
-      if (!prev.has(key)) return prev;
-      const next = new Set(prev);
-      next.delete(key);
-      return next;
-    });
-  };
 
   // Field-level save on blur (mirrors the Claims side).
   const saveField = (key: keyof DriverDetailsForm) => {
-    save({ [TO_BACKEND[key]]: form[key] });
+    if (key === "mobile" && form.mobile && !isValidUkMobile(form.mobile)) return;
+    const value = key === "mobile" ? toUkMobileE164(form.mobile) : form[key];
+    save({ [TO_BACKEND[key]]: value });
   };
 
   const handleUploaded = async (file: File) => {
     setLicenceName(file.name);
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
-    // Persist the licence image so the preview survives leaving/reopening the screen.
-    if (hireId) uploadHireDocument(hireId, LICENCE_DOC_TYPE, file);
-
-    // Real OCR extract + auto-populate (Name/Address/Postcode/DL Number/DOB). The
-    // rest (Email/Telephone/Mobile/NI Number) are manual per the story.
-    setOcrLoading(true);
-    let data;
-    try {
-      data = await extractDriverDetailsFromLicence(file);
-    } finally {
-      setOcrLoading(false);
+    // Persist the licence image (REPLACING any previous one) so the preview that
+    // restores on reopen is the newly-uploaded licence, not a stale one.
+    if (hireId) {
+      getHireDocuments(hireId).then((existing) => {
+        existing
+          .filter((d) => d.doc_type === LICENCE_DOC_TYPE)
+          .forEach((d) => deleteHireDocument(hireId, d.id));
+        uploadHireDocument(hireId, LICENCE_DOC_TYPE, file);
+      });
     }
+
+    // Real OCR extract (Name/Address/Postcode/DL Number/DOB). Loading is shown by
+    // the upload modal itself, so no separate spinner here.
+    const data = await extractDriverDetailsFromLicence(file);
     const map: [keyof DriverDetailsForm, string][] = [
       ["name", data.name],
       ["address", data.address],
@@ -130,27 +141,32 @@ const DriverDetails: React.FC = () => {
       ["dateOfBirth", data.dateOfBirth],
     ];
     const updates: Partial<DriverDetailsForm> = {};
-    const back: Record<string, string> = {};
     const filled = new Set<keyof DriverDetailsForm>();
     for (const [key, value] of map) {
       if (value) {
         updates[key] = value;
-        back[TO_BACKEND[key]] = value;
         filled.add(key);
       }
     }
-    setForm((f) => ({ ...f, ...updates }));
-    // Flag every OCR-target field the extraction couldn't fill.
-    setLowConfidence(new Set(OCR_FIELDS.filter((k) => !filled.has(k))));
-    if (Object.keys(back).length) save(back); // persist only what OCR found
+    // Uploading a licence is a clean REPLACE: empty the form, then fill with the new
+    // licence's data (so stale values / a previous licence's data don't linger).
+    setForm({ ...EMPTY, ...updates });
+    // Now any OCR-target field left empty renders the red "verify" hint (reactively).
+    setOcrAttempted(true);
+    // Persist the whole replaced form — new OCR values, everything else cleared.
+    const fullSave: Record<string, string> = {};
+    (Object.keys(TO_BACKEND) as (keyof DriverDetailsForm)[]).forEach((k) => {
+      fullSave[TO_BACKEND[k]] = k === "mobile" ? toUkMobileE164((updates[k] as string) || "") : ((updates[k] as string) || "");
+    });
+    save(fullSave);
     if (filled.size) toast.success("Driver details extracted from licence.");
     else toast.info("Couldn't read the licence — please enter the details manually.");
   };
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
+      {licenceLoading && <FleetSpinnerLoader />}
       <h2 className="text-black text-2xl font-semibold leading-6">Driver Details</h2>
-      {ocrLoading && <FleetInlineLoader text="Reading licence…" />}
 
       {/* Driving License upload + preview */}
       <section className="p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4">
@@ -205,7 +221,7 @@ const DriverDetails: React.FC = () => {
           value={form.name}
           onChange={(v) => set("name", v)}
           onBlur={() => saveField("name")}
-          error={lowConfidence.has("name") ? LOW_CONFIDENCE_MSG : undefined}
+          error={ocrAttempted && !form.name ? LOW_CONFIDENCE_MSG : undefined}
         />
         <FleetTextInput
           label="Address"
@@ -213,7 +229,7 @@ const DriverDetails: React.FC = () => {
           value={form.address}
           onChange={(v) => set("address", v)}
           onBlur={() => saveField("address")}
-          error={lowConfidence.has("address") ? LOW_CONFIDENCE_MSG : undefined}
+          error={ocrAttempted && !form.address ? LOW_CONFIDENCE_MSG : undefined}
         />
 
         <div className="grid grid-cols-2 gap-5">
@@ -222,7 +238,7 @@ const DriverDetails: React.FC = () => {
             postcode={form.postcode}
             onChange={(v) => set("postcode", v)}
             onBlur={() => saveField("postcode")}
-            error={lowConfidence.has("postcode") ? LOW_CONFIDENCE_MSG : undefined}
+            error={ocrAttempted && !form.postcode ? LOW_CONFIDENCE_MSG : undefined}
             onAddressSelect={(addr) => {
               set("address", addr.address);
               set("postcode", addr.postcode);
@@ -236,6 +252,7 @@ const DriverDetails: React.FC = () => {
             value={form.email}
             onChange={(v) => set("email", v)}
             onBlur={() => saveField("email")}
+            error={ocrAttempted && !form.email ? LOW_CONFIDENCE_MSG : undefined}
           />
         </div>
 
@@ -247,14 +264,20 @@ const DriverDetails: React.FC = () => {
             value={form.telephone}
             onChange={(v) => set("telephone", v)}
             onBlur={() => saveField("telephone")}
+            error={ocrAttempted && !form.telephone ? LOW_CONFIDENCE_MSG : undefined}
           />
-          <FleetTextInput
-            label="Mobile"
-            placeholder="Enter Number"
-            inputMode="tel"
+          <FleetUkMobileInput
+            label="Mobile Number"
             value={form.mobile}
             onChange={(v) => set("mobile", v)}
             onBlur={() => saveField("mobile")}
+            error={
+              form.mobile && !isValidUkMobile(form.mobile)
+                ? "Enter a valid UK mobile number"
+                : ocrAttempted && !form.mobile
+                  ? LOW_CONFIDENCE_MSG
+                  : undefined
+            }
           />
         </div>
 
@@ -265,7 +288,7 @@ const DriverDetails: React.FC = () => {
             value={form.drivingLicenceNumber}
             onChange={(v) => set("drivingLicenceNumber", v)}
             onBlur={() => saveField("drivingLicenceNumber")}
-            error={lowConfidence.has("drivingLicenceNumber") ? LOW_CONFIDENCE_MSG : undefined}
+            error={ocrAttempted && !form.drivingLicenceNumber ? LOW_CONFIDENCE_MSG : undefined}
           />
           <FleetTextInput
             label="National Insurance Number"
@@ -273,6 +296,7 @@ const DriverDetails: React.FC = () => {
             value={form.nationalInsuranceNumber}
             onChange={(v) => set("nationalInsuranceNumber", v)}
             onBlur={() => saveField("nationalInsuranceNumber")}
+            error={ocrAttempted && !form.nationalInsuranceNumber ? LOW_CONFIDENCE_MSG : undefined}
           />
         </div>
 
@@ -282,7 +306,7 @@ const DriverDetails: React.FC = () => {
             value={form.dateOfBirth}
             onChange={(v) => set("dateOfBirth", v)}
             onBlur={() => saveField("dateOfBirth")}
-            error={lowConfidence.has("dateOfBirth") ? LOW_CONFIDENCE_MSG : undefined}
+            error={ocrAttempted && !form.dateOfBirth ? LOW_CONFIDENCE_MSG : undefined}
           />
           <div />
         </div>

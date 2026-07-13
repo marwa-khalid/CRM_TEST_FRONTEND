@@ -1,12 +1,34 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetSelect, FleetDateField } from "../../components/fields";
+import { FleetTextInput, FleetSelect, FleetDateField, FleetInlineLoader } from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
+import FleetEmailModal from "../../components/FleetEmailModal";
 import FleetProvisionSlider from "../../components/FleetProvisionSlider";
 import FleetCheckoutModal, { EMPTY_CHECKOUT } from "../../components/FleetCheckoutModal";
+import FleetConfirmModal from "../../components/FleetConfirmModal";
 import type { CheckoutData } from "../../components/FleetCheckoutModal";
-import { uploadHireDocument } from "../../services/hireService";
+import { Eye } from "lucide-react";
+import DownloadIcon from "../../assets/icons/Download.svg";
+import EmailIcon from "../../assets/icons/Email.svg";
+import PrintIcon from "../../assets/icons/Print.svg";
+import RemoveIcon from "../../assets/icons/Remove.svg";
+import UploadFileIcon from "../../assets/icons/UploadFile.svg";
+import PDFIcon from "../../assets/FileTypes/PDF.svg";
+import PNGIcon from "../../assets/FileTypes/PNG.svg";
+import DOCIcon from "../../assets/FileTypes/DOC.svg";
+import {
+  deleteHireDocument,
+  getHireDocumentFileUrl,
+  getHireDocuments,
+  uploadHireDocument,
+} from "../../services/hireService";
+import {
+  downloadGeneratedDocumentBundle,
+  getGeneratedDocumentFiles,
+  type GeneratedDocumentKey,
+} from "../../services/generatedDocumentService";
 import { createVehicle, listVehicles, updateVehicle } from "../../services/vehicleService";
+import { extractInsuranceCertificate } from "../../services/driverService";
 import {
   BOROUGH_OPTIONS,
   SWAP_REASON_OPTIONS,
@@ -19,6 +41,9 @@ interface Vehicle extends HireVehicleForm {
   id?: number; // backend id
   checkout: CheckoutData;
   insuranceCertName: string;
+  insuranceCertId?: number;
+  insuranceCertViewUrl: string | null;
+  insuranceCertIsPdf: boolean;
 }
 
 const EMPTY_VEHICLE: Vehicle = {
@@ -26,7 +51,8 @@ const EMPTY_VEHICLE: Vehicle = {
   model: "", transmission: "", hireStatus: "", swapCar: "", swapReason: "", swapReasonText: "",
   hireStartDate: "", hireEndDate: "", totalHirePeriod: "", hireInsuranceType: "", dateReceived: "",
   policyStartDate: "", policyEndDate: "", crossHireProviderName: "", crossHireContactDetails: "",
-  crossHireRate: "", checkout: { ...EMPTY_CHECKOUT }, insuranceCertName: "",
+  crossHireRate: "", checkout: { ...EMPTY_CHECKOUT }, insuranceCertName: "", insuranceCertViewUrl: null,
+  insuranceCertIsPdf: false,
 };
 
 const s = (v: unknown) => (v == null ? "" : String(v));
@@ -49,6 +75,8 @@ const fromRecord = (r: Record<string, unknown>): Vehicle => ({
     damageCharges: s(r.damage_charges), damageNotes: s(r.damage_notes),
   },
   insuranceCertName: "",
+  insuranceCertViewUrl: null,
+  insuranceCertIsPdf: false,
 });
 
 const computePeriod = (start: string, end: string): string => {
@@ -80,6 +108,20 @@ const UploadPrompt = () => (
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
 const OUTLINE_BTN = "px-6 py-3 rounded-sm bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50";
+const GENERATED_DOCUMENTS: Array<{ label: string; key?: GeneratedDocumentKey }> = [
+  { label: "Raise Hire Documentation", key: "raise_hire_documentation" },
+  { label: "Raise Authority Letter", key: "raise_authority_letter" },
+  { label: "Raise Vehicle Inspection Sheet", key: "raise_vehicle_inspection_sheet" },
+];
+const INSURANCE_DOC_TYPE = "insurance_certificate";
+const PDF_EXT = /\.pdf$/i;
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp)$/i;
+
+const fileIconFor = (filename: string) => {
+  if (PDF_EXT.test(filename)) return PDFIcon;
+  if (IMAGE_EXT.test(filename)) return PNGIcon;
+  return DOCIcon;
+};
 
 const Radio: React.FC<{ checked: boolean; label: string; onClick: () => void }> = ({ checked, label, onClick }) => (
   <button type="button" onClick={onClick} className="flex items-center gap-2">
@@ -87,6 +129,24 @@ const Radio: React.FC<{ checked: boolean; label: string; onClick: () => void }> 
       <span className={`w-2 h-2 rounded-full ${checked ? "bg-neutral-900" : "bg-white"}`} />
     </span>
     <span className="text-black text-sm">{label}</span>
+  </button>
+);
+
+const IconButton: React.FC<{ icon: string; label: string; onClick: () => void; disabled?: boolean }> = ({
+  icon,
+  label,
+  onClick,
+  disabled = false,
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    title={label}
+    aria-label={label}
+    className="w-5 h-5 flex items-center justify-center hover:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed"
+  >
+    <img src={icon} alt="" className="w-4 h-4" />
   </button>
 );
 
@@ -120,22 +180,37 @@ const HireVehicleDetails: React.FC = () => {
   const [crossOpen, setCrossOpen] = useState(false);
   const [provisionOpen, setProvisionOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [emailSubject, setEmailSubject] = useState<string | null>(null);
+  const [emailBody, setEmailBody] = useState("");
+  const [emailFiles, setEmailFiles] = useState<File[]>([]);
+  const [insuranceOcrLoading, setInsuranceOcrLoading] = useState(false);
+  const [deleteCertOpen, setDeleteCertOpen] = useState(false);
+  const [generatedActionLoading, setGeneratedActionLoading] = useState<string | null>(null);
   const { hireId } = useHire();
 
   const active = vehicles[activeIndex];
   const onHire = active.hireStatus === "on_hire";
   const offHire = active.hireStatus === "off_hire";
+  const customerOwnInsurance = active.hireInsuranceType === "customer_own";
 
   // Load existing vehicles for this hire (or create the first one).
   useEffect(() => {
     if (!hireId) return;
-    listVehicles(hireId).then((list) => {
+    Promise.all([listVehicles(hireId), getHireDocuments(hireId)]).then(async ([list, docs]) => {
+      const cert = docs.filter((doc) => doc.doc_type === INSURANCE_DOC_TYPE).sort((a, b) => b.id - a.id)[0];
+      const certViewUrl = cert ? await getHireDocumentFileUrl(hireId, cert.id) : null;
+      const certPatch = {
+        insuranceCertName: cert?.filename || "",
+        insuranceCertId: cert?.id,
+        insuranceCertViewUrl: certViewUrl,
+        insuranceCertIsPdf: PDF_EXT.test(cert?.filename || ""),
+      };
       if (list.length > 0) {
-        setVehicles(list.map(fromRecord));
+        setVehicles(list.map((record) => ({ ...fromRecord(record), ...certPatch })));
         setActiveIndex(0);
       } else {
         createVehicle(hireId).then((v) => {
-          if (v) setVehicles([{ ...EMPTY_VEHICLE, id: v.id as number }]);
+          if (v) setVehicles([{ ...EMPTY_VEHICLE, id: v.id as number, ...certPatch }]);
         });
       }
     });
@@ -166,11 +241,119 @@ const HireVehicleDetails: React.FC = () => {
     ) });
   };
 
-  const handleCert = (file: File) => {
-    patch({ insuranceCertName: file.name });
+  const handleCert = async (file: File) => {
+    const received = today();
     setCertOpen(false);
-    if (hireId) uploadHireDocument(hireId, "insurance_certificate", file);
-    toast.success("Insurance certificate uploaded.");
+    let uploadedDocId: number | undefined;
+    let viewUrl: string | null = null;
+    if (hireId) {
+      const existing = await getHireDocuments(hireId);
+      const uploaded = await uploadHireDocument(hireId, INSURANCE_DOC_TYPE, file);
+      if (!uploaded?.id) {
+        throw new Error("Insurance certificate upload failed. Please try again.");
+      }
+      uploadedDocId = uploaded?.id;
+      await Promise.all(
+        existing
+          .filter((doc) => doc.doc_type === INSURANCE_DOC_TYPE)
+          .map((doc) => deleteHireDocument(hireId, doc.id)),
+      );
+      viewUrl = uploadedDocId ? await getHireDocumentFileUrl(hireId, uploadedDocId) : null;
+    }
+    const fallbackViewUrl = viewUrl || URL.createObjectURL(file);
+    patch({
+      insuranceCertName: file.name,
+      insuranceCertId: uploadedDocId,
+      insuranceCertViewUrl: fallbackViewUrl,
+      insuranceCertIsPdf: PDF_EXT.test(file.name),
+      dateReceived: received,
+    });
+
+    setInsuranceOcrLoading(true);
+    try {
+      const data = await extractInsuranceCertificate(file);
+      const updates: Partial<Vehicle> = {
+        insuranceCertName: file.name,
+        insuranceCertId: uploadedDocId,
+        insuranceCertViewUrl: fallbackViewUrl,
+        insuranceCertIsPdf: PDF_EXT.test(file.name),
+        dateReceived: received,
+        policyStartDate: data.policyStartDate || active.policyStartDate,
+        policyEndDate: data.policyEndDate || active.policyEndDate,
+      };
+      patch(updates);
+      saveActive({
+        insurance_date_received: received,
+        policy_start_date: updates.policyStartDate || null,
+        policy_end_date: updates.policyEndDate || null,
+      });
+      if (data.policyStartDate || data.policyEndDate) {
+        toast.success("Insurance certificate uploaded and policy dates extracted.");
+      } else {
+        toast.info("Insurance certificate uploaded. Please enter the policy dates manually.");
+      }
+    } finally {
+      setInsuranceOcrLoading(false);
+    }
+  };
+
+  const viewInsuranceCertificate = () => {
+    if (!active.insuranceCertViewUrl) {
+      toast.info("Certificate preview is not ready yet.");
+      return;
+    }
+    window.open(active.insuranceCertViewUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const confirmDeleteCertificate = async () => {
+    if (hireId) {
+      if (active.insuranceCertId) {
+        await deleteHireDocument(hireId, active.insuranceCertId);
+      } else {
+        const docs = await getHireDocuments(hireId);
+        await Promise.all(
+          docs
+            .filter((doc) => doc.doc_type === INSURANCE_DOC_TYPE)
+            .map((doc) => deleteHireDocument(hireId, doc.id)),
+        );
+      }
+    }
+    patch({
+      insuranceCertName: "",
+      insuranceCertId: undefined,
+      insuranceCertViewUrl: null,
+      insuranceCertIsPdf: false,
+      dateReceived: "",
+      policyStartDate: "",
+      policyEndDate: "",
+    });
+    saveActive({
+      insurance_date_received: null,
+      policy_start_date: null,
+      policy_end_date: null,
+    });
+    setDeleteCertOpen(false);
+    toast.success("Insurance certificate deleted.");
+  };
+
+  const handleInsuranceType = (value: string) => {
+    if (value === "customer_own") {
+      set("hireInsuranceType", value);
+      saveActive({ hire_insurance_type: value });
+      return;
+    }
+    patch({
+      hireInsuranceType: value,
+      dateReceived: "",
+      policyStartDate: "",
+      policyEndDate: "",
+    });
+    saveActive({
+      hire_insurance_type: value,
+      insurance_date_received: null,
+      policy_start_date: null,
+      policy_end_date: null,
+    });
   };
 
   const completeCheckout = (cd: CheckoutData) => {
@@ -205,6 +388,48 @@ const HireVehicleDetails: React.FC = () => {
     const period = computePeriod(start, active.hireEndDate);
     patch({ hireStatus: "on_hire", hireStartDate: start, totalHirePeriod: period });
     saveActive({ hire_status: "on_hire", hire_start_date: start, total_hire_period: period });
+  };
+
+  const handleGeneratedAction = async (
+    action: "print" | "download" | "email",
+    document: { label: string; key?: GeneratedDocumentKey },
+  ) => {
+    if (!hireId) {
+      toast.warn("Save the hire before generating documents.");
+      return;
+    }
+    if (!document.key) {
+      toast.info(`${document.label} will be wired next.`);
+      return;
+    }
+    const loadingKey = `${document.key}:${action}`;
+    setGeneratedActionLoading(loadingKey);
+    try {
+      if (action === "email") {
+        const files = await getGeneratedDocumentFiles(hireId, document.key);
+        setEmailFiles(files);
+        setEmailSubject(`${document.label} - ${active.registrationNumber || "Fleet Hire"}`);
+        setEmailBody(`Please find attached: ${document.label}.`);
+        return;
+      }
+
+      await downloadGeneratedDocumentBundle(hireId, document.key);
+      if (action === "print") {
+        toast.info("Downloaded hire documents. Open the Office files to print them.");
+      } else {
+        toast.success("Hire documents downloaded.");
+      }
+    } catch {
+      toast.error(`Failed to prepare ${document.label}.`);
+    } finally {
+      setGeneratedActionLoading(null);
+    }
+  };
+
+  const closeEmailModal = () => {
+    setEmailSubject(null);
+    setEmailBody("");
+    setEmailFiles([]);
   };
 
   return (
@@ -339,39 +564,105 @@ const HireVehicleDetails: React.FC = () => {
         </div>
       </section>
 
+      <section className={SECTION}>
+        <h3 className={H3}>Generate Hire Documents</h3>
+        <div className="h-px bg-neutral-100" />
+        {GENERATED_DOCUMENTS.map((document, index) => {
+          const busy = generatedActionLoading?.startsWith(`${document.key || document.label}:`) || false;
+          return (
+          <React.Fragment key={document.label}>
+            <div className="self-stretch flex justify-between items-start gap-4">
+              <div className="flex items-center gap-2">
+                <div className="text-neutral-700 text-sm font-semibold">{document.label}</div>
+                {busy && <span className="text-neutral-500 text-xs">Preparing...</span>}
+              </div>
+              <div className="flex items-center gap-4">
+                <IconButton icon={PrintIcon} label={`Print ${document.label}`} disabled={busy} onClick={() => handleGeneratedAction("print", document)} />
+                <IconButton icon={DownloadIcon} label={`Download ${document.label}`} disabled={busy} onClick={() => handleGeneratedAction("download", document)} />
+                <IconButton icon={EmailIcon} label={`Email ${document.label}`} disabled={busy} onClick={() => handleGeneratedAction("email", document)} />
+              </div>
+            </div>
+            {index < GENERATED_DOCUMENTS.length - 1 && <div className="h-px bg-neutral-100" />}
+          </React.Fragment>
+        );
+        })}
+      </section>
+
       {/* Hire Vehicle Insurance Details */}
       <section className={SECTION}>
         <h3 className={H3}>Hire Vehicle Insurance Details</h3>
         <div className="h-px bg-neutral-100" />
         <div className="grid grid-cols-2 gap-5">
-          <FleetSelect label="Insurance Type" value={active.hireInsuranceType} options={INSURANCE_TYPE_OPTIONS} onChange={(v) => { set("hireInsuranceType", v); saveActive({ hire_insurance_type: v }); }} />
+          <FleetSelect label="Insurance Type" value={active.hireInsuranceType} options={INSURANCE_TYPE_OPTIONS} onChange={handleInsuranceType} />
           <div />
         </div>
-        <div className="h-px bg-neutral-100" />
 
-        {active.insuranceCertName ? (
-          <div className="p-6 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-between">
-            <span className="text-neutral-700 text-sm">{active.insuranceCertName}</span>
-            <button type="button" onClick={() => setCertOpen(true)} className="text-neutral-900 text-sm font-medium underline underline-offset-2">Replace</button>
-          </div>
-        ) : (
-          <button type="button" onClick={() => setCertOpen(true)} className="p-6 rounded-lg border-2 border-dashed border-neutral-200 flex flex-col items-center justify-center gap-4 hover:bg-neutral-50">
-            <UploadPrompt />
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-black text-base font-semibold">Upload Insurance Certificate</span>
-              <span className="text-black text-sm">JPG, PNG, PDF Supported</span>
+        {customerOwnInsurance && (
+          <>
+            <div className="h-px bg-neutral-100" />
+            {insuranceOcrLoading && <FleetInlineLoader text="Reading insurance certificate..." />}
+
+            {active.insuranceCertName ? (
+              <div className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-between gap-4">
+                <div className="min-w-0 flex items-center gap-3">
+                  <img src={fileIconFor(active.insuranceCertName)} alt="" className="w-10 h-10 shrink-0" />
+                  <div className="min-w-0 flex flex-col gap-1">
+                    <span className="truncate text-neutral-900 text-sm font-medium">{active.insuranceCertName}</span>
+                    <span className="text-neutral-500 text-xs">
+                      {active.insuranceCertIsPdf ? "PDF document" : "Insurance certificate"}
+                    </span>
+                  </div>
+                </div>
+                <div className="shrink-0 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={viewInsuranceCertificate}
+                    title="View certificate"
+                    aria-label="View certificate"
+                    className="w-9 h-9 rounded-sm bg-white outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center text-neutral-900 hover:bg-neutral-50"
+                  >
+                    <Eye size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCertOpen(true)}
+                    title="Replace certificate"
+                    aria-label="Replace certificate"
+                    className="w-9 h-9 rounded-sm bg-white outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center hover:bg-neutral-50"
+                  >
+                    <img src={UploadFileIcon} alt="" className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteCertOpen(true)}
+                    title="Delete certificate"
+                    aria-label="Delete certificate"
+                    className="w-9 h-9 rounded-sm bg-white outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center hover:bg-neutral-50"
+                  >
+                    <img src={RemoveIcon} alt="" className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setCertOpen(true)} className="p-6 rounded-lg border-2 border-dashed border-neutral-200 flex flex-col items-center justify-center gap-4 hover:bg-neutral-50">
+                <UploadPrompt />
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-black text-base font-semibold">Upload Insurance Certificate</span>
+                  <span className="text-black text-sm">JPG, PNG, PDF Supported</span>
+                </div>
+              </button>
+            )}
+
+            <div className="grid grid-cols-2 gap-5">
+              <FleetDateField label="Date Received" value={active.dateReceived} onChange={(v) => { set("dateReceived", v); saveActive({ insurance_date_received: v || null }); }} />
+              <div />
             </div>
-          </button>
+            <div className="grid grid-cols-2 gap-5">
+              <FleetDateField label="Policy Start Date" value={active.policyStartDate} onChange={(v) => { set("policyStartDate", v); saveActive({ policy_start_date: v || null }); }} />
+              <FleetDateField label="Policy End Date" value={active.policyEndDate} onChange={(v) => { set("policyEndDate", v); saveActive({ policy_end_date: v || null }); }} />
+            </div>
+          </>
         )}
-
-        <div className="grid grid-cols-2 gap-5">
-          <FleetDateField label="Date Received" value={active.dateReceived} onChange={(v) => { set("dateReceived", v); saveActive({ insurance_date_received: v || null }); }} />
-          <div />
-        </div>
-        <div className="grid grid-cols-2 gap-5">
-          <FleetDateField label="Policy Start Date" value={active.policyStartDate} onChange={(v) => { set("policyStartDate", v); saveActive({ policy_start_date: v || null }); }} />
-          <FleetDateField label="Policy End Date" value={active.policyEndDate} onChange={(v) => { set("policyEndDate", v); saveActive({ policy_end_date: v || null }); }} />
-        </div>
       </section>
 
       <FleetProvisionSlider
@@ -406,6 +697,24 @@ const HireVehicleDetails: React.FC = () => {
       )}
 
       <FleetUploadModal open={certOpen} onClose={() => setCertOpen(false)} onUploaded={handleCert} title="Upload Insurance Certificate" />
+      {deleteCertOpen && (
+        <FleetConfirmModal
+          title="Delete Insurance Certificate"
+          message={`Are you sure you want to delete ${active.insuranceCertName || "this certificate"}?`}
+          confirmLabel="Delete"
+          onCancel={() => setDeleteCertOpen(false)}
+          onConfirm={confirmDeleteCertificate}
+        />
+      )}
+      <FleetEmailModal
+        open={emailSubject !== null}
+        onClose={closeEmailModal}
+        hireId={hireId}
+        title="Email Document"
+        defaultSubject={emailSubject || ""}
+        defaultBody={emailBody}
+        initialFiles={emailFiles}
+      />
     </div>
   );
 };

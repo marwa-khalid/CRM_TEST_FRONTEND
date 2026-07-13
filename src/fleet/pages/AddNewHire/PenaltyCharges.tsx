@@ -427,17 +427,20 @@ const PenaltyCharges: React.FC = () => {
           );
         })}
 
-        <div
-          onClick={() =>
-            toast.info(
-              "Liability transfer letter generation will use the saved PCN details.",
-            )
-          }
-          className="h-8 px-3 w-['Fit-Content'] py-2 bg-neutral-900 rounded inline-flex justify-center items-center gap-2.5"
-        >
-          <div className="justify-start text-white text-sm font-normal font-['Stack_Sans_Headline'] leading-4">
+        <div className="self-stretch flex justify-center">
+          <button
+            type="button"
+            onClick={() =>
+              toast.info(
+                "Liability transfer letter generation will use the saved PCN details.",
+              )
+            }
+            className="h-8 w-fit px-3 py-2 bg-neutral-900 rounded inline-flex justify-center items-center gap-2.5"
+          >
+            <span className="text-white text-sm font-normal font-['Stack_Sans_Headline'] leading-4">
             Generate Liability Transfer Letter
-          </div>
+            </span>
+          </button>
         </div>
       </section>
 

@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetSelect, FleetReadonlyField, FleetTimeSelect, roundToQuarter } from "../../components/fields";
 import PayReimburseHirerModal from "../../components/PayReimburseHirerModal";
+import FleetDepositRefundModal from "../../components/FleetDepositRefundModal";
+import FleetPayHirerEmailModal from "../../components/FleetPayHirerEmailModal";
+import { getDepositRefundPreview, getPayHirerPreview } from "../../services/emailService";
 import Calendar from "../../assets/icons/Calendar.svg";
 import CloseFileIcon from "../../assets/icons/CloseFile.svg";
 import {
@@ -10,6 +13,10 @@ import {
   type GeneralDetailsForm,
 } from "../../types/hire";
 import { useHire } from "./HireContext";
+
+// Accounts recipients for the deposit-refund request (editable in the modal).
+const REFUND_RECIPIENTS = "marwanationwideassist@outlook.com";
+const PAY_HIRER_RECIPIENTS = "marwanationwideassist@outlook.com";
 
 const now = () => new Date();
 const fmtDate = (d: Date) => d.toLocaleDateString("en-GB"); // dd/mm/yyyy
@@ -39,7 +46,14 @@ const GeneralDetails: React.FC = () => {
     isClosed: false,
   });
   const [payOpen, setPayOpen] = useState(false);
-  const { hire, save } = useHire();
+  const [payEmailOpen, setPayEmailOpen] = useState(false);
+  const [preparingPayEmail, setPreparingPayEmail] = useState(false);
+  const [payPreview, setPayPreview] = useState("");
+  const [payDraft, setPayDraft] = useState({ amount: "", reason: "" });
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [preparingRefund, setPreparingRefund] = useState(false);
+  const [refundPreview, setRefundPreview] = useState("");
+  const { hire, hireId, save } = useHire();
 
   // File Opened date is auto-populated (read-only); the time defaults to now,
   // rounded to the nearest 15-min slot, and stays editable via the dropdown.
@@ -73,14 +87,36 @@ const GeneralDetails: React.FC = () => {
     toast.success("File closed successfully.");
   };
 
-  // Email is triggered server-side from a predefined template — wired in a later story.
-  const handlePaySubmit = ({ amount }: { amount: string; reason: string }) => {
+  const handlePaySubmit = async ({ amount, reason }: { amount: string; reason: string }) => {
     setPayOpen(false);
-    toast.success(`Payment request submitted (£${amount}).`);
+    if (!hireId) {
+      toast.error("Save the hire before requesting a payment.");
+      return;
+    }
+    const draft = { amount, reason };
+    setPayDraft(draft);
+    setPreparingPayEmail(true);
+    try {
+      setPayPreview(await getPayHirerPreview(hireId, draft));
+      setPayEmailOpen(true);
+    } finally {
+      setPreparingPayEmail(false);
+    }
   };
 
-  const handleProcessRefund = () => {
-    toast.success("Deposit refund request submitted.");
+  // Prepare the email preview first, then open the fully-populated modal.
+  const handleProcessRefund = async () => {
+    if (!hireId) {
+      toast.error("Save the hire before requesting a refund.");
+      return;
+    }
+    setPreparingRefund(true);
+    try {
+      setRefundPreview(await getDepositRefundPreview(hireId));
+      setRefundOpen(true);
+    } finally {
+      setPreparingRefund(false);
+    }
   };
 
   const disabled = form.isClosed;
@@ -206,7 +242,7 @@ const GeneralDetails: React.FC = () => {
           <button
             type="button"
             onClick={handleProcessRefund}
-            disabled={disabled}
+            disabled={disabled || preparingRefund}
             className="h-9 px-4 py-2 bg-neutral-900 rounded-sm text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Process Deposit Refund
@@ -215,6 +251,33 @@ const GeneralDetails: React.FC = () => {
       </section>
 
       <PayReimburseHirerModal open={payOpen} onClose={() => setPayOpen(false)} onSubmit={handlePaySubmit} />
+
+      {(preparingRefund || preparingPayEmail) && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 font-sans-headline">
+          <div className="bg-white rounded-lg px-8 py-6 flex items-center gap-4 shadow-xl">
+            <span className="animate-spin h-6 w-6 rounded-full border-[3px] border-neutral-200 border-t-neutral-900" />
+            <span className="text-sm font-medium text-neutral-700">Preparing email preview…</span>
+          </div>
+        </div>
+      )}
+
+      <FleetPayHirerEmailModal
+        open={payEmailOpen}
+        onClose={() => setPayEmailOpen(false)}
+        hireId={hireId}
+        defaultTo={PAY_HIRER_RECIPIENTS}
+        amount={payDraft.amount}
+        reason={payDraft.reason}
+        previewHtml={payPreview}
+      />
+
+      <FleetDepositRefundModal
+        open={refundOpen}
+        onClose={() => setRefundOpen(false)}
+        hireId={hireId}
+        defaultTo={REFUND_RECIPIENTS}
+        previewHtml={refundPreview}
+      />
     </div>
   );
 };

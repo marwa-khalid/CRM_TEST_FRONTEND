@@ -70,3 +70,28 @@ export const extractProofOfAddress = async (
     return { address: "", postcode: "" };
   }
 };
+
+export interface ExtractedInsuranceCertificate {
+  policyStartDate: string;
+  policyEndDate: string;
+}
+
+const EMPTY_INSURANCE: ExtractedInsuranceCertificate = {
+  policyStartDate: "",
+  policyEndDate: "",
+};
+
+export const extractInsuranceCertificate = async (
+  file: File,
+): Promise<ExtractedInsuranceCertificate> => {
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const { data } = await fleetApi.post("/fleet/ocr/insurance-certificate", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return { ...EMPTY_INSURANCE, ...data };
+  } catch {
+    return { ...EMPTY_INSURANCE };
+  }
+};

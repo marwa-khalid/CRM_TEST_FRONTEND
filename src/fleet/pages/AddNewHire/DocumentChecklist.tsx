@@ -1,12 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
-import DownloadIcon from "../../assets/icons/Download.svg";
-import EmailIcon from "../../assets/icons/Email.svg";
-import PrintIcon from "../../assets/icons/Print.svg";
 import RemoveIcon from "../../assets/icons/Remove.svg";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import FleetUploadModal from "../../components/FleetUploadModal";
-import FleetEmailModal from "../../components/FleetEmailModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
 import {
   deleteHireDocument,
@@ -26,25 +22,43 @@ const CHECKLIST_DOCUMENTS = [
   { key: "checklist_dl_back", label: "Driving License Back" },
   { key: "checklist_taxi_badge", label: "Taxi Badge" },
   { key: "checklist_customer_insurance", label: "Customer Insurance (Optional)" },
-] as const;
-
-const GENERATED_DOCUMENTS = [
-  "Raise Hire Documentation",
-  "Raise Authority Letter",
-  "Raise Vehicle Inspection Sheet",
+  { key: "checklist_signed_rental_contract", label: "Signed Rental Contract" },
+  { key: "checklist_signed_checkout_sheet", label: "Signed Check-Out Sheet" },
+  { key: "checklist_signed_checkin_sheet", label: "Signed Check-In Sheet" },
 ] as const;
 
 type ChecklistDoc = (typeof CHECKLIST_DOCUMENTS)[number];
+
+const matchesChecklistDoc = (docType: string, checklistKey: string) => {
+  if (docType === checklistKey) return true;
+  if (checklistKey === "checklist_bank_statement") return docType.startsWith("bank_statement_");
+  if (checklistKey === "checklist_utility_bill") return docType.startsWith("utility_") || docType === "firstUtility" || docType === "secondUtility";
+  if (checklistKey === "checklist_dl_front") return docType === "driving_licence" || docType === "dlFront";
+  if (checklistKey === "checklist_dl_back") return docType === "dlBack";
+  if (checklistKey === "checklist_customer_insurance") return docType === "insurance_certificate";
+  return false;
+};
 
 const toDisplayDateTime = (value?: string) => {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return `${d.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-  })} . ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+  const date = d
+    .toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+    })
+    .replace(/\//g, "-");
+  const time = d
+    .toLocaleTimeString("en-GB", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .replace(/\s/g, "")
+    .toUpperCase();
+  return `${date} . ${time}`;
 };
 
 const toDisplayDate = (value?: string) => {
@@ -57,12 +71,6 @@ const toDisplayDate = (value?: string) => {
     year: "2-digit",
   });
 };
-
-const IconButton: React.FC<{ icon: string; label: string; onClick: () => void }> = ({ icon, label, onClick }) => (
-  <button type="button" onClick={onClick} title={label} aria-label={label} className="w-5 h-5 flex items-center justify-center">
-    <img src={icon} alt="" className="w-4 h-4" />
-  </button>
-);
 
 const EmptyUploadCard: React.FC<{ doc: ChecklistDoc; onClick: () => void }> = ({ doc, onClick }) => (
   <button
@@ -115,17 +123,23 @@ const DocumentChecklist: React.FC = () => {
   const [documents, setDocuments] = useState<HireDocument[]>([]);
   const [activeUpload, setActiveUpload] = useState<ChecklistDoc | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HireDocument | null>(null);
-  const [emailSubject, setEmailSubject] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hireId) return;
     getHireDocuments(hireId).then(setDocuments);
   }, [hireId]);
 
-  const documentsByType = useMemo(
+  const documentsByChecklistKey = useMemo(
     () =>
-      documents.reduce<Record<string, HireDocument>>((acc, doc) => {
-        acc[doc.doc_type] = doc;
+      CHECKLIST_DOCUMENTS.reduce<Record<string, HireDocument>>((acc, checklistDoc) => {
+        const latestExact = [...documents]
+          .sort((a, b) => b.id - a.id)
+          .find((doc) => doc.doc_type === checklistDoc.key);
+        const latestAlias = [...documents]
+          .sort((a, b) => b.id - a.id)
+          .find((doc) => matchesChecklistDoc(doc.doc_type, checklistDoc.key));
+        const matched = latestExact || latestAlias;
+        if (matched) acc[checklistDoc.key] = matched;
         return acc;
       }, {}),
     [documents],
@@ -153,14 +167,6 @@ const DocumentChecklist: React.FC = () => {
     toast.success("Document removed.");
   };
 
-  const handleGeneratedAction = (action: string, label: string) => {
-    if (action === "email") {
-      setEmailSubject(label);
-      return;
-    }
-    toast.info(`${label} ${action} will be wired when document templates are ready.`);
-  };
-
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       <h2 className="text-black text-2xl font-semibold leading-6">Documents Checklist</h2>
@@ -169,7 +175,7 @@ const DocumentChecklist: React.FC = () => {
         <h3 className={H3}>Signed Documents Upload</h3>
         <div className="h-px bg-neutral-100" />
         {CHECKLIST_DOCUMENTS.map((docType) => {
-          const uploaded = documentsByType[docType.key];
+          const uploaded = documentsByChecklistKey[docType.key];
           return uploaded ? (
             <UploadedDocumentCard
               key={docType.key}
@@ -183,37 +189,11 @@ const DocumentChecklist: React.FC = () => {
         })}
       </section>
 
-      <section className={SECTION}>
-        <h3 className={H3}>Generate Hire Documents</h3>
-        <div className="h-px bg-neutral-100" />
-        {GENERATED_DOCUMENTS.map((label, index) => (
-          <React.Fragment key={label}>
-            <div className="self-stretch flex justify-between items-start gap-4">
-              <div className="text-neutral-700 text-sm font-semibold">{label}</div>
-              <div className="flex items-center gap-4">
-                <IconButton icon={PrintIcon} label={`Print ${label}`} onClick={() => handleGeneratedAction("print", label)} />
-                <IconButton icon={DownloadIcon} label={`Download ${label}`} onClick={() => handleGeneratedAction("download", label)} />
-                <IconButton icon={EmailIcon} label={`Email ${label}`} onClick={() => handleGeneratedAction("email", label)} />
-              </div>
-            </div>
-            {index < GENERATED_DOCUMENTS.length - 1 && <div className="h-px bg-neutral-100" />}
-          </React.Fragment>
-        ))}
-      </section>
-
       <FleetUploadModal
         open={activeUpload !== null}
         onClose={() => setActiveUpload(null)}
         onUploaded={handleUpload}
         title={activeUpload ? activeUpload.label : "Upload Document"}
-      />
-
-      <FleetEmailModal
-        open={emailSubject !== null}
-        onClose={() => setEmailSubject(null)}
-        hireId={hireId}
-        title="Email Document"
-        defaultSubject={emailSubject || ""}
       />
 
       {deleteTarget && (

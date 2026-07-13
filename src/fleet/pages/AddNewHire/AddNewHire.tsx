@@ -51,10 +51,29 @@ const STEP_FIELDS: Record<string, string[]> = {
 
 // Screens whose data lives in child tables — fill state comes from loaded child
 // records/documents rather than the hire row.
-// Proofs = at least one utility bill (dynamic `utility_N`, plus legacy first/second)
+// Proofs = one proof-of-address document (bank_statement_N or utility_N, plus legacy first/second)
 // + driving licence front + back.
-const isUtilityDoc = (t: string) => t.startsWith("utility_") || t === "firstUtility" || t === "secondUtility";
-const CHECKLIST_REQUIRED = ["checklist_bank_statement", "checklist_utility_bill", "checklist_dl_front", "checklist_dl_back", "checklist_taxi_badge"];
+const isProofAddressDoc = (t: string) =>
+  t.startsWith("bank_statement_") || t.startsWith("utility_") || t === "firstUtility" || t === "secondUtility";
+const CHECKLIST_REQUIRED = [
+  "checklist_bank_statement",
+  "checklist_utility_bill",
+  "checklist_dl_front",
+  "checklist_dl_back",
+  "checklist_taxi_badge",
+  "checklist_signed_rental_contract",
+  "checklist_signed_checkout_sheet",
+  "checklist_signed_checkin_sheet",
+];
+const matchesChecklistDoc = (docType: string, checklistKey: string) => {
+  if (docType === checklistKey) return true;
+  if (checklistKey === "checklist_bank_statement") return docType.startsWith("bank_statement_");
+  if (checklistKey === "checklist_utility_bill") return docType.startsWith("utility_") || docType === "firstUtility" || docType === "secondUtility";
+  if (checklistKey === "checklist_dl_front") return docType === "driving_licence" || docType === "dlFront";
+  if (checklistKey === "checklist_dl_back") return docType === "dlBack";
+  if (checklistKey === "checklist_customer_insurance") return docType === "insurance_certificate";
+  return false;
+};
 const VEHICLE_KEY_FIELDS = ["registration_number", "make", "model", "transmission", "hire_status"];
 const PCN_FIELDS = ["council_name", "council_address", "council_postcode", "pcn_number", "offence_date", "pcn_status", "liability_transfer_status", "response_deadline"];
 
@@ -195,14 +214,14 @@ const AddNewHire: React.FC = () => {
     if (key === "pcn") return fillFromFields(pcn as unknown as Record<string, unknown> | null, PCN_FIELDS);
     if (key === "proofs") {
       const present = [
-        documents.some((d) => isUtilityDoc(d.doc_type)),
+        documents.some((d) => isProofAddressDoc(d.doc_type)),
         documents.some((d) => d.doc_type === "dlFront"),
         documents.some((d) => d.doc_type === "dlBack"),
       ].filter(Boolean).length;
       return fillFromCount(present, 3);
     }
     if (key === "documents") {
-      const count = CHECKLIST_REQUIRED.filter((t) => documents.some((d) => d.doc_type === t)).length;
+      const count = CHECKLIST_REQUIRED.filter((t) => documents.some((d) => matchesChecklistDoc(d.doc_type, t))).length;
       return fillFromCount(count, CHECKLIST_REQUIRED.length);
     }
     return "empty";
@@ -216,6 +235,7 @@ const AddNewHire: React.FC = () => {
         onDiscard={discard}
         onSaveNext={saveNext}
         saving={saving}
+        hireId={hireId}
       />
       <div className="px-10 py-10 flex items-start gap-10">
         <FleetStepper steps={HIRE_STEPS} activeIndex={activeIndex} statusOf={stepStatus} onSelect={selectStep} />

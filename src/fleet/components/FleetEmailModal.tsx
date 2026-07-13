@@ -8,6 +8,7 @@ interface Props {
   onClose: () => void;
   hireId: number | null;
   title?: string;
+  defaultTo?: string; // prefilled (editable) recipient(s)
   defaultSubject?: string;
   defaultBody?: string;
   // Files already in context (e.g. a generated document) shown pre-attached.
@@ -20,8 +21,12 @@ const PaperclipIcon = () => (
   </svg>
 );
 
-const FleetEmailModal: React.FC<Props> = ({ open, onClose, hireId, title = "Send Email", defaultSubject = "", defaultBody = "", initialFiles = [] }) => {
-  const [to, setTo] = useState("");
+// Split a "a@x.com; b@y.com" string into individual addresses.
+const parseEmails = (s: string) => s.split(/[;,\s]+/).map((e) => e.trim()).filter((e) => e.includes("@"));
+
+const FleetEmailModal: React.FC<Props> = ({ open, onClose, hireId, title = "Send Email", defaultTo = "", defaultSubject = "", defaultBody = "", initialFiles = [] }) => {
+  const [recipients, setRecipients] = useState<string[]>(parseEmails(defaultTo));
+  const [toInput, setToInput] = useState("");
   const [cc, setCc] = useState("");
   const [showCc, setShowCc] = useState(false);
   const [subject, setSubject] = useState(defaultSubject);
@@ -35,13 +40,13 @@ const FleetEmailModal: React.FC<Props> = ({ open, onClose, hireId, title = "Send
   React.useEffect(() => {
     if (open && !openedRef.current) {
       openedRef.current = true;
-      setTo(""); setCc(""); setShowCc(false);
+      setRecipients(parseEmails(defaultTo)); setToInput(""); setCc(""); setShowCc(false);
       setSubject(defaultSubject); setBody(defaultBody);
       setFiles(initialFiles); setSending(false);
     } else if (!open) {
       openedRef.current = false;
     }
-  }, [open, defaultSubject, defaultBody, initialFiles]);
+  }, [open, defaultTo, defaultSubject, defaultBody, initialFiles]);
 
   if (!open) return null;
 
@@ -52,9 +57,26 @@ const FleetEmailModal: React.FC<Props> = ({ open, onClose, hireId, title = "Send
   };
   const removeFile = (idx: number) => setFiles((prev) => prev.filter((_, i) => i !== idx));
 
+  // Turn the typed text into recipient pill(s).
+  const commitToInput = () => {
+    const parts = parseEmails(toInput);
+    if (parts.length) setRecipients((prev) => [...prev, ...parts.filter((e) => !prev.includes(e))]);
+    setToInput("");
+  };
+  const removeRecipient = (idx: number) => setRecipients((prev) => prev.filter((_, i) => i !== idx));
+  const onToKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === "," || e.key === ";") {
+      e.preventDefault();
+      commitToInput();
+    } else if (e.key === "Backspace" && !toInput && recipients.length) {
+      setRecipients((prev) => prev.slice(0, -1));
+    }
+  };
+
   const handleSend = async () => {
-    if (!to.trim() || !to.includes("@")) {
-      toast.warn("Please enter a valid recipient email address.");
+    const allRecipients = [...recipients, ...parseEmails(toInput)];
+    if (allRecipients.length === 0) {
+      toast.warn("Please add at least one recipient email address.");
       return;
     }
     if (!hireId) {
@@ -63,7 +85,7 @@ const FleetEmailModal: React.FC<Props> = ({ open, onClose, hireId, title = "Send
     }
     setSending(true);
     try {
-      const res = await sendHireEmail(hireId, { to: to.trim(), cc: cc.trim() || undefined, subject, body, files });
+      const res = await sendHireEmail(hireId, { to: allRecipients.join(", "), cc: cc.trim() || undefined, subject, body, files });
       if (res.status === "sent") {
         toast.success("Email sent.");
         onClose();
@@ -91,8 +113,26 @@ const FleetEmailModal: React.FC<Props> = ({ open, onClose, hireId, title = "Send
 
         <div className="p-6 flex flex-col gap-4 max-h-[70vh] overflow-y-auto">
           <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <FleetTextInput label="To" placeholder="recipient@example.com" inputMode="email" value={to} onChange={setTo} />
+            <div className="flex-1 flex flex-col gap-2 min-w-0">
+              <span className="text-neutral-700 text-sm font-medium">To</span>
+              <div className="min-h-[52px] px-3 py-2 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 focus-within:outline-neutral-900 flex flex-wrap items-center gap-2">
+                {recipients.map((r, i) => (
+                  <span key={`${r}-${i}`} className="flex items-center gap-1 pl-3 pr-1.5 py-1 bg-neutral-100 rounded-full text-neutral-800 text-sm max-w-full">
+                    <span className="truncate">{r}</span>
+                    <button type="button" onClick={() => removeRecipient(i)} className="text-neutral-400 hover:text-red-500 text-base leading-none shrink-0">×</button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  inputMode="email"
+                  value={toInput}
+                  onChange={(e) => setToInput(e.target.value)}
+                  onKeyDown={onToKey}
+                  onBlur={commitToInput}
+                  placeholder={recipients.length ? "" : "recipient@example.com"}
+                  className="flex-1 min-w-[140px] bg-transparent outline-none text-base text-neutral-900 placeholder:text-neutral-300 py-1"
+                />
+              </div>
             </div>
             <button type="button" onClick={() => setShowCc((s) => !s)} className="h-[52px] px-3 text-neutral-900 text-sm font-medium underline underline-offset-2 shrink-0">
               {showCc ? "Hide Cc" : "Add Cc"}

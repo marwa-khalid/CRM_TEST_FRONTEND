@@ -46,17 +46,17 @@ const FIELD_BOX =
   "self-stretch px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 " +
   "text-base font-light text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 " +
   "disabled:bg-neutral-50 disabled:text-neutral-400 leading-4";
+// Red-outline variant. MUST be a full literal class string (not a runtime .replace of
+// FIELD_BOX) or Tailwind's scanner never sees `outline-red-500` and won't generate it.
+const FIELD_BOX_ERROR =
+  "self-stretch px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-red-500 " +
+  "text-base font-light text-neutral-900 placeholder:text-neutral-300 focus:outline-red-500 " +
+  "disabled:bg-neutral-50 disabled:text-neutral-400 leading-4";
 
 const LABEL = "text-neutral-700 text-sm font-medium font-sans-headline";
 const WRAP = "w-full min-w-0 flex flex-col gap-2 font-sans-headline";
 
-// Swap the neutral outline for red when a field has an error (e.g. a low-confidence
-// OCR result the user must verify). String-replace keeps a single outline colour so
-// Tailwind doesn't have two competing outline-* classes.
-const boxClass = (error?: string) =>
-  error
-    ? FIELD_BOX.replace("outline-neutral-200", "outline-red-500").replace("focus:outline-neutral-900", "focus:outline-red-500")
-    : FIELD_BOX;
+const boxClass = (error?: string) => (error ? FIELD_BOX_ERROR : FIELD_BOX);
 const FieldError: React.FC<{ error?: string }> = ({ error }) =>
   error ? <span className="text-red-500 text-xs">{error}</span> : null;
 
@@ -92,6 +92,67 @@ export const FleetTextInput: React.FC<TextProps> = ({
       onBlur={onBlur}
       className={boxClass(error)}
     />
+    <FieldError error={error} />
+  </div>
+);
+
+export const ukMobileDigits = (value: string): string => {
+  let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("0044")) digits = digits.slice(4);
+  if (digits.startsWith("44")) digits = digits.slice(2);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  return digits.slice(0, 10);
+};
+
+export const formatUkMobileDisplay = (value: string): string => {
+  const digits = ukMobileDigits(value);
+  const parts = [digits.slice(0, 4), digits.slice(4, 7), digits.slice(7, 10)].filter(Boolean);
+  return parts.join(" ");
+};
+
+export const toUkMobileE164 = (value: string): string => {
+  const digits = ukMobileDigits(value);
+  return digits ? `+44${digits}` : "";
+};
+
+export const isValidUkMobile = (value: string): boolean => /^7\d{9}$/.test(ukMobileDigits(value));
+
+interface UkMobileProps {
+  label: string;
+  placeholder?: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+  disabled?: boolean;
+  error?: string;
+}
+
+export const FleetUkMobileInput: React.FC<UkMobileProps> = ({
+  label,
+  placeholder = "7123 456 789",
+  value,
+  onChange,
+  onBlur,
+  disabled,
+  error,
+}) => (
+  <div className={WRAP}>
+    <FieldLabel text={label} />
+    <div
+      className={`${boxClass(error)} flex items-center gap-3`}
+    >
+      <span className="text-neutral-400 text-base font-light leading-4">+44</span>
+      <input
+        type="text"
+        inputMode="tel"
+        value={formatUkMobileDisplay(value)}
+        disabled={disabled}
+        placeholder={placeholder}
+        onChange={(e) => onChange(formatUkMobileDisplay(e.target.value))}
+        onBlur={onBlur}
+        className="min-w-0 flex-1 bg-transparent text-base font-light text-neutral-900 placeholder:text-neutral-300 outline-none leading-4 disabled:text-neutral-400"
+      />
+    </div>
     <FieldError error={error} />
   </div>
 );

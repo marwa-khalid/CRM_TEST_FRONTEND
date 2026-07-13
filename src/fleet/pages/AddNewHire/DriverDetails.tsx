@@ -38,9 +38,15 @@ const UploadPrompt = () => (
   </svg>
 );
 
+// Fields the licence OCR tries to fill. Any that come back empty are flagged as
+// low-confidence (red) so the user knows to verify / enter them manually.
+const OCR_FIELDS: (keyof DriverDetailsForm)[] = ["name", "address", "postcode", "drivingLicenceNumber", "dateOfBirth"];
+const LOW_CONFIDENCE_MSG = "Low confidence OCR result - please verify.";
+
 const DriverDetails: React.FC = () => {
   const [form, setForm] = useState<DriverDetailsForm>(EMPTY);
-  const [ocrFields, setOcrFields] = useState<Set<keyof DriverDetailsForm>>(new Set());
+  // OCR-target fields that came back empty on the last extraction (show red + hint).
+  const [lowConfidence, setLowConfidence] = useState<Set<keyof DriverDetailsForm>>(new Set());
   const [uploadOpen, setUploadOpen] = useState(false);
   const [licenceFile, setLicenceFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -66,8 +72,16 @@ const DriverDetails: React.FC = () => {
     });
   }, [hire]);
 
-  const set = <K extends keyof DriverDetailsForm>(key: K, value: DriverDetailsForm[K]) =>
+  const set = <K extends keyof DriverDetailsForm>(key: K, value: DriverDetailsForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
+    // Editing a flagged field clears its low-confidence warning (user is verifying it).
+    setLowConfidence((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  };
 
   // Field-level save on blur (mirrors the Claims side).
   const saveField = (key: keyof DriverDetailsForm) => {
@@ -106,7 +120,8 @@ const DriverDetails: React.FC = () => {
       }
     }
     setForm((f) => ({ ...f, ...updates }));
-    setOcrFields(filled);
+    // Flag every OCR-target field the extraction couldn't fill.
+    setLowConfidence(new Set(OCR_FIELDS.filter((k) => !filled.has(k))));
     if (Object.keys(back).length) save(back); // persist only what OCR found
     if (filled.size) toast.success("Driver details extracted from licence.");
     else toast.info("Couldn't read the licence — please enter the details manually.");
@@ -170,7 +185,7 @@ const DriverDetails: React.FC = () => {
           value={form.name}
           onChange={(v) => set("name", v)}
           onBlur={() => saveField("name")}
-          ocrFilled={ocrFields.has("name")}
+          error={lowConfidence.has("name") ? LOW_CONFIDENCE_MSG : undefined}
         />
         <FleetTextInput
           label="Address"
@@ -178,7 +193,7 @@ const DriverDetails: React.FC = () => {
           value={form.address}
           onChange={(v) => set("address", v)}
           onBlur={() => saveField("address")}
-          ocrFilled={ocrFields.has("address")}
+          error={lowConfidence.has("address") ? LOW_CONFIDENCE_MSG : undefined}
         />
 
         <div className="grid grid-cols-2 gap-5">
@@ -187,6 +202,7 @@ const DriverDetails: React.FC = () => {
             postcode={form.postcode}
             onChange={(v) => set("postcode", v)}
             onBlur={() => saveField("postcode")}
+            error={lowConfidence.has("postcode") ? LOW_CONFIDENCE_MSG : undefined}
             onAddressSelect={(addr) => {
               set("address", addr.address);
               set("postcode", addr.postcode);
@@ -229,7 +245,7 @@ const DriverDetails: React.FC = () => {
             value={form.drivingLicenceNumber}
             onChange={(v) => set("drivingLicenceNumber", v)}
             onBlur={() => saveField("drivingLicenceNumber")}
-            ocrFilled={ocrFields.has("drivingLicenceNumber")}
+            error={lowConfidence.has("drivingLicenceNumber") ? LOW_CONFIDENCE_MSG : undefined}
           />
           <FleetTextInput
             label="National Insurance Number"
@@ -246,7 +262,7 @@ const DriverDetails: React.FC = () => {
             value={form.dateOfBirth}
             onChange={(v) => set("dateOfBirth", v)}
             onBlur={() => saveField("dateOfBirth")}
-            ocrFilled={ocrFields.has("dateOfBirth")}
+            error={lowConfidence.has("dateOfBirth") ? LOW_CONFIDENCE_MSG : undefined}
           />
           <div />
         </div>

@@ -50,18 +50,18 @@ const FIELD_BOX =
 const LABEL = "text-neutral-700 text-sm font-medium font-sans-headline";
 const WRAP = "w-full min-w-0 flex flex-col gap-2 font-sans-headline";
 
-// Subtle marker on OCR-auto-filled fields (story: "highlight OCR-filled fields").
-const OcrBadge = () => (
-  <span className="ml-2 align-middle text-[10px] font-normal px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-500">
-    Auto-filled
-  </span>
-);
+// Swap the neutral outline for red when a field has an error (e.g. a low-confidence
+// OCR result the user must verify). String-replace keeps a single outline colour so
+// Tailwind doesn't have two competing outline-* classes.
+const boxClass = (error?: string) =>
+  error
+    ? FIELD_BOX.replace("outline-neutral-200", "outline-red-500").replace("focus:outline-neutral-900", "focus:outline-red-500")
+    : FIELD_BOX;
+const FieldError: React.FC<{ error?: string }> = ({ error }) =>
+  error ? <span className="text-red-500 text-xs">{error}</span> : null;
 
-const FieldLabel: React.FC<{ text: string; ocrFilled?: boolean }> = ({ text, ocrFilled }) => (
-  <span className={`self-stretch ${LABEL}`}>
-    {text}
-    {ocrFilled && <OcrBadge />}
-  </span>
+const FieldLabel: React.FC<{ text: string }> = ({ text }) => (
+  <span className={`self-stretch ${LABEL}`}>{text}</span>
 );
 
 interface TextProps {
@@ -73,14 +73,14 @@ interface TextProps {
   disabled?: boolean;
   maxLength?: number;
   inputMode?: "text" | "numeric" | "decimal" | "email" | "tel";
-  ocrFilled?: boolean;
+  error?: string;
 }
 
 export const FleetTextInput: React.FC<TextProps> = ({
-  label, placeholder, value, onChange, onBlur, disabled, maxLength, inputMode = "text", ocrFilled,
+  label, placeholder, value, onChange, onBlur, disabled, maxLength, inputMode = "text", error,
 }) => (
   <div className={WRAP}>
-    <FieldLabel text={label} ocrFilled={ocrFilled} />
+    <FieldLabel text={label} />
     <input
       type="text"
       inputMode={inputMode}
@@ -90,8 +90,9 @@ export const FleetTextInput: React.FC<TextProps> = ({
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
-      className={FIELD_BOX}
+      className={boxClass(error)}
     />
+    <FieldError error={error} />
   </div>
 );
 
@@ -113,17 +114,18 @@ interface PostcodeLookupProps {
   onAddressSelect: (r: FleetAddressResult) => void;
   placeholder?: string;
   disabled?: boolean;
+  error?: string;
 }
 
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i;
 
 export const FleetPostcodeLookup: React.FC<PostcodeLookupProps> = ({
-  label = "Post Code", postcode, onChange, onBlur, onAddressSelect, placeholder = "Enter Post Code to Search", disabled,
+  label = "Post Code", postcode, onChange, onBlur, onAddressSelect, placeholder = "Enter Post Code to Search", disabled, error,
 }) => {
   const [addresses, setAddresses] = useState<FleetAddressResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState("");
+  const [lookupError, setLookupError] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
   const typing = useRef(false);
 
@@ -142,13 +144,13 @@ export const FleetPostcodeLookup: React.FC<PostcodeLookupProps> = ({
 
     const timer = setTimeout(async () => {
       typing.current = false;
-      setLoading(true); setError(""); setAddresses([]);
+      setLoading(true); setLookupError(""); setAddresses([]);
       try {
         const key = import.meta.env.VITE_IDEAL_POSTCODES_KEY;
         const res = await fetch(`https://api.ideal-postcodes.co.uk/v1/postcodes/${encodeURIComponent(pc)}?api_key=${key}`);
-        if (res.status === 404) { setError("No addresses found for this postcode"); setOpen(false); return; }
-        if (res.status === 402) { setError("Postcode lookup limit reached — top up your Ideal Postcodes balance"); setOpen(false); return; }
-        if (!res.ok) { setError("Address lookup failed"); setOpen(false); return; }
+        if (res.status === 404) { setLookupError("No addresses found for this postcode"); setOpen(false); return; }
+        if (res.status === 402) { setLookupError("Postcode lookup limit reached — top up your Ideal Postcodes balance"); setOpen(false); return; }
+        if (!res.ok) { setLookupError("Address lookup failed"); setOpen(false); return; }
         const data = await res.json();
         const results: FleetAddressResult[] = (data.result || []).map((a: Record<string, string>) => ({
           address: [a.line_1, a.line_2, a.line_3].filter(Boolean).join(", "),
@@ -158,9 +160,9 @@ export const FleetPostcodeLookup: React.FC<PostcodeLookupProps> = ({
         }));
         setAddresses(results);
         setOpen(results.length > 0);
-        if (results.length === 0) setError("No addresses found for this postcode");
+        if (results.length === 0) setLookupError("No addresses found for this postcode");
       } catch {
-        setError("Address lookup failed");
+        setLookupError("Address lookup failed");
       } finally {
         setLoading(false);
       }
@@ -180,11 +182,12 @@ export const FleetPostcodeLookup: React.FC<PostcodeLookupProps> = ({
           value={postcode}
           disabled={disabled}
           placeholder={placeholder}
-          onChange={(e) => { typing.current = true; onChange(e.target.value); setError(""); setOpen(false); }}
+          onChange={(e) => { typing.current = true; onChange(e.target.value); setLookupError(""); setOpen(false); }}
           onBlur={onBlur}
-          className={FIELD_BOX}
+          className={boxClass(error)}
         />
-        {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+        <FieldError error={error} />
+        {lookupError && <p className="text-red-500 text-xs mt-1">{lookupError}</p>}
         {isOpen && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 shadow-lg z-[200] max-h-52 overflow-y-auto">
             {loading && (
@@ -217,10 +220,10 @@ export const formatMoney = (raw: string): string => {
 };
 
 export const FleetMoneyInput: React.FC<Omit<TextProps, "inputMode">> = ({
-  label, placeholder = "£", value, onChange, onBlur, disabled, ocrFilled,
+  label, placeholder = "£", value, onChange, onBlur, disabled,
 }) => (
   <div className={WRAP}>
-    <FieldLabel text={label} ocrFilled={ocrFilled} />
+    <FieldLabel text={label} />
     <div className="relative">
       <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-neutral-400 text-base">£</span>
       <input
@@ -280,14 +283,13 @@ interface SelectProps {
   onChange: (v: string) => void;
   onBlur?: () => void;
   disabled?: boolean;
-  ocrFilled?: boolean;
 }
 
 export const FleetSelect: React.FC<SelectProps> = ({
-  label, placeholder = "Select", value, options, onChange, onBlur, disabled, ocrFilled,
+  label, placeholder = "Select", value, options, onChange, onBlur, disabled,
 }) => (
   <div className={WRAP}>
-    <FieldLabel text={label} ocrFilled={ocrFilled} />
+    <FieldLabel text={label} />
     <Select<Option, false>
       options={options}
       value={options.find((o) => o.value === value) ?? null}
@@ -324,14 +326,13 @@ interface TimeProps {
   onBlur?: () => void;
   disabled?: boolean;
   placeholder?: string;
-  ocrFilled?: boolean;
 }
 
 export const FleetTimeSelect: React.FC<TimeProps> = ({
-  label, value, onChange, onBlur, disabled, placeholder = "Select Time", ocrFilled,
+  label, value, onChange, onBlur, disabled, placeholder = "Select Time",
 }) => (
   <div className={WRAP}>
-    <FieldLabel text={label} ocrFilled={ocrFilled} />
+    <FieldLabel text={label} />
     <Select<Option, false>
       options={TIME_OPTIONS}
       value={TIME_OPTIONS.find((o) => o.value === value) ?? null}
@@ -373,10 +374,10 @@ interface DateProps {
   onChange: (v: string) => void;
   onBlur?: () => void;
   disabled?: boolean;
-  ocrFilled?: boolean;
+  error?: string;
 }
 
-export const FleetDateField: React.FC<DateProps> = ({ label, value, onChange, onBlur, disabled, ocrFilled }) => {
+export const FleetDateField: React.FC<DateProps> = ({ label, value, onChange, onBlur, disabled, error }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   // value is "yyyy-mm-dd"; parse at local midnight, save back in local time
@@ -397,13 +398,13 @@ export const FleetDateField: React.FC<DateProps> = ({ label, value, onChange, on
 
   return (
     <div className={WRAP}>
-      <FieldLabel text={label} ocrFilled={ocrFilled} />
+      <FieldLabel text={label} />
       <div className="relative" ref={ref}>
         <button
           type="button"
           disabled={disabled}
           onClick={() => setOpen((o) => !o)}
-          className={`${FIELD_BOX} w-full pr-11 text-left ${selected ? "text-neutral-900" : "text-neutral-300"}`}
+          className={`${boxClass(error)} w-full pr-11 text-left ${selected ? "text-neutral-900" : "text-neutral-300"}`}
         >
           {selected ? selected.toLocaleDateString("en-GB") : "Select Date"}
         </button>
@@ -419,6 +420,7 @@ export const FleetDateField: React.FC<DateProps> = ({ label, value, onChange, on
           />
         )}
       </div>
+      <FieldError error={error} />
     </div>
   );
 };

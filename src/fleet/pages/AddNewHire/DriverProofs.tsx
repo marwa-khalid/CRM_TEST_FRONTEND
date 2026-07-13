@@ -108,6 +108,17 @@ const DocumentCard: React.FC<{
   </section>
 );
 
+// Address on one line, postcode on the next (not comma-joined).
+const AddressBlock: React.FC<{ address: string; postcode: string }> = ({ address, postcode }) =>
+  address || postcode ? (
+    <div className="text-black text-sm flex flex-col gap-0.5">
+      {address && <span>{address}</span>}
+      {postcode && <span>{postcode}</span>}
+    </div>
+  ) : (
+    <div className="text-black text-sm">Not detected</div>
+  );
+
 const DriverProofs: React.FC = () => {
   const [utilities, setUtilities] = useState<UtilitySlot[]>([{ docType: "utility_1", doc: null }]);
   const nextUtilId = useRef(2);
@@ -308,17 +319,13 @@ const DriverProofs: React.FC = () => {
               <div className="text-black text-base font-semibold">
                 Driving License Address
               </div>
-              <div className="text-black text-sm">
-                {dlFull || "Not detected"}
-              </div>
+              <AddressBlock address={dlOcr.address} postcode={dlOcr.postcode} />
             </div>
             <div className="flex-1 p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3">
               <div className="text-black text-base font-semibold">
                 Utility Bill Address
               </div>
-              <div className="text-black text-sm">
-                {utilFull || "Not detected"}
-              </div>
+              <AddressBlock address={utilOcr.address} postcode={utilOcr.postcode} />
             </div>
           </div>
         </section>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
+import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import {
   FleetDateField,
   FleetSelect,
@@ -36,8 +37,8 @@ import TrashIcon from '../../assets/icons/Remove.svg'
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
-const BTN_DARK = "h-8 px-3 py-2 bg-neutral-900 rounded-sm text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed";
-const BTN_OUTLINE = "h-8 px-3 py-2 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50";
+const BTN_DARK = "h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed";
+const BTN_OUTLINE = "h-8 px-3 py-2 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50";
 
 const EMPTY_FORM: PcnForm = {
   councilName: "",
@@ -80,7 +81,7 @@ const toDisplayDate = (value?: string) => {
 const toDisplayDateTime = (value?: string) => {
   if (!value) return "";
   // Postgres timestamps come back without a "Z"; treat them as UTC so the local
-  // time (and the AM/PM) is correct rather than offset by the timezone.
+  // time is correct rather than offset by the timezone.
   const iso = /[zZ]|[+-]\d\d:?\d\d$/.test(value) ? value : `${value}Z`;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return value;
@@ -88,7 +89,7 @@ const toDisplayDateTime = (value?: string) => {
     day: "2-digit",
     month: "2-digit",
     year: "2-digit",
-  })} . ${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}`;
+  })} . ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 };
 
 const UploadPrompt = () => (
@@ -132,30 +133,40 @@ const PenaltyCharges: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<PcnDocument | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
 
-  const load = async () => {
-    if (!hireId) return;
-    const [pcn, docs, pcnNotes, pcnReminders, auditRows] = await Promise.all([
-      getPenaltyCharge(hireId),
-      getPcnDocuments(hireId),
-      getPcnNotes(hireId),
-      getPcnReminders(hireId),
-      getHireAudit(hireId),
-    ]);
-    if (pcn) setForm(mapApiToForm(pcn));
-    setDocuments(docs);
-    setNotes(pcnNotes);
-    setReminders(
-      pcnReminders.reduce<Record<string, PcnReminder>>((acc, item) => {
-        acc[item.reminder_type] = item;
-        return acc;
-      }, {}),
-    );
-    setAudit(auditRows.filter((row) => row.field_changed.startsWith("pcn.")));
+  const load = async (showLoader = false) => {
+    if (!hireId) {
+      setInitialLoading(false);
+      return;
+    }
+
+    if (showLoader) setInitialLoading(true);
+    try {
+      const [pcn, docs, pcnNotes, pcnReminders, auditRows] = await Promise.all([
+        getPenaltyCharge(hireId),
+        getPcnDocuments(hireId),
+        getPcnNotes(hireId),
+        getPcnReminders(hireId),
+        getHireAudit(hireId),
+      ]);
+      if (pcn) setForm(mapApiToForm(pcn));
+      setDocuments(docs);
+      setNotes(pcnNotes);
+      setReminders(
+        pcnReminders.reduce<Record<string, PcnReminder>>((acc, item) => {
+          acc[item.reminder_type] = item;
+          return acc;
+        }, {}),
+      );
+      setAudit(auditRows.filter((row) => row.field_changed.startsWith("pcn.")));
+    } finally {
+      if (showLoader) setInitialLoading(false);
+    }
   };
 
   useEffect(() => {
-    load();
+    load(true);
   }, [hireId]);
 
   const set = <K extends keyof PcnForm>(key: K, value: PcnForm[K]) =>
@@ -241,6 +252,7 @@ const PenaltyCharges: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
+      {initialLoading && <FleetSpinnerLoader />}
       <h2 className="text-black text-2xl font-semibold leading-6">
         Penalty Charges - PCN Management
       </h2>
@@ -375,7 +387,7 @@ const PenaltyCharges: React.FC = () => {
                           href={doc.file_url || undefined}
                           target="_blank"
                           rel="noreferrer"
-                          className="p-2 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-700 text-black text-sm truncate max-w-[180px]"
+                          className="p-2 rounded outline outline-1 -outline-offset-1 outline-neutral-700 text-black text-sm truncate max-w-[180px]"
                         >
                           {doc.filename || "Document"}
                         </a>
@@ -456,7 +468,7 @@ const PenaltyCharges: React.FC = () => {
             {audit.slice(0, 5).map((row) => (
               <div
                 key={row.id}
-                className="p-3 bg-neutral-50 rounded-sm text-sm text-neutral-700"
+                className="p-3 bg-neutral-50 rounded text-sm text-neutral-700"
               >
                 <span className="text-neutral-900">{row.user || "User"}</span>{" "}
                 updated {row.field_changed.replace("pcn.", "")}
@@ -535,7 +547,7 @@ const PenaltyCharges: React.FC = () => {
         </div>
       </section>
 
-      <section className="self-stretch p-5 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-100 flex justify-center">
+      <section className="self-stretch p-5 rounded outline outline-1 -outline-offset-1 outline-neutral-100 flex justify-center">
         <button
           type="button"
           onClick={saveAll}

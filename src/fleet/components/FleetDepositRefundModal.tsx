@@ -95,7 +95,7 @@ const FleetDepositRefundModal: React.FC<Props> = ({ open, onClose, hireId, defau
           <div className="flex items-end gap-3">
             <div className="flex-1 flex flex-col gap-2 min-w-0">
               <span className="text-neutral-700 text-sm font-medium">To</span>
-              <div className="min-h-[52px] px-3 py-2 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 focus-within:outline-neutral-900 flex flex-wrap items-center gap-2">
+              <div className="min-h-[52px] px-3 py-2 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 focus-within:outline-neutral-900 flex flex-wrap items-center gap-2">
                 {recipients.map((r, i) => (
                   <span key={`${r}-${i}`} className="flex items-center gap-1 pl-3 pr-1.5 py-1 bg-neutral-100 rounded-full text-neutral-800 text-sm max-w-full">
                     <span className="truncate">{r}</span>
@@ -127,13 +127,13 @@ const FleetDepositRefundModal: React.FC<Props> = ({ open, onClose, hireId, defau
           <iframe
             title="Deposit refund email preview"
             srcDoc={previewHtml}
-            className="w-full h-full rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 bg-white"
+            className="w-full h-full rounded outline outline-1 -outline-offset-1 outline-neutral-200 bg-white"
           />
         </div>
 
         <div className="px-6 py-4 border-t border-neutral-100 flex justify-end items-center gap-3 shrink-0">
-          <button type="button" onClick={onClose} disabled={sending} className="px-6 py-3 rounded-sm bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50 disabled:opacity-50">Discard</button>
-          <button type="button" onClick={handleSend} disabled={sending} className="px-6 py-3 rounded-sm bg-neutral-900 text-white text-base font-medium hover:bg-black disabled:opacity-70 disabled:cursor-not-allowed">
+          <button type="button" onClick={onClose} disabled={sending} className="px-6 py-3 rounded bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50 disabled:opacity-50">Discard</button>
+          <button type="button" onClick={handleSend} disabled={sending} className="px-6 py-3 rounded bg-neutral-900 text-white text-base font-medium hover:bg-black disabled:opacity-70 disabled:cursor-not-allowed">
             {sending ? "Sending…" : "Send"}
           </button>
         </div>

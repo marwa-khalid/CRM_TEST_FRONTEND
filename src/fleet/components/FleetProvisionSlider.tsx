@@ -36,7 +36,7 @@ export const FleetProvisionSlider: React.FC<{
           <button
             type="button"
             onClick={onClose}
-            className="px-8 py-3 rounded-sm bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50"
+            className="px-8 py-3 rounded bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50"
           >
             Close
           </button>

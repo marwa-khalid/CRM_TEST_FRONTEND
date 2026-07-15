@@ -219,7 +219,7 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
   };
   const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
   const boroughInputStyles =
-    "w-full h-[52px] px-5 py-4 bg-white rounded-sm border border-gray-200 text-neutral-900 text-base font-light leading-4 font-['Stack_Sans_Headline'] placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500";
+    "w-full h-[52px] px-5 py-4 bg-white rounded border border-gray-200 text-neutral-900 text-base font-light leading-4 font-['Stack_Sans_Headline'] placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500";
 
 //   const handleSave = (addNext = false) => {
 //     if (!isVehicleValid) {

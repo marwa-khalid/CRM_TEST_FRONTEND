@@ -32,6 +32,39 @@ export const sendHireEmail = async (
   return data as SendHireEmailResult;
 };
 
+export interface OnHireEmailPayload {
+  to: string;
+  cc?: string;
+  subject?: string;
+  body?: string;
+  registration?: string;
+  make?: string;
+  model?: string;
+  hire_start?: string;
+}
+
+// Sends the structured (boxed) on-hire confirmation email; the hirer name is
+// pulled from the hire record on the backend.
+export const sendOnHireEmail = async (
+  hireId: number,
+  payload: OnHireEmailPayload,
+): Promise<SendHireEmailResult> => {
+  const { data } = await fleetApi.post(`/fleet/hire/${hireId}/on-hire-email`, payload);
+  return data as SendHireEmailResult;
+};
+
+export const getOnHireEmailPreview = async (
+  hireId: number,
+  payload: Pick<OnHireEmailPayload, "registration" | "make" | "model" | "hire_start">,
+): Promise<string> => {
+  try {
+    const { data } = await fleetApi.get(`/fleet/hire/${hireId}/on-hire-email/preview`, { params: payload });
+    return (data?.html as string) || "";
+  } catch {
+    return "";
+  }
+};
+
 export interface DepositRefundPayload {
   to: string;
   cc?: string;

@@ -32,17 +32,22 @@ const downloadBlob = (blob: Blob, filename: string) => {
 export const listGeneratedDocumentFiles = async (
   hireId: number,
   documentKey: GeneratedDocumentKey,
+  vehicleId?: number,
 ): Promise<GeneratedDocumentFile[]> => {
-  const { data } = await fleetApi.get(`/fleet/hire/${hireId}/generated-documents/${documentKey}`);
+  const { data } = await fleetApi.get(`/fleet/hire/${hireId}/generated-documents/${documentKey}`, {
+    params: vehicleId ? { vehicle_id: vehicleId } : undefined,
+  });
   return Array.isArray(data) ? data : [];
 };
 
 export const downloadGeneratedDocumentBundle = async (
   hireId: number,
   documentKey: GeneratedDocumentKey,
+  vehicleId?: number,
 ): Promise<string> => {
   const res = await fleetApi.get(`/fleet/hire/${hireId}/generated-documents/${documentKey}/download`, {
     responseType: "blob",
+    params: vehicleId ? { vehicle_id: vehicleId } : undefined,
   });
   const filename = filenameFromDisposition(res.headers["content-disposition"]) || "generated-documents.zip";
   downloadBlob(res.data as Blob, filename);
@@ -52,13 +57,17 @@ export const downloadGeneratedDocumentBundle = async (
 export const getGeneratedDocumentFiles = async (
   hireId: number,
   documentKey: GeneratedDocumentKey,
+  vehicleId?: number,
 ): Promise<File[]> => {
-  const files = await listGeneratedDocumentFiles(hireId, documentKey);
+  const files = await listGeneratedDocumentFiles(hireId, documentKey, vehicleId);
   const downloads = await Promise.all(
     files.map(async (file) => {
       const res = await fleetApi.get(
         `/fleet/hire/${hireId}/generated-documents/${documentKey}/files/${file.key}`,
-        { responseType: "blob" },
+        {
+          responseType: "blob",
+          params: vehicleId ? { vehicle_id: vehicleId } : undefined,
+        },
       );
       const blob = res.data as Blob;
       return new File([blob], file.filename, { type: file.content_type || blob.type });

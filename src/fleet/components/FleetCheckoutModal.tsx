@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FleetTextInput, FleetMoneyInput, FleetDateField, FleetTimeSelect } from "./fields";
+import FleetSpinnerLoader from "./FleetSpinnerLoader";
 
 export interface CheckoutData {
   mileageStart: string;
@@ -32,35 +33,62 @@ const Radio: React.FC<{ checked: boolean; label: string; onClick: () => void }> 
   </button>
 );
 
-const Dots: React.FC<{ step: number }> = ({ step }) => (
+const Dots: React.FC<{
+  step: number;
+  totalSteps: number;
+  disabled?: boolean;
+  onSelect: (step: number) => void;
+}> = ({ step, totalSteps, disabled, onSelect }) => (
   <div className="flex items-center gap-3">
-    {[1, 2, 3].map((s) => (
-      <span key={s} className={`w-3 h-3 rounded-full ${s === step ? "bg-neutral-900" : "bg-neutral-200"}`} />
+    {Array.from({ length: totalSteps }, (_, index) => index + 1).map((s) => (
+      <button
+        key={s}
+        type="button"
+        disabled={disabled}
+        onClick={() => onSelect(s)}
+        aria-label={`Go to checkout step ${s}`}
+        className={`w-3 h-3 rounded-full transition-colors ${
+          s === step ? "bg-neutral-900" : "bg-neutral-200 hover:bg-neutral-400"
+        } disabled:cursor-not-allowed disabled:hover:bg-neutral-200`}
+      />
     ))}
   </div>
 );
 
-const OUTLINE_BTN = "px-6 py-4 rounded-sm bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50";
-const DARK_BTN = "px-6 py-4 rounded-sm bg-neutral-900 text-white text-base font-medium hover:bg-black";
+const OUTLINE_BTN = "px-6 py-4 rounded bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50";
+const DARK_BTN = "px-6 py-4 rounded bg-neutral-900 text-white text-base font-medium hover:bg-black";
 
 // 3-step vehicle checkout (off-hire): Mileage & Return -> Cleanliness -> Charges & Notes.
 export const FleetCheckoutModal: React.FC<{
   initial?: CheckoutData;
   onCancel: () => void;
-  onComplete: (d: CheckoutData) => void;
+  onComplete: (d: CheckoutData) => void | Promise<void>;
 }> = ({ initial, onCancel, onComplete }) => {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<CheckoutData>(initial ?? EMPTY_CHECKOUT);
+  const [submitting, setSubmitting] = useState(false);
   const set = <K extends keyof CheckoutData>(k: K, v: CheckoutData[K]) => setData((d) => ({ ...d, [k]: v }));
+  const isCleanReturn = data.cleanliness === "inside_outside_clean";
+  const totalSteps = isCleanReturn ? 2 : 3;
+  const submit = async (payload: CheckoutData) => {
+    setSubmitting(true);
+    try {
+      await onComplete(payload);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const completeCleanReturn = () => submit({ ...data, damageCharges: "0", damageNotes: "" });
 
   return (
     <div className="fixed inset-0 z-[110] bg-black/40 flex items-center justify-center p-4">
+      {submitting && <FleetSpinnerLoader />}
       <div className="w-[640px] max-w-full p-6 bg-white rounded-lg flex flex-col gap-4 font-sans-headline">
         <div className="flex justify-between items-center">
           <h3 className="text-black text-xl font-semibold leading-5">
             {step === 1 ? "Mileage & Return Details" : step === 2 ? "Vehicle Cleanliness - Hire Start & Hire End" : "Charges & Notes"}
           </h3>
-          <Dots step={step} />
+          <Dots step={step} totalSteps={totalSteps} disabled={submitting} onSelect={setStep} />
         </div>
         <div className="h-px bg-neutral-100" />
 
@@ -104,7 +132,7 @@ export const FleetCheckoutModal: React.FC<{
                 onChange={(e) => set("damageNotes", e.target.value)}
                 placeholder="Value"
                 rows={3}
-                className="h-24 px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
+                className="h-24 px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
               />
             </div>
           </>
@@ -112,11 +140,15 @@ export const FleetCheckoutModal: React.FC<{
 
         <div className="h-px bg-neutral-100" />
         <div className="flex justify-end items-center gap-4">
-          <button type="button" onClick={onCancel} className={OUTLINE_BTN}>Cancel</button>
-          {step < 3 ? (
-            <button type="button" onClick={() => setStep((s) => s + 1)} className={DARK_BTN}>Next</button>
+          <button type="button" onClick={onCancel} disabled={submitting} className={`${OUTLINE_BTN} disabled:opacity-50 disabled:cursor-not-allowed`}>Cancel</button>
+          {step === 1 ? (
+            <button type="button" onClick={() => setStep(2)} disabled={submitting} className={`${DARK_BTN} disabled:opacity-70 disabled:cursor-not-allowed`}>Next</button>
+          ) : step === 2 && isCleanReturn ? (
+            <button type="button" onClick={completeCleanReturn} disabled={submitting} className={`${DARK_BTN} disabled:opacity-70 disabled:cursor-not-allowed`}>Save</button>
+          ) : step < 3 ? (
+            <button type="button" onClick={() => setStep(3)} disabled={submitting} className={`${DARK_BTN} disabled:opacity-70 disabled:cursor-not-allowed`}>Next</button>
           ) : (
-            <button type="button" onClick={() => onComplete(data)} className={DARK_BTN}>Save</button>
+            <button type="button" onClick={() => submit(data)} disabled={submitting} className={`${DARK_BTN} disabled:opacity-70 disabled:cursor-not-allowed`}>Save</button>
           )}
         </div>
       </div>

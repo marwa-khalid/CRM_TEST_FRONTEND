@@ -15,15 +15,12 @@ import DocumentChecklist from "./DocumentChecklist";
 import { HireProvider } from "./HireContext";
 import {
   createHire,
+  getHireCompletionSummary,
   getHire,
   updateHire,
-  getHireDocuments,
-  getPenaltyCharge,
+  type HireCompletionSummary,
   type HireRecord,
-  type HireDocument,
-  type PcnData,
 } from "../../services/hireService";
-import { listVehicles } from "../../services/vehicleService";
 import { HIRE_STEPS } from "../../types/hire";
 
 // Each wizard step maps to a screen component. Steps not yet built (later stories)
@@ -49,34 +46,6 @@ const STEP_FIELDS: Record<string, string[]> = {
   payment: ["payment_hire_start_date", "payment_hire_end_date", "vehicle_cost_per_day", "number_of_weekly_payments", "payment_day", "security_deposit", "weekly_hire_payment", "total_planned_hire_cost", "initial_amount_due", "payment_damage_charges", "additional_charges"],
 };
 
-// Screens whose data lives in child tables — fill state comes from loaded child
-// records/documents rather than the hire row.
-// Proofs = one proof-of-address document (bank_statement_N or utility_N, plus legacy first/second)
-// + driving licence front + back.
-const isProofAddressDoc = (t: string) =>
-  t.startsWith("bank_statement_") || t.startsWith("utility_") || t === "firstUtility" || t === "secondUtility";
-const CHECKLIST_REQUIRED = [
-  "checklist_bank_statement",
-  "checklist_utility_bill",
-  "checklist_dl_front",
-  "checklist_dl_back",
-  "checklist_taxi_badge",
-  "checklist_signed_rental_contract",
-  "checklist_signed_checkout_sheet",
-  "checklist_signed_checkin_sheet",
-];
-const matchesChecklistDoc = (docType: string, checklistKey: string) => {
-  if (docType === checklistKey) return true;
-  if (checklistKey === "checklist_bank_statement") return docType.startsWith("bank_statement_");
-  if (checklistKey === "checklist_utility_bill") return docType.startsWith("utility_") || docType === "firstUtility" || docType === "secondUtility";
-  if (checklistKey === "checklist_dl_front") return docType === "driving_licence" || docType === "dlFront";
-  if (checklistKey === "checklist_dl_back") return docType === "dlBack";
-  if (checklistKey === "checklist_customer_insurance") return docType === "insurance_certificate";
-  return false;
-};
-const VEHICLE_KEY_FIELDS = ["registration_number", "make", "model", "transmission", "hire_status"];
-const PCN_FIELDS = ["council_name", "council_address", "council_postcode", "pcn_number", "offence_date", "pcn_status", "liability_transfer_status", "response_deadline"];
-
 // complete = all present, half = 1+, empty = none.
 const fillFromCount = (present: number, total: number): StepFill =>
   present === 0 ? "empty" : present >= total ? "complete" : "half";
@@ -96,11 +65,8 @@ const AddNewHire: React.FC = () => {
   const [completed, setCompleted] = useState<Set<number>>(new Set());
   const [hireId, setHireId] = useState<number | null>(null);
   const [hire, setHire] = useState<HireRecord | null>(null);
+  const [completionSummary, setCompletionSummary] = useState<HireCompletionSummary | null>(null);
   const [loadingHire, setLoadingHire] = useState(false);
-  // Child-table data behind the sidebar fill state for vehicle/proofs/pcn/documents.
-  const [vehicles, setVehicles] = useState<Record<string, unknown>[]>([]);
-  const [documents, setDocuments] = useState<HireDocument[]>([]);
-  const [pcn, setPcn] = useState<PcnData | null>(null);
   const hireIdRef = useRef<number | null>(null);
   const createPromiseRef = useRef<Promise<HireRecord | null> | null>(null);
 
@@ -130,18 +96,20 @@ const AddNewHire: React.FC = () => {
       .finally(() => setLoadingHire(false));
   }, [hireIdParam, navigate]);
 
-  // Refresh the child-table data behind the sidebar fill state. Re-runs when the
-  // active step changes so the sidebar reflects edits made on child screens.
   useEffect(() => {
     if (!hireId) {
-      setVehicles([]);
-      setDocuments([]);
-      setPcn(null);
+      setCompletionSummary(null);
       return;
     }
-    listVehicles(hireId).then(setVehicles);
-    getHireDocuments(hireId).then(setDocuments);
-    getPenaltyCharge(hireId).then(setPcn);
+
+    let active = true;
+    getHireCompletionSummary(hireId).then((summary) => {
+      if (active) setCompletionSummary(summary);
+    });
+
+    return () => {
+      active = false;
+    };
   }, [hireId, activeIndex]);
 
   const ensureHire = async (): Promise<number | null> => {
@@ -203,28 +171,26 @@ const AddNewHire: React.FC = () => {
   const activeStep = HIRE_STEPS[activeIndex];
   const StepComponent = STEP_COMPONENTS[activeStep.key];
 
-  // Sidebar fill state per step. Hire-row screens read the hire record; child-table
-  // screens (vehicle/proofs/pcn/documents) read their loaded records/documents.
+  // Sidebar fill state per step. Hire-row screens read the hire record. Screens
+  // backed by child tables keep their own data loading so the parent does not
+  // duplicate every child-screen API call just to colour the sidebar.
   const stepStatus = (i: number): StepFill => {
     const key = HIRE_STEPS[i].key;
     const fields = STEP_FIELDS[key];
     if (fields) return fillFromFields(hire as unknown as Record<string, unknown> | null, fields);
-
-    if (key === "vehicle") return fillFromFields(vehicles[0], VEHICLE_KEY_FIELDS);
-    if (key === "pcn") return fillFromFields(pcn as unknown as Record<string, unknown> | null, PCN_FIELDS);
+    if (key === "vehicle") {
+      return fillFromCount(completionSummary?.vehicle_present ?? 0, completionSummary?.vehicle_total ?? 5);
+    }
     if (key === "proofs") {
-      const present = [
-        documents.some((d) => isProofAddressDoc(d.doc_type)),
-        documents.some((d) => d.doc_type === "dlFront"),
-        documents.some((d) => d.doc_type === "dlBack"),
-      ].filter(Boolean).length;
-      return fillFromCount(present, 3);
+      return fillFromCount(completionSummary?.proof_present ?? 0, completionSummary?.proof_total ?? 3);
     }
     if (key === "documents") {
-      const count = CHECKLIST_REQUIRED.filter((t) => documents.some((d) => matchesChecklistDoc(d.doc_type, t))).length;
-      return fillFromCount(count, CHECKLIST_REQUIRED.length);
+      return fillFromCount(completionSummary?.document_present ?? 0, completionSummary?.document_total ?? 8);
     }
-    return "empty";
+    if (key === "pcn") {
+      return fillFromCount(completionSummary?.pcn_present ?? 0, completionSummary?.pcn_total ?? 8);
+    }
+    return completed.has(i) ? "complete" : "empty";
   };
 
   return (
@@ -241,11 +207,7 @@ const AddNewHire: React.FC = () => {
         <FleetStepper steps={HIRE_STEPS} activeIndex={activeIndex} statusOf={stepStatus} onSelect={selectStep} />
         <div className="flex-1 flex justify-center">
           <HireProvider value={{ hireId, hire, save }}>
-            {loadingHire ? (
-              <div className="w-full max-w-[788px] py-20 text-center text-neutral-400 text-sm">
-                Loading fleet record...
-              </div>
-            ) : StepComponent ? (
+            {loadingHire ? null : StepComponent ? (
               <StepComponent />
             ) : (
               <div className="w-full max-w-[788px] py-20 text-center text-neutral-400 text-sm">
@@ -257,7 +219,7 @@ const AddNewHire: React.FC = () => {
       </div>
 
       {/* Full-screen grey saving overlay (matches the Claims SpinnerLoader). */}
-      {saving && <FleetSpinnerLoader />}
+      {(saving || loadingHire) && <FleetSpinnerLoader />}
     </div>
   );
 };

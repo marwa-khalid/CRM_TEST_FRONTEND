@@ -32,7 +32,7 @@ const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect 
       {/* Skyline Client Side — the current wizard */}
       <div className={CARD}>
         <button type="button" onClick={() => setClientOpen((o) => !o)} className="flex justify-between items-center">
-          <span className="text-neutral-900 text-base font-semibold">Skyline Client Side</span>
+          <span className="text-neutral-900 text-base font-semibold">Client Side</span>
           <Chevron open={clientOpen} />
         </button>
         {clientOpen && (
@@ -69,7 +69,7 @@ const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect 
       {/* Skyline Customer Side — no screens yet */}
       <div className={CARD}>
         <button type="button" onClick={() => setCustomerOpen((o) => !o)} className="flex justify-between items-center">
-          <span className="text-neutral-500 text-base font-semibold">Skyline Customer Side</span>
+          <span className="text-neutral-500 text-base font-semibold">Customer Side</span>
           <Chevron open={customerOpen} />
         </button>
         {customerOpen && (

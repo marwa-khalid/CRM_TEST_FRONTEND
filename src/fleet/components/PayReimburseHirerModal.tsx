@@ -38,7 +38,7 @@ const PayReimburseHirerModal: React.FC<Props> = ({ open, onClose, onSubmit }) =>
 
         <div className="flex flex-col gap-2">
           <label className="text-neutral-700 text-sm font-medium">How much do we owe to the hirer?</label>
-          <div className="px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center gap-2 focus-within:outline-blue-500">
+          <div className="px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center gap-2 focus-within:outline-blue-500">
             <span className="text-neutral-500 text-base">£</span>
             <input
               inputMode="decimal"
@@ -57,7 +57,7 @@ const PayReimburseHirerModal: React.FC<Props> = ({ open, onClose, onSubmit }) =>
             onChange={(e) => setReason(e.target.value)}
             placeholder="Value"
             rows={3}
-            className="h-24 px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-blue-500 resize-none"
+            className="h-24 px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-blue-500 resize-none"
           />
         </div>
 
@@ -65,7 +65,7 @@ const PayReimburseHirerModal: React.FC<Props> = ({ open, onClose, onSubmit }) =>
           <button
             type="button"
             onClick={close}
-            className="px-6 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-black text-neutral-900 text-base font-medium leading-4 hover:bg-neutral-50"
+            className="px-6 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-black text-neutral-900 text-base font-medium leading-4 hover:bg-neutral-50"
           >
             Cancel
           </button>
@@ -73,7 +73,7 @@ const PayReimburseHirerModal: React.FC<Props> = ({ open, onClose, onSubmit }) =>
             type="button"
             onClick={submit}
             disabled={!canSubmit}
-            className="px-6 py-4 bg-neutral-900 rounded-sm text-white text-base font-medium leading-4 hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-6 py-4 bg-neutral-900 rounded text-white text-base font-medium leading-4 hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Submit
           </button>

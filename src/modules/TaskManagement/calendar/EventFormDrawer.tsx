@@ -43,12 +43,12 @@ const CheckboxOption = (props: any) => {
     <div
       ref={innerRef}
       {...innerProps}
-      className={`flex items-center gap-2 p-2.5 rounded-sm cursor-pointer ${
+      className={`flex items-center gap-2 p-2.5 rounded cursor-pointer ${
         isSelected ? "bg-blue-100" : isFocused ? "bg-neutral-50" : ""
       }`}
     >
       <span
-        className={`w-5 h-5 rounded-sm shrink-0 ${
+        className={`w-5 h-5 rounded shrink-0 ${
           isSelected ? "bg-blue-500 border-[6px] border-blue-200" : "bg-neutral-300"
         }`}
       />

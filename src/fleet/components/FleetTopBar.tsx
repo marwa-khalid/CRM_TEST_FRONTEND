@@ -53,7 +53,7 @@ const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext, sa
         <button
           type="button"
           onClick={onDiscard}
-          className="px-10 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-black text-black text-base font-medium leading-4 hover:bg-neutral-50 transition-colors"
+          className="px-10 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-black text-black text-base font-medium leading-4 hover:bg-neutral-50 transition-colors"
         >
           Discard
         </button>
@@ -61,7 +61,7 @@ const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext, sa
           type="button"
           onClick={onSaveNext}
           disabled={saving}
-          className="px-10 py-4 bg-neutral-900 rounded-sm text-white text-base font-medium leading-4 hover:bg-black transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+          className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-medium leading-4 hover:bg-black transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
         >
           Save &amp; Next
         </button>

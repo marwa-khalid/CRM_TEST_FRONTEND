@@ -22,14 +22,11 @@ export const CURRENT_POSITION_OPTIONS: Option[] = [
 
 // Borough (Hire Vehicle Details) — London boroughs (PCO/private-hire context).
 export const BOROUGH_OPTIONS: Option[] = [
-  "Barking and Dagenham", "Barnet", "Bexley", "Brent", "Bromley", "Camden",
-  "City of London", "Croydon", "Ealing", "Enfield", "Greenwich", "Hackney",
-  "Hammersmith and Fulham", "Haringey", "Harrow", "Havering", "Hillingdon",
-  "Hounslow", "Islington", "Kensington and Chelsea", "Kingston upon Thames",
-  "Lambeth", "Lewisham", "Merton", "Newham", "Redbridge", "Richmond upon Thames",
-  "Southwark", "Sutton", "Tower Hamlets", "Waltham Forest", "Wandsworth",
-  "Westminster",
-].map((b) => ({ label: b, value: b.toLowerCase().replace(/[^a-z0-9]+/g, "_") }));
+  "Birmingham", "Dudley", "Sandwell", "Solihull", "Walsall", "Wolverhampton",
+].map((b) => ({
+  label: b,
+  value: b.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+}));
 
 // Swap Reason (Hire Vehicle Details) — why the hire car is being swapped.
 export const SWAP_REASON_OPTIONS: Option[] = [

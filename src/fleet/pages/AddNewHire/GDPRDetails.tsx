@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { FleetSelect, FleetDateField, FleetYesNo, FleetSegmented } from "../../components/fields";
+import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import { getHireAudit } from "../../services/hireService";
 import CloseFileIcon from "../../assets/icons/CloseFile.svg";
 import {
@@ -77,6 +78,7 @@ const ConsentRow: React.FC<{
 const GDPRDetails: React.FC = () => {
   const [form, setForm] = useState<GDPRForm>(EMPTY);
   const [auditRows, setAuditRows] = useState<AuditLogRow[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
   const { hire, hireId, save } = useHire();
   const hydrated = useRef(false);
 
@@ -100,25 +102,35 @@ const GDPRDetails: React.FC = () => {
     });
   }, [hire]);
 
-  const refreshAudit = useCallback(() => {
-    if (!hireId) return;
-    getHireAudit(hireId).then((entries) =>
-      setAuditRows(
-        entries
-          // Only changes to GDPR-screen fields belong in this screen's audit log.
-          .filter((e) => e.field_changed in FIELD_LABELS)
-          .map((e) => ({
-            user: prettyValue(e.user),
-            fieldChanged: prettyField(e.field_changed),
-            oldValue: prettyValue(e.old_value),
-            newValue: prettyValue(e.new_value),
-            date: fmtAuditDate(e.changed_at),
-          })),
-      ),
-    );
+  const refreshAudit = useCallback((showLoader = false) => {
+    if (!hireId) {
+      setAuditRows([]);
+      setAuditLoading(false);
+      return Promise.resolve();
+    }
+
+    if (showLoader) setAuditLoading(true);
+    return getHireAudit(hireId)
+      .then((entries) =>
+        setAuditRows(
+          entries
+            // Only changes to GDPR-screen fields belong in this screen's audit log.
+            .filter((e) => e.field_changed in FIELD_LABELS)
+            .map((e) => ({
+              user: prettyValue(e.user),
+              fieldChanged: prettyField(e.field_changed),
+              oldValue: prettyValue(e.old_value),
+              newValue: prettyValue(e.new_value),
+              date: fmtAuditDate(e.changed_at),
+            })),
+        ),
+      )
+      .finally(() => {
+        if (showLoader) setAuditLoading(false);
+      });
   }, [hireId]);
 
-  useEffect(() => { refreshAudit(); }, [refreshAudit]);
+  useEffect(() => { refreshAudit(true); }, [refreshAudit]);
 
   // Persist a change, then refresh the audit log once the save has committed.
   const persist = (partial: Record<string, unknown>) => {
@@ -162,6 +174,7 @@ const GDPRDetails: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
+      {auditLoading && <FleetSpinnerLoader />}
       <h2 className="text-black text-2xl font-semibold leading-6">GDPR &amp; Marketing Preferences</h2>
 
       {/* GDPR Transparency */}
@@ -199,7 +212,7 @@ const GDPRDetails: React.FC = () => {
             type="button"
             onClick={withdrawAll}
             disabled={allWithdrawn}
-            className={`h-8 px-3 py-2 rounded-sm flex items-center gap-2 text-sm ${
+            className={`h-8 px-3 py-2 rounded flex items-center gap-2 text-sm ${
               allWithdrawn ? "bg-neutral-400 text-white cursor-default" : "bg-neutral-900 text-white hover:bg-black"
             }`}
           >
@@ -233,7 +246,7 @@ const GDPRDetails: React.FC = () => {
               onBlur={() => persist({ reason_for_withdrawal: form.reasonForWithdrawal })}
               placeholder="Value"
               rows={3}
-              className="h-24 px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
+              className="h-24 px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
             />
           </div>
         )}

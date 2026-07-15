@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Car, CircleCheck, Eye, Files, Loader2, Plus, RefreshCw, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { listHires, deleteHire, type HireRecord } from "../services/hireService";
 import { CURRENT_POSITION_OPTIONS } from "../types/hire";
 import FleetConfirmModal from "../components/FleetConfirmModal";
-
+import TrashIcon from '../assets/icons/Remove.svg'
 const formatDateTime = (value?: string) => {
   if (!value) return "-";
   const d = new Date(value);
@@ -29,6 +29,34 @@ const fallbackReference = (hire: HireRecord) => {
 
 const positionLabel = (value?: string) =>
   CURRENT_POSITION_OPTIONS.find((option) => option.value === value)?.label || value || "Draft";
+
+const hireStatusLabel = (value?: string) =>
+  value === "on_hire" ? "On Hire" : value === "off_hire" ? "Off Hire" : "-";
+const hireStatusClass = (value?: string) =>
+  value === "on_hire" ? "text-green-600" : value === "off_hire" ? "text-blue-600" : "text-neutral-400";
+
+// Reference · Driver · Vehicle Reg · Status · Current Position · Opened · Action
+const LIST_GRID = "grid-cols-[1.2fr_1.1fr_0.9fr_0.8fr_1fr_1fr_90px]";
+
+type StatIcon = React.ComponentType<{ size?: number; className?: string }>;
+
+// Fleet-themed summary widget (neutral palette to match the Fleet side).
+const FleetStatCard: React.FC<{ title: string; value: number; Icon: StatIcon; accent: string }> = ({
+  title,
+  value,
+  Icon,
+  accent,
+}) => (
+  <div className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 bg-white flex flex-col gap-3">
+    <span className={`w-9 h-9 rounded flex items-center justify-center ${accent}`}>
+      <Icon size={18} />
+    </span>
+    <div className="flex flex-col gap-0.5">
+      <div className="text-black text-3xl font-semibold leading-9">{value}</div>
+      <div className="text-neutral-500 text-sm font-medium">{title}</div>
+    </div>
+  </div>
+);
 
 const FleetList: React.FC = () => {
   const navigate = useNavigate();
@@ -62,16 +90,27 @@ const FleetList: React.FC = () => {
     load();
   }, []);
 
+  // Summary widgets — counts across ALL records (not the search filter). On/Off Hire
+  // are driven by each record's last (most recently added) vehicle's hire_status.
+  const stats = useMemo(() => {
+    const countStatus = (value: string) => records.filter((r) => (r.last_vehicle_hire_status || "") === value).length;
+    return [
+      { title: "Total Hires", value: records.length, Icon: Files, accent: "bg-neutral-100 text-neutral-700" },
+      { title: "On Hires", value: countStatus("on_hire"), Icon: Car, accent: "bg-green-100 text-green-600" },
+      { title: "Off Hires", value: countStatus("off_hire"), Icon: CircleCheck, accent: "bg-blue-100 text-blue-600" },
+    ];
+  }, [records]);
+
   const visibleRecords = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return records;
     return records.filter((record) =>
       [
         record.fleet_reference || fallbackReference(record),
+        record.driver_name,
+        record.last_vehicle_registration,
         positionLabel(record.current_position),
-        record.rental_advisor,
-        record.insurance_type,
-        record.bank_name,
+        hireStatusLabel(record.last_vehicle_hire_status),
       ]
         .filter(Boolean)
         .join(" ")
@@ -88,7 +127,7 @@ const FleetList: React.FC = () => {
             type="button"
             onClick={() => navigate("/single-signon")}
             aria-label="Back"
-            className="w-9 h-9 rounded-sm flex items-center justify-center hover:bg-neutral-100"
+            className="w-9 h-9 rounded flex items-center justify-center hover:bg-neutral-100"
           >
             <ArrowLeft size={22} />
           </button>
@@ -100,7 +139,7 @@ const FleetList: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate("/fleet/hire/new")}
-          className="px-6 py-4 bg-neutral-900 rounded-sm text-white text-base font-medium leading-4 hover:bg-black transition-colors inline-flex items-center gap-2"
+          className="px-6 py-4 bg-neutral-900 rounded text-white text-base font-medium leading-4 hover:bg-black transition-colors inline-flex items-center gap-2"
         >
           <Plus size={18} />
           New Fleet Record
@@ -109,8 +148,14 @@ const FleetList: React.FC = () => {
 
       <main className="px-10 py-10">
         <section className="max-w-[1120px] mx-auto flex flex-col gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {stats.map((stat) => (
+              <FleetStatCard key={stat.title} {...stat} />
+            ))}
+          </div>
+
           <div className="flex items-center justify-between gap-4">
-            <div className="h-12 flex-1 max-w-[420px] px-4 border border-neutral-200 rounded-sm flex items-center gap-3">
+            <div className="h-12 flex-1 max-w-[420px] px-4 border border-neutral-200 rounded flex items-center gap-3">
               <Search size={18} className="text-neutral-400" />
               <input
                 value={query}
@@ -122,7 +167,7 @@ const FleetList: React.FC = () => {
             <button
               type="button"
               onClick={load}
-              className="h-12 px-4 border border-neutral-200 rounded-sm text-sm font-medium text-neutral-900 inline-flex items-center gap-2 hover:bg-neutral-50"
+              className="h-12 px-4 border border-neutral-200 rounded text-sm font-medium text-neutral-900 inline-flex items-center gap-2 hover:bg-neutral-50"
             >
               <RefreshCw size={16} />
               Refresh
@@ -130,12 +175,14 @@ const FleetList: React.FC = () => {
           </div>
 
           <div className="border border-neutral-100 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_100px] gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold text-neutral-500 uppercase">
+            <div className={`grid ${LIST_GRID} gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold text-neutral-500 uppercase`}>
               <span>Reference</span>
-              <span>Opened</span>
+              <span>Driver</span>
+              <span>Vehicle Reg</span>
+              <span>Status</span>
               <span>Current Position</span>
-              <span>Rental Advisor</span>
-              <span className="text-right">Action</span>
+              <span>Opened</span>
+              <span >Action</span>
             </div>
 
             {loading ? (
@@ -146,7 +193,6 @@ const FleetList: React.FC = () => {
             ) : visibleRecords.length === 0 ? (
               <div className="h-48 flex flex-col items-center justify-center text-center">
                 <p className="text-neutral-900 text-base font-semibold">No fleet records yet</p>
-                <p className="mt-2 text-neutral-500 text-sm">Create one and it will appear here as FLT-YYYYMM-ID (then SURNAME-YYYYMM-ID once the driver name is added).</p>
               </div>
             ) : (
               visibleRecords.map((record) => {
@@ -154,7 +200,7 @@ const FleetList: React.FC = () => {
                 return (
                   <div
                     key={record.id}
-                    className="w-full grid grid-cols-[1.2fr_1fr_1fr_1fr_100px] gap-4 px-5 py-4 text-left border-t border-neutral-100 hover:bg-neutral-50 transition-colors items-center"
+                    className={`w-full grid ${LIST_GRID} gap-4 px-5 py-4 text-left border-t border-neutral-100 hover:bg-neutral-50 transition-colors items-center`}
                   >
                     <button
                       type="button"
@@ -163,25 +209,27 @@ const FleetList: React.FC = () => {
                     >
                       {reference}
                     </button>
-                    <span className="text-neutral-700 text-sm">{formatDateTime(record.file_opened_at)}</span>
+                    <span className="text-neutral-700 text-sm truncate">{record.driver_name || "-"}</span>
+                    <span className="text-neutral-700 text-sm">{record.last_vehicle_registration || "-"}</span>
+                    <span className={`text-sm font-medium ${hireStatusClass(record.last_vehicle_hire_status)}`}>
+                      {hireStatusLabel(record.last_vehicle_hire_status)}
+                    </span>
                     <span className="text-neutral-700 text-sm">{positionLabel(record.current_position)}</span>
-                    <span className="text-neutral-700 text-sm">{record.rental_advisor || "-"}</span>
-                    <span className="text-right flex justify-end items-center gap-3">
+                    <span className="text-neutral-700 text-sm">{formatDateTime(record.file_opened_at)}</span>
+                    <span className="text-start flex justify-start items-center gap-3">
                       <button
                         type="button"
                         onClick={() => navigate(`/fleet/hire/${record.id}`)}
-                        className="text-blue-600 text-sm font-medium hover:underline"
                       >
-                        Open
+                    <Eye className="w-4 h-4"/>
                       </button>
                       <button
                         type="button"
                         onClick={() => setDeleteTarget(record)}
-                        className="text-red-600 hover:text-red-700"
                         title="Delete"
                         aria-label="Delete record"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <img src={TrashIcon} alt="" />
                       </button>
                     </span>
                   </div>

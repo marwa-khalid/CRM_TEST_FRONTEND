@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import Select from "react-select";
+import CreatableSelect from "react-select/creatable";
 import type { StylesConfig } from "react-select";
+import { useJsApiLoader } from "@react-google-maps/api";
 import Calendar from "../assets/icons/Calendar.svg";
 import type { Option } from "../types/hire";
 import FleetCalendar from "./FleetCalendar";
@@ -43,15 +45,21 @@ const fleetSelectStyles: StylesConfig<Option, false> = {
 
 // Fleet-local form primitives, so the module never imports Claims components.
 const FIELD_BOX =
-  "self-stretch px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 " +
+  "w-full self-stretch px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 " +
   "text-base font-light text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 " +
   "disabled:bg-neutral-50 disabled:text-neutral-400 leading-4";
 // Red-outline variant. MUST be a full literal class string (not a runtime .replace of
 // FIELD_BOX) or Tailwind's scanner never sees `outline-red-500` and won't generate it.
 const FIELD_BOX_ERROR =
-  "self-stretch px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-red-500 " +
+  "w-full self-stretch px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-red-500 " +
   "text-base font-light text-neutral-900 placeholder:text-neutral-300 focus:outline-red-500 " +
   "disabled:bg-neutral-50 disabled:text-neutral-400 leading-4";
+// Blue-tinted variant for read-only computed fields. Full literal string (same
+// reason as FIELD_BOX_ERROR — the scanner must see the blue classes verbatim).
+const FIELD_BOX_HIGHLIGHT =
+  "w-full self-stretch px-5 py-4 bg-blue-50 rounded outline outline-1 -outline-offset-1 outline-blue-200 " +
+  "text-base font-light text-neutral-900 placeholder:text-neutral-300 focus:outline-blue-400 " +
+  "disabled:bg-blue-50 disabled:text-neutral-500 leading-4";
 
 const LABEL = "text-neutral-700 text-sm font-medium font-sans-headline";
 const WRAP = "w-full min-w-0 flex flex-col gap-2 font-sans-headline";
@@ -250,7 +258,7 @@ export const FleetPostcodeLookup: React.FC<PostcodeLookupProps> = ({
         <FieldError error={error} />
         {lookupError && <p className="text-red-500 text-xs mt-1">{lookupError}</p>}
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 shadow-lg z-[200] max-h-52 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 shadow-lg z-[200] max-h-52 overflow-y-auto">
             {loading && (
               <div className="px-4 py-3 flex items-center gap-2 text-sm text-neutral-400">
                 <span className="animate-spin rounded-full h-4 w-4 border-2 border-neutral-200 border-t-neutral-900" />
@@ -273,6 +281,174 @@ export const FleetPostcodeLookup: React.FC<PostcodeLookupProps> = ({
   );
 };
 
+// --- Address autocomplete (same behaviour as the Claims address field) ------
+// Type a UK postcode -> Ideal Postcodes address list; type free text -> Google
+// Places suggestions. Selecting fills the address AND postcode. Fleet-local (no
+// Claims imports), in Fleet's theme. Mirrors claims/common/AddressAutocomplete.
+type AddrSuggestion =
+  | { type: "postcode"; description: string; address: string; postcode: string }
+  | { type: "google"; description: string; place_id: string };
+
+const GOOGLE_LIBRARIES: "places"[] = ["places"];
+
+interface AddressAutocompleteProps {
+  label?: string;
+  address: string;
+  onChange: (v: string) => void;
+  onPlaceSelected: (place: { address: string; postcode: string }) => void;
+  onBlur?: () => void;
+  placeholder?: string;
+  disabled?: boolean;
+  error?: string;
+}
+
+export const FleetAddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
+  label = "Address", address, onChange, onPlaceSelected, onBlur, placeholder = "Enter Address", disabled, error,
+}) => {
+  const [suggestions, setSuggestions] = useState<AddrSuggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const typing = useRef(false);
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAP_KEY,
+    libraries: GOOGLE_LIBRARIES,
+  });
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  useEffect(() => {
+    if (!typing.current) return;
+    const input = address.trim();
+    if (input.length < 2) { setSuggestions([]); setOpen(false); return; }
+
+    const timer = setTimeout(async () => {
+      setLoading(true); setSuggestions([]); setOpen(true);
+
+      if (UK_POSTCODE.test(input)) {
+        // Postcode typed into the address field — use Ideal Postcodes.
+        try {
+          const key = import.meta.env.VITE_IDEAL_POSTCODES_KEY;
+          const res = await fetch(`https://api.ideal-postcodes.co.uk/v1/postcodes/${encodeURIComponent(input)}?api_key=${key}`);
+          if (res.ok) {
+            const data = await res.json();
+            const results: AddrSuggestion[] = (data.result || []).map((a: Record<string, string>) => ({
+              type: "postcode" as const,
+              description: [a.line_1, a.line_2, a.line_3, a.post_town, a.postcode].filter(Boolean).join(", "),
+              address: [a.line_1, a.line_2, a.line_3].filter(Boolean).join(", "),
+              postcode: a.postcode || input,
+            }));
+            setSuggestions(results);
+            if (results.length === 0) setOpen(false);
+          } else {
+            setOpen(false);
+          }
+        } catch {
+          setOpen(false);
+        }
+        setLoading(false);
+      } else if (isLoaded) {
+        // Free-text address — Google Places predictions (GB only).
+        const g = (window as unknown as { google?: typeof google }).google;
+        if (!g?.maps?.places?.AutocompleteService) { setLoading(false); return; }
+        const service = new g.maps.places.AutocompleteService();
+        service.getPlacePredictions(
+          { input, componentRestrictions: { country: "gb" } },
+          (results, status) => {
+            if (status === "OK" && results && results.length > 0) {
+              setSuggestions(results.map((r) => ({ type: "google" as const, description: r.description.replace(/, UK$/, ""), place_id: r.place_id })));
+            } else {
+              setOpen(false);
+            }
+            setLoading(false);
+          },
+        );
+        return; // loading cleared in the callback
+      } else {
+        setLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [address, isLoaded]);
+
+  const selectSuggestion = (s: AddrSuggestion) => {
+    typing.current = false;
+    setSuggestions([]);
+    setOpen(false);
+    if (s.type === "postcode") {
+      onChange(s.address);
+      onPlaceSelected({ address: s.address, postcode: s.postcode });
+      return;
+    }
+    // Google Places — fetch details to extract the postcode.
+    const g = (window as unknown as { google?: typeof google }).google;
+    const service = new g!.maps.places.PlacesService(document.createElement("div"));
+    service.getDetails(
+      { placeId: s.place_id, fields: ["address_components", "formatted_address"] },
+      (place, status) => {
+        if (status !== "OK" || !place?.address_components) {
+          onChange(s.description);
+          onPlaceSelected({ address: s.description, postcode: "" });
+          return;
+        }
+        let postcode = "";
+        for (const comp of place.address_components) {
+          if (comp.types.includes("postal_code")) { postcode = comp.long_name; break; }
+        }
+        const addressStr = place.formatted_address?.replace(/, UK$/, "") ?? s.description;
+        onChange(addressStr);
+        onPlaceSelected({ address: addressStr, postcode });
+      },
+    );
+  };
+
+  const isOpen = open && (loading || suggestions.length > 0);
+
+  return (
+    <div className={WRAP}>
+      <FieldLabel text={label} />
+      <div ref={wrapRef} className="relative">
+        <input
+          type="text"
+          value={address}
+          disabled={disabled}
+          placeholder={placeholder}
+          onChange={(e) => { typing.current = true; onChange(e.target.value); setOpen(false); }}
+          onBlur={onBlur}
+          className={boxClass(error)}
+        />
+        <FieldError error={error} />
+        {isOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 shadow-lg z-[200] max-h-52 overflow-y-auto">
+            {loading && (
+              <div className="px-4 py-3 flex items-center gap-2 text-sm text-neutral-400">
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-neutral-200 border-t-neutral-900" />
+                Finding addresses…
+              </div>
+            )}
+            {suggestions.map((s, i) => (
+              <div
+                key={i}
+                onClick={() => selectSuggestion(s)}
+                className="px-4 py-2.5 hover:bg-neutral-50 cursor-pointer text-sm text-neutral-700 border-b border-neutral-100 last:border-0"
+              >
+                {s.description}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Currency input — like the Claims side, formats to two decimals on blur.
 // Stores/emits the raw numeric string (no £ symbol) so it round-trips cleanly.
 export const formatMoney = (raw: string): string => {
@@ -280,8 +456,8 @@ export const formatMoney = (raw: string): string => {
   return Number.isNaN(n) ? "" : n.toFixed(2);
 };
 
-export const FleetMoneyInput: React.FC<Omit<TextProps, "inputMode">> = ({
-  label, placeholder = "£", value, onChange, onBlur, disabled,
+export const FleetMoneyInput: React.FC<Omit<TextProps, "inputMode"> & { highlight?: boolean }> = ({
+  label, placeholder = "£", value, onChange, onBlur, disabled, highlight,
 }) => (
   <div className={WRAP}>
     <FieldLabel text={label} />
@@ -295,7 +471,7 @@ export const FleetMoneyInput: React.FC<Omit<TextProps, "inputMode">> = ({
         placeholder={placeholder === "£" ? "0.00" : placeholder}
         onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ""))}
         onBlur={() => { onChange(formatMoney(value)); onBlur?.(); }}
-        className={`${FIELD_BOX} pl-9`}
+        className={`${highlight ? FIELD_BOX_HIGHLIGHT : FIELD_BOX} pl-9`}
       />
     </div>
   </div>
@@ -330,27 +506,30 @@ export const FleetTextArea: React.FC<TextAreaProps> = ({
 
 // Reusable inline loader for async waits (OCR, hydration, saving).
 export const FleetInlineLoader: React.FC<{ text?: string }> = ({ text = "Loading…" }) => (
-  <div className="flex items-center gap-3 px-4 py-3 rounded-sm bg-neutral-50 text-neutral-600 text-sm font-sans-headline">
+  <div className="flex items-center gap-3 px-4 py-3 rounded bg-neutral-50 text-neutral-600 text-sm font-sans-headline">
     <span className="w-4 h-4 rounded-full border-2 border-neutral-300 border-t-neutral-900 animate-spin" aria-hidden />
     {text}
   </div>
 );
 
 interface SelectProps {
-  label: string;
+  label?: string;
   placeholder?: string;
   value: string;
   options: Option[];
   onChange: (v: string) => void;
   onBlur?: () => void;
   disabled?: boolean;
+  // Render the menu in a body portal (menuPosition fixed) so it isn't clipped when
+  // the select sits inside a scrollable/overflow-hidden container like a modal.
+  menuPortal?: boolean;
 }
 
 export const FleetSelect: React.FC<SelectProps> = ({
-  label, placeholder = "Select", value, options, onChange, onBlur, disabled,
+  label, placeholder = "Select", value, options, onChange, onBlur, disabled, menuPortal,
 }) => (
   <div className={WRAP}>
-    <FieldLabel text={label} />
+    {label && <FieldLabel text={label} />}
     <Select<Option, false>
       options={options}
       value={options.find((o) => o.value === value) ?? null}
@@ -358,13 +537,40 @@ export const FleetSelect: React.FC<SelectProps> = ({
       onBlur={onBlur}
       isDisabled={disabled}
       placeholder={placeholder}
-      styles={fleetSelectStyles}
+      styles={menuPortal ? { ...fleetSelectStyles, menuPortal: (base) => ({ ...base, zIndex: 9999 }) } : fleetSelectStyles}
       className="font-sans-headline text-base"
       classNamePrefix="fleet-select"
       menuPlacement="auto"
+      menuPortalTarget={menuPortal && typeof document !== "undefined" ? document.body : undefined}
+      menuPosition={menuPortal ? "fixed" : "absolute"}
     />
   </div>
 );
+
+export const FleetCreatableSelect: React.FC<SelectProps> = ({
+  label, placeholder = "Select", value, options, onChange, onBlur, disabled,
+}) => {
+  const selected = options.find((o) => o.value === value) ?? (value ? { value, label: value } : null);
+  return (
+    <div className={WRAP}>
+      <FieldLabel text={label} />
+      <CreatableSelect<Option, false>
+        options={options}
+        value={selected}
+        onChange={(opt) => onChange(opt ? opt.value : "")}
+        onCreateOption={(inputValue) => onChange(inputValue.trim())}
+        onBlur={onBlur}
+        isDisabled={disabled}
+        placeholder={placeholder}
+        styles={fleetSelectStyles}
+        className="font-sans-headline text-base"
+        classNamePrefix="fleet-select"
+        menuPlacement="auto"
+        formatCreateLabel={(inputValue) => `Add "${inputValue}"`}
+      />
+    </div>
+  );
+};
 
 // 15-minute time dropdown (00:00 … 23:45) — same idea as the Claims time picker
 // (timeIntervals={15}), in Fleet's theme. Value is an "HH:mm" string.
@@ -372,6 +578,43 @@ const TIME_OPTIONS: Option[] = Array.from({ length: 24 * 4 }, (_, i) => {
   const t = `${String(Math.floor(i / 4)).padStart(2, "0")}:${String((i % 4) * 15).padStart(2, "0")}`;
   return { value: t, label: t };
 });
+
+export const formatTime24 = (value?: string | null): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  const amPmMatch = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)$/i);
+  if (amPmMatch) {
+    let hour = Number(amPmMatch[1]);
+    const minute = Number(amPmMatch[2]);
+    const meridiem = amPmMatch[3].toUpperCase();
+    if (Number.isNaN(hour) || Number.isNaN(minute)) return raw;
+    if (meridiem === "PM" && hour < 12) hour += 12;
+    if (meridiem === "AM" && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+
+  const twentyFourMatch = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (twentyFourMatch) {
+    const hour = Number(twentyFourMatch[1]);
+    const minute = Number(twentyFourMatch[2]);
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+  }
+
+  const asDate = new Date(raw);
+  if (!Number.isNaN(asDate.getTime())) {
+    return `${String(asDate.getHours()).padStart(2, "0")}:${String(asDate.getMinutes()).padStart(2, "0")}`;
+  }
+
+  return raw;
+};
+
+export const currentTime24 = (): string => {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+};
 
 // Round any "HH:mm" (or Date) to the nearest 15-minute slot so a real value shows.
 export const roundToQuarter = (hh: number, mm: number): string => {
@@ -396,7 +639,7 @@ export const FleetTimeSelect: React.FC<TimeProps> = ({
     <FieldLabel text={label} />
     <Select<Option, false>
       options={TIME_OPTIONS}
-      value={TIME_OPTIONS.find((o) => o.value === value) ?? null}
+      value={TIME_OPTIONS.find((o) => o.value === formatTime24(value)) ?? null}
       onChange={(opt) => onChange(opt ? opt.value : "")}
       onBlur={onBlur}
       isDisabled={disabled}
@@ -420,7 +663,7 @@ interface ReadonlyProps {
 export const FleetReadonlyField: React.FC<ReadonlyProps> = ({ label, value, placeholder, icon }) => (
   <div className={WRAP}>
     <FieldLabel text={label} />
-    <div className="self-stretch px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 flex justify-between items-center">
+    <div className="self-stretch px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex justify-between items-center">
       <span className={`text-base font-light leading-4 ${value ? "text-neutral-900" : "text-neutral-300"}`}>
         {value || placeholder}
       </span>
@@ -436,9 +679,10 @@ interface DateProps {
   onBlur?: () => void;
   disabled?: boolean;
   error?: string;
+  suffix?: string;
 }
 
-export const FleetDateField: React.FC<DateProps> = ({ label, value, onChange, onBlur, disabled, error }) => {
+export const FleetDateField: React.FC<DateProps> = ({ label, value, onChange, onBlur, disabled, error, suffix }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   // value is "yyyy-mm-dd"; parse at local midnight, save back in local time
@@ -465,9 +709,10 @@ export const FleetDateField: React.FC<DateProps> = ({ label, value, onChange, on
           type="button"
           disabled={disabled}
           onClick={() => setOpen((o) => !o)}
-          className={`${boxClass(error)} w-full pr-11 text-left ${selected ? "text-neutral-900" : "text-neutral-300"}`}
+          className={`${boxClass(error)} w-full pr-11 text-left flex items-center justify-between gap-3 ${selected ? "text-neutral-900" : "text-neutral-300"}`}
         >
-          {selected ? selected.toLocaleDateString("en-GB") : "Select Date"}
+          <span>{selected ? selected.toLocaleDateString("en-GB") : "Select Date"}</span>
+          {suffix && <span className="mr-4 text-neutral-700 text-sm font-medium leading-4">{suffix}</span>}
         </button>
         <img src={Calendar} alt="" className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4" />
         {open && !disabled && (
@@ -495,7 +740,7 @@ interface SegmentedProps {
 
 // Yes / No / Withdrawn style segmented control (selected = black, Fleet theme).
 export const FleetSegmented: React.FC<SegmentedProps> = ({ options, value, onChange, disabled }) => (
-  <div className="inline-flex rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 overflow-hidden font-sans-headline">
+  <div className="inline-flex rounded outline outline-1 -outline-offset-1 outline-neutral-200 overflow-hidden font-sans-headline">
     {options.map((o, idx) => {
       const active = value === o.value;
       return (
@@ -529,7 +774,7 @@ export const FleetYesNo: React.FC<YesNoProps> = ({ value, onChange, disabled }) 
       return (
         <button key={opt} type="button" disabled={disabled} onClick={() => onChange(opt)} className="flex items-center gap-2">
           <span
-            className={`w-5 h-5 rounded-sm flex items-center justify-center ${
+            className={`w-5 h-5 rounded flex items-center justify-center ${
               active ? "bg-neutral-900" : "bg-neutral-200"
             }`}
           >

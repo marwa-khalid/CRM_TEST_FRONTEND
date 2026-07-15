@@ -95,8 +95,8 @@ const ReminderEditModal = ({ initial, onClose, onSave }: {
             const checked = sel.includes(o.value);
             return (
               <button key={o.value} type="button" onClick={() => toggle(o.value)}
-                className={`w-full flex items-center gap-2 p-2.5 rounded-sm text-left ${checked ? "bg-blue-100" : "hover:bg-neutral-50"}`}>
-                <span className={`w-5 h-5 rounded-sm shrink-0 ${checked ? "bg-blue-500 border-[6px] border-blue-200" : "bg-neutral-300"}`} />
+                className={`w-full flex items-center gap-2 p-2.5 rounded text-left ${checked ? "bg-blue-100" : "hover:bg-neutral-50"}`}>
+                <span className={`w-5 h-5 rounded shrink-0 ${checked ? "bg-blue-500 border-[6px] border-blue-200" : "bg-neutral-300"}`} />
                 <span className="text-neutral-700 text-sm">{o.label}</span>
               </button>
             );

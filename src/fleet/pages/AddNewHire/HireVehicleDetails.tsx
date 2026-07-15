@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetSelect, FleetDateField, FleetInlineLoader } from "../../components/fields";
+import { FleetTextInput, FleetSelect, FleetCreatableSelect, FleetDateField, FleetInlineLoader, currentTime24, formatTime24 } from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
-import FleetEmailModal from "../../components/FleetEmailModal";
+import FleetEmailModal, { type FleetEmailSendArgs } from "../../components/FleetEmailModal";
 import FleetProvisionSlider from "../../components/FleetProvisionSlider";
 import FleetCheckoutModal, { EMPTY_CHECKOUT } from "../../components/FleetCheckoutModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
+import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import type { CheckoutData } from "../../components/FleetCheckoutModal";
 import { Eye } from "lucide-react";
 import DownloadIcon from "../../assets/icons/Download.svg";
@@ -27,7 +28,17 @@ import {
   getGeneratedDocumentFiles,
   type GeneratedDocumentKey,
 } from "../../services/generatedDocumentService";
-import { createVehicle, listVehicles, updateVehicle } from "../../services/vehicleService";
+import { sendOnHireEmail, type SendHireEmailResult } from "../../services/emailService";
+import { sendOnHireSms } from "../../services/smsService";
+import {
+  createVehicle,
+  listVehicleRegister,
+  listVehicles,
+  deleteVehicle,
+  updateVehicle,
+  upsertVehicleRegister,
+  type FleetVehicleRegister,
+} from "../../services/vehicleService";
 import { extractInsuranceCertificate } from "../../services/driverService";
 import {
   BOROUGH_OPTIONS,
@@ -44,12 +55,13 @@ interface Vehicle extends HireVehicleForm {
   insuranceCertId?: number;
   insuranceCertViewUrl: string | null;
   insuranceCertIsPdf: boolean;
+  hireStartTime: string;
 }
 
 const EMPTY_VEHICLE: Vehicle = {
   vehicleCostPerWeek: "", deposit: "", borough: "", registrationNumber: "", make: "",
   model: "", transmission: "", hireStatus: "", swapCar: "", swapReason: "", swapReasonText: "",
-  hireStartDate: "", hireEndDate: "", totalHirePeriod: "", hireInsuranceType: "", dateReceived: "",
+  hireStartDate: "", hireStartTime: "", hireEndDate: "", totalHirePeriod: "", hireInsuranceType: "", dateReceived: "",
   policyStartDate: "", policyEndDate: "", crossHireProviderName: "", crossHireContactDetails: "",
   crossHireRate: "", checkout: { ...EMPTY_CHECKOUT }, insuranceCertName: "", insuranceCertViewUrl: null,
   insuranceCertIsPdf: false,
@@ -64,7 +76,7 @@ const fromRecord = (r: Record<string, unknown>): Vehicle => ({
   vehicleCostPerWeek: s(r.vehicle_cost_per_week), deposit: s(r.deposit), borough: s(r.borough),
   registrationNumber: s(r.registration_number), make: s(r.make), model: s(r.model), transmission: s(r.transmission),
   hireStatus: s(r.hire_status), swapCar: s(r.swap_car), swapReason: s(r.swap_reason), swapReasonText: s(r.swap_reason_text),
-  hireStartDate: d(r.hire_start_date), hireEndDate: d(r.hire_end_date), totalHirePeriod: s(r.total_hire_period),
+  hireStartDate: d(r.hire_start_date), hireStartTime: s(r.hire_start_time), hireEndDate: d(r.hire_end_date), totalHirePeriod: s(r.total_hire_period),
   hireInsuranceType: s(r.hire_insurance_type), dateReceived: d(r.insurance_date_received),
   policyStartDate: d(r.policy_start_date), policyEndDate: d(r.policy_end_date),
   crossHireProviderName: s(r.cross_hire_provider_name), crossHireContactDetails: s(r.cross_hire_contact_details),
@@ -92,6 +104,13 @@ const computePeriod = (start: string, end: string): string => {
 
 // Today as yyyy-mm-dd in local time (avoids the BST off-by-one).
 const today = () => new Date().toLocaleDateString("sv-SE");
+const displayDate = (value: string) => {
+  if (!value) return "";
+  const dte = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(dte.getTime())) return value;
+  return dte.toLocaleDateString("en-GB");
+};
+const normaliseReg = (value: string) => value.replace(/[^a-z0-9]/gi, "").toUpperCase();
 
 const ClockIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden>
@@ -107,11 +126,15 @@ const UploadPrompt = () => (
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
-const OUTLINE_BTN = "px-6 py-3 rounded-sm bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50";
+const OUTLINE_BTN = "px-6 py-3 rounded bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50";
 const GENERATED_DOCUMENTS: Array<{ label: string; key?: GeneratedDocumentKey }> = [
   { label: "Raise Hire Documentation", key: "raise_hire_documentation" },
   { label: "Raise Authority Letter", key: "raise_authority_letter" },
   { label: "Raise Vehicle Inspection Sheet", key: "raise_vehicle_inspection_sheet" },
+];
+const TRANSMISSION_OPTIONS = [
+  { label: "Automatic", value: "Automatic" },
+  { label: "Manual", value: "Manual" },
 ];
 const INSURANCE_DOC_TYPE = "insurance_certificate";
 const PDF_EXT = /\.pdf$/i;
@@ -166,7 +189,7 @@ const CrossHiredModal: React.FC<{
         <div className="h-px bg-neutral-100" />
         <div className="flex justify-end items-center gap-4">
           <button type="button" onClick={onClose} className={OUTLINE_BTN}>Cancel</button>
-          <button type="button" onClick={() => onSave(v)} className="px-6 py-3 rounded-sm bg-neutral-900 text-white text-base font-medium hover:bg-black">Next</button>
+          <button type="button" onClick={() => onSave(v)} className="px-6 py-3 rounded bg-neutral-900 text-white text-base font-medium hover:bg-black">Next</button>
         </div>
       </div>
     </div>
@@ -180,65 +203,160 @@ const HireVehicleDetails: React.FC = () => {
   const [crossOpen, setCrossOpen] = useState(false);
   const [provisionOpen, setProvisionOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [emailTitle, setEmailTitle] = useState("Email Document");
+  const [emailTo, setEmailTo] = useState("");
   const [emailSubject, setEmailSubject] = useState<string | null>(null);
   const [emailBody, setEmailBody] = useState("");
   const [emailFiles, setEmailFiles] = useState<File[]>([]);
+  const [emailAfterSend, setEmailAfterSend] = useState<(() => void | Promise<void>) | null>(null);
+  const [emailPreviewHtml, setEmailPreviewHtml] = useState("");
+  const [emailSendOverride, setEmailSendOverride] = useState<((args: FleetEmailSendArgs) => Promise<SendHireEmailResult>) | null>(null);
+  const [vehicleRegister, setVehicleRegister] = useState<FleetVehicleRegister[]>([]);
   const [insuranceOcrLoading, setInsuranceOcrLoading] = useState(false);
   const [deleteCertOpen, setDeleteCertOpen] = useState(false);
+  const [deleteVehicleIndex, setDeleteVehicleIndex] = useState<number | null>(null);
   const [generatedActionLoading, setGeneratedActionLoading] = useState<string | null>(null);
-  const { hireId } = useHire();
+  const [initialLoading, setInitialLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const { hire, hireId } = useHire();
 
   const active = vehicles[activeIndex];
   const onHire = active.hireStatus === "on_hire";
   const offHire = active.hireStatus === "off_hire";
   const customerOwnInsurance = active.hireInsuranceType === "customer_own";
+  const selectedRegisterVehicle = vehicleRegister.find((item) => normaliseReg(item.registration_number) === normaliseReg(active.registrationNumber));
+  const vehicleUnavailable = Boolean(selectedRegisterVehicle?.is_active && active.hireStatus !== "on_hire");
+  const registrationOptions = vehicleRegister.map((item) => ({
+    value: item.registration_number,
+    label: `${item.registration_number}`,
+  }));
 
   // Load existing vehicles for this hire (or create the first one).
   useEffect(() => {
-    if (!hireId) return;
-    Promise.all([listVehicles(hireId), getHireDocuments(hireId)]).then(async ([list, docs]) => {
-      const cert = docs.filter((doc) => doc.doc_type === INSURANCE_DOC_TYPE).sort((a, b) => b.id - a.id)[0];
-      const certViewUrl = cert ? await getHireDocumentFileUrl(hireId, cert.id) : null;
-      const certPatch = {
-        insuranceCertName: cert?.filename || "",
-        insuranceCertId: cert?.id,
-        insuranceCertViewUrl: certViewUrl,
-        insuranceCertIsPdf: PDF_EXT.test(cert?.filename || ""),
-      };
-      if (list.length > 0) {
-        setVehicles(list.map((record) => ({ ...fromRecord(record), ...certPatch })));
-        setActiveIndex(0);
-      } else {
-        createVehicle(hireId).then((v) => {
-          if (v) setVehicles([{ ...EMPTY_VEHICLE, id: v.id as number, ...certPatch }]);
-        });
+    if (!hireId) {
+      setInitialLoading(false);
+      return;
+    }
+
+    let active = true;
+    setInitialLoading(true);
+    (async () => {
+      try {
+        const [list, docs, register] = await Promise.all([listVehicles(hireId), getHireDocuments(hireId), listVehicleRegister()]);
+        const cert = docs.filter((doc) => doc.doc_type === INSURANCE_DOC_TYPE).sort((a, b) => b.id - a.id)[0];
+        const certViewUrl = cert ? await getHireDocumentFileUrl(hireId, cert.id) : null;
+        const certPatch = {
+          insuranceCertName: cert?.filename || "",
+          insuranceCertId: cert?.id,
+          insuranceCertViewUrl: certViewUrl,
+          insuranceCertIsPdf: PDF_EXT.test(cert?.filename || ""),
+        };
+
+        if (!active) return;
+        setVehicleRegister(register);
+        if (list.length > 0) {
+          setVehicles(list.map((record) => ({ ...fromRecord(record), ...certPatch })));
+          setActiveIndex(0);
+        } else {
+          const created = await createVehicle(hireId);
+          if (active && created) {
+            setVehicles([{ ...EMPTY_VEHICLE, id: created.id as number, ...certPatch }]);
+          }
+        }
+      } finally {
+        if (active) setInitialLoading(false);
       }
-    });
+    })();
+
+    return () => {
+      active = false;
+    };
   }, [hireId]);
 
   const patch = (updates: Partial<Vehicle>) =>
     setVehicles((vs) => vs.map((v, i) => (i === activeIndex ? { ...v, ...updates } : v)));
   const set = (key: keyof HireVehicleForm, value: string) => patch({ [key]: value } as Partial<Vehicle>);
 
+  const mergeRegisterRow = (row: FleetVehicleRegister) => {
+    setVehicleRegister((items) => {
+      const exists = items.some((item) => normaliseReg(item.registration_number) === normaliseReg(row.registration_number));
+      const next = exists
+        ? items.map((item) => normaliseReg(item.registration_number) === normaliseReg(row.registration_number) ? row : item)
+        : [...items, row];
+      return [...next].sort((a, b) => a.registration_number.localeCompare(b.registration_number));
+    });
+  };
+
+  const saveRegisterFromVehicle = async (vehicle: Vehicle) => {
+    const registrationNumber = normaliseReg(vehicle.registrationNumber);
+    if (!registrationNumber) return;
+    const row = await upsertVehicleRegister({
+      registration_number: registrationNumber,
+      make: vehicle.make,
+      model: vehicle.model,
+      transmission: vehicle.transmission,
+    });
+    if (row) mergeRegisterRow(row);
+  };
+
+  const handleRegistrationSelect = async (registrationNumber: string) => {
+    const normalisedRegistration = normaliseReg(registrationNumber);
+    const selected = vehicleRegister.find((item) => normaliseReg(item.registration_number) === normalisedRegistration);
+    const updates: Partial<Vehicle> = {
+      registrationNumber: normalisedRegistration,
+      make: selected?.make || "",
+      model: selected?.model || "",
+      transmission: selected?.transmission || "",
+    };
+    patch(updates);
+    await saveActive({
+      registration_number: normalisedRegistration || null,
+      make: updates.make || null,
+      model: updates.model || null,
+      transmission: updates.transmission || null,
+    });
+    await saveRegisterFromVehicle({ ...active, ...updates });
+  };
+
   // Persist a partial (snake-cased columns) to the active vehicle, best-effort.
   const saveActive = (partial: Record<string, unknown>) => {
     const v = vehicles[activeIndex];
-    if (hireId && v?.id) updateVehicle(hireId, v.id, partial);
+    if (hireId && v?.id) return updateVehicle(hireId, v.id, partial);
+    return Promise.resolve();
   };
 
   const onHireDate = (key: "hireStartDate" | "hireEndDate", column: string, value: string) => {
+    const dateTime = value ? currentTime24() : "";
+    const nextStartTime = key === "hireStartDate" ? (formatTime24(active.hireStartTime) || dateTime) : formatTime24(active.hireStartTime);
+    const nextEndTime = key === "hireEndDate" ? (formatTime24(active.checkout.checkoutTime) || dateTime) : formatTime24(active.checkout.checkoutTime);
     setVehicles((vs) =>
       vs.map((v, i) => {
         if (i !== activeIndex) return v;
         const next = { ...v, [key]: value };
+        if (key === "hireStartDate") {
+          next.hireStartTime = value ? nextStartTime : "";
+        }
+        if (key === "hireEndDate") {
+          next.checkout = {
+            ...next.checkout,
+            checkoutDate: value || next.checkout.checkoutDate,
+            checkoutTime: value ? nextEndTime : "",
+          };
+        }
         next.totalHirePeriod = computePeriod(next.hireStartDate, next.hireEndDate);
         return next;
       }),
     );
-    saveActive({ [column]: value || null, total_hire_period: computePeriod(
+    const partial: Record<string, unknown> = { [column]: value || null, total_hire_period: computePeriod(
       key === "hireStartDate" ? value : active.hireStartDate,
       key === "hireEndDate" ? value : active.hireEndDate,
-    ) });
+    ) };
+    if (key === "hireStartDate") partial.hire_start_time = value ? nextStartTime : null;
+    if (key === "hireEndDate") {
+      partial.checkout_date = value || null;
+      partial.checkout_time = value ? nextEndTime : null;
+    }
+    saveActive(partial);
   };
 
   const handleCert = async (file: File) => {
@@ -356,38 +474,200 @@ const HireVehicleDetails: React.FC = () => {
     });
   };
 
-  const completeCheckout = (cd: CheckoutData) => {
+  const completeCheckout = async (cd: CheckoutData) => {
     // Off Hire → auto-populate Hire End Date (today) + recompute the period.
-    const end = today();
+    const end = cd.checkoutDate || today();
+    const endTime = formatTime24(cd.checkoutTime) || currentTime24();
+    const checkout = { ...cd, checkoutDate: end, checkoutTime: endTime };
     const period = computePeriod(active.hireStartDate, end);
-    patch({ checkout: cd, hireStatus: "off_hire", hireEndDate: end, totalHirePeriod: period });
-    saveActive({
-      mileage_start: cd.mileageStart, mileage_end: cd.mileageEnd, checkout_date: cd.checkoutDate || null,
-      checkout_time: cd.checkoutTime, checkout_cleanliness: cd.cleanliness, damage_charges: cd.damageCharges,
-      damage_notes: cd.damageNotes, hire_status: "off_hire", hire_end_date: end, total_hire_period: period,
-    });
-    setCheckoutOpen(false);
-    toast.success("Vehicle checked out (off hire).");
+    setActionLoading("off_hire");
+    try {
+      patch({ checkout, hireStatus: "off_hire", hireEndDate: end, totalHirePeriod: period });
+      await saveActive({
+        mileage_start: cd.mileageStart, mileage_end: cd.mileageEnd, checkout_date: end,
+        checkout_time: endTime, checkout_cleanliness: cd.cleanliness, damage_charges: cd.damageCharges,
+        damage_notes: cd.damageNotes, hire_status: "off_hire", hire_end_date: end, total_hire_period: period,
+      });
+      setVehicleRegister((items) =>
+        items.map((item) =>
+          normaliseReg(item.registration_number) === normaliseReg(active.registrationNumber)
+            ? { ...item, is_active: false }
+            : item,
+        ),
+      );
+      setCheckoutOpen(false);
+      toast.success("Vehicle checked out (off hire).");
+    } catch {
+      toast.error("Could not mark vehicle off hire. Please try again.");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  // "Switching Hirer" — create a NEW vehicle (on hire) and make it active.
+  // "Switching Hirer" — create a NEW vehicle card and make it active.
+  // The user still needs to select the vehicle and use On Hire, so the
+  // email/SMS notification flow runs with complete vehicle details.
   const switchVehicle = async () => {
-    const created = hireId ? await createVehicle(hireId) : null;
-    const newVehicle: Vehicle = { ...EMPTY_VEHICLE, id: created?.id as number | undefined, hireStatus: "on_hire" };
-    setVehicles((vs) => [...vs, newVehicle]);
-    setActiveIndex(vehicles.length);
-    if (created?.id && hireId) updateVehicle(hireId, created.id as number, { hire_status: "on_hire" });
-    toast.success("New hire vehicle added (on hire).");
+    if (!hireId) {
+      toast.warn("Save the hire before switching vehicle.");
+      return;
+    }
+    setActionLoading("switch_vehicle");
+    try {
+      const created = await createVehicle(hireId);
+      if (!created?.id) throw new Error("Vehicle create failed");
+      const newVehicle: Vehicle = { ...EMPTY_VEHICLE, id: created.id as number };
+      setVehicles((vs) => [...vs, newVehicle]);
+      setActiveIndex(vehicles.length);
+      toast.success("New hire vehicle added. Select the vehicle details, then mark it on hire.");
+    } catch {
+      toast.error("Could not switch vehicle. Please try again.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const requestDeleteVehicle = (index: number) => {
+    if (vehicles.length <= 1) {
+      toast.warn("At least one hire vehicle card is required.");
+      return;
+    }
+    setDeleteVehicleIndex(index);
+  };
+
+  const confirmDeleteVehicle = async () => {
+    if (deleteVehicleIndex === null) return;
+    const target = vehicles[deleteVehicleIndex];
+    if (!target) {
+      setDeleteVehicleIndex(null);
+      return;
+    }
+    if (target.id && hireId) {
+      const deleted = await deleteVehicle(hireId, target.id);
+      if (!deleted) {
+        toast.error("Could not delete vehicle. Please try again.");
+        return;
+      }
+    }
+
+    setVehicles((current) => current.filter((_, index) => index !== deleteVehicleIndex));
+    setActiveIndex((current) => {
+      if (current < deleteVehicleIndex) return current;
+      return Math.max(0, current - 1);
+    });
+    setDeleteVehicleIndex(null);
+    toast.success("Vehicle deleted.");
   };
 
   const setStatus = (status: string) => { set("hireStatus", status); saveActive({ hire_status: status }); };
 
-  // On Hire → auto-populate Hire Start Date (today) if it's not already set.
-  const onHireClick = () => {
-    const start = active.hireStartDate || today();
+  const applyOnHire = async (start: string, startTime: string) => {
     const period = computePeriod(start, active.hireEndDate);
-    patch({ hireStatus: "on_hire", hireStartDate: start, totalHirePeriod: period });
-    saveActive({ hire_status: "on_hire", hire_start_date: start, total_hire_period: period });
+    patch({ hireStatus: "on_hire", hireStartDate: start, hireStartTime: startTime, totalHirePeriod: period });
+    setVehicleRegister((items) =>
+      items.map((item) =>
+        normaliseReg(item.registration_number) === normaliseReg(active.registrationNumber)
+          ? { ...item, is_active: true }
+          : item,
+      ),
+    );
+    await saveActive({
+      hire_status: "on_hire",
+      hire_start_date: start,
+      hire_start_time: startTime,
+      total_hire_period: period,
+    });
+    if (hireId) {
+      try {
+        await sendOnHireSms(hireId);
+        toast.success("On-hire SMS sent.");
+      } catch (err) {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        toast.warn(detail || "Vehicle marked on hire, but SMS could not be sent.");
+      }
+    }
+    toast.success("Vehicle marked on hire.");
+  };
+
+  // On Hire -> prepare the automated email preview. The modal send action then
+  // sends the structured email, stamps the date/time, and sends the SMS.
+  const onHireClick = async () => {
+    if (vehicleUnavailable) {
+      toast.warn("This vehicle is already on hire for another fleet record.");
+      return;
+    }
+    if (!hireId) {
+      toast.warn("Save the hire before marking the vehicle on hire.");
+      return;
+    }
+    if (!active.registrationNumber || !active.make || !active.model) {
+      toast.warn("Select a registration number before marking the vehicle on hire.");
+      return;
+    }
+    if (!hire?.driver_email) {
+      toast.warn("Add the hirer email on Driver Details before marking the vehicle on hire.");
+      return;
+    }
+    const start = today();
+    const startTime = currentTime24();
+    const hireStart = `${displayDate(start)} ${startTime}`;
+    const subject = `Your Vehicle is Now On Hire - ${active.registrationNumber}`;
+
+    const body = [
+      `Dear ${hire.driver_name || "Hirer"},`,
+      "",
+      "Your hire vehicle is now on hire. Please see the vehicle details below.",
+      "",
+      `Registration: ${active.registrationNumber}`,
+      `Make: ${active.make}`,
+      `Model: ${active.model}`,
+      `Hire Start: ${hireStart}`,
+      "",
+      "Please keep this email for your records during the hire period.",
+      "If you need assistance during the hire, please contact Skyline Car Hire (UK) Ltd.",
+      "Please note that in the event of a road traffic accident you must call 0800 410 1999.",
+      "",
+      "Kind regards,",
+      "Skyline Car Hire (UK) Ltd",
+    ].join("\n");
+
+    setActionLoading("on_hire_preview");
+    try {
+      // The modal shows an EDITABLE message (to/cc/subject/body). The actual email that
+      // sends is always the structured (boxed) template — the free-form body is not used.
+      setEmailTitle("On-Hire Email");
+      setEmailTo(hire.driver_email);
+      setEmailSubject(subject);
+      setEmailBody(body);
+      setEmailFiles([]);
+      setEmailPreviewHtml("");
+      setEmailSendOverride(() => async ({ to, cc, subject: nextSubject }: FleetEmailSendArgs) =>
+        sendOnHireEmail(hireId, {
+          to,
+          cc,
+          subject: nextSubject,
+          registration: active.registrationNumber,
+          make: active.make,
+          model: active.model,
+          hire_start: hireStart,
+        }),
+      );
+      setEmailAfterSend(() => async () => {
+        setActionLoading("on_hire");
+        try {
+          await applyOnHire(start, startTime);
+        } catch {
+          toast.error("Email sent, but the vehicle could not be marked on hire.");
+        } finally {
+          setActionLoading(null);
+        }
+      });
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail;
+      toast.error(detail || (err as Error)?.message || "Could not prepare on-hire email preview.");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleGeneratedAction = async (
@@ -402,18 +682,26 @@ const HireVehicleDetails: React.FC = () => {
       toast.info(`${document.label} will be wired next.`);
       return;
     }
+    const vehicleId = active.id;
+    if (!vehicleId) {
+      toast.warn("Save the hire vehicle before generating documents.");
+      return;
+    }
     const loadingKey = `${document.key}:${action}`;
     setGeneratedActionLoading(loadingKey);
     try {
       if (action === "email") {
-        const files = await getGeneratedDocumentFiles(hireId, document.key);
+        const files = await getGeneratedDocumentFiles(hireId, document.key, vehicleId);
+        setEmailTitle("Email Document");
+        setEmailTo("");
         setEmailFiles(files);
         setEmailSubject(`${document.label} - ${active.registrationNumber || "Fleet Hire"}`);
         setEmailBody(`Please find attached: ${document.label}.`);
+        setEmailAfterSend(null);
         return;
       }
 
-      await downloadGeneratedDocumentBundle(hireId, document.key);
+      await downloadGeneratedDocumentBundle(hireId, document.key, vehicleId);
       if (action === "print") {
         toast.info("Downloaded hire documents. Open the Office files to print them.");
       } else {
@@ -427,40 +715,57 @@ const HireVehicleDetails: React.FC = () => {
   };
 
   const closeEmailModal = () => {
+    setEmailTitle("Email Document");
+    setEmailTo("");
     setEmailSubject(null);
     setEmailBody("");
     setEmailFiles([]);
+    setEmailAfterSend(null);
+    setEmailPreviewHtml("");
+    setEmailSendOverride(null);
   };
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
+      {initialLoading && <FleetSpinnerLoader />}
+      {actionLoading && <FleetSpinnerLoader />}
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-black text-2xl font-semibold leading-6">Hire Vehicle Details</h2>
-        <button type="button" onClick={() => setProvisionOpen(true)} className="h-8 px-3 py-2 bg-neutral-900 rounded-sm flex items-center gap-2 text-white text-sm hover:bg-black">
+        <button type="button" onClick={() => setProvisionOpen(true)} className="h-8 px-3 py-2 bg-neutral-900 rounded flex items-center gap-2 text-white text-sm hover:bg-black">
           <ClockIcon />
           Provision Log
         </button>
       </div>
 
-      {/* Vehicle cards — active = white + outline, others = grey. */}
+      {/* Vehicle cards */}
       <div className="flex gap-6">
         {vehicles.map((v, i) => {
           const isActive = i === activeIndex;
           return (
-            <button
+            <div
               key={v.id ?? i}
-              type="button"
-              onClick={() => setActiveIndex(i)}
-              className={`flex-1 p-5 rounded-lg flex items-center gap-4 text-left ${
-                isActive ? "bg-white outline outline-1 -outline-offset-1 outline-neutral-700" : "bg-neutral-100"
+              className={`flex-1 p-5 rounded-lg outline outline-1 -outline-offset-1 flex items-start gap-4 ${
+                isActive ? "bg-neutral-100 outline-neutral-700" : "bg-white outline-neutral-200"
               }`}
             >
-              <div className="flex-1 flex flex-col gap-1">
-                <div className="text-black text-xl font-semibold leading-5">Vehicle{i + 1}</div>
-                <div className="text-neutral-700 text-sm font-medium">{v.registrationNumber || "Reg#"}</div>
-              </div>
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveIndex(i)}
+                className="flex-1 min-w-0 rounded-lg flex flex-col items-start gap-1 text-left"
+              >
+                <div className={`${isActive ? "text-neutral-900" : "text-neutral-500"} text-xl font-semibold leading-5`}>Vehicle{i + 1}</div>
+                <div className={`${isActive ? "text-neutral-700" : "text-neutral-500"} text-sm font-medium truncate max-w-full`}>{v.registrationNumber || "Reg#"}</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => requestDeleteVehicle(i)}
+                className="w-5 h-5 shrink-0 flex items-center justify-center"
+                title={`Delete Vehicle${i + 1}`}
+              >
+                <img src={RemoveIcon} alt="" className="w-4 h-4 opacity-60" />
+              </button>
+            </div>
           );
         })}
       </div>
@@ -471,22 +776,56 @@ const HireVehicleDetails: React.FC = () => {
         <div className="h-px bg-neutral-100" />
         <div className="grid grid-cols-2 gap-5">
           <FleetTextInput label="Vehicle Cost Per Week" placeholder="Enter Cost" inputMode="decimal" value={active.vehicleCostPerWeek} onChange={(v) => set("vehicleCostPerWeek", v)} onBlur={() => saveActive({ vehicle_cost_per_week: active.vehicleCostPerWeek })} />
-          <FleetTextInput label="Deposit" placeholder="Enter Deposit" inputMode="decimal" value={active.deposit} onChange={(v) => set("deposit", v)} onBlur={() => saveActive({ deposit: active.deposit })} />
+          <FleetTextInput label="Security Deposit" placeholder="Enter Deposit" inputMode="decimal" value={active.deposit} onChange={(v) => set("deposit", v)} onBlur={() => saveActive({ deposit: active.deposit })} />
         </div>
         <div className="grid grid-cols-2 gap-5">
           <FleetSelect label="Borough" value={active.borough} options={BOROUGH_OPTIONS} onChange={(v) => { set("borough", v); saveActive({ borough: v }); }} />
           <div />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Registration Number" placeholder="Reg Number" value={active.registrationNumber} onChange={(v) => set("registrationNumber", v)} onBlur={() => saveActive({ registration_number: active.registrationNumber })} />
+          <FleetCreatableSelect
+            label="Registration Number"
+            placeholder="Search Reg Number"
+            value={active.registrationNumber}
+            options={registrationOptions}
+            onChange={handleRegistrationSelect}
+          />
           <div />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Make" placeholder="Enter Make" value={active.make} onChange={(v) => set("make", v)} onBlur={() => saveActive({ make: active.make })} />
-          <FleetTextInput label="Model" placeholder="Enter Model" value={active.model} onChange={(v) => set("model", v)} onBlur={() => saveActive({ model: active.model })} />
+          <FleetTextInput
+            label="Make"
+            placeholder="Auto-filled from registration"
+            value={active.make}
+            onChange={(v) => set("make", v)}
+            onBlur={async () => {
+              await saveActive({ make: active.make || null });
+              await saveRegisterFromVehicle(active);
+            }}
+          />
+          <FleetTextInput
+            label="Model"
+            placeholder="Auto-filled from registration"
+            value={active.model}
+            onChange={(v) => set("model", v)}
+            onBlur={async () => {
+              await saveActive({ model: active.model || null });
+              await saveRegisterFromVehicle(active);
+            }}
+          />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Transmission" placeholder="Enter Type" value={active.transmission} onChange={(v) => set("transmission", v)} onBlur={() => saveActive({ transmission: active.transmission })} />
+          <FleetSelect
+            label="Transmission"
+            placeholder="Select Transmission"
+            value={active.transmission}
+            options={TRANSMISSION_OPTIONS}
+            onChange={async (v) => {
+              set("transmission", v);
+              await saveActive({ transmission: v || null });
+              await saveRegisterFromVehicle({ ...active, transmission: v });
+            }}
+          />
           <div />
         </div>
       </section>
@@ -494,18 +833,35 @@ const HireVehicleDetails: React.FC = () => {
       {/* On / Off hire */}
       <section className={SECTION}>
         <div className="flex justify-between items-center gap-4">
-          {onHire ? (
-            <span className="px-3 py-2 bg-neutral-100 rounded-sm text-neutral-700 text-sm">Vehicle not available - already on hire</span>
-          ) : offHire ?
-              <span className="px-3 py-2 bg-neutral-100 rounded-sm text-neutral-700 text-sm">Vehicle not available - already off hire</span> :
-              (
-            <span />
-            )}
+          <span />
           <div className="flex items-center gap-4">
-            <button type="button" disabled={offHire || onHire} onClick={onHireClick} className={`px-10 py-4 rounded-sm text-base font-medium outline outline-1 -outline-offset-1 ${onHire ? "bg-white text-neutral-300 outline-neutral-200 cursor-not-allowed" : "bg-white text-neutral-900 outline-neutral-900 hover:bg-neutral-50"}`}>
+            {vehicleUnavailable && (
+              <span className="px-4 py-2 rounded-full bg-neutral-100 text-neutral-700 text-sm font-medium whitespace-nowrap">
+                Vehicle not available - already on hire.
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={offHire || onHire || vehicleUnavailable}
+              onClick={onHireClick}
+              className={`px-10 py-4 rounded text-base font-medium outline outline-1 -outline-offset-1 ${
+                offHire || onHire || vehicleUnavailable
+                  ? "bg-white text-neutral-300 outline-neutral-200 cursor-not-allowed"
+                  : "bg-white text-neutral-900 outline-neutral-900 hover:bg-neutral-50"
+              }`}
+            >
               On Hire
             </button>
-            <button type="button" disabled={offHire} onClick={() => setCheckoutOpen(true)} className="px-10 py-4 rounded-sm text-base font-medium bg-white text-neutral-900 outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50">
+            <button
+              type="button"
+              disabled={offHire}
+              onClick={() => setCheckoutOpen(true)}
+              className={`px-10 py-4 rounded text-base font-medium outline outline-1 -outline-offset-1 ${
+                offHire
+                  ? "bg-white text-neutral-300 outline-neutral-200 cursor-not-allowed"
+                  : "bg-white text-neutral-900 outline-neutral-900 hover:bg-neutral-50"
+              }`}
+            >
               Off Hire
             </button>
           </div>
@@ -539,7 +895,7 @@ const HireVehicleDetails: React.FC = () => {
                 onBlur={() => saveActive({ swap_reason_text: active.swapReasonText })}
                 placeholder="Reason to swap"
                 rows={3}
-                className="h-24 px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
+                className="h-24 px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
               />
             </div>
             <div className="flex justify-end items-center gap-4">
@@ -555,8 +911,18 @@ const HireVehicleDetails: React.FC = () => {
         <h3 className={H3}>Hire Dates &amp; Duration</h3>
         <div className="h-px bg-neutral-100" />
         <div className="grid grid-cols-2 gap-5">
-          <FleetDateField label="Hire Start Date" value={active.hireStartDate} onChange={(v) => onHireDate("hireStartDate", "hire_start_date", v)} />
-          <FleetDateField label="Hire End Date" value={active.hireEndDate} onChange={(v) => onHireDate("hireEndDate", "hire_end_date", v)} />
+          <div className="flex flex-col gap-1">
+            <FleetDateField label="Hire Start Date" value={active.hireStartDate} onChange={(v) => onHireDate("hireStartDate", "hire_start_date", v)} />
+            {active.hireStartDate && active.hireStartTime && (
+              <span className="text-neutral-500 text-sm">Time: {formatTime24(active.hireStartTime)}</span>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <FleetDateField label="Hire End Date" value={active.hireEndDate} onChange={(v) => onHireDate("hireEndDate", "hire_end_date", v)} />
+            {active.hireEndDate && active.checkout.checkoutTime && (
+              <span className="text-neutral-500 text-sm">Time: {formatTime24(active.checkout.checkoutTime)}</span>
+            )}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-5">
           <FleetTextInput label="Total Hire Period" placeholder="Auto-calculated" value={active.totalHirePeriod} onChange={(v) => set("totalHirePeriod", v)} onBlur={() => saveActive({ total_hire_period: active.totalHirePeriod })} />
@@ -619,7 +985,7 @@ const HireVehicleDetails: React.FC = () => {
                     onClick={viewInsuranceCertificate}
                     title="View certificate"
                     aria-label="View certificate"
-                    className="w-9 h-9 rounded-sm bg-white outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center text-neutral-900 hover:bg-neutral-50"
+                    className="w-9 h-9 rounded bg-white outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center text-neutral-900 hover:bg-neutral-50"
                   >
                     <Eye size={16} />
                   </button>
@@ -628,7 +994,7 @@ const HireVehicleDetails: React.FC = () => {
                     onClick={() => setCertOpen(true)}
                     title="Replace certificate"
                     aria-label="Replace certificate"
-                    className="w-9 h-9 rounded-sm bg-white outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center hover:bg-neutral-50"
+                    className="w-9 h-9 rounded bg-white outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center hover:bg-neutral-50"
                   >
                     <img src={UploadFileIcon} alt="" className="w-4 h-4" />
                   </button>
@@ -637,7 +1003,7 @@ const HireVehicleDetails: React.FC = () => {
                     onClick={() => setDeleteCertOpen(true)}
                     title="Delete certificate"
                     aria-label="Delete certificate"
-                    className="w-9 h-9 rounded-sm bg-white outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center hover:bg-neutral-50"
+                    className="w-9 h-9 rounded bg-white outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center hover:bg-neutral-50"
                   >
                     <img src={RemoveIcon} alt="" className="w-4 h-4" />
                   </button>
@@ -706,14 +1072,27 @@ const HireVehicleDetails: React.FC = () => {
           onConfirm={confirmDeleteCertificate}
         />
       )}
+      {deleteVehicleIndex !== null && (
+        <FleetConfirmModal
+          title="Delete Vehicle"
+          message={`Are you sure you want to delete Vehicle${deleteVehicleIndex + 1}?`}
+          confirmLabel="Delete"
+          onCancel={() => setDeleteVehicleIndex(null)}
+          onConfirm={confirmDeleteVehicle}
+        />
+      )}
       <FleetEmailModal
         open={emailSubject !== null}
         onClose={closeEmailModal}
         hireId={hireId}
-        title="Email Document"
+        title={emailTitle}
+        defaultTo={emailTo}
         defaultSubject={emailSubject || ""}
         defaultBody={emailBody}
         initialFiles={emailFiles}
+        onSent={emailAfterSend || undefined}
+        previewHtml={emailPreviewHtml}
+        sendOverride={emailSendOverride || undefined}
       />
     </div>
   );

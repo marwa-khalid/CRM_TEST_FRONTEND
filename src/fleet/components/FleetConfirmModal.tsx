@@ -30,14 +30,14 @@ const FleetConfirmModal: React.FC<FleetConfirmModalProps> = ({
         <button
           type="button"
           onClick={onCancel}
-          className="px-6 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-base font-medium leading-4 hover:bg-neutral-50"
+          className="px-6 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-base font-medium leading-4 hover:bg-neutral-50"
         >
           {cancelLabel}
         </button>
         <button
           type="button"
           onClick={onConfirm}
-          className={`px-6 py-4 rounded-sm text-white text-base font-medium leading-4 ${
+          className={`px-6 py-4 rounded text-white text-base font-medium leading-4 ${
             destructive ? "bg-red-600 hover:bg-red-700" : "bg-neutral-900 hover:bg-black"
           }`}
         >

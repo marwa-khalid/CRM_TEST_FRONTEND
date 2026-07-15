@@ -14,7 +14,7 @@ const formatDateTime = (value?: string) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "-";
   const date = d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }).replace(/\//g, "-");
-  const time = d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s/g, "").toUpperCase();
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
   return `${date} . ${time}`;
 };
 
@@ -73,7 +73,7 @@ const FleetDocumentLibrary: React.FC = () => {
           type="button"
           onClick={() => navigate(hireId ? `/fleet/hire/${hireId}` : "/fleet")}
           aria-label="Back"
-          className="w-9 h-9 rounded-sm flex items-center justify-center hover:bg-neutral-100"
+          className="w-9 h-9 rounded flex items-center justify-center hover:bg-neutral-100"
         >
           <ArrowLeft size={22} />
         </button>
@@ -100,7 +100,7 @@ const FleetDocumentLibrary: React.FC = () => {
             documents.map((doc) => (
               <article key={doc.id} className="p-5 rounded-lg border border-neutral-100 flex items-center justify-between gap-4">
                 <div className="min-w-0 flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-sm bg-neutral-100 flex items-center justify-center text-neutral-700">
+                  <div className="w-11 h-11 rounded bg-neutral-100 flex items-center justify-center text-neutral-700">
                     <FileText size={19} />
                   </div>
                   <div className="min-w-0">
@@ -114,7 +114,7 @@ const FleetDocumentLibrary: React.FC = () => {
                     type="button"
                     onClick={() => openDocument(doc)}
                     disabled={openingId === doc.id}
-                    className="h-9 px-3 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50 disabled:opacity-60"
+                    className="h-9 px-3 rounded outline outline-1 -outline-offset-1 outline-neutral-900 flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50 disabled:opacity-60"
                   >
                     {openingId === doc.id ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
                     View

@@ -134,7 +134,7 @@ const FleetUploadModal: React.FC<Props> = ({
             type="button"
             onClick={close}
             disabled={busy}
-            className="px-6 py-3 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-black text-neutral-900 text-base font-medium hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-white rounded outline outline-1 -outline-offset-1 outline-black text-neutral-900 text-base font-medium hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Cancel
           </button>

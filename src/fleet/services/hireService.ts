@@ -12,6 +12,9 @@ export interface HireRecord {
   insurance_type?: string;
   rental_advisor?: string;
   current_position?: string;
+  // Derived (list view): the most recently added hire vehicle's status + registration.
+  last_vehicle_hire_status?: string;
+  last_vehicle_registration?: string;
   bank_name?: string;
   account_name?: string;
   sort_code?: string;
@@ -102,6 +105,26 @@ export const updateHire = async (
     return data ?? null;
   } catch {
     /* ignore — field-level save is best-effort */
+    return null;
+  }
+};
+
+export interface HireCompletionSummary {
+  vehicle_present: number;
+  vehicle_total: number;
+  proof_present: number;
+  proof_total: number;
+  document_present: number;
+  document_total: number;
+  pcn_present: number;
+  pcn_total: number;
+}
+
+export const getHireCompletionSummary = async (hireId: number): Promise<HireCompletionSummary | null> => {
+  try {
+    const { data } = await fleetApi.get(`/fleet/hire/${hireId}/completion-summary`);
+    return data ?? null;
+  } catch {
     return null;
   }
 };

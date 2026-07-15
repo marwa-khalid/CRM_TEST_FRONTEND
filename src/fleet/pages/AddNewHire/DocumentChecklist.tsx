@@ -3,7 +3,9 @@ import { toast } from "react-toastify";
 import RemoveIcon from "../../assets/icons/Remove.svg";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import FleetUploadModal from "../../components/FleetUploadModal";
+import FleetBulkUploadModal from "../../components/FleetBulkUploadModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
+import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import {
   deleteHireDocument,
   getHireDocuments,
@@ -14,6 +16,23 @@ import { useHire } from "./HireContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
+
+// Logged-in user's display name = the part before @ in their email. Read from the
+// JWT (access_token) claims, falling back to the login email in localStorage.
+const currentUserName = (): string => {
+  const beforeAt = (email?: string | null) => (email && email.includes("@") ? email.split("@")[0] : email || "");
+  try {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      const payload = JSON.parse(atob(token.split(".")[1] || ""));
+      const fromToken = beforeAt(payload.email) || beforeAt(payload.sub) || payload.name;
+      if (fromToken) return fromToken;
+    }
+  } catch {
+    /* malformed token — fall through */
+  }
+  return beforeAt(localStorage.getItem("pendingLoginEmail")) || "Current User";
+};
 
 const CHECKLIST_DOCUMENTS = [
   { key: "checklist_bank_statement", label: "Bank Statement" },
@@ -52,12 +71,11 @@ const toDisplayDateTime = (value?: string) => {
     .replace(/\//g, "-");
   const time = d
     .toLocaleTimeString("en-GB", {
-      hour: "numeric",
+      hour: "2-digit",
       minute: "2-digit",
-      hour12: true,
+      hour12: false,
     })
-    .replace(/\s/g, "")
-    .toUpperCase();
+    .replace(/\s/g, "");
   return `${date} . ${time}`;
 };
 
@@ -99,13 +117,13 @@ const UploadedDocumentCard: React.FC<{
           href={uploaded.file_url || undefined}
           target="_blank"
           rel="noreferrer"
-          className="max-w-[190px] p-2 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-700 text-black text-sm truncate"
+          className="max-w-[190px] p-2 rounded outline outline-1 -outline-offset-1 outline-neutral-700 text-black text-sm truncate"
         >
           {uploaded.filename || "Document"}
         </a>
         <div className="text-sm">
           <span className="text-neutral-700">Uploaded by: </span>
-          <span className="text-neutral-900">Current User</span>
+          <span className="text-neutral-900">{currentUserName()}</span>
         </div>
         <div className="text-neutral-700 text-sm">
           {toDisplayDateTime(uploaded.created_at) || toDisplayDate(uploaded.received_on)}
@@ -122,11 +140,30 @@ const DocumentChecklist: React.FC = () => {
   const { hireId } = useHire();
   const [documents, setDocuments] = useState<HireDocument[]>([]);
   const [activeUpload, setActiveUpload] = useState<ChecklistDoc | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<HireDocument | null>(null);
+  const [initialLoading, setInitialLoading] = useState(false);
 
   useEffect(() => {
-    if (!hireId) return;
-    getHireDocuments(hireId).then(setDocuments);
+    if (!hireId) {
+      setDocuments([]);
+      setInitialLoading(false);
+      return;
+    }
+
+    let active = true;
+    setInitialLoading(true);
+    getHireDocuments(hireId)
+      .then((items) => {
+        if (active) setDocuments(items);
+      })
+      .finally(() => {
+        if (active) setInitialLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [hireId]);
 
   const documentsByChecklistKey = useMemo(
@@ -159,6 +196,22 @@ const DocumentChecklist: React.FC = () => {
     toast.success("Document uploaded.");
   };
 
+  // Bulk tray: upload one file under a chosen section; throw so the row is flagged.
+  const handleBulkUpload = async (docType: string, file: File): Promise<HireDocument> => {
+    if (!hireId) throw new Error("No hire selected.");
+    const uploaded = await uploadHireDocument(hireId, docType, file);
+    if (!uploaded) throw new Error("Upload failed.");
+    return uploaded;
+  };
+
+  const handleBulkUploaded = (docs: HireDocument[]) => {
+    setDocuments((current) => {
+      const replaced = new Set(docs.map((d) => d.doc_type));
+      return [...current.filter((doc) => !replaced.has(doc.doc_type)), ...docs];
+    });
+    toast.success(`${docs.length} document${docs.length === 1 ? "" : "s"} uploaded.`);
+  };
+
   const confirmDelete = async () => {
     if (!hireId || !deleteTarget) return;
     await deleteHireDocument(hireId, deleteTarget.id);
@@ -169,7 +222,19 @@ const DocumentChecklist: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      <h2 className="text-black text-2xl font-semibold leading-6">Documents Checklist</h2>
+      {initialLoading && <FleetSpinnerLoader />}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-black text-2xl font-semibold leading-6">Documents Checklist</h2>
+        <button
+          type="button"
+          onClick={() => setBulkOpen(true)}
+          disabled={!hireId}
+          className="flex items-center gap-2 px-5 py-3 rounded bg-neutral-900 text-white text-sm font-medium hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <img src={UploadFileIcon} alt="" className="text-white w-4 h-4 invert" />
+          Upload All Documents
+        </button>
+      </div>
 
       <section className={SECTION}>
         <h3 className={H3}>Signed Documents Upload</h3>
@@ -194,6 +259,14 @@ const DocumentChecklist: React.FC = () => {
         onClose={() => setActiveUpload(null)}
         onUploaded={handleUpload}
         title={activeUpload ? activeUpload.label : "Upload Document"}
+      />
+
+      <FleetBulkUploadModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        sections={CHECKLIST_DOCUMENTS}
+        onUpload={handleBulkUpload}
+        onUploaded={handleBulkUploaded}
       />
 
       {deleteTarget && (

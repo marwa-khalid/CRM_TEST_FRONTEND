@@ -942,7 +942,7 @@ const MultiFilterDropdown = ({
       {open && (
         <div className="absolute z-30 top-full mt-1 left-0 w-max min-w-[176px] max-w-[300px] bg-white rounded-md shadow-[0px_4px_4px_0px_rgba(0,0,0,0.08)] border border-neutral-100 p-2 max-h-72 overflow-auto scrollbar-hide flex flex-col gap-1">
           {selected.length > 0 && (
-            <button type="button" onClick={onClear} className="w-full text-left p-2.5 text-xs text-neutral-500 hover:bg-neutral-50 rounded-sm">
+            <button type="button" onClick={onClear} className="w-full text-left p-2.5 text-xs text-neutral-500 hover:bg-neutral-50 rounded">
               Clear {label}
             </button>
           )}
@@ -956,12 +956,12 @@ const MultiFilterDropdown = ({
                   key={o}
                   type="button"
                   onClick={() => onToggle(o)}
-                  className={`w-full flex items-center gap-2 text-left p-2.5 rounded-sm transition-colors ${
+                  className={`w-full flex items-center gap-2 text-left p-2.5 rounded transition-colors ${
                     checked ? "bg-blue-100" : "hover:bg-neutral-50"
                   }`}
                 >
                   <span
-                    className={`w-5 h-5 rounded-sm shrink-0 ${
+                    className={`w-5 h-5 rounded shrink-0 ${
                       checked ? "bg-blue-500 border-[6px] border-blue-200" : "bg-neutral-300"
                     }`}
                   />

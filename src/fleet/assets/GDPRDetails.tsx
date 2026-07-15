@@ -199,7 +199,7 @@ const GDPRDetails: React.FC = () => {
             type="button"
             onClick={withdrawAll}
             disabled={allWithdrawn}
-            className={`h-8 px-3 py-2 rounded-sm flex items-center gap-2 text-sm ${
+            className={`h-8 px-3 py-2 rounded flex items-center gap-2 text-sm ${
               allWithdrawn ? "bg-neutral-400 text-white cursor-default" : "bg-neutral-900 text-white hover:bg-black"
             }`}
           >
@@ -233,7 +233,7 @@ const GDPRDetails: React.FC = () => {
               onBlur={() => persist({ reason_for_withdrawal: form.reasonForWithdrawal })}
               placeholder="Value"
               rows={3}
-              className="h-24 px-5 py-4 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
+              className="h-24 px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
             />
           </div>
         )}

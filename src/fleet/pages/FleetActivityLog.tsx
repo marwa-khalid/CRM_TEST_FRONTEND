@@ -24,7 +24,7 @@ const formatDateTime = (value?: string) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "-";
   const date = d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }).replace(/\//g, "-");
-  const time = d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s/g, "").toUpperCase();
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
   return `${date} . ${time}`;
 };
 
@@ -101,7 +101,7 @@ const FleetActivityLog: React.FC = () => {
           type="button"
           onClick={() => navigate(hireId ? `/fleet/hire/${hireId}` : "/fleet")}
           aria-label="Back"
-          className="w-9 h-9 rounded-sm flex items-center justify-center hover:bg-neutral-100"
+          className="w-9 h-9 rounded flex items-center justify-center hover:bg-neutral-100"
         >
           <ArrowLeft size={22} />
         </button>
@@ -127,7 +127,7 @@ const FleetActivityLog: React.FC = () => {
           ) : (
             items.map((item) => (
               <article key={item.id} className="p-5 rounded-lg border border-neutral-100 flex items-start gap-4">
-                <div className="w-10 h-10 rounded-sm bg-neutral-100 flex items-center justify-center text-neutral-700">
+                <div className="w-10 h-10 rounded bg-neutral-100 flex items-center justify-center text-neutral-700">
                   {item.kind === "document" ? <FileText size={18} /> : <History size={18} />}
                 </div>
                 <div className="min-w-0 flex-1">

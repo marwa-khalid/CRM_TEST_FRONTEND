@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
+import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import { useHire } from "./HireContext";
 import {
   uploadHireDocument,
@@ -40,7 +41,9 @@ const fmtReceived = (iso?: string) => {
   const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
   if (Number.isNaN(d.getTime())) return "";
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${String(d.getFullYear()).slice(2)}`;
+  // dd-mm-yy h:MM AM/PM
+  const time = d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase();
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${String(d.getFullYear()).slice(2)} ${time}`;
 };
 const latestByDocType = (docs: HireDocument[]) => {
   const latest = new Map<string, HireDocument>();
@@ -93,17 +96,21 @@ const revokeDocUrls = (doc?: UploadedDoc | null) => {
   if (doc.viewUrl && doc.viewUrl !== doc.previewUrl) URL.revokeObjectURL(doc.viewUrl);
 };
 
-// One proof-of-address slot. `docType` is stable per slot (never derived from the
-// index) so backend persist/delete stay correct even after middle slots are removed.
-interface ProofSlot {
+// One proof-of-address section holds BOTH a Bank Statement and a Utility Bill.
+// `activeKind` is the view currently shown; each kind keeps its own uploaded doc.
+// `id` is stable per section (never the array index) so backend docTypes stay
+// correct — the two docs persist as `bank_statement_<id>` and `utility_<id>`.
+interface ProofSection {
   id: number;
-  proofKind: ProofKind;
-  docType: string;
-  doc: UploadedDoc | null;
+  activeKind: ProofKind;
+  docs: Record<ProofKind, UploadedDoc | null>;
 }
 
-// The current upload/delete can target a utility slot (by index) or a DL card.
-type Target = { kind: "utility"; index: number } | { kind: "dl"; key: DlKey };
+// The current upload/delete can target a proof view (section index + kind) or a DL card.
+type Target =
+  | { kind: "proof"; index: number; proofKind: ProofKind }
+  | { kind: "dl"; key: DlKey }
+  | { kind: "section"; index: number };
 
 const DL_LABELS: Record<DlKey, string> = {
   dlFront: "Driving License Front",
@@ -111,12 +118,14 @@ const DL_LABELS: Record<DlKey, string> = {
 };
 
 const ORDINALS = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"];
-const proofLabel = (i: number, kind: ProofKind) => `${ORDINALS[i] || `#${i + 1}`} ${proofKindLabel(kind)}`;
+const sectionTitle = (i: number) => `${ORDINALS[i] || `#${i + 1}`} Proof of Address`;
 
 const receivedToday = () => {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${String(d.getFullYear()).slice(2)}`;
+  // dd-mm-yy h:MM AM/PM
+  const time = d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase();
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${String(d.getFullYear()).slice(2)} ${time}`;
 };
 
 const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -133,26 +142,32 @@ const DocumentCard: React.FC<{
   doc: UploadedDoc | null;
   onUploadClick: () => void;
   onRemove: () => void;
+  uploadLabel?: string; // dropzone caption; falls back to `label`
   proofKind?: ProofKind;
   onProofKindChange?: (value: string) => void;
-}> = ({ label, doc, onUploadClick, onRemove, proofKind, onProofKindChange }) => (
+  onRemoveSection?: () => void; // when set, shows a "Remove" control for the whole section
+}> = ({ label, doc, onUploadClick, onRemove, uploadLabel, proofKind, onProofKindChange, onRemoveSection }) => (
   <section className="p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4">
-    <div className="flex flex-wrap justify-between items-center gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <h3 className="text-black text-xl font-semibold leading-5">{label}</h3>
-        {proofKind && onProofKindChange && (
-          <FleetSegmented
-            options={PROOF_OPTIONS}
-            value={proofKind}
-            onChange={onProofKindChange}
-            disabled={!!doc}
-          />
-        )}
-      </div>
+    <div className="flex flex-wrap items-center gap-3">
+      <h3 className="text-black text-xl font-semibold leading-5 mr-auto">{label}</h3>
+      {proofKind && onProofKindChange && (
+        // Switch between the Bank Statement / Utility Bill views of this section —
+        // always enabled so either view can be uploaded independently.
+        <FleetSegmented options={PROOF_OPTIONS} value={proofKind} onChange={onProofKindChange} />
+      )}
       {doc && (
-        <span className="text-black text-sm">
-          Received On: {doc.receivedOn}
-        </span>
+        <span className="text-black text-sm">Received On: {doc.receivedOn}</span>
+      )}
+      {onRemoveSection && (
+        <button
+          type="button"
+          onClick={onRemoveSection}
+          title="Remove this proof of address section"
+          className="h-8 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-500 inline-flex items-center gap-2 text-neutral-600 text-sm hover:bg-red-50"
+        >
+          {/* <img src={TrashIcon} alt="" className="w-4 h-4" /> */}
+          Remove
+        </button>
       )}
     </div>
     <div className="h-px bg-neutral-100" />
@@ -166,9 +181,9 @@ const DocumentCard: React.FC<{
             className="max-h-72 max-w-full rounded object-contain"
           />
         ) : (
-          <div className="w-full p-4 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-between gap-4">
+          <div className="w-full p-4 rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-between gap-4">
             <div className="min-w-0 flex items-center gap-3">
-              <span className="w-10 h-10 shrink-0 rounded-sm bg-red-50 text-red-600 flex items-center justify-center">
+              <span className="w-10 h-10 shrink-0 rounded bg-red-50 text-red-600 flex items-center justify-center">
                 <FileText size={20} />
               </span>
               <div className="min-w-0">
@@ -180,7 +195,7 @@ const DocumentCard: React.FC<{
               <button
                 type="button"
                 onClick={() => window.open(doc.viewUrl!, "_blank", "noopener,noreferrer")}
-                className="h-8 px-3 py-2 shrink-0 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50"
+                className="h-8 px-3 py-2 shrink-0 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50"
               >
                 <Eye size={16} />
                 View
@@ -192,7 +207,7 @@ const DocumentCard: React.FC<{
         <button
           type="button"
           onClick={onRemove}
-          className="h-8 px-3 py-2 self-center bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50"
+          className="h-8 px-3 py-2 self-center bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50"
         >
           <img src={TrashIcon} alt="" className="w-4 h-4" />
           Remove
@@ -206,7 +221,7 @@ const DocumentCard: React.FC<{
       >
         <UploadPrompt />
         <div className="flex flex-col items-center gap-1">
-          <span className="text-black text-base font-semibold">{label}</span>
+          <span className="text-black text-base font-semibold">{uploadLabel ?? label}</span>
           <span className="text-black text-sm">JPG, PNG, PDF Supported</span>
         </div>
       </button>
@@ -228,17 +243,24 @@ const AddressBlock: React.FC<{ address: string; postcode: string }> = ({ address
 };
 
 const DriverProofs: React.FC = () => {
-  const [utilities, setUtilities] = useState<ProofSlot[]>([
-    { id: 1, proofKind: "bank_statement", docType: "bank_statement_1", doc: null },
+  const [sections, setSections] = useState<ProofSection[]>([
+    { id: 1, activeKind: "bank_statement", docs: { bank_statement: null, utility_bill: null } },
   ]);
-  const nextUtilId = useRef(2);
+  const nextSectionId = useRef(2);
   const [dl, setDl] = useState<Record<DlKey, UploadedDoc | null>>({ dlFront: null, dlBack: null });
   const [activeUpload, setActiveUpload] = useState<Target | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Target | null>(null);
-  // OCR results driving the licence dates + address comparison.
-  const [dlOcr, setDlOcr] = useState({ address: "", postcode: "", start: "", end: "" });
-  const [utilOcr, setUtilOcr] = useState({ address: "", postcode: "" });
+  // OCR results driving the licence dates + address comparison. Proof OCR is keyed
+  // by docType so either view of section 1 can drive the compare as you switch.
+  const [dlOcr, setDlOcr] = useState({
+    address: "9 Anderson Drive Aberdeen Pe",
+    postcode: "AB",
+    start: "",
+    end: "",
+  });
+  const [proofOcr, setProofOcr] = useState<Record<string, { address: string; postcode: string }>>({});
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
   const { hireId } = useHire();
 
   const makeDoc = (file: File): UploadedDoc => ({
@@ -291,104 +313,166 @@ const DriverProofs: React.FC = () => {
   // Restore uploaded previews (and re-run the address compare) when reopening a hire.
   const hydrated = useRef(false);
   useEffect(() => {
-    if (hydrated.current || !hireId) return;
+    if (hydrated.current || !hireId) {
+      setInitialLoading(false);
+      return;
+    }
     hydrated.current = true;
     (async () => {
-      const docs = latestByDocType(await getHireDocuments(hireId));
-      const utils = docs
-        .filter((d) => isProofDocType(d.doc_type))
-        .sort((a, b) => proofIdFromDocType(a.doc_type) - proofIdFromDocType(b.doc_type));
-      if (utils.length) {
-        setUtilities(await Promise.all(utils.map(async (d) => {
-          const id = proofIdFromDocType(d.doc_type);
-          const proofKind = proofKindFromDocType(d.doc_type);
-          return { id, proofKind, docType: proofDocType(proofKind, id), doc: await docToUploaded(hireId, d) };
-        })));
-        nextUtilId.current = Math.max(...utils.map((d) => proofIdFromDocType(d.doc_type))) + 1;
-      }
-      const front = docs.find((d) => d.doc_type === "dlFront");
-      const back = docs.find((d) => d.doc_type === "dlBack");
-      if (front || back) {
-        const [frontDoc, backDoc] = await Promise.all([
-          front ? docToUploaded(hireId, front) : null,
-          back ? docToUploaded(hireId, back) : null,
-        ]);
-        setDl({ dlFront: frontDoc, dlBack: backDoc });
-      }
-      // Best-effort re-OCR of the first utility + licence front to rebuild the compare.
-      if (utils[0] || front) {
-        setOcrLoading(true);
-        try {
-          if (utils[0]) {
-            const f = await persistedDocToFile(utils[0], utils[0].filename || "utility");
-            if (f) { const r = await extractProofOfAddress(f); setUtilOcr({ address: r.address, postcode: r.postcode }); }
+      setInitialLoading(true);
+      try {
+        const docs = latestByDocType(await getHireDocuments(hireId));
+        const proofs = docs
+          .filter((d) => isProofDocType(d.doc_type))
+          .sort((a, b) => proofIdFromDocType(a.doc_type) - proofIdFromDocType(b.doc_type));
+        if (proofs.length) {
+          // Group the flat doc list into sections (by id); each holds up to two views.
+          const byId = new Map<number, ProofSection>();
+          for (const d of proofs) {
+            const id = proofIdFromDocType(d.doc_type);
+            const kind = proofKindFromDocType(d.doc_type);
+            let sec = byId.get(id);
+            if (!sec) { sec = { id, activeKind: kind, docs: { bank_statement: null, utility_bill: null } }; byId.set(id, sec); }
+            sec.docs[kind] = await docToUploaded(hireId, d);
           }
-          if (front) {
-            const f = await persistedDocToFile(front, front.filename || "licence");
-            if (f) { const r = await extractDriverDetailsFromLicence(f); setDlOcr({ address: r.address, postcode: r.postcode, start: r.licenceStart, end: r.licenceEnd }); }
-          }
-        } finally {
-          setOcrLoading(false);
+          const secs = Array.from(byId.values()).map((s) => ({
+            ...s,
+            activeKind: (s.docs.bank_statement ? "bank_statement" : "utility_bill") as ProofKind,
+          }));
+          setSections(secs);
+          nextSectionId.current = Math.max(...secs.map((s) => s.id)) + 1;
         }
+        const front = docs.find((d) => d.doc_type === "dlFront");
+        const back = docs.find((d) => d.doc_type === "dlBack");
+        if (front || back) {
+          const [frontDoc, backDoc] = await Promise.all([
+            front ? docToUploaded(hireId, front) : null,
+            back ? docToUploaded(hireId, back) : null,
+          ]);
+          setDl({ dlFront: frontDoc, dlBack: backDoc });
+        }
+        // Best-effort re-OCR of section 1's proofs (both views) + licence front so the
+        // compare returns immediately whichever view is selected on reopen.
+        const firstId = proofs.length ? proofIdFromDocType(proofs[0].doc_type) : null;
+        const firstProofs = firstId != null ? proofs.filter((d) => proofIdFromDocType(d.doc_type) === firstId) : [];
+        if (firstProofs.length || front) {
+          setOcrLoading(true);
+          try {
+            for (const d of firstProofs) {
+              const f = await persistedDocToFile(d, d.filename || "proof");
+              if (f) {
+                const r = await extractProofOfAddress(f);
+                const key = proofDocType(proofKindFromDocType(d.doc_type), proofIdFromDocType(d.doc_type));
+                setProofOcr((m) => ({ ...m, [key]: { address: r.address, postcode: r.postcode } }));
+              }
+            }
+            if (front) {
+              const f = await persistedDocToFile(front, front.filename || "licence");
+              if (f) { const r = await extractDriverDetailsFromLicence(f); setDlOcr({ address: r.address, postcode: r.postcode, start: r.licenceStart, end: r.licenceEnd }); }
+            }
+          } finally {
+            setOcrLoading(false);
+          }
+        }
+      } catch (error) {
+        console.warn("Unable to restore driver proof documents.", error);
+      } finally {
+        setInitialLoading(false);
       }
     })();
   }, [hireId]);
 
-  const addUtility = () =>
-    setUtilities((u) => {
-      const id = nextUtilId.current++;
-      return [...u, { id, proofKind: "bank_statement", docType: proofDocType("bank_statement", id), doc: null }];
+  const addSection = () =>
+    setSections((s) => {
+      const id = nextSectionId.current++;
+      return [...s, { id, activeKind: "bank_statement", docs: { bank_statement: null, utility_bill: null } }];
     });
 
-  const changeProofKind = (index: number, value: string) => {
-    const proofKind = value as ProofKind;
-    setUtilities((slots) => {
-      const next = [...slots];
-      const slot = next[index];
-      if (!slot || slot.doc) return slots;
-      next[index] = { ...slot, proofKind, docType: proofDocType(proofKind, slot.id) };
-      return next;
-    });
+  // Flip a section between its Bank Statement / Utility Bill view (never locked, so
+  // each view can be uploaded independently in the same section).
+  const changeActiveKind = (index: number, value: string) => {
+    const kind = value as ProofKind;
+    setSections((secs) => secs.map((s, i) => (i === index ? { ...s, activeKind: kind } : s)));
   };
 
-  const targetLabel = (t: Target) =>
-    t.kind === "utility"
-      ? proofLabel(t.index, utilities[t.index]?.proofKind || "bank_statement")
-      : DL_LABELS[t.key];
+  const sectionHasDocs = (s: ProofSection) => !!(s.docs.bank_statement || s.docs.utility_bill);
+
+  // Remove an entire added section (both views). Deletes any uploaded docs from the
+  // backend and clears their OCR; then drops the section from the list.
+  const removeSectionAt = (index: number) => {
+    const section = sections[index];
+    if (!section) return;
+    (["bank_statement", "utility_bill"] as ProofKind[]).forEach((kind) => {
+      const doc = section.docs[kind];
+      if (doc?.docId && hireId) deleteHireDocument(hireId, doc.docId);
+      revokeDocUrls(doc);
+    });
+    setProofOcr((m) => {
+      const n = { ...m };
+      delete n[proofDocType("bank_statement", section.id)];
+      delete n[proofDocType("utility_bill", section.id)];
+      return n;
+    });
+    setSections((secs) => secs.filter((_, idx) => idx !== index));
+  };
+
+  // Empty sections drop immediately; a section holding uploads asks first.
+  const onRemoveSectionClick = (index: number) => {
+    const section = sections[index];
+    if (section && sectionHasDocs(section)) setDeleteTarget({ kind: "section", index });
+    else removeSectionAt(index);
+  };
+
+  const targetLabel = (t: Target) => {
+    if (t.kind === "proof") return `${sectionTitle(t.index)} — ${proofKindLabel(t.proofKind)}`;
+    if (t.kind === "section") return sectionTitle(t.index);
+    return DL_LABELS[t.key];
+  };
+
+  const uploadTargetLabel = (t: Target) => {
+    if (t.kind === "proof") return proofKindLabel(t.proofKind);
+    return targetLabel(t);
+  };
 
   const handleUploaded = async (file: File) => {
     const target = activeUpload;
     if (!target) return;
 
-    if (target.kind === "utility") {
+    if (target.kind === "proof") {
       const i = target.index;
-      const docType = utilities[i]?.docType || `utility_${i + 1}`;
-      setUtilities((u) => {
-        const next = [...u];
-        const prev = next[i];
-        revokeDocUrls(prev?.doc);
-        next[i] = { ...prev, doc: makeDoc(file) };
+      const kind = target.proofKind;
+      const section = sections[i];
+      if (!section) return;
+      const docType = proofDocType(kind, section.id);
+      setSections((secs) => {
+        const next = [...secs];
+        const sec = next[i];
+        if (!sec) return secs;
+        revokeDocUrls(sec.docs[kind]);
+        next[i] = { ...sec, docs: { ...sec.docs, [kind]: makeDoc(file) } };
         return next;
       });
-      // The first proof-of-address document drives the address comparison.
+      // Section-1 proofs drive the address comparison (either view).
       if (i === 0) {
         setOcrLoading(true);
         extractProofOfAddress(file)
-          .then((d) => setUtilOcr({ address: d.address, postcode: d.postcode }))
+          .then((d) => setProofOcr((m) => ({ ...m, [docType]: { address: d.address, postcode: d.postcode } })))
           .finally(() => setOcrLoading(false));
       }
       await deleteExistingDocType(docType);
       const id = await uploadDoc(docType, file);
       if (id) {
-        setUtilities((u) => {
-          const n = [...u];
-          if (n[i]?.doc) n[i] = { ...n[i], doc: { ...n[i].doc!, docId: id } };
-          return n;
+        setSections((secs) => {
+          const next = [...secs];
+          const sec = next[i];
+          if (sec?.docs[kind]) next[i] = { ...sec, docs: { ...sec.docs, [kind]: { ...sec.docs[kind]!, docId: id } } };
+          return next;
         });
       }
       return;
     }
 
+    if (target.kind !== "dl") return;
     const key = target.key;
     setDl((prev) => {
       revokeDocUrls(prev[key]);
@@ -406,16 +490,28 @@ const DriverProofs: React.FC = () => {
   };
 
   const doRemove = (target: Target) => {
-    if (target.kind === "utility") {
-      const i = target.index;
-      const slot = utilities[i];
-      if (slot?.doc?.docId && hireId) deleteHireDocument(hireId, slot.doc.docId);
-      revokeDocUrls(slot?.doc);
-      // Keep the first proof card (clear it); remove any extra slot entirely.
-      setUtilities((u) => (i === 0 ? u.map((s, idx) => (idx === 0 ? { ...s, doc: null } : s)) : u.filter((_, idx) => idx !== i)));
-      if (i === 0) setUtilOcr({ address: "", postcode: "" });
+    if (target.kind === "section") {
+      removeSectionAt(target.index);
       return;
     }
+    if (target.kind === "proof") {
+      const i = target.index;
+      const kind = target.proofKind;
+      const section = sections[i];
+      const doc = section?.docs[kind] || null;
+      if (doc?.docId && hireId) deleteHireDocument(hireId, doc.docId);
+      revokeDocUrls(doc);
+      const docType = section ? proofDocType(kind, section.id) : "";
+      // Clear just this view; the section stays (it may still hold the other view).
+      setSections((secs) => secs.map((s, idx) => (idx === i ? { ...s, docs: { ...s.docs, [kind]: null } } : s)));
+      setProofOcr((m) => {
+        const n = { ...m };
+        delete n[docType];
+        return n;
+      });
+      return;
+    }
+    if (target.kind !== "dl") return;
     const key = target.key;
     const ex = dl[key];
     if (ex?.docId && hireId) deleteHireDocument(hireId, ex.docId);
@@ -424,44 +520,52 @@ const DriverProofs: React.FC = () => {
     if (key === "dlFront") setDlOcr({ address: "", postcode: "", start: "", end: "" });
   };
 
-  const selectedProofKind = utilities[0]?.proofKind || "bank_statement";
-  const selectedProofLabel = proofKindLabel(selectedProofKind);
-  const hasUtility = Boolean(utilities[0]?.doc);
+  const section1 = sections[0];
+  const activeKind = section1?.activeKind || "bank_statement";
+  const activeProofDoc = section1?.docs[activeKind] || null;
+  const activeProofDocType = section1 ? proofDocType(activeKind, section1.id) : "";
+  const activeProofOcr = proofOcr[activeProofDocType] || { address: "", postcode: "" };
+  const selectedProofLabel = proofKindLabel(activeKind);
   const showLicenceDates = !!dl.dlFront;
-  const showCompare = hasUtility && !!dl.dlFront;
+  const showCompare = !!activeProofDoc && !!dl.dlFront;
   const dlFull = [dlOcr.address, dlOcr.postcode].filter(Boolean).join(", ");
-  const utilFull = [utilOcr.address, utilOcr.postcode].filter(Boolean).join(", ");
+  const utilFull = [activeProofOcr.address, activeProofOcr.postcode].filter(Boolean).join(", ");
   const bothPresent = !!dlFull && !!utilFull;
   const addressesMatch = bothPresent && normalise(dlFull) === normalise(utilFull);
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
+      {initialLoading && <FleetSpinnerLoader />}
       <h2 className="text-black text-2xl font-semibold leading-6">
         Driver Proofs &amp; License Checks with Address Match
       </h2>
       {ocrLoading && <FleetInlineLoader text="Reading document…" />}
 
-      {/* Proof-of-address documents — bank statement by default, utility bill optional. */}
-      {utilities.map((slot, i) => (
+      {/* Each proof-of-address section switches between a Bank Statement and a Utility
+          Bill view; each view keeps its own independent upload. */}
+      {sections.map((section, i) => (
         <DocumentCard
-          key={`${slot.docType}-${slot.doc?.docId ?? i}`}
-          label={proofLabel(i, slot.proofKind)}
-          doc={slot.doc}
-          proofKind={slot.proofKind}
-          onProofKindChange={(value) => changeProofKind(i, value)}
-          onUploadClick={() => setActiveUpload({ kind: "utility", index: i })}
-          onRemove={() => setDeleteTarget({ kind: "utility", index: i })}
+          key={`section-${section.id}`}
+          label={sectionTitle(i)}
+          uploadLabel={proofKindLabel(section.activeKind)}
+          doc={section.docs[section.activeKind]}
+          proofKind={section.activeKind}
+          onProofKindChange={(value) => changeActiveKind(i, value)}
+          onUploadClick={() => setActiveUpload({ kind: "proof", index: i, proofKind: section.activeKind })}
+          onRemove={() => setDeleteTarget({ kind: "proof", index: i, proofKind: section.activeKind })}
+          // The first section is the primary proof (always present); added ones can be removed.
+          onRemoveSection={i > 0 ? () => onRemoveSectionClick(i) : undefined}
         />
       ))}
 
       <div className="self-stretch flex flex-col items-center">
         <button
           type="button"
-          onClick={addUtility}
-          className="h-8 px-3 py-2 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 inline-flex justify-center items-center gap-2.5 text-neutral-900 text-sm font-normal leading-4 hover:bg-neutral-50"
+          onClick={addSection}
+          className="h-8 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-900 inline-flex justify-center items-center gap-2.5 text-neutral-900 text-sm font-normal leading-4 hover:bg-neutral-50"
         >
           <img src={PlusIcon} alt="" className="w-4 h-4" />
-          Add Another Proof Document
+          Add Another Proof of Address
         </button>
       </div>
 
@@ -501,16 +605,16 @@ const DriverProofs: React.FC = () => {
               Compare Address
             </h3>
             {!bothPresent ? (
-              <div className="p-2 bg-neutral-100 rounded-sm flex items-center gap-2 text-neutral-600 text-sm">
+              <div className="p-2 bg-neutral-100 rounded flex items-center gap-2 text-neutral-600 text-sm">
                 Reading…
               </div>
             ) : addressesMatch ? (
-              <div className="p-2 bg-green-100 rounded-sm flex items-center gap-2.5 text-black text-sm">
+              <div className="p-2 bg-green-100 rounded flex items-center gap-2.5 text-black text-sm">
                 <img src={CheckCircleIcon} alt="" className="w-5 h-5" />
                 Matched
               </div>
             ) : (
-              <div className="p-2 bg-red-100 rounded-sm flex items-center gap-2 text-black text-sm">
+              <div className="p-2 bg-red-100 rounded flex items-center gap-2 text-black text-sm">
                 <img src={AlertIcon} alt="" className="w-5 h-5" />
                 Mismatch
               </div>
@@ -518,11 +622,11 @@ const DriverProofs: React.FC = () => {
           </div>
           {bothPresent &&
             (addressesMatch ? (
-              <div className="px-4 py-2 bg-green-100 rounded-sm text-neutral-700 text-sm">
+              <div className="px-4 py-2 bg-green-100 rounded text-neutral-700 text-sm">
                 Address matched between Driving Licence and {selectedProofLabel}
               </div>
             ) : (
-              <div className="px-4 py-2 bg-red-100 rounded-sm text-neutral-700 text-sm">
+              <div className="px-4 py-2 bg-red-100 rounded text-neutral-700 text-sm">
                 Address does not match between Driving Licence and {selectedProofLabel}
               </div>
             ))}
@@ -537,7 +641,7 @@ const DriverProofs: React.FC = () => {
               <div className="text-black text-base font-semibold">
                 {selectedProofLabel} Address
               </div>
-              <AddressBlock address={utilOcr.address} postcode={utilOcr.postcode} />
+              <AddressBlock address={activeProofOcr.address} postcode={activeProofOcr.postcode} />
             </div>
           </div>
         </section>
@@ -547,7 +651,7 @@ const DriverProofs: React.FC = () => {
         open={activeUpload !== null}
         onClose={() => setActiveUpload(null)}
         onUploaded={handleUploaded}
-        title={activeUpload ? targetLabel(activeUpload) : "Upload Document"}
+        title={activeUpload ? uploadTargetLabel(activeUpload) : "Upload Document"}
       />
 
       {deleteTarget && (

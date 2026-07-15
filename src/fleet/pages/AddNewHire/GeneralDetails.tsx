@@ -20,7 +20,7 @@ const PAY_HIRER_RECIPIENTS = "marwanationwideassist@outlook.com";
 
 const now = () => new Date();
 const fmtDate = (d: Date) => d.toLocaleDateString("en-GB"); // dd/mm/yyyy
-const fmtTime = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const fmtTime = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
 const fromIso = (value?: string) => {
   if (!value) return null;
   const d = new Date(value);
@@ -133,7 +133,7 @@ const GeneralDetails: React.FC = () => {
             type="button"
             onClick={handleCloseFile}
             disabled={disabled}
-            className="h-8 px-3 py-2 bg-neutral-900 rounded-sm flex items-center gap-2 text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-8 px-3 py-2 bg-neutral-900 rounded flex items-center gap-2 text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <img src={CloseFileIcon} alt="" className="w-4 h-4" />
             {disabled ? "File Closed" : "Close File"}
@@ -235,7 +235,7 @@ const GeneralDetails: React.FC = () => {
             type="button"
             onClick={() => setPayOpen(true)}
             disabled={disabled}
-            className="h-9 px-4 py-2 bg-neutral-900 rounded-sm text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-9 px-4 py-2 bg-neutral-900 rounded text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Pay / Reimburse Hirer
           </button>
@@ -243,7 +243,7 @@ const GeneralDetails: React.FC = () => {
             type="button"
             onClick={handleProcessRefund}
             disabled={disabled || preparingRefund}
-            className="h-9 px-4 py-2 bg-neutral-900 rounded-sm text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
+            className="h-9 px-4 py-2 bg-neutral-900 rounded text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Process Deposit Refund
           </button>

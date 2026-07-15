@@ -4,6 +4,7 @@ import {
   FleetTextInput,
   FleetDateField,
   FleetPostcodeLookup,
+  FleetAddressAutocomplete,
   FleetUkMobileInput,
   formatUkMobileDisplay,
   isValidUkMobile,
@@ -223,18 +224,27 @@ const DriverDetails: React.FC = () => {
           onBlur={() => saveField("name")}
           error={ocrAttempted && !form.name ? LOW_CONFIDENCE_MSG : undefined}
         />
-        <FleetTextInput
+        <FleetAddressAutocomplete
           label="Address"
           placeholder="Enter Address"
-          value={form.address}
+          address={form.address}
           onChange={(v) => set("address", v)}
           onBlur={() => saveField("address")}
+          onPlaceSelected={(place) => {
+            set("address", place.address);
+            if (place.postcode) set("postcode", place.postcode);
+            save({
+              [TO_BACKEND.address]: place.address,
+              ...(place.postcode ? { [TO_BACKEND.postcode]: place.postcode } : {}),
+            });
+          }}
           error={ocrAttempted && !form.address ? LOW_CONFIDENCE_MSG : undefined}
         />
 
         <div className="grid grid-cols-2 gap-5">
           <FleetPostcodeLookup
             label="Post Code"
+            placeholder="Enter Code"
             postcode={form.postcode}
             onChange={(v) => set("postcode", v)}
             onBlur={() => saveField("postcode")}
@@ -258,7 +268,7 @@ const DriverDetails: React.FC = () => {
 
         <div className="grid grid-cols-2 gap-5">
           <FleetTextInput
-            label="Telephone"
+            label="Home Telephone"
             placeholder="Enter Number"
             inputMode="tel"
             value={form.telephone}

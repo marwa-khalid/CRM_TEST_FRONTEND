@@ -150,11 +150,19 @@ const FleetEmailModal: React.FC<Props> = ({
           <div className="flex items-center gap-3 min-w-0">
             <OutlookIcon />
             <div className="flex flex-col gap-1 min-w-0">
-              <h2 className="text-neutral-900 text-xl font-semibold leading-5 truncate">{title}</h2>
+              <h2 className="text-neutral-900 text-xl font-semibold leading-5 truncate">
+                {title}
+              </h2>
               {/* <span className="text-[#0078D4] text-xs font-medium">Outlook email preview</span> */}
             </div>
           </div>
-          <button type="button" onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-500 text-xl leading-none">×</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-500 text-xl leading-none"
+          >
+            ×
+          </button>
         </div>
 
         <div className="p-6 flex flex-col gap-4 max-h-[70vh] overflow-y-auto">
@@ -163,9 +171,18 @@ const FleetEmailModal: React.FC<Props> = ({
               <span className="text-neutral-700 text-sm font-medium">To</span>
               <div className="min-h-[52px] px-3 py-2 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 focus-within:outline-neutral-900 flex flex-wrap items-center gap-2">
                 {recipients.map((r, i) => (
-                  <span key={`${r}-${i}`} className="flex items-center gap-1 pl-3 pr-1.5 py-1 bg-neutral-100 rounded-full text-neutral-800 text-sm max-w-full">
+                  <span
+                    key={`${r}-${i}`}
+                    className="flex items-center gap-1 pl-3 pr-1.5 py-1 bg-neutral-100 rounded-full text-neutral-800 text-sm max-w-full"
+                  >
                     <span className="truncate">{r}</span>
-                    <button type="button" onClick={() => removeRecipient(i)} className="text-neutral-400 hover:text-red-500 text-base leading-none shrink-0">×</button>
+                    <button
+                      type="button"
+                      onClick={() => removeRecipient(i)}
+                      className="text-neutral-400 hover:text-red-500 text-base leading-none shrink-0"
+                    >
+                      ×
+                    </button>
                   </span>
                 ))}
                 <input
@@ -180,16 +197,35 @@ const FleetEmailModal: React.FC<Props> = ({
                 />
               </div>
             </div>
-            <button type="button" onClick={() => setShowCc((s) => !s)} className="h-[52px] px-3 text-neutral-900 text-sm font-medium underline underline-offset-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowCc((s) => !s)}
+              className="h-[52px] px-3 text-neutral-900 text-sm font-medium underline underline-offset-2 shrink-0"
+            >
               {showCc ? "Hide Cc" : "Add Cc"}
             </button>
           </div>
-          {showCc && <FleetTextInput label="Cc" placeholder="cc@example.com" inputMode="email" value={cc} onChange={setCc} />}
-          <FleetTextInput label="Subject" placeholder="Enter subject" value={subject} onChange={setSubject} />
+          {showCc && (
+            <FleetTextInput
+              label="Cc"
+              placeholder="cc@example.com"
+              inputMode="email"
+              value={cc}
+              onChange={setCc}
+            />
+          )}
+          <FleetTextInput
+            label="Subject"
+            placeholder="Enter subject"
+            value={subject}
+            onChange={setSubject}
+          />
 
           {previewHtml ? (
             <div className="flex flex-col gap-2">
-              <span className="text-neutral-700 text-sm font-medium">Preview</span>
+              <span className="text-neutral-700 text-sm font-medium">
+                Preview
+              </span>
               <iframe
                 title={`${title} preview`}
                 srcDoc={previewHtml}
@@ -198,7 +234,9 @@ const FleetEmailModal: React.FC<Props> = ({
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              <span className="text-neutral-700 text-sm font-medium">Message</span>
+              <span className="text-neutral-700 text-sm font-medium">
+                Message
+              </span>
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -212,25 +250,42 @@ const FleetEmailModal: React.FC<Props> = ({
           {/* Attachments */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-neutral-700 text-sm font-medium">
+              {/* <div className="flex items-center gap-2 text-neutral-700 text-sm font-medium">
                 <PaperclipIcon />
                 {files.length} attachment{files.length !== 1 ? "s" : ""}
-              </div>
-              <button
+              </div> */}
+              {/* <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="h-8 px-3 py-2 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50"
               >
                 Add Attachment
-              </button>
-              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
+              </button> */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => addFiles(e.target.files)}
+              />
             </div>
             {files.length > 0 && (
               <div className="flex flex-col gap-2">
                 {files.map((f, i) => (
-                  <div key={`${f.name}-${i}`} className="flex items-center justify-between gap-3 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-200">
-                    <span className="text-neutral-700 text-sm truncate">{f.name}</span>
-                    <button type="button" onClick={() => removeFile(i)} className="text-neutral-400 hover:text-red-500 text-lg leading-none shrink-0">×</button>
+                  <div
+                    key={`${f.name}-${i}`}
+                    className="flex items-center justify-between gap-3 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-200"
+                  >
+                    <span className="text-neutral-700 text-sm truncate">
+                      {f.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      className="text-neutral-400 hover:text-red-500 text-lg leading-none shrink-0"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
               </div>
@@ -239,9 +294,21 @@ const FleetEmailModal: React.FC<Props> = ({
         </div>
 
         <div className="px-6 py-4 border-t border-neutral-100 flex justify-end items-center gap-3">
-          <button type="button" onClick={onClose} disabled={sending} className="px-6 py-3 rounded bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50 disabled:opacity-50">Discard</button>
-          <button type="button" onClick={handleSend} disabled={sending} className="px-6 py-3 rounded bg-[#0078D4] text-white text-base font-medium hover:bg-[#0A64AD] disabled:opacity-70 disabled:cursor-not-allowed inline-flex items-center gap-2">
-            <OutlookIcon className="w-5 h-5" />
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="px-6 py-3 rounded bg-white text-neutral-900 text-base font-medium outline outline-1 -outline-offset-1 outline-neutral-900 hover:bg-neutral-50 disabled:opacity-50"
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={sending}
+            className="px-6 py-3 rounded bg-neutral-900 text-white text-base font-medium hover:bg-neutral-600 disabled:opacity-70 disabled:cursor-not-allowed inline-flex items-center gap-2"
+          >
+            {/* <OutlookIcon className="w-5 h-5" /> */}
             {sending ? "Sending…" : "Send"}
           </button>
         </div>

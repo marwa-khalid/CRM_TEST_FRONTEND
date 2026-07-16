@@ -246,6 +246,8 @@ const DriverProofs: React.FC = () => {
   const [sections, setSections] = useState<ProofSection[]>([
     { id: 1, activeKind: "bank_statement", docs: { bank_statement: null, utility_bill: null } },
   ]);
+  // Global Bank Statement / Utility Bill switch — flips ALL sections at once.
+  const [activeKind, setActiveKind] = useState<ProofKind>("bank_statement");
   const nextSectionId = useRef(2);
   const [dl, setDl] = useState<Record<DlKey, UploadedDoc | null>>({ dlFront: null, dlBack: null });
   const [activeUpload, setActiveUpload] = useState<Target | null>(null);
@@ -340,6 +342,8 @@ const DriverProofs: React.FC = () => {
             activeKind: (s.docs.bank_statement ? "bank_statement" : "utility_bill") as ProofKind,
           }));
           setSections(secs);
+          // Land the global switch on whichever view section 1 has a document for.
+          if (secs[0]) setActiveKind(secs[0].docs.bank_statement ? "bank_statement" : "utility_bill");
           nextSectionId.current = Math.max(...secs.map((s) => s.id)) + 1;
         }
         const front = docs.find((d) => d.doc_type === "dlFront");
@@ -388,14 +392,7 @@ const DriverProofs: React.FC = () => {
       return [...s, { id, activeKind: "bank_statement", docs: { bank_statement: null, utility_bill: null } }];
     });
 
-  // Flip a section between its Bank Statement / Utility Bill view (never locked, so
-  // each view can be uploaded independently in the same section).
-  const changeActiveKind = (index: number, value: string) => {
-    const kind = value as ProofKind;
-    setSections((secs) => secs.map((s, i) => (i === index ? { ...s, activeKind: kind } : s)));
-  };
-
-  const sectionHasDocs = (s: ProofSection) => !!(s.docs.bank_statement || s.docs.utility_bill);
+  const sectionHasDocs = (s?: ProofSection) => !!(s && (s.docs.bank_statement || s.docs.utility_bill));
 
   // Remove an entire added section (both views). Deletes any uploaded docs from the
   // backend and clears their OCR; then drops the section from the list.
@@ -521,7 +518,6 @@ const DriverProofs: React.FC = () => {
   };
 
   const section1 = sections[0];
-  const activeKind = section1?.activeKind || "bank_statement";
   const activeProofDoc = section1?.docs[activeKind] || null;
   const activeProofDocType = section1 ? proofDocType(activeKind, section1.id) : "";
   const activeProofOcr = proofOcr[activeProofDocType] || { address: "", postcode: "" };
@@ -541,33 +537,40 @@ const DriverProofs: React.FC = () => {
       </h2>
       {ocrLoading && <FleetInlineLoader text="Reading document…" />}
 
-      {/* Each proof-of-address section switches between a Bank Statement and a Utility
-          Bill view; each view keeps its own independent upload. */}
+      {/* Global switch — flips every proof-of-address section between Bank Statement
+          and Utility Bill at once. */}
+      <section className="p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-black text-xl font-semibold leading-5">Upload Documents</h3>
+        <FleetSegmented options={PROOF_OPTIONS} value={activeKind} onChange={(v) => setActiveKind(v as ProofKind)} />
+      </section>
+
+      {/* Every section shows the globally-selected view; each still keeps its own upload. */}
       {sections.map((section, i) => (
         <DocumentCard
           key={`section-${section.id}`}
-          label={sectionTitle(i)}
-          uploadLabel={proofKindLabel(section.activeKind)}
-          doc={section.docs[section.activeKind]}
-          proofKind={section.activeKind}
-          onProofKindChange={(value) => changeActiveKind(i, value)}
-          onUploadClick={() => setActiveUpload({ kind: "proof", index: i, proofKind: section.activeKind })}
-          onRemove={() => setDeleteTarget({ kind: "proof", index: i, proofKind: section.activeKind })}
+          label={proofKindLabel(activeKind)}
+          uploadLabel={proofKindLabel(activeKind)}
+          doc={section.docs[activeKind]}
+          onUploadClick={() => setActiveUpload({ kind: "proof", index: i, proofKind: activeKind })}
+          onRemove={() => setDeleteTarget({ kind: "proof", index: i, proofKind: activeKind })}
           // The first section is the primary proof (always present); added ones can be removed.
           onRemoveSection={i > 0 ? () => onRemoveSectionClick(i) : undefined}
         />
       ))}
 
-      <div className="self-stretch flex flex-col items-center">
-        <button
-          type="button"
-          onClick={addSection}
-          className="h-8 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-900 inline-flex justify-center items-center gap-2.5 text-neutral-900 text-sm font-normal leading-4 hover:bg-neutral-50"
-        >
-          <img src={PlusIcon} alt="" className="w-4 h-4" />
-          Add Another Proof of Address
-        </button>
-      </div>
+      {/* Only offer "Add Another" once the first section actually has a document. */}
+      {sectionHasDocs(sections[0]) && (
+        <div className="self-stretch flex flex-col items-center">
+          <button
+            type="button"
+            onClick={addSection}
+            className="h-8 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-900 inline-flex justify-center items-center gap-2.5 text-neutral-900 text-sm font-normal leading-4 hover:bg-neutral-50"
+          >
+            <img src={PlusIcon} alt="" className="w-4 h-4" />
+            Add Another {proofKindLabel(activeKind)}
+          </button>
+        </div>
+      )}
 
       {(Object.keys(DL_LABELS) as DlKey[]).map((key) => (
         <DocumentCard

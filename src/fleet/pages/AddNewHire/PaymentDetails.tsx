@@ -442,6 +442,9 @@ const PaymentDetails: React.FC = () => {
         const vehicleAdditionalCharges = num(vehicle.additional_charges);
         const grossCharges = plannedHireCost + vehicleDamageCharges + vehicleAdditionalCharges;
 
+        // Off-hire = settlement reached. Only then is the deposit reconciled; before
+        // that the vehicle has no hire_end_date and the deposit is just held.
+        const offHire = String(vehicle.hire_status || "") === "off_hire" || !!vehicle.hire_end_date;
         return {
           key,
           label: `Vehicle${index + 1}`,
@@ -454,6 +457,7 @@ const PaymentDetails: React.FC = () => {
           grossCharges,
           chargesDue: Math.max(0, grossCharges - received),
           depositHeld: index === 0 ? num(vehicle.deposit) : 0,
+          offHire,
         };
       }),
     [activeVehicleIndex, rows, summaryRowsByVehicleId, vehicles],
@@ -472,8 +476,13 @@ const PaymentDetails: React.FC = () => {
     0,
   );
   const combinedObligations = combinedUnpaidHire + combinedPostHireCharges;
-  // Deposit still held (after weeks explicitly paid "Adjusted in Security Deposit").
-  const combinedDepositAvailable = Math.max(0, combinedDepositHeld - combinedDepositAdjusted);
+  // The deposit is reconciled once it's engaged — either the hire is off-hired
+  // (settlement) OR the user has adjusted a payment into it. Until then an untouched
+  // deposit on an active hire is just held (driver owes the full unpaid hire).
+  const settled = vehicleSummaries.length > 0 && vehicleSummaries.every((summary) => summary.offHire);
+  const depositEngaged = combinedDepositAdjusted > 0;
+  const combinedDepositAvailable =
+    settled || depositEngaged ? Math.max(0, combinedDepositHeld - combinedDepositAdjusted) : 0;
   // ONE final figure: net the obligations against the deposit. >0 owes, <0 refundable.
   const netPosition = combinedObligations - combinedDepositAvailable;
   const finalOutcome =
@@ -1050,7 +1059,7 @@ const PaymentDetails: React.FC = () => {
         <div className="flex items-center justify-between gap-4">
           <span className="text-neutral-900 text-sm font-semibold">Overall Final Outcome:</span>
           <span
-            className={`px-4 py-2 rounded-full text-sm font-semibold ${
+            className={`px-4 py-2 rounded text-sm font-semibold ${
               finalOutcomeTone === "outstanding"
                 ? "bg-red-50 text-red-700 outline outline-1 -outline-offset-1 outline-red-200"
                 : "bg-green-50 text-green-700 outline outline-1 -outline-offset-1 outline-green-200"

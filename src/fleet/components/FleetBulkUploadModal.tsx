@@ -196,7 +196,7 @@ const FleetBulkUploadModal: React.FC<Props> = ({ open, onClose, sections, onUplo
                           <span className="text-red-500"> · {row.error}</span>
                         )}
                         {conflict && row.status !== "error" && (
-                          <span className="text-amber-600"> · two files share this section</span>
+                          <span className="text-red-600"> · two files share this section</span>
                         )}
                       </div>
                     </div>
@@ -229,7 +229,7 @@ const FleetBulkUploadModal: React.FC<Props> = ({ open, onClose, sections, onUplo
         <div className="px-6 py-4 border-t border-neutral-100 flex justify-between items-center gap-4 shrink-0">
           <div className="text-neutral-600 text-sm">
             {pending.length} file{pending.length === 1 ? "" : "s"} to upload
-            {unassigned > 0 && <span className="text-amber-600"> · {unassigned} need a section</span>}
+            {unassigned > 0 && <span className="text-red-600"> · {unassigned} need a section</span>}
           </div>
           <div className="flex items-center gap-3">
             <button

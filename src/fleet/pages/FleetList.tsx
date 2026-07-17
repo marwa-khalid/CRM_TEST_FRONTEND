@@ -243,7 +243,7 @@ const FleetList: React.FC = () => {
       {deleteTarget && (
         <FleetConfirmModal
           title="Delete Fleet Record"
-          message={`Are you sure you want to delete ${deleteTarget.fleet_reference || fallbackReference(deleteTarget)}? This cannot be undone.`}
+          message={`Are you sure you want to delete ${deleteTarget.fleet_reference || fallbackReference(deleteTarget)}?`}
           confirmLabel="Delete"
           onConfirm={confirmDelete}
           onCancel={() => setDeleteTarget(null)}

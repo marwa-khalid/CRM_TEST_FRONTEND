@@ -143,31 +143,15 @@ const DocumentCard: React.FC<{
   onUploadClick: () => void;
   onRemove: () => void;
   uploadLabel?: string; // dropzone caption; falls back to `label`
-  proofKind?: ProofKind;
-  onProofKindChange?: (value: string) => void;
-  onRemoveSection?: () => void; // when set, shows a "Remove" control for the whole section
-}> = ({ label, doc, onUploadClick, onRemove, uploadLabel, proofKind, onProofKindChange, onRemoveSection }) => (
+  onAddSection?: () => void; // footer "Add Another {addLabel}" (shown on the last section)
+  addLabel?: string;
+  onRemoveSection?: () => void; // footer "Remove" for the whole section
+}> = ({ label, doc, onUploadClick, onRemove, uploadLabel, onAddSection, addLabel, onRemoveSection }) => (
   <section className="p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4">
     <div className="flex flex-wrap items-center gap-3">
       <h3 className="text-black text-xl font-semibold leading-5 mr-auto">{label}</h3>
-      {proofKind && onProofKindChange && (
-        // Switch between the Bank Statement / Utility Bill views of this section —
-        // always enabled so either view can be uploaded independently.
-        <FleetSegmented options={PROOF_OPTIONS} value={proofKind} onChange={onProofKindChange} />
-      )}
       {doc && (
         <span className="text-black text-sm">Received On: {doc.receivedOn}</span>
-      )}
-      {onRemoveSection && (
-        <button
-          type="button"
-          onClick={onRemoveSection}
-          title="Remove this proof of address section"
-          className="h-8 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-500 inline-flex items-center gap-2 text-neutral-600 text-sm hover:bg-red-50"
-        >
-          {/* <img src={TrashIcon} alt="" className="w-4 h-4" /> */}
-          Remove
-        </button>
       )}
     </div>
     <div className="h-px bg-neutral-100" />
@@ -203,15 +187,21 @@ const DocumentCard: React.FC<{
             )}
           </div>
         )}
-        <div className="h-px bg-neutral-100 w-full" />
-        <button
-          type="button"
-          onClick={onRemove}
-          className="h-8 px-3 py-2 self-center bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50"
-        >
-          <img src={TrashIcon} alt="" className="w-4 h-4" />
-          Remove
-        </button>
+        {/* Cards with a footer (proof sections) remove via the footer; the DL cards
+            keep this inline Remove to clear their single document. */}
+        {!onAddSection && !onRemoveSection && (
+          <>
+            <div className="h-px bg-neutral-100 w-full" />
+            <button
+              type="button"
+              onClick={onRemove}
+              className="h-8 px-3 py-2 self-center bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50"
+            >
+              <img src={TrashIcon} alt="" className="w-4 h-4" />
+              Remove
+            </button>
+          </>
+        )}
       </div>
     ) : (
       <button
@@ -225,6 +215,37 @@ const DocumentCard: React.FC<{
           <span className="text-black text-sm">JPG, PNG, PDF Supported</span>
         </div>
       </button>
+    )}
+
+    {/* Footer CTAs — "Add Another" (last section) on the left, "Remove" on the right.
+        With only one button showing, centre it instead of pushing it to an edge. */}
+    {(onAddSection || onRemoveSection) && (
+      <>
+        <div className="h-px bg-neutral-100" />
+        <div className={`flex items-center gap-3 ${onAddSection && onRemoveSection ? "justify-between" : "justify-center"}`}>
+          {onAddSection && (
+            <button
+              type="button"
+              onClick={onAddSection}
+              className="h-8 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-900 inline-flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50"
+            >
+              <img src={PlusIcon} alt="" className="w-4 h-4" />
+              Add Another {addLabel}
+            </button>
+          )}
+          {onRemoveSection && (
+            <button
+              type="button"
+              onClick={onRemoveSection}
+              title="Remove this proof of address section"
+              className="h-8 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-500 inline-flex items-center gap-2 text-neutral-600 text-sm hover:bg-red-50"
+            >
+              <img src={TrashIcon} alt="" className="w-4 h-4" />
+              Remove
+            </button>
+          )}
+        </div>
+      </>
     )}
   </section>
 );
@@ -410,7 +431,12 @@ const DriverProofs: React.FC = () => {
       delete n[proofDocType("utility_bill", section.id)];
       return n;
     });
-    setSections((secs) => secs.filter((_, idx) => idx !== index));
+    // Always keep at least one section — removing the last one resets it to empty.
+    setSections((secs) => {
+      const next = secs.filter((_, idx) => idx !== index);
+      if (next.length > 0) return next;
+      return [{ id: nextSectionId.current++, activeKind, docs: { bank_statement: null, utility_bill: null } }];
+    });
   };
 
   // Empty sections drop immediately; a section holding uploads asks first.
@@ -553,24 +579,13 @@ const DriverProofs: React.FC = () => {
           doc={section.docs[activeKind]}
           onUploadClick={() => setActiveUpload({ kind: "proof", index: i, proofKind: activeKind })}
           onRemove={() => setDeleteTarget({ kind: "proof", index: i, proofKind: activeKind })}
-          // The first section is the primary proof (always present); added ones can be removed.
-          onRemoveSection={i > 0 ? () => onRemoveSectionClick(i) : undefined}
+          // "Add Another" only on the last section, once the first section has a document.
+          onAddSection={i === sections.length - 1 && sectionHasDocs(sections[0]) ? addSection : undefined}
+          addLabel={proofKindLabel(activeKind)}
+          // Every section can be removed from its footer (at least one section is kept).
+          onRemoveSection={() => onRemoveSectionClick(i)}
         />
       ))}
-
-      {/* Only offer "Add Another" once the first section actually has a document. */}
-      {sectionHasDocs(sections[0]) && (
-        <div className="self-stretch flex flex-col items-center">
-          <button
-            type="button"
-            onClick={addSection}
-            className="h-8 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-900 inline-flex justify-center items-center gap-2.5 text-neutral-900 text-sm font-normal leading-4 hover:bg-neutral-50"
-          >
-            <img src={PlusIcon} alt="" className="w-4 h-4" />
-            Add Another {proofKindLabel(activeKind)}
-          </button>
-        </div>
-      )}
 
       {(Object.keys(DL_LABELS) as DlKey[]).map((key) => (
         <DocumentCard

@@ -15,6 +15,7 @@ import {
   type PaymentRow,
 } from "../../services/paymentService";
 import RemoveIcon from "../../assets/icons/Remove.svg";
+import PencilIcon from "../../assets/icons/PencilIcon.svg";
 import { sendFleetSms } from "../../services/smsService";
 import { deleteVehicle, listVehicles, updateVehicle } from "../../services/vehicleService";
 import type { Option } from "../../types/hire";
@@ -51,7 +52,7 @@ const TO_BACKEND: Record<keyof PaymentForm, string> = {
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
-const PAYMENT_SCHEDULE_GRID = "grid-cols-[44px_92px_96px_92px_100px_minmax(96px,1fr)_104px]";
+const PAYMENT_SCHEDULE_GRID = "grid-cols-[56px_1fr_1fr_1fr_1fr_140px]";
 const money = (n: number) => `£${n.toFixed(2)}`;
 const ERROR = "text-red-500 text-xs";
 const PAYMENT_MODE_OPTIONS: Option[] = [
@@ -61,13 +62,6 @@ const PAYMENT_MODE_OPTIONS: Option[] = [
 const paymentModeLabel = (value?: string | null): string => (
   PAYMENT_MODE_OPTIONS.find((option) => option.value === value)?.label || "Cash"
 );
-const uniqueText = (values: string[]): string => {
-  const unique = Array.from(new Set(values.filter(Boolean)));
-  if (unique.length === 0) return "-";
-  return unique.length === 1 ? unique[0] : unique.join(", ");
-};
-const transactionNotesText = (transactions: PaymentTransaction[] = []): string =>
-  uniqueText(transactions.map((transaction) => transaction.notes || "").filter(Boolean));
 
 type HireVehicleRecord = Record<string, unknown>;
 
@@ -106,10 +100,14 @@ const calculatedStatus = (row: PaymentRow): string => {
   if (due > 0 && paid < due) return "partial";
   return "received";
 };
+// Show per-payment sub-records when a week is paid in parts — i.e. 2+ payments, OR a
+// single payment that doesn't cover the full due (a part-payment you can still edit/
+// delete). A single payment that clears the whole week needs no breakdown; it's edited
+// via the summary row's "Edit Payment" button instead.
 const shouldShowPaymentBreakdown = (row: PaymentRow): boolean => {
-  const transactions = row.transactions ?? [];
-  if (transactions.length === 0) return false;
-  if (transactions.length === 1 && num(transactions[0].amount) >= num(row.due_amount)) return false;
+  const txns = row.transactions ?? [];
+  if (txns.length === 0) return false;
+  if (txns.length === 1 && num(txns[0].amount) >= num(row.due_amount)) return false;
   return true;
 };
 const statusLabel = (value: string) => {
@@ -161,12 +159,6 @@ const PaymentDateCell: React.FC<{ dateValue?: string | null; timeValue?: string 
 // Local YYYY-MM-DD (avoids the BST off-by-one that toISOString() causes).
 const todayLocalISO = (): string => new Date().toLocaleDateString("sv-SE");
 
-const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden className={`w-4 h-4 transition-transform ${open ? "rotate-90" : ""}`}>
-    <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
 const paymentReminderPhrase = () =>
   "PAYDUE - Skyline Car Hire (UK) Ltd have tried to contact you today as your weekly payment for the hire vehicle is due.";
 
@@ -198,17 +190,16 @@ interface NewTransaction {
 
 const RecordPaymentModal: React.FC<{
   row: PaymentRow;
+  editTransactionId: number | null; // null = add a new part-payment; else edit that one
   saving: boolean;
   onCancel: () => void;
   onSave: (transaction: NewTransaction, editTransactionId: number | null) => void | Promise<void>;
-  onDeleteTransaction: (transactionId: number) => void | Promise<void>;
-}> = ({ row, saving, onCancel, onSave, onDeleteTransaction }) => {
+}> = ({ row, editTransactionId, saving, onCancel, onSave }) => {
   const alreadyPaid = num(row.paid_amount);
   const dueRemaining = remainingDue(row);
   const txns = row.transactions ?? [];
-  // When the week already has a payment, edit the latest one (correct a mistake)
-  // instead of only ever adding another. No payment yet → add a new one.
-  const editingTxn = txns.length > 0 ? txns[txns.length - 1] : null;
+  // Edit the specific part-payment the user clicked the pencil on; otherwise add a new one.
+  const editingTxn = editTransactionId != null ? txns.find((t) => t.id === editTransactionId) ?? null : null;
   const isEdit = !!editingTxn;
   const [paidAmount, setPaidAmount] = useState(
     editingTxn ? num(editingTxn.amount).toFixed(2) : dueRemaining ? dueRemaining.toFixed(2) : "",
@@ -326,10 +317,11 @@ const PaymentDetails: React.FC = () => {
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [summaryRowsByVehicleId, setSummaryRowsByVehicleId] = useState<Record<string, PaymentRow[]>>({});
   const [recordId, setRecordId] = useState<number | null>(null);
-  const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set());
+  const [editTxnId, setEditTxnId] = useState<number | null>(null); // sub-record being edited
   const [vehicles, setVehicles] = useState<HireVehicleRecord[]>([]);
   const [activeVehicleIndex, setActiveVehicleIndex] = useState(0);
   const [deleteVehicleIndex, setDeleteVehicleIndex] = useState<number | null>(null);
+  const [deleteTxn, setDeleteTxn] = useState<{ weekId: number; txnId: number } | null>(null);
   const [validation, setValidation] = useState<{ weeks?: string; deposit?: string }>({});
   const [initialLoading, setInitialLoading] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(false);
@@ -511,7 +503,6 @@ const PaymentDetails: React.FC = () => {
     let active = true;
     lastScheduleSync.current = "";
     setRows([]);
-    setExpandedWeeks(new Set());
     setScheduleLoading(true);
     listPayments(hireId, activeVehicleId)
       .then((paymentRows) => {
@@ -706,12 +697,16 @@ const PaymentDetails: React.FC = () => {
 
   const recordRow = rows.find((r) => r.id === recordId) || null;
 
-  const toggleWeek = (id: number) =>
-    setExpandedWeeks((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  // Open the Record Payment modal — either to add a new part-payment (txnId null) or to
+  // edit a specific existing one (via a sub-record's pencil).
+  const openPaymentModal = (weekId: number, txnId: number | null) => {
+    setEditTxnId(txnId);
+    setRecordId(weekId);
+  };
+  const closePaymentModal = () => {
+    setRecordId(null);
+    setEditTxnId(null);
+  };
 
   const handleDeleteTransaction = async (paymentId: number, transactionId: number) => {
     if (!hireId) return;
@@ -893,82 +888,64 @@ const PaymentDetails: React.FC = () => {
               <FleetInlineLoader text="Updating payment schedule..." />
             </div>
           )}
-          <div className="w-full">
-          <div className={`grid ${PAYMENT_SCHEDULE_GRID} gap-2 px-3 h-11 items-center text-neutral-900 text-xs font-semibold border-b border-neutral-100`}>
-            <span>WEEK</span><span>DUE AMOUNT</span><span>STATUS</span><span>PAID</span><span>PAYMENT DATE</span><span>NOTES</span><span>ACTION</span>
-          </div>
-          {rows.length === 0 ? (
-            <div className="px-4 h-12 flex items-center text-neutral-400 text-sm">Enter the number of weekly payments to generate the schedule.</div>
-          ) : (
-            rows.map((r) => {
-              const txns = r.transactions ?? [];
-              const open = expandedWeeks.has(r.id);
-              const showPaymentBreakdown = shouldShowPaymentBreakdown(r);
-              const notesText = transactionNotesText(txns);
-              const hasPayment = txns.length > 0 || num(r.paid_amount) > 0;
-              return (
-                <React.Fragment key={r.id}>
-                  <div className={`grid ${PAYMENT_SCHEDULE_GRID} gap-2 px-3 py-3 items-center text-neutral-700 text-xs border-b border-neutral-100 last:border-b-0`}>
-                    <span className="flex items-center gap-1.5">
-                      {showPaymentBreakdown ? (
+          <div className="w-full flex flex-col gap-2 p-2">
+            <div className={`grid ${PAYMENT_SCHEDULE_GRID} gap-2 px-3 h-11 items-center text-neutral-900 text-xs font-semibold`}>
+              <span>WEEK</span><span>DUE AMOUNT</span><span>STATUS</span><span>PAID AMOUNT</span><span>PAYMENT DATE</span><span>ACTION</span>
+            </div>
+            {rows.length === 0 ? (
+              <div className="px-4 h-12 flex items-center text-neutral-400 text-sm">Enter the number of weekly payments to generate the schedule.</div>
+            ) : (
+              rows.map((r) => {
+                const txns = r.transactions ?? [];
+                // A single payment that clears the week has no sub-record — the summary
+                // button edits that one payment instead of adding another.
+                const editSinglePayment = txns.length === 1 && !shouldShowPaymentBreakdown(r);
+                return (
+                  <div key={r.id} className="rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 p-2 flex flex-col gap-2">
+                    {/* Summary row — PAID AMOUNT is the sum of the week's part-payments. */}
+                    <div className={`grid ${PAYMENT_SCHEDULE_GRID} gap-2 px-3 py-1 items-center text-neutral-700 text-sm`}>
+                      <span>{r.week}</span>
+                      <MoneyCell value={r.due_amount} />
+                      <span>{statusLabel(calculatedStatus(r))}</span>
+                      <MoneyCell value={r.paid_amount} />
+                      <PaymentDateCell dateValue={r.payment_date} timeValue={r.payment_time} />
+                      <span>
                         <button
                           type="button"
-                          onClick={() => toggleWeek(r.id)}
-                          className="text-neutral-400 hover:text-neutral-900"
-                          title={open ? "Hide payments" : "Show payments"}
+                          onClick={() => openPaymentModal(r.id, editSinglePayment ? txns[0].id : null)}
+                          className="h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm hover:bg-black inline-flex items-center justify-center whitespace-nowrap"
                         >
-                          <Chevron open={open} />
+                          {editSinglePayment ? "Edit Payment" : "Record Payment"}
                         </button>
-                      ) : (
-                        <span className="w-4" />
-                      )}
-                      {r.week}
-                    </span>
-                    <MoneyCell value={r.due_amount} />
-                    <span>{statusLabel(calculatedStatus(r))}</span>
-                    <span className="flex flex-col leading-5">
-                      {isBlank(r.paid_amount) ? <DashCell /> : <span>£{num(r.paid_amount).toFixed(2)}</span>}
-                      {/* {txns.length > 0 && (
-                        <span className="text-neutral-400 text-xs">{txns.length} payment{txns.length === 1 ? "" : "s"}</span>
-                      )} */}
-                    </span>
-                    <PaymentDateCell dateValue={r.payment_date} timeValue={r.payment_time} />
-                    {notesText === "" ? <DashCell /> : <span className="truncate text-neutral-500" title={notesText}>{notesText}</span>}
-                    <span className="flex justify-start">
-                      <button type="button" onClick={() => setRecordId(r.id)} className="h-8 min-w-[104px] px-2 py-2 bg-neutral-900 rounded text-white text-xs hover:bg-black inline-flex items-center justify-center whitespace-nowrap">
-                        {hasPayment ? "Edit Payment" : "Record Payment"}
-                      </button>
-                    </span>
-                  </div>
-                  {open && showPaymentBreakdown && (
-                    <div className="bg-neutral-50 border-b border-neutral-100 px-4 py-3 flex flex-col gap-2">
-                      <span className="text-neutral-500 text-xs font-semibold uppercase tracking-wide">Payments for week {r.week}</span>
-                      {txns.map((t) => (
-                        <div key={t.id} className={`grid ${PAYMENT_SCHEDULE_GRID} gap-2 items-center text-neutral-600 text-xs`}>
-                          <span className="text-neutral-400 pl-1">↳</span>
-                          <span />
-                          <span />
-                          <MoneyCell value={t.amount} className="text-neutral-900 font-medium" />
-                          <PaymentDateCell dateValue={t.payment_date} timeValue={t.payment_time} />
-                          {isBlank(t.notes) ? <DashCell /> : <span className="truncate" title={t.notes || ""}>{t.notes}</span>}
-                          <span className="text-end">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteTransaction(r.id, t.id)}
-                              // className="h-8 px-3 py-1 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-300 text-neutral-700 text-xs hover:bg-neutral-100 inline-flex items-center gap-1.5"
-                            >
-                              <img src={RemoveIcon} alt="" className="w-3.5 h-3.5" />
-                              {/* Remove */}
+                      </span>
+                    </div>
+                    {/* Only weeks paid in parts get sub-records; each part-payment has
+                        edit (pencil) + delete (trash), aligned under PAID / PAYMENT DATE. */}
+                    {shouldShowPaymentBreakdown(r) &&
+                      txns.map((t) => (
+                        <div key={t.id} className={`grid ${PAYMENT_SCHEDULE_GRID} gap-2 items-stretch text-neutral-700 text-sm`}>
+                          <span /><span /><span />
+                          {/* Amount + date (defines the pill height), aligned under PAID / PAYMENT DATE. */}
+                          <div className="col-span-2 -ml-2 py-2.5 bg-neutral-100 rounded-l-lg grid grid-cols-2 gap-2 items-center">
+                            <span className="pl-2">£{num(t.amount).toFixed(2)}</span>
+                            <PaymentDateCell dateValue={t.payment_date} timeValue={t.payment_time} className="text-neutral-700" />
+                          </div>
+                          {/* Icons — same grey, content-width, stretched to the same height so the
+                              two halves read as one seamless pill (not stretched to the column end). */}
+                          <div className="-ml-2 pr-2 self-stretch bg-neutral-100 rounded-r-lg w-fit flex items-center gap-4">
+                            <button type="button" title="Edit this payment" onClick={() => openPaymentModal(r.id, t.id)} className="hover:opacity-70">
+                              <img src={PencilIcon} alt="Edit" className="w-4 h-4" />
                             </button>
-                          </span>
+                            <button type="button" title="Delete this payment" onClick={() => setDeleteTxn({ weekId: r.id, txnId: t.id })} className="hover:opacity-70">
+                              <img src={RemoveIcon} alt="Delete" className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            })
-          )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </section>
@@ -1073,9 +1050,10 @@ const PaymentDetails: React.FC = () => {
       {recordRow && (
         <RecordPaymentModal
           row={recordRow}
+          editTransactionId={editTxnId}
           saving={recordSaving}
           onCancel={() => {
-            if (!recordSaving) setRecordId(null);
+            if (!recordSaving) closePaymentModal();
           }}
           onSave={async (transaction, editTransactionId) => {
             const id = recordRow.id;
@@ -1095,9 +1073,8 @@ const PaymentDetails: React.FC = () => {
                     ),
                   }));
                 }
-                setExpandedWeeks((prev) => new Set(prev).add(id)); // reveal the record
               }
-              setRecordId(null);
+              closePaymentModal();
               toast.success(editTransactionId ? "Payment updated." : "Payment recorded.");
             } catch {
               toast.error("Could not save payment. Please try again.");
@@ -1105,7 +1082,6 @@ const PaymentDetails: React.FC = () => {
               setRecordSaving(false);
             }
           }}
-          onDeleteTransaction={(transactionId) => handleDeleteTransaction(recordRow.id, transactionId)}
         />
       )}
 
@@ -1138,6 +1114,20 @@ const PaymentDetails: React.FC = () => {
           confirmLabel="Delete"
           onCancel={() => setDeleteVehicleIndex(null)}
           onConfirm={confirmDeleteVehicle}
+        />
+      )}
+
+      {deleteTxn && (
+        <FleetConfirmModal
+          title="Delete Payment"
+          message="Are you sure you want to delete this payment?"
+          confirmLabel="Delete"
+          onCancel={() => setDeleteTxn(null)}
+          onConfirm={async () => {
+            const target = deleteTxn;
+            setDeleteTxn(null);
+            await handleDeleteTransaction(target.weekId, target.txnId);
+          }}
         />
       )}
     </div>

@@ -57,8 +57,8 @@ const FIELD_BOX_ERROR =
 // Blue-tinted variant for read-only computed fields. Full literal string (same
 // reason as FIELD_BOX_ERROR — the scanner must see the blue classes verbatim).
 const FIELD_BOX_HIGHLIGHT =
-  "w-full self-stretch px-5 py-4 bg-blue-50 rounded outline outline-1 -outline-offset-1 outline-blue-200 " +
-  "text-base font-light text-neutral-900 placeholder:text-neutral-300 focus:outline-blue-400 " +
+  "w-full self-stretch px-5 py-4 bg-neutral-100 rounded outline outline-1 -outline-offset-1 outline-neutral-200 " +
+  "text-base font-light text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-400 " +
   "disabled:bg-blue-50 disabled:text-neutral-500 leading-4";
 
 const LABEL = "text-neutral-700 text-sm font-medium font-sans-headline";
@@ -523,15 +523,33 @@ interface SelectProps {
   // Render the menu in a body portal (menuPosition fixed) so it isn't clipped when
   // the select sits inside a scrollable/overflow-hidden container like a modal.
   menuPortal?: boolean;
+  // Fleet dropdowns list their options A→Z by default. Set this for the few whose
+  // order is meaningful (weekdays Mon→Sun, priority Low→High) to keep it as given.
+  unsorted?: boolean;
+  menuPlacement?: "auto" | "bottom" | "top";
 }
 
+// Ascending by label, but keep an empty-value placeholder (e.g. "All") pinned at
+// the top and an "Other" option pinned at the bottom.
+const sortOptions = (options: Option[]): Option[] => {
+  const isPlaceholder = (o: Option) => o.value === "";
+  const isOther = (o: Option) => /^other$/i.test(o.value) || /^other$/i.test(o.label);
+  const rest = options.filter((o) => !isPlaceholder(o) && !isOther(o));
+  rest.sort((a, b) => a.label.localeCompare(b.label));
+  return [
+    ...options.filter(isPlaceholder),
+    ...rest,
+    ...options.filter((o) => !isPlaceholder(o) && isOther(o)),
+  ];
+};
+
 export const FleetSelect: React.FC<SelectProps> = ({
-  label, placeholder = "Select", value, options, onChange, onBlur, disabled, menuPortal,
+  label, placeholder = "Select", value, options, onChange, onBlur, disabled, menuPortal, unsorted, menuPlacement = "auto",
 }) => (
   <div className={WRAP}>
     {label && <FieldLabel text={label} />}
     <Select<Option, false>
-      options={options}
+      options={unsorted ? options : sortOptions(options)}
       value={options.find((o) => o.value === value) ?? null}
       onChange={(opt) => onChange(opt ? opt.value : "")}
       onBlur={onBlur}
@@ -540,7 +558,7 @@ export const FleetSelect: React.FC<SelectProps> = ({
       styles={menuPortal ? { ...fleetSelectStyles, menuPortal: (base) => ({ ...base, zIndex: 9999 }) } : fleetSelectStyles}
       className="font-sans-headline text-base"
       classNamePrefix="fleet-select"
-      menuPlacement="auto"
+      menuPlacement={menuPlacement}
       menuPortalTarget={menuPortal && typeof document !== "undefined" ? document.body : undefined}
       menuPosition={menuPortal ? "fixed" : "absolute"}
     />
@@ -548,14 +566,14 @@ export const FleetSelect: React.FC<SelectProps> = ({
 );
 
 export const FleetCreatableSelect: React.FC<SelectProps> = ({
-  label, placeholder = "Select", value, options, onChange, onBlur, disabled,
+  label, placeholder = "Select", value, options, onChange, onBlur, disabled, unsorted,
 }) => {
   const selected = options.find((o) => o.value === value) ?? (value ? { value, label: value } : null);
   return (
     <div className={WRAP}>
       <FieldLabel text={label} />
       <CreatableSelect<Option, false>
-        options={options}
+        options={unsorted ? options : sortOptions(options)}
         value={selected}
         onChange={(opt) => onChange(opt ? opt.value : "")}
         onCreateOption={(inputValue) => onChange(inputValue.trim())}

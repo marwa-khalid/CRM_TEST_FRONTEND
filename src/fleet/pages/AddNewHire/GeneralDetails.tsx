@@ -4,7 +4,7 @@ import { FleetTextInput, FleetSelect, FleetReadonlyField, FleetTimeSelect, round
 import PayReimburseHirerModal from "../../components/PayReimburseHirerModal";
 import FleetDepositRefundModal from "../../components/FleetDepositRefundModal";
 import FleetPayHirerEmailModal from "../../components/FleetPayHirerEmailModal";
-import { getDepositRefundPreview, getPayHirerPreview } from "../../services/emailService";
+import { getDepositRefundPreview, getPayHirerPreview, type DepositRefundDraft } from "../../services/emailService";
 import Calendar from "../../assets/icons/Calendar.svg";
 import CloseFileIcon from "../../assets/icons/CloseFile.svg";
 import {
@@ -53,7 +53,11 @@ const GeneralDetails: React.FC = () => {
   const [refundOpen, setRefundOpen] = useState(false);
   const [preparingRefund, setPreparingRefund] = useState(false);
   const [refundPreview, setRefundPreview] = useState("");
+  const [refundDraft, setRefundDraft] = useState<DepositRefundDraft>({});
   const { hire, hireId, save } = useHire();
+  const refundableAmount = refundDraft.refund_amount_raw && Number(refundDraft.refund_amount_raw) > 0
+    ? refundDraft.refund_amount_raw
+    : "";
 
   // File Opened date is auto-populated (read-only); the time defaults to now,
   // rounded to the nearest 15-min slot, and stays editable via the dropdown.
@@ -104,6 +108,28 @@ const GeneralDetails: React.FC = () => {
     }
   };
 
+  const prepareRefundDraft = async () => {
+    if (!hireId) return null;
+    const preview = await getDepositRefundPreview(hireId);
+    setRefundPreview(preview.html);
+    setRefundDraft(preview.data);
+    return preview;
+  };
+
+  const handlePayOpen = async () => {
+    if (!hireId || refundDraft.refund_amount_raw !== undefined) {
+      setPayOpen(true);
+      return;
+    }
+    setPreparingPayEmail(true);
+    try {
+      await prepareRefundDraft();
+      setPayOpen(true);
+    } finally {
+      setPreparingPayEmail(false);
+    }
+  };
+
   // Prepare the email preview first, then open the fully-populated modal.
   const handleProcessRefund = async () => {
     if (!hireId) {
@@ -112,7 +138,7 @@ const GeneralDetails: React.FC = () => {
     }
     setPreparingRefund(true);
     try {
-      setRefundPreview(await getDepositRefundPreview(hireId));
+      await prepareRefundDraft();
       setRefundOpen(true);
     } finally {
       setPreparingRefund(false);
@@ -233,7 +259,7 @@ const GeneralDetails: React.FC = () => {
         <div className="py-4 flex flex-wrap items-center gap-4">
           <button
             type="button"
-            onClick={() => setPayOpen(true)}
+            onClick={handlePayOpen}
             disabled={disabled}
             className="h-9 px-4 py-2 bg-neutral-900 rounded text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -250,7 +276,12 @@ const GeneralDetails: React.FC = () => {
         </div>
       </section>
 
-      <PayReimburseHirerModal open={payOpen} onClose={() => setPayOpen(false)} onSubmit={handlePaySubmit} />
+      <PayReimburseHirerModal
+        open={payOpen}
+        onClose={() => setPayOpen(false)}
+        onSubmit={handlePaySubmit}
+        defaultAmount={refundableAmount}
+      />
 
       {(preparingRefund || preparingPayEmail) && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 font-sans-headline">
@@ -277,6 +308,7 @@ const GeneralDetails: React.FC = () => {
         hireId={hireId}
         defaultTo={REFUND_RECIPIENTS}
         previewHtml={refundPreview}
+        draft={refundDraft}
       />
     </div>
   );

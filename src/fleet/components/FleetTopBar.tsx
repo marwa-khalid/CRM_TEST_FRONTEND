@@ -20,7 +20,7 @@ const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext, sa
   };
 
   const linkClass = hireId
-    ? "text-blue-600 hover:underline cursor-pointer"
+    ? "text-neutral-900 hover:underline cursor-pointer"
     : "text-neutral-300 cursor-not-allowed";
 
   return (

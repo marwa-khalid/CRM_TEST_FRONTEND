@@ -196,7 +196,7 @@ const FleetBulkUploadModal: React.FC<Props> = ({ open, onClose, sections, onUplo
                           <span className="text-red-500"> · {row.error}</span>
                         )}
                         {conflict && row.status !== "error" && (
-                          <span className="text-red-600"> · two files share this section</span>
+                          <span className="text-red-600"> · Another File Is Already Assigned To This Section</span>
                         )}
                       </div>
                     </div>

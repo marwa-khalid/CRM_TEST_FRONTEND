@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import RemoveIcon from "../../assets/icons/Remove.svg";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
+import PdfIcon from "../../assets/FileTypes/PDF.svg";
+import DocIcon from "../../assets/FileTypes/DOC.svg";
+import ExcelIcon from "../../assets/FileTypes/Excel.svg";
+import PngIcon from "../../assets/FileTypes/PNG.svg";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetBulkUploadModal from "../../components/FleetBulkUploadModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
@@ -90,51 +94,80 @@ const toDisplayDate = (value?: string) => {
   });
 };
 
-const EmptyUploadCard: React.FC<{ doc: ChecklistDoc; onClick: () => void }> = ({ doc, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="self-stretch p-6 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col justify-center items-center gap-6 hover:bg-neutral-50 transition-colors"
-  >
-    <img src={UploadFileIcon} alt="" className="w-12 h-12" />
-    <div className="flex flex-col items-center gap-2 text-center">
-      <div className="text-black text-base font-semibold">{doc.label}</div>
-      <div className="text-black text-sm">JPG, PNG, PDF Supported</div>
-    </div>
-  </button>
-);
+const fileIconFor = (filename?: string) => {
+  const lower = (filename || "").toLowerCase();
+  if (lower.endsWith(".pdf")) return PdfIcon;
+  if (lower.endsWith(".doc") || lower.endsWith(".docx")) return DocIcon;
+  if (lower.endsWith(".xls") || lower.endsWith(".xlsx") || lower.endsWith(".csv")) return ExcelIcon;
+  return PngIcon;
+};
 
-const UploadedDocumentCard: React.FC<{
+const ChecklistDocumentRow: React.FC<{
   docType: ChecklistDoc;
-  uploaded: HireDocument;
+  uploaded?: HireDocument;
+  onUpload: () => void;
   onRemove: () => void;
-}> = ({ docType, uploaded, onRemove }) => (
-  <div className="self-stretch p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col gap-2">
-    <div className="text-black text-base font-semibold">{docType.label}</div>
-    <div className="self-stretch flex justify-between items-center gap-4">
-      <div className="min-w-0 flex flex-wrap items-center gap-4">
-        <a
-          href={uploaded.file_url || undefined}
-          target="_blank"
-          rel="noreferrer"
-          className="max-w-[190px] p-2 rounded outline outline-1 -outline-offset-1 outline-neutral-700 text-black text-sm truncate"
+}> = ({ docType, uploaded, onUpload, onRemove }) => {
+  const dateTime = toDisplayDateTime(uploaded?.created_at) || toDisplayDate(uploaded?.received_on);
+  return (
+    <div className="self-stretch py-2 grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4 items-start">
+      <div className="flex flex-col gap-2 min-w-0">
+        <label className="text-neutral-700 text-sm font-medium">{docType.label}</label>
+        <button
+          type="button"
+          onClick={onUpload}
+          className="group h-[52px] px-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-between gap-3 hover:bg-neutral-50"
         >
-          {uploaded.filename || "Document"}
-        </a>
-        <div className="text-sm">
-          <span className="text-neutral-700">Uploaded by: </span>
-          <span className="text-neutral-900">{currentUserName()}</span>
-        </div>
-        <div className="text-neutral-700 text-sm">
-          {toDisplayDateTime(uploaded.created_at) || toDisplayDate(uploaded.received_on)}
+          <div className="min-w-0 flex items-center gap-3">
+            <img src={uploaded ? fileIconFor(uploaded.filename) : UploadFileIcon} alt="" className="w-8 h-8 shrink-0" />
+            <div className="min-w-0 flex flex-col items-start gap-1">
+              <span className={`max-w-full truncate text-sm ${uploaded ? "text-neutral-900 font-medium" : "text-neutral-500"}`}>
+                {uploaded?.filename || "Upload file"}
+              </span>
+              {!uploaded && <span className="text-neutral-400 text-xs">JPG, PNG, PDF supported</span>}
+            </div>
+          </div>
+          {uploaded && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onRemove();
+                }
+              }}
+              title="Remove document"
+              className="w-5 h-5 shrink-0 hover:opacity-70"
+            >
+              <img src={RemoveIcon} alt="" className="w-5 h-5" />
+            </span>
+          )}
+        </button>
+        {uploaded && (
+          <div className="text-sm">
+            <span className="text-neutral-700">Uploaded by: </span>
+            <span className="text-neutral-900">{currentUserName()}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2 min-w-0">
+        <label className="text-neutral-700 text-sm font-medium">Received On</label>
+        <div className="h-[52px] px-5 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center">
+          <span className={`text-sm ${dateTime ? "text-neutral-900" : "text-neutral-400"}`}>
+            {dateTime || "Date / Time"}
+          </span>
         </div>
       </div>
-      <button type="button" onClick={onRemove} title="Remove document" className="w-5 h-5 shrink-0 hover:opacity-70">
-        <img src={RemoveIcon} alt="" className="w-5 h-5" />
-      </button>
     </div>
-  </div>
-);
+  );
+};
 
 const DocumentChecklist: React.FC = () => {
   const { hireId } = useHire();
@@ -241,15 +274,16 @@ const DocumentChecklist: React.FC = () => {
         <div className="h-px bg-neutral-100" />
         {CHECKLIST_DOCUMENTS.map((docType) => {
           const uploaded = documentsByChecklistKey[docType.key];
-          return uploaded ? (
-            <UploadedDocumentCard
-              key={docType.key}
-              docType={docType}
-              uploaded={uploaded}
-              onRemove={() => setDeleteTarget(uploaded)}
-            />
-          ) : (
-            <EmptyUploadCard key={docType.key} doc={docType} onClick={() => setActiveUpload(docType)} />
+          return (
+            <React.Fragment key={docType.key}>
+              <ChecklistDocumentRow
+                docType={docType}
+                uploaded={uploaded}
+                onUpload={() => setActiveUpload(docType)}
+                onRemove={() => uploaded && setDeleteTarget(uploaded)}
+              />
+              {docType.key !== CHECKLIST_DOCUMENTS[CHECKLIST_DOCUMENTS.length - 1].key && <div className="h-px bg-neutral-100" />}
+            </React.Fragment>
           );
         })}
       </section>

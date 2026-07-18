@@ -4,12 +4,20 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: { amount: string; reason: string }) => void;
+  defaultAmount?: string;
+  defaultReason?: string;
 }
 
 // "Pay / Reimburse Hirer" pop-up: amount + reason, both mandatory to submit.
-const PayReimburseHirerModal: React.FC<Props> = ({ open, onClose, onSubmit }) => {
+const PayReimburseHirerModal: React.FC<Props> = ({ open, onClose, onSubmit, defaultAmount = "", defaultReason = "" }) => {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
+
+  React.useEffect(() => {
+    if (!open) return;
+    setAmount(defaultAmount || "");
+    setReason(defaultReason || "");
+  }, [open, defaultAmount, defaultReason]);
 
   if (!open) return null;
 

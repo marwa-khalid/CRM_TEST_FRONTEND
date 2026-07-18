@@ -52,7 +52,7 @@ const TO_BACKEND: Record<keyof PaymentForm, string> = {
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
-const PAYMENT_SCHEDULE_GRID = "grid-cols-[56px_1fr_1fr_1fr_1fr_140px]";
+const PAYMENT_SCHEDULE_GRID = "grid-cols-[44px_1fr_1fr_1fr_1fr_0.9fr_136px]";
 const money = (n: number) => `£${n.toFixed(2)}`;
 const ERROR = "text-red-500 text-xs";
 const PAYMENT_MODE_OPTIONS: Option[] = [
@@ -328,7 +328,7 @@ const PaymentDetails: React.FC = () => {
   const [vehiclesLoaded, setVehiclesLoaded] = useState(false);
   const [recordSaving, setRecordSaving] = useState(false);
   const [smsKind, setSmsKind] = useState<"reminder" | "price_rise" | null>(null);
-  const { hire, hireId, save } = useHire();
+  const { hire, hireId, save, activeVehicleId: sharedVehicleId, setActiveVehicleId } = useHire();
   const hydrated = useRef(false);
   const lastDerivedSave = useRef("");
   const lastScheduleSync = useRef("");
@@ -372,7 +372,14 @@ const PaymentDetails: React.FC = () => {
       .then((vehicleRows) => {
         if (!active) return;
         setVehicles(vehicleRows);
-        setActiveVehicleIndex(0);
+        // Open the same card the user last made active on Hire Vehicle Details.
+        const resolved = sharedVehicleId != null
+          ? vehicleRows.findIndex((v) => Number((v as { id?: unknown }).id) === sharedVehicleId)
+          : -1;
+        const initialIdx = resolved >= 0 ? resolved : 0;
+        setActiveVehicleIndex(initialIdx);
+        const initialId = (vehicleRows[initialIdx] as { id?: unknown } | undefined)?.id;
+        setActiveVehicleId(initialId != null ? Number(initialId) : null);
       })
       .finally(() => {
         if (active) {
@@ -390,6 +397,13 @@ const PaymentDetails: React.FC = () => {
   const persist = (col: string, value: string) => save({ [col]: value || null });
   const saveField = (key: keyof PaymentForm) => persist(TO_BACKEND[key], form[key]);
 
+  // Switch the active card AND publish it so Hire Vehicle Details stays in sync.
+  const selectPaymentVehicle = (index: number) => {
+    setActiveVehicleIndex(index);
+    const id = (vehicles[index] as { id?: unknown } | undefined)?.id;
+    setActiveVehicleId(id != null ? Number(id) : null);
+  };
+
   useEffect(() => {
     if (activeVehicleIndex > 0 && activeVehicleIndex >= vehicles.length) {
       setActiveVehicleIndex(Math.max(0, vehicles.length - 1));
@@ -398,8 +412,12 @@ const PaymentDetails: React.FC = () => {
 
   const paymentVehicle = vehicles[activeVehicleIndex] || null;
   const activeVehicleId = paymentVehicle?.id ? Number(paymentVehicle.id) : null;
-  const hireStartDate = String(paymentVehicle?.hire_start_date || form.hireStartDate || "");
-  const hireEndDate = String(paymentVehicle?.hire_end_date || form.hireEndDate || "");
+  const hireStartDate = paymentVehicle
+    ? String(paymentVehicle.hire_start_date || "")
+    : String(form.hireStartDate || "");
+  const hireEndDate = paymentVehicle
+    ? String(paymentVehicle.hire_end_date || "")
+    : String(form.hireEndDate || "");
   const vehicleCostPerDay = paymentVehicle
     ? num(paymentVehicle.vehicle_cost_per_week) / 7
     : num(hire?.vehicle_cost_per_day || form.vehicleCostPerDay);
@@ -408,7 +426,10 @@ const PaymentDetails: React.FC = () => {
   const damageChargesInput = paymentVehicle ? String(paymentVehicle.damage_charges ?? "") : form.damageCharges;
   const additionalChargesInput = paymentVehicle ? String(paymentVehicle.additional_charges ?? "") : form.additionalCharges;
   const dateDerivedWeeks = weeklyPaymentsFromDates(hireStartDate, hireEndDate);
-  const numberOfWeeklyPayments = form.numberOfWeeklyPayments;
+  // Weekly-payment count is per-vehicle (each card keeps its own; new vehicles start blank).
+  const numberOfWeeklyPayments = paymentVehicle
+    ? String(paymentVehicle.number_of_weekly_payments ?? "")
+    : form.numberOfWeeklyPayments;
   const weeks = Math.max(0, parseInt(numberOfWeeklyPayments || "0", 10) || 0);
   const weekly = vehicleCostPerDay * 7;
   const securityDeposit = paymentVehicle ? String(paymentVehicle.deposit ?? "0") : form.securityDeposit;
@@ -567,12 +588,19 @@ const PaymentDetails: React.FC = () => {
   useEffect(() => {
     if (!dateDerivedWeeks) return;
     const nextWeeks = String(dateDerivedWeeks);
-    setForm((current) => (
-      current.numberOfWeeklyPayments === nextWeeks
-        ? current
-        : { ...current, numberOfWeeklyPayments: nextWeeks }
-    ));
-  }, [dateDerivedWeeks]);
+    if (paymentVehicle) {
+      // Already matches -> no-op (prevents a re-render loop, since editing vehicles
+      // changes paymentVehicle which is intentionally not a dependency here).
+      if (String(paymentVehicle.number_of_weekly_payments ?? "") === nextWeeks) return;
+      setVehicles((current) =>
+        current.map((veh, i) => (i === activeVehicleIndex ? { ...veh, number_of_weekly_payments: nextWeeks } : veh)),
+      );
+    } else {
+      setForm((current) => (
+        current.numberOfWeeklyPayments === nextWeeks ? current : { ...current, numberOfWeeklyPayments: nextWeeks }
+      ));
+    }
+  }, [dateDerivedWeeks, activeVehicleIndex]);
 
   useEffect(() => {
     const derived = {
@@ -662,14 +690,14 @@ const PaymentDetails: React.FC = () => {
   const saveWeeks = async () => {
     const count = parseInt(numberOfWeeklyPayments || "0", 10) || 0;
     setValidation((v) => ({ ...v, weeks: undefined }));
-    await persist(TO_BACKEND.numberOfWeeklyPayments, String(count));
+    if (hireId && paymentVehicle?.id) {
+      await updateVehicle(hireId, Number(paymentVehicle.id), { number_of_weekly_payments: String(count) });
+    } else {
+      await persist(TO_BACKEND.numberOfWeeklyPayments, String(count));
+    }
     await syncScheduleNow();
   };
   const saveDeposit = async () => {
-    if (securityDeposit.trim() === "" || num(securityDeposit) < 0) {
-      setValidation((v) => ({ ...v, deposit: "Security deposit is required and must be 0 or more" }));
-      return;
-    }
     setValidation((v) => ({ ...v, deposit: undefined }));
     if (hireId && paymentVehicle?.id) {
       await updateVehicle(hireId, Number(paymentVehicle.id), { deposit: securityDeposit });
@@ -747,7 +775,9 @@ const PaymentDetails: React.FC = () => {
       }
     }
 
-    setVehicles((current) => current.filter((_, index) => index !== deleteVehicleIndex));
+    const remaining = vehicles.filter((_, index) => index !== deleteVehicleIndex);
+    const nextIndex = activeVehicleIndex < deleteVehicleIndex ? activeVehicleIndex : Math.max(0, activeVehicleIndex - 1);
+    setVehicles(remaining);
     if (vehicleId) {
       setSummaryRowsByVehicleId((current) => {
         const next = { ...current };
@@ -755,10 +785,9 @@ const PaymentDetails: React.FC = () => {
         return next;
       });
     }
-    setActiveVehicleIndex((current) => {
-      if (current < deleteVehicleIndex) return current;
-      return Math.max(0, current - 1);
-    });
+    setActiveVehicleIndex(nextIndex);
+    const nextId = (remaining[nextIndex] as { id?: unknown } | undefined)?.id;
+    setActiveVehicleId(nextId != null ? Number(nextId) : null);
     setRows([]);
     setDeleteVehicleIndex(null);
     toast.success("Vehicle deleted.");
@@ -782,7 +811,7 @@ const PaymentDetails: React.FC = () => {
               >
                 <button
                   type="button"
-                  onClick={() => setActiveVehicleIndex(index)}
+                  onClick={() => selectPaymentVehicle(index)}
                   className="flex-1 min-w-0 rounded-lg flex flex-col items-start gap-1 text-left"
                 >
                   <div className={`${isActive ? "text-neutral-900" : "text-neutral-500"} text-xl font-semibold leading-5`}>Vehicle{index + 1}</div>
@@ -837,7 +866,16 @@ const PaymentDetails: React.FC = () => {
               placeholder="Enter"
               inputMode="numeric"
               value={numberOfWeeklyPayments}
-              onChange={(v) => set("numberOfWeeklyPayments", v.replace(/[^0-9]/g, ""))}
+              onChange={(v) => {
+                const clean = v.replace(/[^0-9]/g, "");
+                if (paymentVehicle) {
+                  setVehicles((current) =>
+                    current.map((veh, i) => (i === activeVehicleIndex ? { ...veh, number_of_weekly_payments: clean } : veh)),
+                  );
+                } else {
+                  set("numberOfWeeklyPayments", clean);
+                }
+              }}
               onBlur={saveWeeks}
             />
             {validation.weeks && <span className={ERROR}>{validation.weeks}</span>}
@@ -846,6 +884,7 @@ const PaymentDetails: React.FC = () => {
             label="Payment Day"
             value={form.paymentDay || DEFAULT_PAYMENT_DAY}
             options={PAYMENT_DAY_OPTIONS}
+            unsorted
             onChange={(v) => { set("paymentDay", v); persist(TO_BACKEND.paymentDay, v); }}
           />
         </div>
@@ -857,7 +896,7 @@ const PaymentDetails: React.FC = () => {
           <FleetMoneyInput label="Weekly Hire Payment" value={readonlyMoney(weekly)} onChange={() => {}} />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetMoneyInput label="Total Planned Hire Cost" value={readonlyMoney(totalPlanned)} onChange={() => {}} highlight />
+          <FleetMoneyInput label="Total Hire Cost" value={readonlyMoney(totalPlanned)} onChange={() => {}} highlight />
           <FleetMoneyInput label="Initial Amount Due" value={readonlyMoney(initialDue)} onChange={() => {}} highlight />
         </div>
         <div className="py-2 flex flex-wrap gap-4">
@@ -890,16 +929,24 @@ const PaymentDetails: React.FC = () => {
           )}
           <div className="w-full flex flex-col gap-2 p-2">
             <div className={`grid ${PAYMENT_SCHEDULE_GRID} gap-2 px-3 h-11 items-center text-neutral-900 text-xs font-semibold`}>
-              <span>WEEK</span><span>DUE AMOUNT</span><span>STATUS</span><span>PAID AMOUNT</span><span>PAYMENT DATE</span><span>ACTION</span>
+              <span>WEEK</span><span>DUE AMOUNT</span><span>STATUS</span><span className="text-center">PAID AMOUNT</span><span>PAYMENT DATE</span><span className="text-center">NOTES</span><span>ACTION</span>
             </div>
             {rows.length === 0 ? (
-              <div className="px-4 h-12 flex items-center text-neutral-400 text-sm">Enter the number of weekly payments to generate the schedule.</div>
+              <div className="px-4 h-12 flex items-center justify-center text-center text-neutral-400 text-sm">Enter the number of weekly payments to generate the schedule.</div>
             ) : (
               rows.map((r) => {
                 const txns = r.transactions ?? [];
                 // A single payment that clears the week has no sub-record — the summary
                 // button edits that one payment instead of adding another.
                 const editSinglePayment = txns.length === 1 && !shouldShowPaymentBreakdown(r);
+                // Once the week is fully received there's nothing left to record — hide
+                // the "Record Payment" button (it returns when it drops to pending/partial).
+                // The single-full-payment "Edit Payment" button stays, as the only handle
+                // on that payment.
+                const fullyReceived = calculatedStatus(r) === "received";
+                // Summary note: the single payment's note when there's just one; for a
+                // week paid in parts the notes live on each sub-record below.
+                const rowNote = txns.length === 1 ? (txns[0].notes || "") : (r.notes || "");
                 return (
                   <div key={r.id} className="rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 p-2 flex flex-col gap-2">
                     {/* Summary row — PAID AMOUNT is the sum of the week's part-payments. */}
@@ -907,28 +954,32 @@ const PaymentDetails: React.FC = () => {
                       <span>{r.week}</span>
                       <MoneyCell value={r.due_amount} />
                       <span>{statusLabel(calculatedStatus(r))}</span>
-                      <MoneyCell value={r.paid_amount} />
+                      <MoneyCell value={r.paid_amount} className="text-center" />
                       <PaymentDateCell dateValue={r.payment_date} timeValue={r.payment_time} />
-                      <span>
+                      <span className="block min-w-0 truncate text-center" title={rowNote}>{rowNote || <span className="text-neutral-400">-</span>}</span>
+                      {(editSinglePayment || !fullyReceived) ? (
                         <button
                           type="button"
                           onClick={() => openPaymentModal(r.id, editSinglePayment ? txns[0].id : null)}
-                          className="h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm hover:bg-black inline-flex items-center justify-center whitespace-nowrap"
+                          className="w-full h-8 px-2 bg-neutral-900 rounded text-white text-sm hover:bg-black inline-flex items-center justify-center whitespace-nowrap"
                         >
                           {editSinglePayment ? "Edit Payment" : "Record Payment"}
                         </button>
-                      </span>
+                      ) : (
+                        <span />
+                      )}
                     </div>
-                    {/* Only weeks paid in parts get sub-records; each part-payment has
-                        edit (pencil) + delete (trash), aligned under PAID / PAYMENT DATE. */}
+                    {/* Only weeks paid in parts get sub-records; each part-payment has its
+                        amount / date / note in one grey pill + edit (pencil) + delete (trash). */}
                     {shouldShowPaymentBreakdown(r) &&
                       txns.map((t) => (
                         <div key={t.id} className={`grid ${PAYMENT_SCHEDULE_GRID} gap-2 items-stretch text-neutral-700 text-sm`}>
                           <span /><span /><span />
-                          {/* Amount + date (defines the pill height), aligned under PAID / PAYMENT DATE. */}
-                          <div className="col-span-2 -ml-2 py-2.5 bg-neutral-100 rounded-l-lg grid grid-cols-2 gap-2 items-center">
-                            <span className="pl-2">£{num(t.amount).toFixed(2)}</span>
+                          {/* Amount + date + note, aligned under PAID / PAYMENT DATE / NOTES. */}
+                          <div className="col-span-3 -ml-2 py-2.5 bg-neutral-100 rounded-l-lg grid grid-cols-3 gap-2 items-center">
+                            <span className="pl-2 text-center">£{num(t.amount).toFixed(2)}</span>
                             <PaymentDateCell dateValue={t.payment_date} timeValue={t.payment_time} className="text-neutral-700" />
+                            <span className="block min-w-0 truncate pr-1 text-center" title={t.notes || ""}>{t.notes || <span className="text-neutral-400">-</span>}</span>
                           </div>
                           {/* Icons — same grey, content-width, stretched to the same height so the
                               two halves read as one seamless pill (not stretched to the column end). */}
@@ -1016,7 +1067,7 @@ const PaymentDetails: React.FC = () => {
                 {[
                   ["Planned Hire Cost:", money(summary.plannedHireCost)],
                   ["Payments Received:", money(summary.received)],
-                  ["Vehicle Charges Due:", money(summary.chargesDue)],
+                  ["Final Charges Due:", money(summary.chargesDue)],
                   ["Security Deposit:", money(summary.depositHeld)],
                   ["Adjusted From Deposit:", money(summary.adjustedFromDeposit)],
                 ].map(([label, val]) => (

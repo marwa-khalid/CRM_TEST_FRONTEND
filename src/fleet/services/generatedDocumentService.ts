@@ -75,3 +75,47 @@ export const getGeneratedDocumentFiles = async (
   );
   return downloads;
 };
+
+export const openGeneratedDocumentPrintView = async (
+  hireId: number,
+  documentKey: GeneratedDocumentKey,
+  vehicleId?: number,
+): Promise<void> => {
+  const win = window.open("", "_blank", "noopener,noreferrer,width=1000,height=800");
+  if (!win) {
+    throw new Error("Popup blocked");
+  }
+
+  win.document.write(`<!doctype html>
+    <html>
+      <head>
+        <title>Printable Documents</title>
+        <style>
+          body{font-family:Arial,sans-serif;margin:24px;color:#111827;background:#fff}
+          .loader{border:3px solid #e5e7eb;border-top-color:#111827;border-radius:50%;width:32px;height:32px;animation:spin 1s linear infinite}
+          main{min-height:70vh;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center}
+          @keyframes spin{to{transform:rotate(360deg)}}
+        </style>
+      </head>
+      <body>
+        <main><div class="loader"></div><strong>Preparing print view…</strong></main>
+      </body>
+    </html>`);
+  win.document.close();
+
+  try {
+    const { data } = await fleetApi.get(`/fleet/hire/${hireId}/generated-documents/${documentKey}/print-view`, {
+      responseType: "text",
+      params: vehicleId ? { vehicle_id: vehicleId } : undefined,
+    });
+    win.document.open();
+    win.document.write(data as string);
+    win.document.close();
+    win.focus();
+  } catch (error) {
+    win.document.open();
+    win.document.write(`<!doctype html><html><body style="font-family:Arial,sans-serif;margin:24px;color:#111827"><h1>Could not prepare print view</h1><p>Please try again.</p></body></html>`);
+    win.document.close();
+    throw error;
+  }
+};

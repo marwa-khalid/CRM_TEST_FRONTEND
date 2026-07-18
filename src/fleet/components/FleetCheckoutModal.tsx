@@ -83,7 +83,7 @@ export const FleetCheckoutModal: React.FC<{
   return (
     <div className="fixed inset-0 z-[110] bg-black/40 flex items-center justify-center p-4">
       {submitting && <FleetSpinnerLoader />}
-      <div className="w-[640px] max-w-full p-6 bg-white rounded-lg flex flex-col gap-4 font-sans-headline">
+      <div className="w-[680px] max-w-full h-[75vh] max-h-[92vh] p-6 bg-white rounded-lg flex flex-col gap-4 font-sans-headline overflow-y-auto">
         <div className="flex justify-between items-center">
           <h3 className="text-black text-xl font-semibold leading-5">
             {step === 1 ? "Mileage & Return Details" : step === 2 ? "Vehicle Cleanliness - Hire Start & Hire End" : "Charges & Notes"}
@@ -138,7 +138,7 @@ export const FleetCheckoutModal: React.FC<{
           </>
         )}
 
-        <div className="h-px bg-neutral-100" />
+        <div className="h-px bg-neutral-100 mt-auto" />
         <div className="flex justify-end items-center gap-4">
           <button type="button" onClick={onCancel} disabled={submitting} className={`${OUTLINE_BTN} disabled:opacity-50 disabled:cursor-not-allowed`}>Cancel</button>
           {step === 1 ? (

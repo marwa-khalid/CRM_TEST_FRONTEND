@@ -9,6 +9,7 @@ import {
   type HireDocument,
   type HireRecord,
 } from "../services/hireService";
+import { fleetReference } from "../utils/reference";
 
 type ActivityItem = {
   id: string;
@@ -35,11 +36,8 @@ const fieldLabel = (value: string) =>
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const fallbackReference = (hire: HireRecord | null, hireId: number | null) => {
-  if (hire?.fleet_reference) return hire.fleet_reference;
-  if (!hireId) return "Fleet Activity Log";
-  const d = hire?.file_opened_at ? new Date(hire.file_opened_at) : new Date();
-  const ym = Number.isNaN(d.getTime()) ? "" : `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
-  return `FLT-${ym || "000000"}-${String(hireId).padStart(3, "0")}`;
+  if (!hire?.fleet_reference && !hireId) return "Fleet Activity Log";
+  return fleetReference(hire, hireId);
 };
 
 const auditToItem = (row: HireAuditEntry): ActivityItem => ({

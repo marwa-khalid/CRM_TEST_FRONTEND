@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Car, CircleCheck, Eye, Files, Loader2, Plus, RefreshCw, Search } from "lucide-react";
+import { Car, CircleCheck, Eye, Files, Loader2, Plus, RefreshCw, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { listHires, deleteHire, type HireRecord } from "../services/hireService";
 import { CURRENT_POSITION_OPTIONS } from "../types/hire";
 import FleetConfirmModal from "../components/FleetConfirmModal";
+import { fleetReference } from "../utils/reference";
 import TrashIcon from '../assets/icons/Remove.svg'
 const formatDateTime = (value?: string) => {
   if (!value) return "-";
@@ -19,13 +20,7 @@ const formatDateTime = (value?: string) => {
   });
 };
 
-const fallbackReference = (hire: HireRecord) => {
-  const d = hire.file_opened_at ? new Date(hire.file_opened_at) : new Date();
-  const yearMonth = Number.isNaN(d.getTime())
-    ? new Date().toISOString().slice(0, 7).replace("-", "")
-    : `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
-  return `FLT-${yearMonth}-${String(hire.id).padStart(3, "0")}`;
-};
+const fallbackReference = (hire: HireRecord) => fleetReference(hire);
 
 const positionLabel = (value?: string) =>
   CURRENT_POSITION_OPTIONS.find((option) => option.value === value)?.label || value || "Draft";
@@ -36,7 +31,7 @@ const hireStatusClass = (value?: string) =>
   value === "on_hire" ? "text-green-600" : value === "off_hire" ? "text-blue-600" : "text-neutral-400";
 
 // Reference · Driver · Vehicle Reg · Status · Current Position · Opened · Action
-const LIST_GRID = "grid-cols-[1.2fr_1.1fr_0.9fr_0.8fr_1fr_1fr_90px]";
+const LIST_GRID = "grid-cols-[minmax(150px,1.15fr)_minmax(130px,1fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_minmax(140px,1fr)_minmax(130px,0.95fr)_76px]";
 
 type StatIcon = React.ComponentType<{ size?: number; className?: string }>;
 
@@ -121,41 +116,35 @@ const FleetList: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white font-sans-headline">
-      <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center sticky top-0 z-20">
-        <div className="flex items-center gap-5">
+      <div className="w-full px-4 sm:px-6 lg:px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] lg:sticky lg:top-0 z-20">
+        <div className="w-full flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+          <div className="flex items-center gap-5">
+            <div>
+              <h1 className="text-black text-2xl font-semibold leading-6">Fleet Records</h1>
+              <p className="mt-1 text-neutral-500 text-sm">Fleet client-side records</p>
+            </div>
+          </div>
           <button
             type="button"
-            onClick={() => navigate("/single-signon")}
-            aria-label="Back"
-            className="w-9 h-9 rounded flex items-center justify-center hover:bg-neutral-100"
+            onClick={() => navigate("/fleet/hire/new")}
+            className="w-full sm:w-auto px-6 py-4 bg-neutral-900 rounded text-white text-base font-medium leading-4 hover:bg-black transition-colors inline-flex items-center justify-center gap-2"
           >
-            <ArrowLeft size={22} />
+            <Plus size={18} />
+            Add New Hire
           </button>
-          <div>
-            <h1 className="text-black text-2xl font-semibold leading-6">Fleet Records</h1>
-            <p className="mt-1 text-neutral-500 text-sm">Test listing for Fleet client-side records</p>
-          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate("/fleet/hire/new")}
-          className="px-6 py-4 bg-neutral-900 rounded text-white text-base font-medium leading-4 hover:bg-black transition-colors inline-flex items-center gap-2"
-        >
-          <Plus size={18} />
-          New Fleet Record
-        </button>
       </div>
 
-      <main className="px-10 py-10">
-        <section className="max-w-[1120px] mx-auto flex flex-col gap-5">
+      <main className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10">
+        <section className="w-full flex flex-col gap-5">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {stats.map((stat) => (
               <FleetStatCard key={stat.title} {...stat} />
             ))}
           </div>
 
-          <div className="flex items-center justify-between gap-4">
-            <div className="h-12 flex-1 max-w-[420px] px-4 border border-neutral-200 rounded flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="h-12 w-full sm:flex-1 sm:max-w-[420px] px-4 border border-neutral-200 rounded flex items-center gap-3">
               <Search size={18} className="text-neutral-400" />
               <input
                 value={query}
@@ -167,14 +156,15 @@ const FleetList: React.FC = () => {
             <button
               type="button"
               onClick={load}
-              className="h-12 px-4 border border-neutral-200 rounded text-sm font-medium text-neutral-900 inline-flex items-center gap-2 hover:bg-neutral-50"
+              className="h-12 w-full sm:w-auto px-4 border border-neutral-200 rounded text-sm font-medium text-neutral-900 inline-flex items-center justify-center gap-2 hover:bg-neutral-50"
             >
               <RefreshCw size={16} />
               Refresh
             </button>
           </div>
 
-          <div className="border border-neutral-100 rounded-lg overflow-hidden">
+          <div className="border border-neutral-100 rounded-lg overflow-x-auto">
+            <div className="min-w-[980px]">
             <div className={`grid ${LIST_GRID} gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold text-neutral-500 uppercase`}>
               <span>Reference</span>
               <span>Driver</span>
@@ -186,12 +176,12 @@ const FleetList: React.FC = () => {
             </div>
 
             {loading ? (
-              <div className="h-48 flex items-center justify-center text-neutral-500 text-sm gap-2">
+              <div className="h-48 flex items-center justify-center text-neutral-500 text-sm gap-2 border-t border-neutral-100">
                 <Loader2 size={18} className="animate-spin" />
                 Loading fleet records...
               </div>
             ) : visibleRecords.length === 0 ? (
-              <div className="h-48 flex flex-col items-center justify-center text-center">
+              <div className="h-48 flex flex-col items-center justify-center text-center border-t border-neutral-100">
                 <p className="text-neutral-900 text-base font-semibold">No fleet records yet</p>
               </div>
             ) : (
@@ -236,6 +226,7 @@ const FleetList: React.FC = () => {
                 );
               })
             )}
+            </div>
           </div>
         </section>
       </main>

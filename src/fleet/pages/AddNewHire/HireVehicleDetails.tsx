@@ -26,6 +26,7 @@ import {
 import {
   downloadGeneratedDocumentBundle,
   getGeneratedDocumentFiles,
+  openGeneratedDocumentPrintView,
   type GeneratedDocumentKey,
 } from "../../services/generatedDocumentService";
 import { sendOnHireEmail, type SendHireEmailResult } from "../../services/emailService";
@@ -218,7 +219,7 @@ const HireVehicleDetails: React.FC = () => {
   const [generatedActionLoading, setGeneratedActionLoading] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const { hire, hireId } = useHire();
+  const { hire, hireId, activeVehicleId, setActiveVehicleId } = useHire();
 
   const active = vehicles[activeIndex];
   const onHire = active.hireStatus === "on_hire";
@@ -255,8 +256,14 @@ const HireVehicleDetails: React.FC = () => {
         if (!active) return;
         setVehicleRegister(register);
         if (list.length > 0) {
-          setVehicles(list.map((record) => ({ ...fromRecord(record), ...certPatch })));
-          setActiveIndex(0);
+          const mapped = list.map((record) => ({ ...fromRecord(record), ...certPatch }));
+          setVehicles(mapped);
+          // Open the card the user last made active (shared with Payment Details);
+          // fall back to the first vehicle.
+          const resolved = activeVehicleId != null ? mapped.findIndex((v) => Number(v.id) === activeVehicleId) : -1;
+          const initialIdx = resolved >= 0 ? resolved : 0;
+          setActiveIndex(initialIdx);
+          setActiveVehicleId(mapped[initialIdx]?.id != null ? Number(mapped[initialIdx].id) : null);
         } else {
           const created = await createVehicle(hireId);
           if (active && created) {
@@ -276,6 +283,14 @@ const HireVehicleDetails: React.FC = () => {
   const patch = (updates: Partial<Vehicle>) =>
     setVehicles((vs) => vs.map((v, i) => (i === activeIndex ? { ...v, ...updates } : v)));
   const set = (key: keyof HireVehicleForm, value: string) => patch({ [key]: value } as Partial<Vehicle>);
+
+  // Make a card active AND publish it to the shared context so Payment Details
+  // opens on the same vehicle (and vice-versa).
+  const selectVehicle = (index: number) => {
+    setActiveIndex(index);
+    const id = vehicles[index]?.id;
+    setActiveVehicleId(id != null ? Number(id) : null);
+  };
 
   const mergeRegisterRow = (row: FleetVehicleRegister) => {
     setVehicleRegister((items) => {
@@ -361,7 +376,6 @@ const HireVehicleDetails: React.FC = () => {
 
   const handleCert = async (file: File) => {
     const received = today();
-    setCertOpen(false);
     let uploadedDocId: number | undefined;
     let viewUrl: string | null = null;
     if (hireId) {
@@ -519,6 +533,7 @@ const HireVehicleDetails: React.FC = () => {
       const newVehicle: Vehicle = { ...EMPTY_VEHICLE, id: created.id as number };
       setVehicles((vs) => [...vs, newVehicle]);
       setActiveIndex(vehicles.length);
+      setActiveVehicleId(created.id as number);
       toast.success("New hire vehicle added. Select the vehicle details, then mark it on hire.");
     } catch {
       toast.error("Could not switch vehicle. Please try again.");
@@ -550,11 +565,11 @@ const HireVehicleDetails: React.FC = () => {
       }
     }
 
-    setVehicles((current) => current.filter((_, index) => index !== deleteVehicleIndex));
-    setActiveIndex((current) => {
-      if (current < deleteVehicleIndex) return current;
-      return Math.max(0, current - 1);
-    });
+    const remaining = vehicles.filter((_, index) => index !== deleteVehicleIndex);
+    const nextIndex = activeIndex < deleteVehicleIndex ? activeIndex : Math.max(0, activeIndex - 1);
+    setVehicles(remaining);
+    setActiveIndex(nextIndex);
+    setActiveVehicleId(remaining[nextIndex]?.id != null ? Number(remaining[nextIndex].id) : null);
     setDeleteVehicleIndex(null);
     toast.success("Vehicle deleted.");
   };
@@ -611,12 +626,12 @@ const HireVehicleDetails: React.FC = () => {
     const start = today();
     const startTime = currentTime24();
     const hireStart = `${displayDate(start)} ${startTime}`;
-    const subject = `Your Vehicle is Now On Hire - ${active.registrationNumber}`;
+    const subject = `Vehicle On Hire - ${active.registrationNumber}`;
 
     const body = [
       `Dear ${hire.driver_name || "Hirer"},`,
       "",
-      "Your hire vehicle is now on hire. Please see the vehicle details below.",
+      "Please see the vehicle details below.",
       "",
       `Registration: ${active.registrationNumber}`,
       `Make: ${active.make}`,
@@ -701,10 +716,11 @@ const HireVehicleDetails: React.FC = () => {
         return;
       }
 
-      await downloadGeneratedDocumentBundle(hireId, document.key, vehicleId);
       if (action === "print") {
-        toast.info("Downloaded hire documents. Open the Office files to print them.");
+        await openGeneratedDocumentPrintView(hireId, document.key, vehicleId);
+        toast.success("Printable view opened.");
       } else {
+        await downloadGeneratedDocumentBundle(hireId, document.key, vehicleId);
         toast.success("Hire documents downloaded.");
       }
     } catch {
@@ -729,6 +745,7 @@ const HireVehicleDetails: React.FC = () => {
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       {initialLoading && <FleetSpinnerLoader />}
       {actionLoading && <FleetSpinnerLoader />}
+      {generatedActionLoading && <FleetSpinnerLoader />}
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-black text-2xl font-semibold leading-6">Hire Vehicle Details</h2>
@@ -751,7 +768,7 @@ const HireVehicleDetails: React.FC = () => {
             >
               <button
                 type="button"
-                onClick={() => setActiveIndex(i)}
+                onClick={() => selectVehicle(i)}
                 className="flex-1 min-w-0 rounded-lg flex flex-col items-start gap-1 text-left"
               >
                 <div className={`${isActive ? "text-neutral-900" : "text-neutral-500"} text-xl font-semibold leading-5`}>Vehicle{i + 1}</div>
@@ -914,13 +931,13 @@ const HireVehicleDetails: React.FC = () => {
           <div className="flex flex-col gap-1">
             <FleetDateField label="Hire Start Date" value={active.hireStartDate} onChange={(v) => onHireDate("hireStartDate", "hire_start_date", v)} />
             {active.hireStartDate && active.hireStartTime && (
-              <span className="text-neutral-500 text-sm">Time: {formatTime24(active.hireStartTime)}</span>
+              <span className="text-neutral-500 text-sm">{formatTime24(active.hireStartTime)}</span>
             )}
           </div>
           <div className="flex flex-col gap-1">
             <FleetDateField label="Hire End Date" value={active.hireEndDate} onChange={(v) => onHireDate("hireEndDate", "hire_end_date", v)} />
             {active.hireEndDate && active.checkout.checkoutTime && (
-              <span className="text-neutral-500 text-sm">Time: {formatTime24(active.checkout.checkoutTime)}</span>
+              <span className="text-neutral-500 text-sm">{formatTime24(active.checkout.checkoutTime)}</span>
             )}
           </div>
         </div>
@@ -940,10 +957,9 @@ const HireVehicleDetails: React.FC = () => {
             <div className="self-stretch flex justify-between items-start gap-4">
               <div className="flex items-center gap-2">
                 <div className="text-neutral-700 text-sm font-semibold">{document.label}</div>
-                {busy && <span className="text-neutral-500 text-xs">Preparing...</span>}
               </div>
               <div className="flex items-center gap-4">
-                <IconButton icon={PrintIcon} label={`Print ${document.label}`} disabled={busy} onClick={() => handleGeneratedAction("print", document)} />
+                {/* <IconButton icon={PrintIcon} label={`Print ${document.label}`} disabled={busy} onClick={() => handleGeneratedAction("print", document)} /> */}
                 <IconButton icon={DownloadIcon} label={`Download ${document.label}`} disabled={busy} onClick={() => handleGeneratedAction("download", document)} />
                 <IconButton icon={EmailIcon} label={`Email ${document.label}`} disabled={busy} onClick={() => handleGeneratedAction("email", document)} />
               </div>
@@ -959,7 +975,13 @@ const HireVehicleDetails: React.FC = () => {
         <h3 className={H3}>Hire Vehicle Insurance Details</h3>
         <div className="h-px bg-neutral-100" />
         <div className="grid grid-cols-2 gap-5">
-          <FleetSelect label="Insurance Type" value={active.hireInsuranceType} options={INSURANCE_TYPE_OPTIONS} onChange={handleInsuranceType} />
+          <FleetSelect
+            label="Insurance Type"
+            value={active.hireInsuranceType}
+            options={INSURANCE_TYPE_OPTIONS}
+            onChange={handleInsuranceType}
+            menuPlacement="bottom"
+          />
           <div />
         </div>
 

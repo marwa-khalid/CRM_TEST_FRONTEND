@@ -65,6 +65,8 @@ const AddNewHire: React.FC = () => {
   const [completed, setCompleted] = useState<Set<number>>(new Set());
   const [hireId, setHireId] = useState<number | null>(null);
   const [hire, setHire] = useState<HireRecord | null>(null);
+  // Shared active vehicle so Hire Vehicle Details ↔ Payment Details open the same card.
+  const [activeVehicleId, setActiveVehicleId] = useState<number | null>(null);
   const [completionSummary, setCompletionSummary] = useState<HireCompletionSummary | null>(null);
   const [loadingHire, setLoadingHire] = useState(false);
   const hireIdRef = useRef<number | null>(null);
@@ -206,7 +208,7 @@ const AddNewHire: React.FC = () => {
       <div className="px-10 py-10 flex items-start gap-10">
         <FleetStepper steps={HIRE_STEPS} activeIndex={activeIndex} statusOf={stepStatus} onSelect={selectStep} />
         <div className="flex-1 flex justify-center">
-          <HireProvider value={{ hireId, hire, save }}>
+          <HireProvider value={{ hireId, hire, save, activeVehicleId, setActiveVehicleId }}>
             {loadingHire ? null : StepComponent ? (
               <StepComponent />
             ) : (

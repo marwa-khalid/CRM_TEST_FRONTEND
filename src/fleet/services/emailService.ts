@@ -69,11 +69,52 @@ export interface DepositRefundPayload {
   to: string;
   cc?: string;
   subject?: string;
+  ref?: string;
+  hirer_name?: string;
   registration?: string;
+  deposit?: string;
   valeting_fee?: string;
   vehicle_damages?: string;
+  additional_charges?: string;
   excess_ppm?: string;
   hire_charges_unpaid?: string;
+  adjusted_from_deposit?: string;
+  charges_due?: string;
+  total_deductions?: string;
+  refund_amount?: string;
+  bank?: string;
+  account_name?: string;
+  sort_code?: string;
+  account_number?: string;
+  hire_start?: string;
+  hire_end?: string;
+}
+
+export interface DepositRefundDraft {
+  ref?: string;
+  hirer_name?: string;
+  registration?: string;
+  deposit_raw?: string;
+  valeting_fee_raw?: string;
+  vehicle_damages_raw?: string;
+  additional_charges_raw?: string;
+  excess_ppm_raw?: string;
+  hire_charges_unpaid_raw?: string;
+  adjusted_from_deposit_raw?: string;
+  charges_due_raw?: string;
+  total_deductions_raw?: string;
+  refund_amount_raw?: string;
+  bank?: string;
+  account_name?: string;
+  sort_code?: string;
+  account_number?: string;
+  hire_start?: string;
+  hire_end?: string;
+}
+
+export interface DepositRefundPreview {
+  html: string;
+  data: DepositRefundDraft;
 }
 
 // Sends the structured (boxed) deposit-refund email; the rest of the data is
@@ -87,12 +128,15 @@ export const sendDepositRefund = async (
 };
 
 // The exact HTML the deposit-refund email will send (for the modal preview).
-export const getDepositRefundPreview = async (hireId: number): Promise<string> => {
+export const getDepositRefundPreview = async (hireId: number): Promise<DepositRefundPreview> => {
   try {
     const { data } = await fleetApi.get(`/fleet/hire/${hireId}/deposit-refund/preview`);
-    return (data?.html as string) || "";
+    return {
+      html: (data?.html as string) || "",
+      data: (data?.data || {}) as DepositRefundDraft,
+    };
   } catch {
-    return "";
+    return { html: "", data: {} };
   }
 };
 

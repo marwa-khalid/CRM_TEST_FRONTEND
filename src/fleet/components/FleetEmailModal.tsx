@@ -3,6 +3,10 @@ import { toast } from "react-toastify";
 import { FleetTextInput } from "./fields";
 import FleetSpinnerLoader from "./FleetSpinnerLoader";
 import { sendHireEmail, type SendHireEmailResult } from "../services/emailService";
+import PdfIcon from "../assets/FileTypes/PDF.svg";
+import DocIcon from "../assets/FileTypes/DOC.svg";
+import ExcelIcon from "../assets/FileTypes/Excel.svg";
+import PngIcon from "../assets/FileTypes/PNG.svg";
 
 export interface FleetEmailSendArgs {
   to: string;
@@ -48,6 +52,14 @@ const OutlookIcon = ({ className = "w-7 h-7" }: { className?: string }) => (
 
 // Split a "a@x.com; b@y.com" string into individual addresses.
 const parseEmails = (s: string) => s.split(/[;,\s]+/).map((e) => e.trim()).filter((e) => e.includes("@"));
+
+const attachmentIcon = (name: string, type = "") => {
+  const lower = name.toLowerCase();
+  if (type.includes("pdf") || lower.endsWith(".pdf")) return PdfIcon;
+  if (lower.endsWith(".xls") || lower.endsWith(".xlsx") || lower.endsWith(".csv")) return ExcelIcon;
+  if (lower.endsWith(".doc") || lower.endsWith(".docx")) return DocIcon;
+  return PngIcon;
+};
 
 const FleetEmailModal: React.FC<Props> = ({
   open,
@@ -276,9 +288,12 @@ const FleetEmailModal: React.FC<Props> = ({
                     key={`${f.name}-${i}`}
                     className="flex items-center justify-between gap-3 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-200"
                   >
-                    <span className="text-neutral-700 text-sm truncate">
-                      {f.name}
-                    </span>
+                    <div className="min-w-0 flex items-center gap-3">
+                      <img src={attachmentIcon(f.name, f.type)} alt="" className="w-8 h-8 shrink-0" />
+                      <span className="text-neutral-700 text-sm truncate">
+                        {f.name}
+                      </span>
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeFile(i)}

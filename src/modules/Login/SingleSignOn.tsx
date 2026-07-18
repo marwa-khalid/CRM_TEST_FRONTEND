@@ -175,54 +175,31 @@ const SingleSignOn = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col items-start justify-start self-stretch gap-6 p-4 rounded-lg outline outline-1 outline-[#A3CFFF] -outline-offset-1 bg-white">
-                <div className="flex flex-col gap-3">
-                  <h3 className="text-black text-base font-medium font-['Stack_Sans_Headline'] leading-4">
-                    Fleet Management
-                  </h3>
-
-                  <p className="text-[#888888] text-xs font-weight-600 font-['Stack_Sans_Headline']">
-                    Select Module you want to navigate to
-                  </p>
+              <div
+                className="flex flex-col items-start justify-start self-stretch gap-6 p-4 rounded-lg outline outline-1 outline-[#A3CFFF] -outline-offset-1 bg-white cursor-pointer"
+                onClick={() => navigate("/fleet")}
+              >
+                <div className="flex items-center justify-between self-stretch">
+                  <div className="flex items-center gap-2">
+                    <img src={Fleet} alt="" className="w-8 h-8" />
+                    <div className="text-neutral-900 font-weight-600 text-black text-[12px]">
+                      FLEET
+                    </div>
+                  </div>
+                  <img src={ArrowRight} alt="" />
                 </div>
 
-                <div className="flex flex-col gap-4 w-full">
-                  {/* Skyline Vehicles = the client-side Fleet section (Add New Hire).
-                      Skyline Client Management is the other section (not built yet). */}
-                  <div
-                    onClick={() => navigate("/fleet")}
-                    className="w-full flex justify-between items-center cursor-pointer hover:opacity-70 transition-opacity"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img src={Fleet} alt="Fleet icon" className="w-8 h-8" />
-
-                      <span className="text-black text-sm font-weight-600 font-['Stack_Sans_Headline']">
-                        Skyline Vehicles
-                      </span>
-                    </div>
-
-                    <img
-                      src={ArrowRight}
-                      alt="Go to Skyline Vehicles"
-                    />
-                  </div>
-
-                  <div className="w-full h-px bg-gray-100" />
-
-                  <div className="w-full flex justify-between items-center opacity-60">
-                    <div className="flex items-center gap-3">
-                      <img src={Fleet} alt="Fleet icon" className="w-8 h-8" />
-
-                      <span className="text-black text-sm font-weight-600 font-['Stack_Sans_Headline']">
-                        Skyline Client Management
-                      </span>
-                    </div>
-
-                    <img
-                      src={ArrowRight}
-                      alt="Go to Skyline Client Management"
-                    />
-                  </div>
+                <div className="flex flex-col items-start gap-3">
+                  <h3 className="text-black text-[16px] font-weight-600 font-weight-[500] leading-4 font-['Stack_Sans_Headline']">
+                    Fleet Management
+                  </h3>
+                  <p className="text-[#888888] text-[12px] font-weight-400 leading-relaxed">
+                    Manage fleet hires, documents, payments, and vehicle status
+                    in one centralized system.
+                    <br />
+                    Track records, tasks, and activity with the same workflow
+                    style as claims.
+                  </p>
                 </div>
               </div>
             </div>

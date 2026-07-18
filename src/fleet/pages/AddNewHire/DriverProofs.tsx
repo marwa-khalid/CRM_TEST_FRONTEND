@@ -11,6 +11,7 @@ import {
   type HireDocument,
 } from "../../services/hireService";
 import { extractDriverDetailsFromLicence, extractProofOfAddress } from "../../services/driverService";
+import { splitLicencePdf } from "../../utils/splitLicencePdf";
 import { FleetInlineLoader, FleetSegmented } from "../../components/fields";
 import { Eye, FileText } from "lucide-react";
 import TrashIcon from '../../assets/icons/Remove.svg'
@@ -110,12 +111,14 @@ interface ProofSection {
 type Target =
   | { kind: "proof"; index: number; proofKind: ProofKind }
   | { kind: "dl"; key: DlKey }
+  | { kind: "dlCombined" } // one PDF with both sides — split into Front + Back on upload
   | { kind: "section"; index: number };
 
 const DL_LABELS: Record<DlKey, string> = {
   dlFront: "Driving License Front",
   dlBack: "Driving License Back",
 };
+const DL_COMBINED_LABEL = "Upload One Document for Both";
 
 const ORDINALS = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"];
 const sectionTitle = (i: number) => `${ORDINALS[i] || `#${i + 1}`} Proof of Address`;
@@ -129,6 +132,13 @@ const receivedToday = () => {
 };
 
 const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+const dmyToIso = (value?: string) => {
+  const match = String(value || "").trim().match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
+  if (!match) return "";
+  const [, d, m, y] = match;
+  const year = y.length === 2 ? `20${y}` : y;
+  return `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+};
 
 const UploadPrompt = () => (
   <svg viewBox="0 0 24 24" fill="none" className="w-12 h-12 text-neutral-300" aria-hidden>
@@ -284,7 +294,15 @@ const DriverProofs: React.FC = () => {
   const [proofOcr, setProofOcr] = useState<Record<string, { address: string; postcode: string }>>({});
   const [ocrLoading, setOcrLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
-  const { hireId } = useHire();
+  const { hireId, save } = useHire();
+  const persistLicenceDates = (d: { licenceStart?: string; licenceEnd?: string }) => {
+    const payload: Record<string, string> = {};
+    const start = dmyToIso(d.licenceStart);
+    const end = dmyToIso(d.licenceEnd);
+    if (start) payload.driving_licence_start = start;
+    if (end) payload.driving_licence_end = end;
+    if (Object.keys(payload).length) save(payload);
+  };
 
   const makeDoc = (file: File): UploadedDoc => ({
     previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
@@ -393,7 +411,11 @@ const DriverProofs: React.FC = () => {
             }
             if (front) {
               const f = await persistedDocToFile(front, front.filename || "licence");
-              if (f) { const r = await extractDriverDetailsFromLicence(f); setDlOcr({ address: r.address, postcode: r.postcode, start: r.licenceStart, end: r.licenceEnd }); }
+              if (f) {
+                const r = await extractDriverDetailsFromLicence(f);
+                setDlOcr({ address: r.address, postcode: r.postcode, start: r.licenceStart, end: r.licenceEnd });
+                persistLicenceDates(r);
+              }
             }
           } finally {
             setOcrLoading(false);
@@ -449,6 +471,7 @@ const DriverProofs: React.FC = () => {
   const targetLabel = (t: Target) => {
     if (t.kind === "proof") return `${sectionTitle(t.index)} — ${proofKindLabel(t.proofKind)}`;
     if (t.kind === "section") return sectionTitle(t.index);
+    if (t.kind === "dlCombined") return DL_COMBINED_LABEL;
     return DL_LABELS[t.key];
   };
 
@@ -495,6 +518,36 @@ const DriverProofs: React.FC = () => {
       return;
     }
 
+    // Single PDF holding both sides — split page 1 → Front, page 2 → Back, then
+    // fill both cards (and persist each under its normal dlFront/dlBack doc type).
+    if (target.kind === "dlCombined") {
+      setOcrLoading(true);
+      try {
+        const { front, back } = await splitLicencePdf(file);
+        if (front) setDl((prev) => { revokeDocUrls(prev.dlFront); return { ...prev, dlFront: makeDoc(front) }; });
+        if (back) setDl((prev) => { revokeDocUrls(prev.dlBack); return { ...prev, dlBack: makeDoc(back) }; });
+        if (front) {
+          await deleteExistingDocType("dlFront");
+          const id = await uploadDoc("dlFront", front);
+          if (id) setDl((prev) => (prev.dlFront ? { ...prev, dlFront: { ...prev.dlFront, docId: id } } : prev));
+        }
+        if (back) {
+          await deleteExistingDocType("dlBack");
+          const id = await uploadDoc("dlBack", back);
+          if (id) setDl((prev) => (prev.dlBack ? { ...prev, dlBack: { ...prev.dlBack, docId: id } } : prev));
+        }
+        // The front page drives the licence dates + address compare.
+        if (front) {
+          const d = await extractDriverDetailsFromLicence(front);
+          setDlOcr({ address: d.address, postcode: d.postcode, start: d.licenceStart, end: d.licenceEnd });
+          persistLicenceDates(d);
+        }
+      } finally {
+        setOcrLoading(false);
+      }
+      return;
+    }
+
     if (target.kind !== "dl") return;
     const key = target.key;
     setDl((prev) => {
@@ -504,7 +557,10 @@ const DriverProofs: React.FC = () => {
     if (key === "dlFront") {
       setOcrLoading(true);
       extractDriverDetailsFromLicence(file)
-        .then((d) => setDlOcr({ address: d.address, postcode: d.postcode, start: d.licenceStart, end: d.licenceEnd }))
+        .then((d) => {
+          setDlOcr({ address: d.address, postcode: d.postcode, start: d.licenceStart, end: d.licenceEnd });
+          persistLicenceDates(d);
+        })
         .finally(() => setOcrLoading(false));
     }
     await deleteExistingDocType(key);
@@ -544,16 +600,22 @@ const DriverProofs: React.FC = () => {
   };
 
   const section1 = sections[0];
-  const activeProofDoc = section1?.docs[activeKind] || null;
-  const activeProofDocType = section1 ? proofDocType(activeKind, section1.id) : "";
-  const activeProofOcr = proofOcr[activeProofDocType] || { address: "", postcode: "" };
-  const selectedProofLabel = proofKindLabel(activeKind);
   const showLicenceDates = !!dl.dlFront;
-  const showCompare = !!activeProofDoc && !!dl.dlFront;
-  const dlFull = [dlOcr.address, dlOcr.postcode].filter(Boolean).join(", ");
-  const utilFull = [activeProofOcr.address, activeProofOcr.postcode].filter(Boolean).join(", ");
-  const bothPresent = !!dlFull && !!utilFull;
-  const addressesMatch = bothPresent && normalise(dlFull) === normalise(utilFull);
+  const licenceFull = [dlOcr.address, dlOcr.postcode].filter(Boolean).join(", ");
+  // Compare the licence address against EVERY proof uploaded in section 1 (both Bank
+  // Statement AND Utility Bill when both are present) and show them together — not
+  // one-at-a-time as the switch flips. So a bank-statement mismatch and a utility-bill
+  // match are both visible at once.
+  const compareRows = (["bank_statement", "utility_bill"] as ProofKind[])
+    .filter((kind) => section1?.docs[kind])
+    .map((kind) => {
+      const ocr = (section1 && proofOcr[proofDocType(kind, section1.id)]) || { address: "", postcode: "" };
+      const proofFull = [ocr.address, ocr.postcode].filter(Boolean).join(", ");
+      const bothPresent = !!licenceFull && !!proofFull;
+      const matched = bothPresent && normalise(licenceFull) === normalise(proofFull);
+      return { kind, label: proofKindLabel(kind), ocr, bothPresent, matched };
+    });
+  const showCompare = !!dl.dlFront && compareRows.length > 0;
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
@@ -579,15 +641,34 @@ const DriverProofs: React.FC = () => {
           doc={section.docs[activeKind]}
           onUploadClick={() => setActiveUpload({ kind: "proof", index: i, proofKind: activeKind })}
           onRemove={() => setDeleteTarget({ kind: "proof", index: i, proofKind: activeKind })}
-          // "Add Another" only on the last section, once the first section has a document.
-          onAddSection={i === sections.length - 1 && sectionHasDocs(sections[0]) ? addSection : undefined}
+          // "Add Another" always on the last section (even before anything is uploaded).
+          onAddSection={i === sections.length - 1 ? addSection : undefined}
           addLabel={proofKindLabel(activeKind)}
-          // Every section can be removed from its footer (at least one section is kept).
-          onRemoveSection={() => onRemoveSectionClick(i)}
+          // Footer "Remove": if the view I'm on holds a document, delete just that
+          // document; otherwise (the section is empty) remove the whole section.
+          onRemoveSection={() =>
+            section.docs[activeKind]
+              ? setDeleteTarget({ kind: "proof", index: i, proofKind: activeKind })
+              : onRemoveSectionClick(i)
+          }
         />
       ))}
 
-      {(Object.keys(DL_LABELS) as DlKey[]).map((key) => (
+      {/* Driving License — upload the two sides separately, or use the right-side
+          CTA for one document containing both sides. */}
+      <section className="p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-black text-xl font-semibold leading-5">Driving License</h3>
+        <button
+          type="button"
+          onClick={() => setActiveUpload({ kind: "dlCombined" })}
+          className="h-9 px-4 bg-neutral-900 rounded-sm inline-flex items-center justify-center gap-2 text-white text-sm font-medium hover:bg-black"
+        >
+          <img src={PlusIcon} alt="" className="w-4 h-4 invert" />
+          Upload One Document for Both
+        </button>
+      </section>
+
+      {(["dlFront", "dlBack"] as DlKey[]).map((key) => (
         <DocumentCard
           key={key}
           label={DL_LABELS[key]}
@@ -617,51 +698,51 @@ const DriverProofs: React.FC = () => {
       )}
 
       {showCompare && (
-        <section className="px-5 py-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-            <h3 className="text-black text-xl font-semibold leading-5">
-              Compare Address
-            </h3>
-            {!bothPresent ? (
-              <div className="p-2 bg-neutral-100 rounded flex items-center gap-2 text-neutral-600 text-sm">
-                Reading…
+        <section className="px-5 py-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-5">
+          <h3 className="text-black text-xl font-semibold leading-5">Compare Address</h3>
+          {compareRows.map((row, idx) => (
+            <div key={row.kind} className="flex flex-col gap-3">
+              {idx > 0 && <div className="h-px bg-neutral-100" />}
+              <div className="flex justify-between items-center">
+                <div className="text-black text-base font-semibold">{row.label} vs Driving Licence</div>
+                {!row.bothPresent ? (
+                  <div className="p-2 bg-neutral-100 rounded flex items-center gap-2 text-neutral-600 text-sm">
+                    Reading…
+                  </div>
+                ) : row.matched ? (
+                  <div className="p-2 bg-green-100 rounded flex items-center gap-2.5 text-black text-sm">
+                    <img src={CheckCircleIcon} alt="" className="w-5 h-5" />
+                    Matched
+                  </div>
+                ) : (
+                  <div className="p-2 bg-red-100 rounded flex items-center gap-2 text-black text-sm">
+                    <img src={AlertIcon} alt="" className="w-5 h-5" />
+                    Mismatch
+                  </div>
+                )}
               </div>
-            ) : addressesMatch ? (
-              <div className="p-2 bg-green-100 rounded flex items-center gap-2.5 text-black text-sm">
-                <img src={CheckCircleIcon} alt="" className="w-5 h-5" />
-                Matched
+              {row.bothPresent &&
+                (row.matched ? (
+                  <div className="px-4 py-2 bg-green-100 rounded text-neutral-700 text-sm">
+                    Address matched between Driving Licence and {row.label}
+                  </div>
+                ) : (
+                  <div className="px-4 py-2 bg-red-100 rounded text-neutral-700 text-sm">
+                    Address does not match between Driving Licence and {row.label}
+                  </div>
+                ))}
+              <div className="flex items-start gap-6">
+                <div className="flex-1 p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3">
+                  <div className="text-black text-base font-semibold">Driving License Address</div>
+                  <AddressBlock address={dlOcr.address} postcode={dlOcr.postcode} />
+                </div>
+                <div className="flex-1 p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3">
+                  <div className="text-black text-base font-semibold">{row.label} Address</div>
+                  <AddressBlock address={row.ocr.address} postcode={row.ocr.postcode} />
+                </div>
               </div>
-            ) : (
-              <div className="p-2 bg-red-100 rounded flex items-center gap-2 text-black text-sm">
-                <img src={AlertIcon} alt="" className="w-5 h-5" />
-                Mismatch
-              </div>
-            )}
-          </div>
-          {bothPresent &&
-            (addressesMatch ? (
-              <div className="px-4 py-2 bg-green-100 rounded text-neutral-700 text-sm">
-                Address matched between Driving Licence and {selectedProofLabel}
-              </div>
-            ) : (
-              <div className="px-4 py-2 bg-red-100 rounded text-neutral-700 text-sm">
-                Address does not match between Driving Licence and {selectedProofLabel}
-              </div>
-            ))}
-          <div className="flex items-start gap-6">
-            <div className="flex-1 p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3">
-              <div className="text-black text-base font-semibold">
-                Driving License Address
-              </div>
-              <AddressBlock address={dlOcr.address} postcode={dlOcr.postcode} />
             </div>
-            <div className="flex-1 p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3">
-              <div className="text-black text-base font-semibold">
-                {selectedProofLabel} Address
-              </div>
-              <AddressBlock address={activeProofOcr.address} postcode={activeProofOcr.postcode} />
-            </div>
-          </div>
+          ))}
         </section>
       )}
 

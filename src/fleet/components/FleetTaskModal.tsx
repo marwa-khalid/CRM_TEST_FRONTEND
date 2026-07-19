@@ -1,14 +1,19 @@
 import React, { useState } from "react";
+import { toast } from "react-toastify";
 import { FleetTextInput, FleetTextArea, FleetSelect, FleetDateField, FleetTimeSelect } from "./fields";
 import {
   createFleetTask,
   updateFleetTask,
+  uploadTaskAttachment,
   TASK_STATUSES,
   TASK_PRIORITIES,
   TASK_DEPARTMENTS,
   type FleetTask,
   type FleetTaskPayload,
 } from "../services/taskService";
+import UploadFileIcon from "../assets/icons/UploadFile.svg";
+import RemoveIcon from "../assets/icons/Remove.svg";
+import { fileTypeIcon } from "../utils/fileIcon";
 import type { Option } from "../types/hire";
 
 const toOptions = (values: readonly string[]): Option[] => values.map((v) => ({ label: v, value: v }));
@@ -31,12 +36,27 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved }
     priority: task?.priority || "Medium",
     status: task?.status || "Pending",
     vehicle_registration: task?.vehicle_registration || "",
+    attachment_path: task?.attachment_path || "",
+    attachment_name: task?.attachment_name || "",
   });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   const set = <K extends keyof FleetTaskPayload>(key: K, value: FleetTaskPayload[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    const res = await uploadTaskAttachment(file);
+    setUploading(false);
+    if (!res) {
+      toast.error("Couldn't upload the attachment.");
+      return;
+    }
+    setForm((prev) => ({ ...prev, attachment_path: res.path, attachment_name: res.filename }));
+  };
 
   const handleSave = async () => {
     if (!form.title.trim()) {
@@ -53,6 +73,8 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved }
       due_date: form.due_date || null,
       due_time: form.due_time || null,
       vehicle_registration: form.vehicle_registration || null,
+      attachment_path: form.attachment_path || null,
+      attachment_name: form.attachment_name || null,
     };
     const result = task ? await updateFleetTask(task.id, payload) : await createFleetTask(payload);
     setSaving(false);
@@ -64,8 +86,15 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved }
   };
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4 font-sans-headline">
-      <div className="w-[640px] max-w-full max-h-[92vh] bg-white rounded-lg flex flex-col overflow-hidden">
+    <div
+      className="fixed inset-0 z-[130] flex justify-end bg-black/40 font-sans-headline"
+      onClick={() => { if (!saving) onClose(); }}
+    >
+      {/* Right-hand slide-over drawer (not a centered popup). */}
+      <div
+        className="w-[560px] max-w-full h-full bg-white flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-right duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="px-6 py-4 flex justify-between items-center border-b border-neutral-100 shrink-0">
           <div className="text-neutral-900 text-xl font-semibold">{task ? "Edit Task" : "New Task"}</div>
           <button
@@ -138,6 +167,39 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved }
             value={form.vehicle_registration || ""}
             onChange={(v) => set("vehicle_registration", v)}
           />
+
+          {/* Attachment */}
+          <div className="flex flex-col gap-2">
+            <span className="text-neutral-700 text-sm font-medium">Attachment</span>
+            {form.attachment_name ? (
+              <div className="h-[52px] px-4 rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex items-center gap-3">
+                  <img src={fileTypeIcon(form.attachment_name)} alt="" className="w-8 h-8 shrink-0" />
+                  <span className="truncate text-sm text-neutral-900">{form.attachment_name}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, attachment_path: "", attachment_name: "" }))}
+                  title="Remove attachment"
+                  className="w-5 h-5 shrink-0 hover:opacity-70"
+                >
+                  <img src={RemoveIcon} alt="" className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <label className={`h-[52px] px-4 rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center gap-3 cursor-pointer hover:bg-neutral-50 ${uploading ? "opacity-60" : ""}`}>
+                <img src={UploadFileIcon} alt="" className="w-6 h-6 shrink-0" />
+                <span className="text-sm text-neutral-500">{uploading ? "Uploading…" : "Attach a file (JPG, PNG, PDF, DOC)"}</span>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = ""; }}
+                />
+              </label>
+            )}
+          </div>
 
           {error && <div className="text-red-500 text-sm">{error}</div>}
         </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock, Eye, ListTodo, Loader2, MessageSquareReply, Plus, RefreshCw, Search } from "lucide-react";
+import { CheckCircle2, Clock, Eye, LayoutGrid, List as ListIcon, ListTodo, Loader2, MessageSquareReply, Plus, RefreshCw, Search } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetConfirmModal from "../components/FleetConfirmModal";
 import FleetTaskModal from "../components/FleetTaskModal";
@@ -21,8 +21,8 @@ const priorityOptions: Option[] = [ALL, ...TASK_PRIORITIES.map((p) => ({ label: 
 const statusBadge = (value?: string | null): string => {
   const s = (value || "").toLowerCase();
   if (s === "completed") return "bg-green-100 text-green-600";
-  if (s === "in progress") return "bg-amber-100 text-amber-600";
-  if (s === "awaiting response") return "bg-blue-100 text-blue-600";
+  if (s === "in progress") return "bg-blue-100 text-blue-600";
+  if (s === "awaiting response") return "bg-yellow-100 text-yellow-700";
   return "bg-neutral-100 text-neutral-600"; // pending / default
 };
 const priorityBadge = (value?: string | null): string => {
@@ -64,6 +64,7 @@ const FleetTasks: React.FC = () => {
   const [editing, setEditing] = useState<FleetTask | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<FleetTask | null>(null);
+  const [view, setView] = useState<"card" | "list">("card"); // card is the default
 
   const load = async () => {
     setLoading(true);
@@ -168,31 +169,51 @@ const FleetTasks: React.FC = () => {
                 <RefreshCw size={16} />
                 Refresh
               </button>
+              {/* Card (default) / List view toggle. */}
+              <div className="h-12 flex items-center rounded border border-neutral-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setView("card")}
+                  title="Card view"
+                  aria-label="Card view"
+                  className={`h-full px-3 flex items-center ${view === "card" ? "bg-neutral-900 text-white" : "bg-white text-neutral-500 hover:bg-neutral-50"}`}
+                >
+                  <LayoutGrid size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView("list")}
+                  title="List view"
+                  aria-label="List view"
+                  className={`h-full px-3 flex items-center border-l border-neutral-200 ${view === "list" ? "bg-neutral-900 text-white" : "bg-white text-neutral-500 hover:bg-neutral-50"}`}
+                >
+                  <ListIcon size={16} />
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="border border-neutral-100 rounded-lg overflow-hidden">
-            <div className={`grid ${LIST_GRID} gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold text-neutral-500 uppercase`}>
-              <span>Task</span>
-              <span>Status</span>
-              <span>Priority</span>
-              <span>Due</span>
-              <span>Assigned</span>
-              <span>Action</span>
+          {loading ? (
+            <div className="h-48 flex items-center justify-center text-neutral-500 text-sm gap-2">
+              <Loader2 size={18} className="animate-spin" />
+              Loading tasks…
             </div>
-
-            {loading ? (
-              <div className="h-48 flex items-center justify-center text-neutral-500 text-sm gap-2">
-                <Loader2 size={18} className="animate-spin" />
-                Loading tasks…
+          ) : visible.length === 0 ? (
+            <div className="h-48 flex flex-col items-center justify-center text-center gap-1">
+              <p className="text-neutral-900 text-base font-semibold">No tasks</p>
+              <p className="text-neutral-500 text-sm">Create your first task to get started.</p>
+            </div>
+          ) : view === "list" ? (
+            <div className="border border-neutral-100 rounded-lg overflow-hidden">
+              <div className={`grid ${LIST_GRID} gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold text-neutral-500 uppercase`}>
+                <span>Task</span>
+                <span>Status</span>
+                <span>Priority</span>
+                <span>Due</span>
+                <span>Assigned</span>
+                <span>Action</span>
               </div>
-            ) : visible.length === 0 ? (
-              <div className="h-48 flex flex-col items-center justify-center text-center gap-1">
-                <p className="text-neutral-900 text-base font-semibold">No tasks</p>
-                <p className="text-neutral-500 text-sm">Create your first task to get started.</p>
-              </div>
-            ) : (
-              visible.map((task) => (
+              {visible.map((task) => (
                 <div
                   key={task.id}
                   className={`w-full grid ${LIST_GRID} gap-4 px-5 py-4 text-left border-t border-neutral-100 hover:bg-neutral-50 transition-colors items-center`}
@@ -204,13 +225,9 @@ const FleetTasks: React.FC = () => {
                     )}
                   </button>
                   <span>
-                    {/* Status keeps its real label (Pending stays Pending even when past
-                        due) — overdue is flagged only by the red tint + red due date. */}
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      task.is_overdue && (task.status || "").toLowerCase() !== "completed"
-                        ? "bg-red-100 text-red-600"
-                        : statusBadge(task.status)
-                    }`}>
+                    {/* Status keeps its own colour (Pending stays grey even when overdue);
+                        overdue is shown by the red due date + the Overdue widget. */}
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${statusBadge(task.status)}`}>
                       {task.status || "Pending"}
                     </span>
                   </span>
@@ -230,9 +247,55 @@ const FleetTasks: React.FC = () => {
                     </button>
                   </span>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {visible.map((task) => (
+                <div
+                  key={task.id}
+                  className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 bg-white flex flex-col gap-3 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <button type="button" onClick={() => openEdit(task)} className="text-left min-w-0 flex-1">
+                      <span className="block text-neutral-900 text-sm font-semibold hover:underline line-clamp-2">{task.title}</span>
+                    </button>
+                    <div className="shrink-0 flex items-center gap-3">
+                      <button type="button" onClick={() => openEdit(task)} aria-label="View / edit">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => setDeleteTarget(task)} aria-label="Delete task" title="Delete">
+                        <img src={TrashIcon} alt="" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${statusBadge(task.status)}`}>
+                      {task.status || "Pending"}
+                    </span>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${priorityBadge(task.priority)}`}>{task.priority || "—"}</span>
+                  </div>
+                  <div className="h-px bg-neutral-100" />
+                  <div className="flex flex-col gap-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-neutral-400">Due</span>
+                      <span className={task.is_overdue ? "text-red-600 font-medium" : "text-neutral-700"}>{fmtDue(task.due_date, task.due_time)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-neutral-400">Assigned</span>
+                      <span className="text-neutral-700 truncate max-w-[60%]">{task.assigned_user || "—"}</span>
+                    </div>
+                    {task.vehicle_registration && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-neutral-400">Vehicle</span>
+                        <span className="text-neutral-700">{task.vehicle_registration}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </main>
 

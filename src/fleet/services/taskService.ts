@@ -22,6 +22,8 @@ export interface FleetTask {
   claim_reference?: string | null;
   vehicle_registration?: string | null;
   notes?: string | null;
+  attachment_path?: string | null;
+  attachment_name?: string | null;
   is_overdue?: boolean;
   created_at?: string | null;
   updated_at?: string | null;
@@ -38,6 +40,8 @@ export interface FleetTaskPayload {
   status?: string | null;
   vehicle_registration?: string | null;
   notes?: string | null;
+  attachment_path?: string | null;
+  attachment_name?: string | null;
 }
 
 export interface FleetTaskStats {
@@ -124,5 +128,20 @@ export const deleteFleetTask = async (id: number): Promise<boolean> => {
   } catch (error) {
     console.warn("Unable to delete task.", error);
     return false;
+  }
+};
+
+// Uploads a task attachment (shared /tasks/upload, S3 with local fallback) and
+// returns the stored path + original filename to persist on the task.
+export const uploadTaskAttachment = async (file: File): Promise<{ path: string; filename: string } | null> => {
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const { data } = await fleetApi.post("/tasks/upload", fd, { headers: { "Content-Type": "multipart/form-data" } });
+    if (!data?.path) return null;
+    return { path: data.path, filename: data.filename || file.name };
+  } catch (error) {
+    console.warn("Unable to upload attachment.", error);
+    return null;
   }
 };

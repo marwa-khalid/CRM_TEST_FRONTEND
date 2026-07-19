@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import FleetUploadModal from "../../components/FleetUploadModal";
+import FleetBulkUploadModal from "../../components/FleetBulkUploadModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import {
@@ -33,7 +34,12 @@ import {
   type PcnForm,
 } from "../../types/hire";
 import { useHire } from "./HireContext";
-import TrashIcon from '../../assets/icons/Remove.svg'
+import RemoveIcon from "../../assets/icons/Remove.svg";
+import UploadFileIcon from "../../assets/icons/UploadFile.svg";
+import PdfIcon from "../../assets/FileTypes/PDF.svg";
+import DocIcon from "../../assets/FileTypes/DOC.svg";
+import ExcelIcon from "../../assets/FileTypes/Excel.svg";
+import PngIcon from "../../assets/FileTypes/PNG.svg";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
@@ -92,12 +98,108 @@ const toDisplayDateTime = (value?: string) => {
   })} . ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 };
 
-const UploadPrompt = () => (
-  <svg viewBox="0 0 24 24" fill="none" className="w-12 h-12 text-neutral-300" aria-hidden>
-    <path d="M12 15V4m0 0 4 4m-4-4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
+const fileIconFor = (filename?: string) => {
+  const lower = (filename || "").toLowerCase();
+  if (lower.endsWith(".pdf")) return PdfIcon;
+  if (lower.endsWith(".doc") || lower.endsWith(".docx")) return DocIcon;
+  if (lower.endsWith(".xls") || lower.endsWith(".xlsx") || lower.endsWith(".csv")) return ExcelIcon;
+  return PngIcon;
+};
+
+// One document type rendered in the checklist style: a label, an upload box per
+// file (icon + filename + remove) with an "Uploaded by" line, and a "Received On"
+// column. Multiple-file types keep an extra empty box to add another file.
+const PcnDocumentRow: React.FC<{
+  type: (typeof DOCUMENT_TYPES)[number];
+  docs: PcnDocument[];
+  onUpload: () => void;
+  onRemove: (doc: PcnDocument) => void;
+}> = ({ type, docs, onUpload, onRemove }) => {
+  const showAdd = type.multiple || docs.length === 0;
+  return (
+    <div className="self-stretch py-2 flex flex-col gap-3">
+      <label className="text-neutral-700 text-sm font-medium">
+        {type.label}
+        {type.multiple && <span className="text-neutral-400 text-xs font-normal"> (You can add multiple)</span>}
+      </label>
+
+      {docs.map((doc) => {
+        const dateTime = toDisplayDateTime(doc.created_at) || toDisplayDate(doc.received_on);
+        return (
+          <div key={doc.id} className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4 items-start">
+            <div className="flex flex-col gap-2 min-w-0">
+              <a
+                href={doc.file_url || undefined}
+                target="_blank"
+                rel="noreferrer"
+                className="h-[52px] px-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-between gap-3 hover:bg-neutral-50"
+              >
+                <div className="min-w-0 flex items-center gap-3">
+                  <img src={fileIconFor(doc.filename)} alt="" className="w-8 h-8 shrink-0" />
+                  <span className="max-w-full truncate text-sm text-neutral-900 font-medium">
+                    {doc.filename || "Document"}
+                  </span>
+                </div>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onRemove(doc);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onRemove(doc);
+                    }
+                  }}
+                  title="Remove document"
+                  className="w-5 h-5 shrink-0 hover:opacity-70"
+                >
+                  <img src={RemoveIcon} alt="" className="w-5 h-5" />
+                </span>
+              </a>
+              <div className="text-sm">
+                <span className="text-neutral-700">Uploaded by: </span>
+                <span className="text-neutral-900">{doc.uploaded_by || "Current User"}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 min-w-0">
+              <label className="text-neutral-700 text-sm font-medium">Received On</label>
+              <div className="h-[52px] px-5 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center">
+                <span className={`text-sm ${dateTime ? "text-neutral-900" : "text-neutral-400"}`}>
+                  {dateTime || "Date / Time"}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {showAdd && (
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4 items-start">
+          <button
+            type="button"
+            onClick={onUpload}
+            className="h-[52px] px-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center gap-3 hover:bg-neutral-50"
+          >
+            <img src={UploadFileIcon} alt="" className="w-8 h-8 shrink-0" />
+            <div className="min-w-0 flex flex-col items-start gap-1">
+              <span className="max-w-full truncate text-sm text-neutral-500">
+                {docs.length ? "Add another file" : "Upload file"}
+              </span>
+              <span className="text-neutral-400 text-xs">JPG, PNG, PDF supported</span>
+            </div>
+          </button>
+          <div className="hidden md:block" />
+        </div>
+      )}
+    </div>
+  );
+};
 
 
 const mapApiToForm = (data: any): PcnForm => ({
@@ -130,6 +232,7 @@ const PenaltyCharges: React.FC = () => {
   const [audit, setAudit] = useState<HireAuditEntry[]>([]);
   const [reminders, setReminders] = useState<Record<string, PcnReminder>>({});
   const [activeUpload, setActiveUpload] = useState<(typeof DOCUMENT_TYPES)[number] | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PcnDocument | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -214,6 +317,27 @@ const PenaltyCharges: React.FC = () => {
     toast.success("Document uploaded.");
     setDocuments((current) => [...current, uploaded]);
     setAudit(await getHireAudit(hireId).then((rows) => rows.filter((row) => row.field_changed.startsWith("pcn."))));
+  };
+
+  // Bulk tray: upload one file under the chosen section; throw so the row is flagged.
+  const handleBulkUpload = async (docType: string, file: File): Promise<PcnDocument> => {
+    if (!hireId) throw new Error("No hire selected.");
+    const uploaded = await uploadPcnDocument(hireId, docType, file);
+    if (!uploaded) throw new Error("Upload failed.");
+    return uploaded;
+  };
+
+  const handleBulkUploaded = async (docs: PcnDocument[]) => {
+    // Single-file types keep only the newest; multiple-file types append.
+    const singleTypes = new Set(DOCUMENT_TYPES.filter((t) => !t.multiple).map((t) => t.key));
+    setDocuments((current) => {
+      const replaced = new Set(docs.filter((d) => singleTypes.has(d.doc_type)).map((d) => d.doc_type));
+      return [...current.filter((d) => !replaced.has(d.doc_type)), ...docs];
+    });
+    toast.success(`${docs.length} document${docs.length === 1 ? "" : "s"} uploaded.`);
+    if (hireId) {
+      setAudit(await getHireAudit(hireId).then((rows) => rows.filter((row) => row.field_changed.startsWith("pcn."))));
+    }
   };
 
   const confirmDeleteDocument = async () => {
@@ -349,95 +473,30 @@ const PenaltyCharges: React.FC = () => {
       </section>
 
       <section className={SECTION}>
-        <h3 className={H3}>Documents</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className={H3}>Documents</h3>
+          <button
+            type="button"
+            onClick={() => setBulkOpen(true)}
+            disabled={!hireId}
+            className="flex items-center gap-2 px-5 py-3 rounded bg-neutral-900 text-white text-sm font-medium hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <img src={UploadFileIcon} alt="" className="w-4 h-4 invert" />
+            Upload All Documents
+          </button>
+        </div>
         <div className="h-px bg-neutral-100" />
-        {DOCUMENT_TYPES.map((type) => {
-          const rows = docsByType[type.key] || [];
-          const canUpload = type.multiple || rows.length === 0;
-          return (
-            <div
-              key={type.key}
-              className={`self-stretch rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 ${
-                rows.length ? "p-4 flex flex-col gap-2" : "p-6"
-              }`}
-            >
-              {rows.length ? (
-                <>
-                  <div className="flex justify-between items-center gap-4">
-                    <div className="text-black text-base font-semibold">
-                      {type.label}
-                    </div>
-                    {canUpload && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveUpload(type)}
-                        className={BTN_OUTLINE}
-                      >
-                        Add File
-                      </button>
-                    )}
-                  </div>
-                  {rows.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex justify-between items-center gap-4"
-                    >
-                      <div className="min-w-0 flex flex-wrap items-center gap-4">
-                        <a
-                          href={doc.file_url || undefined}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-2 rounded outline outline-1 -outline-offset-1 outline-neutral-700 text-black text-sm truncate max-w-[180px]"
-                        >
-                          {doc.filename || "Document"}
-                        </a>
-                        <span className="text-neutral-700 text-sm">
-                          Uploaded by:{" "}
-                          <span className="text-neutral-900">
-                            {doc.uploaded_by || "Current User"}
-                          </span>
-                        </span>
-                        <span className="text-neutral-700 text-sm">
-                          {toDisplayDateTime(doc.created_at) ||
-                            toDisplayDate(doc.received_on)}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget(doc)}
-                        className="text-neutral-900 hover:text-red-600"
-                      >
-                      <img src={TrashIcon} alt="" />
-                      </button>
-                    </div>
-                  ))}
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setActiveUpload(type)}
-                  className="w-full flex flex-col justify-center items-center gap-6 hover:bg-neutral-50 transition-colors"
-                >
-                  <UploadPrompt />
-                  <div className="flex flex-col items-center gap-2 text-center">
-                    <div className="text-black text-base font-semibold">
-                      {type.label}
-                      {type.multiple && (
-                        <span className="text-sm font-normal">
-                          {" "}
-                          (You Can Add Multiple)
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-black text-sm">
-                      JPG, PNG, PDF Supported
-                    </div>
-                  </div>
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {DOCUMENT_TYPES.map((type, index) => (
+          <React.Fragment key={type.key}>
+            <PcnDocumentRow
+              type={type}
+              docs={docsByType[type.key] || []}
+              onUpload={() => setActiveUpload(type)}
+              onRemove={(doc) => setDeleteTarget(doc)}
+            />
+            {index < DOCUMENT_TYPES.length - 1 && <div className="h-px bg-neutral-100" />}
+          </React.Fragment>
+        ))}
 
         <div className="self-stretch flex justify-center">
           <button
@@ -563,6 +622,14 @@ const PenaltyCharges: React.FC = () => {
         onClose={() => setActiveUpload(null)}
         onUploaded={handleDocumentUpload}
         title={activeUpload ? activeUpload.label : "Upload Document"}
+      />
+
+      <FleetBulkUploadModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        sections={DOCUMENT_TYPES}
+        onUpload={handleBulkUpload}
+        onUploaded={handleBulkUploaded}
       />
 
       {deleteTarget && (

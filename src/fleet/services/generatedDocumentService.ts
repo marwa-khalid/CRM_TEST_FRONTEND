@@ -45,6 +45,22 @@ export const downloadGeneratedDocumentBundle = async (
   documentKey: GeneratedDocumentKey,
   vehicleId?: number,
 ): Promise<string> => {
+  // When the document is a single file, download it directly instead of a zip.
+  const files = await listGeneratedDocumentFiles(hireId, documentKey, vehicleId);
+  if (files.length === 1) {
+    const file = files[0];
+    const res = await fleetApi.get(
+      `/fleet/hire/${hireId}/generated-documents/${documentKey}/files/${file.key}`,
+      {
+        responseType: "blob",
+        params: vehicleId ? { vehicle_id: vehicleId } : undefined,
+      },
+    );
+    const filename = filenameFromDisposition(res.headers["content-disposition"]) || file.filename;
+    downloadBlob(res.data as Blob, filename);
+    return filename;
+  }
+
   const res = await fleetApi.get(`/fleet/hire/${hireId}/generated-documents/${documentKey}/download`, {
     responseType: "blob",
     params: vehicleId ? { vehicle_id: vehicleId } : undefined,

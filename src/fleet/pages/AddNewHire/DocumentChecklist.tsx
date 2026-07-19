@@ -264,7 +264,7 @@ const DocumentChecklist: React.FC = () => {
           disabled={!hireId}
           className="flex items-center gap-2 px-5 py-3 rounded bg-neutral-900 text-white text-sm font-medium hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <img src={UploadFileIcon} alt="" className="text-white w-4 h-4 invert" />
+          <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
           Upload All Documents
         </button>
       </div>

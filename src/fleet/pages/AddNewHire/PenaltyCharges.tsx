@@ -11,6 +11,7 @@ import {
   FleetTextInput,
   FleetTimeSelect,
   FleetPostcodeLookup,
+  FleetAddressAutocomplete,
 } from "../../components/fields";
 import {
   addPcnNote,
@@ -43,8 +44,8 @@ import PngIcon from "../../assets/FileTypes/PNG.svg";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
-const BTN_DARK = "h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed";
-const BTN_OUTLINE = "h-8 px-3 py-2 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50";
+const BTN_DARK = "h-8 px-3 py-2 inline-flex items-center justify-center bg-neutral-900 rounded text-white text-sm leading-none hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed";
+const BTN_OUTLINE = "h-8 px-3 py-2 inline-flex items-center justify-center bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm leading-none hover:bg-neutral-50";
 
 const EMPTY_FORM: PcnForm = {
   councilName: "",
@@ -116,71 +117,54 @@ const PcnDocumentRow: React.FC<{
   onRemove: (doc: PcnDocument) => void;
 }> = ({ type, docs, onUpload, onRemove }) => {
   const showAdd = type.multiple || docs.length === 0;
+  // Single-file types only ever show the latest upload (re-uploading replaces it
+  // on screen); multi-file types list all.
+  const visibleDocs = type.multiple ? docs : docs.slice(-1);
   return (
-    <div className="self-stretch py-2 flex flex-col gap-3">
-      <label className="text-neutral-700 text-sm font-medium">
-        {type.label}
-        {type.multiple && <span className="text-neutral-400 text-xs font-normal"> (You can add multiple)</span>}
-      </label>
-
-      {docs.map((doc) => {
-        const dateTime = toDisplayDateTime(doc.created_at) || toDisplayDate(doc.received_on);
-        return (
-          <div key={doc.id} className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4 items-start">
-            <div className="flex flex-col gap-2 min-w-0">
-              <a
-                href={doc.file_url || undefined}
-                target="_blank"
-                rel="noreferrer"
-                className="h-[52px] px-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-between gap-3 hover:bg-neutral-50"
-              >
-                <div className="min-w-0 flex items-center gap-3">
-                  <img src={fileIconFor(doc.filename)} alt="" className="w-8 h-8 shrink-0" />
-                  <span className="max-w-full truncate text-sm text-neutral-900 font-medium">
-                    {doc.filename || "Document"}
-                  </span>
-                </div>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(event) => {
+    <div className="self-stretch py-2 grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4 items-start">
+      {/* Left: type label + file box(es) + the add-another box. */}
+      <div className="flex flex-col gap-2 min-w-0">
+        <label className="text-neutral-700 text-sm font-medium">{type.label}</label>
+        {visibleDocs.map((doc) => (
+          <div key={doc.id} className="flex flex-col gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={onUpload}
+              className="h-[52px] px-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-between gap-3 hover:bg-neutral-50"
+            >
+              <div className="min-w-0 flex items-center gap-3">
+                <img src={fileIconFor(doc.filename)} alt="" className="w-8 h-8 shrink-0" />
+                <span className="max-w-full truncate text-sm text-neutral-900 font-medium">
+                  {doc.filename || "Document"}
+                </span>
+              </div>
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemove(doc);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     event.stopPropagation();
                     onRemove(doc);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onRemove(doc);
-                    }
-                  }}
-                  title="Remove document"
-                  className="w-5 h-5 shrink-0 hover:opacity-70"
-                >
-                  <img src={RemoveIcon} alt="" className="w-5 h-5" />
-                </span>
-              </a>
-              <div className="text-sm">
-                <span className="text-neutral-700">Uploaded by: </span>
-                <span className="text-neutral-900">{doc.uploaded_by || "Current User"}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 min-w-0">
-              <label className="text-neutral-700 text-sm font-medium">Received On</label>
-              <div className="h-[52px] px-5 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center">
-                <span className={`text-sm ${dateTime ? "text-neutral-900" : "text-neutral-400"}`}>
-                  {dateTime || "Date / Time"}
-                </span>
-              </div>
+                  }
+                }}
+                title="Remove document"
+                className="w-5 h-5 shrink-0 hover:opacity-70"
+              >
+                <img src={RemoveIcon} alt="" className="w-5 h-5" />
+              </span>
+            </button>
+            <div className="text-sm">
+              <span className="text-neutral-700">Uploaded by: </span>
+              <span className="text-neutral-900">{doc.uploaded_by || "Current User"}</span>
             </div>
           </div>
-        );
-      })}
-
-      {showAdd && (
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4 items-start">
+        ))}
+        {showAdd && (
           <button
             type="button"
             onClick={onUpload}
@@ -194,9 +178,33 @@ const PcnDocumentRow: React.FC<{
               <span className="text-neutral-400 text-xs">JPG, PNG, PDF supported</span>
             </div>
           </button>
-          <div className="hidden md:block" />
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* Right: Received On — always visible (like the checklist), one aligned box per file. */}
+      <div className="flex flex-col gap-2 min-w-0">
+        <label className="text-neutral-700 text-sm font-medium">Received On</label>
+        {visibleDocs.map((doc) => {
+          const dateTime = toDisplayDateTime(doc.created_at) || toDisplayDate(doc.received_on);
+          return (
+            <div key={doc.id} className="flex flex-col gap-2 min-w-0">
+              <div className="h-[52px] px-5 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center">
+                <span className={`text-sm ${dateTime ? "text-neutral-900" : "text-neutral-400"}`}>
+                  {dateTime || "Date / Time"}
+                </span>
+              </div>
+              {/* Invisible spacer that height-matches the "Uploaded by" line on the
+                  left, so each date box stays aligned with its file box. */}
+              <div className="text-sm invisible select-none" aria-hidden>Uploaded by: .</div>
+            </div>
+          );
+        })}
+        {showAdd && (
+          <div className="h-[52px] px-5 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center">
+            <span className="text-sm text-neutral-400">Date / Time</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -236,6 +244,7 @@ const PenaltyCharges: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<PcnDocument | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [addingNote, setAddingNote] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
 
   const load = async (showLoader = false) => {
@@ -329,7 +338,7 @@ const PenaltyCharges: React.FC = () => {
 
   const handleBulkUploaded = async (docs: PcnDocument[]) => {
     // Single-file types keep only the newest; multiple-file types append.
-    const singleTypes = new Set(DOCUMENT_TYPES.filter((t) => !t.multiple).map((t) => t.key));
+    const singleTypes = new Set<string>(DOCUMENT_TYPES.filter((t) => !t.multiple).map((t) => t.key));
     setDocuments((current) => {
       const replaced = new Set(docs.filter((d) => singleTypes.has(d.doc_type)).map((d) => d.doc_type));
       return [...current.filter((d) => !replaced.has(d.doc_type)), ...docs];
@@ -350,12 +359,19 @@ const PenaltyCharges: React.FC = () => {
 
   const submitNote = async () => {
     if (!hireId || !noteDraft.trim()) return;
-    const note = await addPcnNote(hireId, noteDraft);
-    if (note) {
-      setNoteDraft("");
-      setNotes((current) => [note, ...current]);
-      setAudit(await getHireAudit(hireId).then((rows) => rows.filter((row) => row.field_changed.startsWith("pcn."))));
-      toast.success("Note added.");
+    setAddingNote(true);
+    try {
+      const note = await addPcnNote(hireId, noteDraft);
+      if (note) {
+        setNoteDraft("");
+        setNotes((current) => [note, ...current]);
+        setAudit(await getHireAudit(hireId).then((rows) => rows.filter((row) => row.field_changed.startsWith("pcn."))));
+        toast.success("Note added.");
+      } else {
+        toast.error("Couldn't add the note. Please try again.");
+      }
+    } finally {
+      setAddingNote(false);
     }
   };
 
@@ -376,7 +392,7 @@ const PenaltyCharges: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {initialLoading && <FleetSpinnerLoader />}
+      {(initialLoading || addingNote) && <FleetSpinnerLoader />}
       <h2 className="text-black text-2xl font-semibold leading-6">
         Penalty Charges - PCN Management
       </h2>
@@ -391,12 +407,20 @@ const PenaltyCharges: React.FC = () => {
           onChange={(v) => set("councilName", v)}
           onBlur={() => savePartial({ councilName: form.councilName })}
         />
-        <FleetTextInput
+        <FleetAddressAutocomplete
           label="Council Address"
-          placeholder="Enter"
-          value={form.councilAddress}
+          placeholder="Enter Address"
+          address={form.councilAddress}
           onChange={(v) => set("councilAddress", v)}
           onBlur={() => savePartial({ councilAddress: form.councilAddress })}
+          onPlaceSelected={(place) => {
+            set("councilAddress", place.address);
+            if (place.postcode) set("councilPostcode", place.postcode);
+            savePartial({
+              councilAddress: place.address,
+              ...(place.postcode ? { councilPostcode: place.postcode } : {}),
+            });
+          }}
         />
         <div className="grid grid-cols-2 gap-5">
           <FleetPostcodeLookup
@@ -481,7 +505,7 @@ const PenaltyCharges: React.FC = () => {
             disabled={!hireId}
             className="flex items-center gap-2 px-5 py-3 rounded bg-neutral-900 text-white text-sm font-medium hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <img src={UploadFileIcon} alt="" className="w-4 h-4 invert" />
+            <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
             Upload All Documents
           </button>
         </div>
@@ -494,7 +518,9 @@ const PenaltyCharges: React.FC = () => {
               onUpload={() => setActiveUpload(type)}
               onRemove={(doc) => setDeleteTarget(doc)}
             />
-            {index < DOCUMENT_TYPES.length - 1 && <div className="h-px bg-neutral-100" />}
+            {index < DOCUMENT_TYPES.length - 1 && (
+              <div className="h-px bg-neutral-100" />
+            )}
           </React.Fragment>
         ))}
 
@@ -509,7 +535,7 @@ const PenaltyCharges: React.FC = () => {
             className="h-8 w-fit px-3 py-2 bg-neutral-900 rounded inline-flex justify-center items-center gap-2.5"
           >
             <span className="text-white text-sm font-normal font-['Stack_Sans_Headline'] leading-4">
-            Generate Liability Transfer Letter
+              Generate Liability Transfer Letter
             </span>
           </button>
         </div>
@@ -599,21 +625,21 @@ const PenaltyCharges: React.FC = () => {
             type="button"
             onClick={submitNote}
             className={BTN_DARK}
-            disabled={!noteDraft.trim()}
+            disabled={!noteDraft.trim() || addingNote}
           >
-            Add Note
+            {addingNote ? "Adding..." : "Add Note"}
           </button>
         </div>
       </section>
 
-      <section className="self-stretch p-5 rounded outline outline-1 -outline-offset-1 outline-neutral-100 flex justify-center">
+      <section className="self-stretch p-5 rounded outline outline-1 outline-neutral-100 flex justify-center">
         <button
           type="button"
           onClick={saveAll}
           disabled={saving}
           className={BTN_DARK}
         >
-          {saving ? "Saving..." : "Save Penalty Charge"}
+          <span>{saving ? "Saving..." : "Save Penalty Charge"}</span>
         </button>
       </section>
 

@@ -71,6 +71,37 @@ export const extractProofOfAddress = async (
   }
 };
 
+export interface ExtractedTaxiBadge {
+  badgeNumber: string;
+  name: string;
+  expiry: string; // dd-mm-yyyy
+  council: string;
+  badgeType: string;
+}
+
+const EMPTY_TAXI_BADGE: ExtractedTaxiBadge = {
+  badgeNumber: "",
+  name: "",
+  expiry: "",
+  council: "",
+  badgeType: "",
+};
+
+// OCR a UK taxi (private-hire / hackney) driver badge. Best-effort: blanks on
+// failure so the user can still type the fields in.
+export const extractTaxiBadge = async (file: File): Promise<ExtractedTaxiBadge> => {
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const { data } = await fleetApi.post("/fleet/ocr/taxi-badge", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return { ...EMPTY_TAXI_BADGE, ...data };
+  } catch {
+    return { ...EMPTY_TAXI_BADGE };
+  }
+};
+
 export interface ExtractedInsuranceCertificate {
   policyStartDate: string;
   policyEndDate: string;

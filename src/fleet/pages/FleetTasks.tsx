@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock, Eye, LayoutGrid, List as ListIcon, ListTodo, Loader2, MessageSquareReply, Plus, RefreshCw, Search } from "lucide-react";
+import { CheckCircle2, Clock, Eye, LayoutGrid, List as ListIcon, ListTodo, Loader2, MessageSquareReply, Paperclip, Plus, RefreshCw, Search } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetConfirmModal from "../components/FleetConfirmModal";
 import FleetTaskModal from "../components/FleetTaskModal";
@@ -219,7 +219,12 @@ const FleetTasks: React.FC = () => {
                   className={`w-full grid ${LIST_GRID} gap-4 px-5 py-4 text-left border-t border-neutral-100 hover:bg-neutral-50 transition-colors items-center`}
                 >
                   <button type="button" onClick={() => openEdit(task)} className="text-left min-w-0">
-                    <span className="block text-neutral-900 text-sm font-semibold truncate hover:underline">{task.title}</span>
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-neutral-900 text-sm font-semibold truncate hover:underline">{task.title}</span>
+                      {task.attachment_path && (
+                        <Paperclip size={13} className="shrink-0 text-neutral-400" aria-label="Has attachment" />
+                      )}
+                    </span>
                     {task.vehicle_registration && (
                       <span className="block text-neutral-400 text-xs mt-0.5">{task.vehicle_registration}</span>
                     )}
@@ -258,7 +263,12 @@ const FleetTasks: React.FC = () => {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <button type="button" onClick={() => openEdit(task)} className="text-left min-w-0 flex-1">
-                      <span className="block text-neutral-900 text-sm font-semibold hover:underline line-clamp-2">{task.title}</span>
+                      <span className="flex items-start gap-1.5 min-w-0">
+                        <span className="text-neutral-900 text-sm font-semibold hover:underline line-clamp-2">{task.title}</span>
+                        {task.attachment_path && (
+                          <Paperclip size={13} className="shrink-0 mt-0.5 text-neutral-400" aria-label="Has attachment" />
+                        )}
+                      </span>
                     </button>
                     <div className="shrink-0 flex items-center gap-3">
                       <button type="button" onClick={() => openEdit(task)} aria-label="View / edit">

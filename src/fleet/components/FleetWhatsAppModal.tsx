@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
+import { MessageCircle } from "lucide-react";
 import { FleetTextInput } from "./fields";
 import FleetSpinnerLoader from "./FleetSpinnerLoader";
-import SmsIcon from "../assets/icons/SMS.svg";
 
-export interface FleetSmsModalPayload {
+export interface FleetWhatsAppModalPayload {
   correspondent: string;
-  smsPhrase: string;
+  phrase: string;
   reference: string;
   mobile: string;
   historyDetails: string;
@@ -22,7 +22,7 @@ interface Props {
   reference?: string;
   defaultMessage?: string;
   defaultHistoryDetails?: string;
-  onSend?: (payload: FleetSmsModalPayload) => Promise<void> | void;
+  onSend?: (payload: FleetWhatsAppModalPayload) => Promise<void> | void;
 }
 
 const DIVIDER = <div className="h-px bg-neutral-100" />;
@@ -53,10 +53,10 @@ const AutoGrowTextarea: React.FC<{
   );
 };
 
-const FleetSmsModal: React.FC<Props> = ({
+const FleetWhatsAppModal: React.FC<Props> = ({
   open,
   onClose,
-  title = "Send SMS",
+  title = "Send WhatsApp",
   correspondent = "",
   mobile = "",
   reference = "",
@@ -94,28 +94,28 @@ const FleetSmsModal: React.FC<Props> = ({
       return;
     }
     if (!finalMessage) {
-      toast.warn("Please enter an SMS message.");
+      toast.warn("Please enter a WhatsApp message.");
       return;
     }
     if (!onSend) {
-      toast.info("SMS service isn't configured on this screen yet.");
+      toast.info("WhatsApp isn't configured on this screen yet.");
       return;
     }
     setSending(true);
     try {
       await onSend({
         correspondent: name,
-        smsPhrase: finalMessage,
+        phrase: finalMessage,
         reference: ref,
         mobile: phone,
         historyDetails,
         message: finalMessage,
       });
-      toast.success("SMS sent.");
+      toast.success("WhatsApp message sent.");
       onClose();
     } catch (err) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast.error(detail || "Failed to send SMS.");
+      toast.error(detail || "Failed to send WhatsApp message.");
     } finally {
       setSending(false);
     }
@@ -139,10 +139,9 @@ const FleetSmsModal: React.FC<Props> = ({
         {/* Sticky header with Send / Close */}
         <div className="px-6 py-4 flex justify-between items-center border-b border-neutral-100 shadow-sm shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <img src={SmsIcon} alt="" className="w-6 h-6 shrink-0" />
+            <MessageCircle size={22} className="shrink-0 text-green-600" />
             <div className="flex flex-col gap-1 min-w-0">
               <h2 className="text-neutral-900 text-xl font-semibold leading-5 truncate">{title}</h2>
-              {/* <span className="text-neutral-500 text-xs font-medium">AWS SMS preview</span> */}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -174,11 +173,11 @@ const FleetSmsModal: React.FC<Props> = ({
           </div>
 
           {DIVIDER}
-          {textArea("SMS Phrase", historyDetails, setHistoryDetails)}
+          {textArea("WhatsApp Message", historyDetails, setHistoryDetails)}
         </div>
       </div>
     </div>
   );
 };
 
-export default FleetSmsModal;
+export default FleetWhatsAppModal;

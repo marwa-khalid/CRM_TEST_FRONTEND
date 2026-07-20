@@ -111,3 +111,34 @@ export const deletePaymentTransaction = async (
     return null;
   }
 };
+
+export interface ExtractedReceipt {
+  amount: string;
+  paymentDate: string;
+  reference: string;
+  payer: string;
+  payee: string;
+  sortCode: string;
+  accountNumber: string;
+  paymentMode: string;
+}
+
+const EMPTY_RECEIPT: ExtractedReceipt = {
+  amount: "", paymentDate: "", reference: "", payer: "",
+  payee: "", sortCode: "", accountNumber: "", paymentMode: "bank_transfer",
+};
+
+// OCR a bank transfer receipt so the Record Payment fields can be pre-filled.
+// Never throws — a failed read just yields blanks for the user to type in.
+export const extractPaymentReceipt = async (file: File): Promise<ExtractedReceipt> => {
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const { data } = await fleetApi.post("/fleet/ocr/payment-receipt", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return { ...EMPTY_RECEIPT, ...data };
+  } catch {
+    return { ...EMPTY_RECEIPT };
+  }
+};

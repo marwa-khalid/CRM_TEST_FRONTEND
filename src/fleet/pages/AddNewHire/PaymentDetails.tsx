@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetMoneyInput, FleetSelect, FleetDateField, FleetInlineLoader, currentTime24, formatMoney, formatTime24 } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
-import FleetSmsModal from "../../components/FleetSmsModal";
+import FleetWhatsAppModal from "../../components/FleetWhatsAppModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
 import { useHire } from "./HireContext";
 import {
@@ -12,12 +12,15 @@ import {
   updatePaymentTransaction,
   deletePaymentTransaction,
   type PaymentTransaction,
+  extractPaymentReceipt,
   type PaymentRow,
 } from "../../services/paymentService";
 import RemoveIcon from "../../assets/icons/Remove.svg";
 import PencilIcon from "../../assets/icons/PencilIcon.svg";
-import { sendFleetSms } from "../../services/smsService";
+import UploadFileIcon from "../../assets/icons/UploadFile.svg";
+import { sendFleetWhatsApp } from "../../services/whatsappService";
 import { deleteVehicle, listVehicles, updateVehicle } from "../../services/vehicleService";
+import { uploadHireDocument } from "../../services/hireService";
 import type { Option } from "../../types/hire";
 
 const STATUS_OPTIONS: Option[] = [
@@ -57,6 +60,7 @@ const money = (n: number) => `£${n.toFixed(2)}`;
 const ERROR = "text-red-500 text-xs";
 const PAYMENT_MODE_OPTIONS: Option[] = [
   { label: "Cash", value: "cash" },
+  { label: "Bank Transfer", value: "bank_transfer" },
   { label: "Adjusted in Security Deposit", value: "security_deposit" },
 ];
 const paymentModeLabel = (value?: string | null): string => (
@@ -158,6 +162,11 @@ const PaymentDateCell: React.FC<{ dateValue?: string | null; timeValue?: string 
 
 // Local YYYY-MM-DD (avoids the BST off-by-one that toISOString() causes).
 const todayLocalISO = (): string => new Date().toLocaleDateString("sv-SE");
+// The OCR returns dd-mm-yyyy; the date field wants yyyy-mm-dd.
+const ddmmyyyyToIso = (value: string): string => {
+  const m = value.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : value;
+};
 
 const paymentReminderPhrase = () =>
   "PAYDUE - Skyline Car Hire (UK) Ltd have tried to contact you today as your weekly payment for the hire vehicle is due.";
@@ -193,7 +202,7 @@ const RecordPaymentModal: React.FC<{
   editTransactionId: number | null; // null = add a new part-payment; else edit that one
   saving: boolean;
   onCancel: () => void;
-  onSave: (transaction: NewTransaction, editTransactionId: number | null) => void | Promise<void>;
+  onSave: (transaction: NewTransaction, editTransactionId: number | null, receiptFile: File | null) => void | Promise<void>;
 }> = ({ row, editTransactionId, saving, onCancel, onSave }) => {
   const alreadyPaid = num(row.paid_amount);
   const dueRemaining = remainingDue(row);
@@ -207,6 +216,32 @@ const RecordPaymentModal: React.FC<{
   const [paymentDate, setPaymentDate] = useState(editingTxn?.payment_date || todayLocalISO());
   const [paymentMode, setPaymentMode] = useState(editingTxn?.payment_mode || "cash");
   const [notes, setNotes] = useState(editingTxn?.notes || "");
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const [reading, setReading] = useState(false);
+  const receiptInput = useRef<HTMLInputElement>(null);
+
+  // Reading a bank transfer receipt pre-fills the fields below. Only blank fields
+  // are filled so a value the user already typed is never overwritten; the mode
+  // switches to Bank Transfer since that's what a receipt evidences.
+  const handleReceipt = async (file: File) => {
+    setReceipt(file);
+    setReading(true);
+    try {
+      const parsed = await extractPaymentReceipt(file);
+      if (parsed.amount) setPaidAmount(parsed.amount);
+      if (parsed.paymentDate) setPaymentDate(ddmmyyyyToIso(parsed.paymentDate));
+      setPaymentMode("bank_transfer");
+      const readNote = [parsed.reference && `Ref: ${parsed.reference}`, parsed.payer && `From: ${parsed.payer}`]
+        .filter(Boolean)
+        .join(" · ");
+      if (readNote) setNotes((current) => (current.trim() ? current : readNote));
+      const missing = !parsed.amount || !parsed.paymentDate;
+      if (missing) toast.info("Receipt read — please check the amount and date.");
+      else toast.success("Receipt read.");
+    } finally {
+      setReading(false);
+    }
+  };
   const thisAmount = num(paidAmount);
   // In edit mode the amount replaces the edited transaction, so exclude it from "already paid".
   const otherPaid = alreadyPaid - (editingTxn ? num(editingTxn.amount) : 0);
@@ -254,6 +289,35 @@ const RecordPaymentModal: React.FC<{
         */}
 
         <div className="h-px bg-neutral-100" />
+        {/* Receipt first — reading it fills the fields below. */}
+        <div className="flex flex-col gap-2">
+          <span className="text-neutral-700 text-sm font-medium">Bank Transfer Receipt</span>
+          <input
+            ref={receiptInput}
+            type="file"
+            accept="image/*,.pdf"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleReceipt(file);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            disabled={reading}
+            onClick={() => receiptInput.current?.click()}
+            className="px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center gap-3 text-left hover:outline-neutral-900 disabled:opacity-60"
+          >
+            <img src={UploadFileIcon} alt="" className="w-4 h-4 shrink-0" />
+            <span className="flex-1 min-w-0 truncate text-base text-neutral-900">
+              {reading ? "Reading receipt…" : receipt?.name || "Upload receipt to fill in the payment"}
+            </span>
+            {receipt && !reading && <span className="shrink-0 text-sm text-neutral-500">Replace</span>}
+          </button>
+        </div>
+
+        <div className="h-px bg-neutral-100" />
         <div className="text-neutral-700 text-sm font-medium">{isEdit ? "Edit payment" : "Add a payment"}</div>
         <div className="grid grid-cols-2 gap-5">
           <FleetMoneyInput label="Payment Received" value={paidAmount} onChange={setPaidAmount} />
@@ -299,7 +363,7 @@ const RecordPaymentModal: React.FC<{
               payment_date: paymentDate || null,
               payment_time: editingTxn?.payment_time || currentTime24(),
               notes: notes || null,
-            }, editingTxn?.id ?? null)}
+            }, editingTxn?.id ?? null, receipt)}
             className={`px-6 py-4 rounded text-white text-base font-medium ${
               canSave ? "bg-neutral-900 hover:bg-black" : "bg-neutral-400 cursor-not-allowed"
             }`}
@@ -327,7 +391,7 @@ const PaymentDetails: React.FC = () => {
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [vehiclesLoaded, setVehiclesLoaded] = useState(false);
   const [recordSaving, setRecordSaving] = useState(false);
-  const [smsKind, setSmsKind] = useState<"reminder" | "price_rise" | null>(null);
+  const [messageKind, setMessageKind] = useState<"reminder" | "price_rise" | null>(null);
   const { hire, hireId, save, activeVehicleId: sharedVehicleId, setActiveVehicleId } = useHire();
   const hydrated = useRef(false);
   const lastDerivedSave = useRef("");
@@ -505,16 +569,16 @@ const PaymentDetails: React.FC = () => {
         ? `${money(-netPosition)} refundable`
         : "No balance due";
   const finalOutcomeTone = netPosition > 0 ? "outstanding" : "clear";
-  const smsPhrase =
-    smsKind === "reminder"
+  const messagePhrase =
+    messageKind === "reminder"
       ? paymentReminderPhrase()
-      : smsKind === "price_rise"
+      : messageKind === "price_rise"
         ? priceRisePhrase()
         : "";
-  const smsMessage =
-    smsKind === "reminder"
+  const messageBody =
+    messageKind === "reminder"
       ? paymentReminderMessage()
-      : smsKind === "price_rise"
+      : messageKind === "price_rise"
         ? priceRiseMessage(weekly)
         : "";
 
@@ -902,14 +966,14 @@ const PaymentDetails: React.FC = () => {
         <div className="py-2 flex flex-wrap gap-4">
           <button
             type="button"
-            onClick={() => setSmsKind("reminder")}
+            onClick={() => setMessageKind("reminder")}
             className="flex-1 min-w-[220px] h-9 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50"
           >
-            Send Payment Reminder Text
+            Send Payment Reminder
           </button>
           <button
             type="button"
-            onClick={() => setSmsKind("price_rise")}
+            onClick={() => setMessageKind("price_rise")}
             className="flex-1 min-w-[220px] h-9 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50"
           >
             Inform Hirer of Price Rise
@@ -1106,7 +1170,7 @@ const PaymentDetails: React.FC = () => {
           onCancel={() => {
             if (!recordSaving) closePaymentModal();
           }}
-          onSave={async (transaction, editTransactionId) => {
+          onSave={async (transaction, editTransactionId, receiptFile) => {
             const id = recordRow.id;
             setRecordSaving(true);
             try {
@@ -1115,6 +1179,15 @@ const PaymentDetails: React.FC = () => {
                   ? await updatePaymentTransaction(hireId, id, editTransactionId, transaction)
                   : await recordPaymentTransaction(hireId, id, transaction);
                 if (!updated) throw new Error("Payment save failed");
+                // Store the receipt after the payment is saved — a failed upload
+                // must not lose a recorded payment.
+                if (receiptFile) {
+                  try {
+                    await uploadHireDocument(hireId, "payment_receipt", receiptFile);
+                  } catch {
+                    toast.warn("Payment saved, but the receipt could not be uploaded.");
+                  }
+                }
                 setRows((rs) => rs.map((r) => (r.id === id ? updated : r)));
                 if (activeVehicleId) {
                   setSummaryRowsByVehicleId((current) => ({
@@ -1136,25 +1209,25 @@ const PaymentDetails: React.FC = () => {
         />
       )}
 
-      <FleetSmsModal
-        open={smsKind !== null}
-        onClose={() => setSmsKind(null)}
-        title={smsKind === "price_rise" ? "Inform Hirer of Price Rise" : "Send Payment Reminder"}
+      <FleetWhatsAppModal
+        open={messageKind !== null}
+        onClose={() => setMessageKind(null)}
+        title={messageKind === "price_rise" ? "Inform Hirer of Price Rise" : "Send Payment Reminder"}
         correspondent={hire?.driver_name ? `Hirer - ${hire.driver_name}` : "Hirer"}
         mobile={hire?.driver_mobile || ""}
         reference={hire?.fleet_reference || ""}
-        defaultMessage={smsPhrase}
-        defaultHistoryDetails={smsMessage}
+        defaultMessage={messagePhrase}
+        defaultHistoryDetails={messageBody}
         onSend={async (payload) => {
-          if (!hireId) throw new Error("Save the hire before sending SMS.");
-          await sendFleetSms(hireId, {
+          if (!hireId) throw new Error("Save the hire before sending a WhatsApp message.");
+          await sendFleetWhatsApp(hireId, {
             mobile: payload.mobile,
             message: payload.message,
             correspondent: payload.correspondent,
             reference: payload.reference,
-            sms_phrase: payload.smsPhrase,
+            phrase: payload.phrase,
             history_details: payload.historyDetails,
-            kind: smsKind || undefined,
+            kind: messageKind || undefined,
           });
         }}
       />

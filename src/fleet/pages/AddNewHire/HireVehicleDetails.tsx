@@ -30,7 +30,7 @@ import {
   type GeneratedDocumentKey,
 } from "../../services/generatedDocumentService";
 import { sendOnHireEmail, type SendHireEmailResult } from "../../services/emailService";
-import { sendOnHireSms } from "../../services/smsService";
+import { sendOnHireWhatsApp } from "../../services/whatsappService";
 import {
   createVehicle,
   listVehicleRegister,
@@ -594,11 +594,11 @@ const HireVehicleDetails: React.FC = () => {
     });
     if (hireId) {
       try {
-        await sendOnHireSms(hireId);
-        toast.success("On-hire SMS sent.");
+        await sendOnHireWhatsApp(hireId);
+        toast.success("On-hire WhatsApp message sent.");
       } catch (err) {
         const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-        toast.warn(detail || "Vehicle marked on hire, but SMS could not be sent.");
+        toast.warn(detail || "Vehicle marked on hire, but the WhatsApp message could not be sent.");
       }
     }
     toast.success("Vehicle marked on hire.");
@@ -793,7 +793,12 @@ const HireVehicleDetails: React.FC = () => {
         <div className="h-px bg-neutral-100" />
         <div className="grid grid-cols-2 gap-5">
           <FleetTextInput label="Vehicle Cost Per Week" placeholder="Enter Cost" inputMode="decimal" value={active.vehicleCostPerWeek} onChange={(v) => set("vehicleCostPerWeek", v)} onBlur={() => saveActive({ vehicle_cost_per_week: active.vehicleCostPerWeek })} />
-          <FleetTextInput label="Security Deposit" placeholder="Enter Deposit" inputMode="decimal" value={active.deposit} onChange={(v) => set("deposit", v)} onBlur={() => saveActive({ deposit: active.deposit })} />
+          {/* Swap vehicles carry the deposit taken on Vehicle1 — only the first card collects it. */}
+          {activeIndex === 0 ? (
+            <FleetTextInput label="Security Deposit" placeholder="Enter Deposit" inputMode="decimal" value={active.deposit} onChange={(v) => set("deposit", v)} onBlur={() => saveActive({ deposit: active.deposit })} />
+          ) : (
+            <div />
+          )}
         </div>
         <div className="grid grid-cols-2 gap-5">
           <FleetSelect label="Borough" value={active.borough} options={BOROUGH_OPTIONS} onChange={(v) => { set("borough", v); saveActive({ borough: v }); }} />

@@ -3,7 +3,6 @@ import { Car, CircleCheck, Eye, Files, Loader2, Plus, RefreshCw, Search } from "
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { listHires, deleteHire, type HireRecord } from "../services/hireService";
-import { CURRENT_POSITION_OPTIONS } from "../types/hire";
 import FleetConfirmModal from "../components/FleetConfirmModal";
 import { fleetReference } from "../utils/reference";
 import TrashIcon from '../assets/icons/Remove.svg'
@@ -22,16 +21,16 @@ const formatDateTime = (value?: string) => {
 
 const fallbackReference = (hire: HireRecord) => fleetReference(hire);
 
-const positionLabel = (value?: string) =>
-  CURRENT_POSITION_OPTIONS.find((option) => option.value === value)?.label || value || "Draft";
-
 const hireStatusLabel = (value?: string) =>
   value === "on_hire" ? "On Hire" : value === "off_hire" ? "Off Hire" : "-";
 const hireStatusClass = (value?: string) =>
   value === "on_hire" ? "text-green-600" : value === "off_hire" ? "text-blue-600" : "text-neutral-400";
 
-// Reference · Driver · Vehicle Reg · Status · Current Position · Opened · Action
-const LIST_GRID = "grid-cols-[minmax(150px,1.15fr)_minmax(130px,1fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_minmax(140px,1fr)_minmax(130px,0.95fr)_76px]";
+// Reference · Driver · Contact · Email · Vehicle Reg · Status · Opened · Action
+const LIST_GRID = "grid-cols-[minmax(140px,1.05fr)_minmax(120px,0.95fr)_minmax(115px,0.85fr)_minmax(170px,1.3fr)_minmax(100px,0.75fr)_minmax(85px,0.65fr)_minmax(120px,0.9fr)_76px]";
+
+// Mobile is the primary contact; fall back to the landline.
+const driverContact = (hire: HireRecord) => hire.driver_mobile || hire.driver_telephone || "";
 
 type StatIcon = React.ComponentType<{ size?: number; className?: string }>;
 
@@ -103,8 +102,9 @@ const FleetList: React.FC = () => {
       [
         record.fleet_reference || fallbackReference(record),
         record.driver_name,
+        driverContact(record),
+        record.driver_email,
         record.last_vehicle_registration,
-        positionLabel(record.current_position),
         hireStatusLabel(record.last_vehicle_hire_status),
       ]
         .filter(Boolean)
@@ -149,7 +149,7 @@ const FleetList: React.FC = () => {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by reference, advisor or status"
+                placeholder="Search by reference, driver, contact, email or reg"
                 className="w-full outline-none text-sm text-neutral-900 placeholder:text-neutral-400"
               />
             </div>
@@ -168,9 +168,10 @@ const FleetList: React.FC = () => {
             <div className={`grid ${LIST_GRID} gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold text-neutral-500 uppercase`}>
               <span>Reference</span>
               <span>Driver</span>
+              <span>Contact</span>
+              <span>Email</span>
               <span>Vehicle Reg</span>
               <span>Status</span>
-              <span>Current Position</span>
               <span>Opened</span>
               <span >Action</span>
             </div>
@@ -200,11 +201,14 @@ const FleetList: React.FC = () => {
                       {reference}
                     </button>
                     <span className="text-neutral-700 text-sm truncate">{record.driver_name || "-"}</span>
+                    <span className="text-neutral-700 text-sm truncate">{driverContact(record) || "-"}</span>
+                    <span className="text-neutral-700 text-sm truncate" title={record.driver_email || ""}>
+                      {record.driver_email || "-"}
+                    </span>
                     <span className="text-neutral-700 text-sm">{record.last_vehicle_registration || "-"}</span>
                     <span className={`text-sm font-medium ${hireStatusClass(record.last_vehicle_hire_status)}`}>
                       {hireStatusLabel(record.last_vehicle_hire_status)}
                     </span>
-                    <span className="text-neutral-700 text-sm">{positionLabel(record.current_position)}</span>
                     <span className="text-neutral-700 text-sm">{formatDateTime(record.file_opened_at)}</span>
                     <span className="text-start flex justify-start items-center gap-3">
                       <button

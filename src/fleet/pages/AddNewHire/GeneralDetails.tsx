@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetSelect, FleetReadonlyField, FleetTimeSelect, roundToQuarter } from "../../components/fields";
+import { FleetTextInput, FleetSelect, FleetDateField, FleetTimeSelect, roundToQuarter } from "../../components/fields";
 import PayReimburseHirerModal from "../../components/PayReimburseHirerModal";
 import FleetDepositRefundModal from "../../components/FleetDepositRefundModal";
 import FleetPayHirerEmailModal from "../../components/FleetPayHirerEmailModal";
 import { getDepositRefundPreview, getPayHirerPreview, type DepositRefundDraft } from "../../services/emailService";
-import Calendar from "../../assets/icons/Calendar.svg";
 import CloseFileIcon from "../../assets/icons/CloseFile.svg";
 import {
   INSURANCE_TYPE_OPTIONS,
   CURRENT_POSITION_OPTIONS,
+  HIRER_TYPE_OPTIONS,
   type GeneralDetailsForm,
 } from "../../types/hire";
 import { useHire } from "./HireContext";
@@ -21,6 +21,16 @@ const PAY_HIRER_RECIPIENTS = "marwanationwideassist@outlook.com";
 const now = () => new Date();
 const fmtDate = (d: Date) => d.toLocaleDateString("en-GB"); // dd/mm/yyyy
 const fmtTime = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+// Local yyyy-mm-dd for the date pickers (sv-SE avoids the BST off-by-one).
+const localISO = (d: Date) => d.toLocaleDateString("sv-SE");
+// Combine a picker date (yyyy-mm-dd) with an HH:mm into a timestamp for the backend.
+const toIso = (dateStr: string, timeStr: string): string | null => {
+  if (!dateStr) return null;
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [hh, mi] = (timeStr || "00:00").split(":").map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1, hh || 0, mi || 0);
+  return Number.isNaN(dt.getTime()) ? null : dt.toISOString();
+};
 const fromIso = (value?: string) => {
   if (!value) return null;
   const d = new Date(value);
@@ -39,6 +49,7 @@ const GeneralDetails: React.FC = () => {
     insuranceType: "",
     rentalAdvisor: "",
     currentPosition: "",
+    hirerType: "",
     bankName: "",
     accountName: "",
     sortCode: "",
@@ -66,12 +77,13 @@ const GeneralDetails: React.FC = () => {
     const closed = fromIso(hire?.file_closed_at);
     setForm((f) => ({
       ...f,
-      fileOpenedDate: fmtDate(opened),
+      fileOpenedDate: localISO(opened),
       fileOpenedTime: roundToQuarter(opened.getHours(), opened.getMinutes()),
-      fileClosedOn: closed ? `${fmtDate(closed)} ${fmtTime(closed)}` : "",
+      fileClosedOn: closed ? localISO(closed) : "",
       insuranceType: hire?.insurance_type || "",
       rentalAdvisor: hire?.rental_advisor || "",
       currentPosition: hire?.current_position || "",
+      hirerType: hire?.hirer_type || "",
       bankName: hire?.bank_name || "",
       accountName: hire?.account_name || "",
       sortCode: hire?.sort_code || "",
@@ -86,7 +98,7 @@ const GeneralDetails: React.FC = () => {
   const handleCloseFile = () => {
     if (form.isClosed) return;
     const d = now();
-    setForm((f) => ({ ...f, fileClosedOn: `${fmtDate(d)} ${fmtTime(d)}`, isClosed: true }));
+    setForm((f) => ({ ...f, fileClosedOn: localISO(d), isClosed: true }));
     save({ file_closed_at: d.toISOString() });
     toast.success("File closed successfully.");
   };
@@ -168,11 +180,37 @@ const GeneralDetails: React.FC = () => {
         <div className="h-px bg-neutral-100" />
 
         <div className="grid grid-cols-2 gap-5">
-          <FleetReadonlyField label="File Opened On" value={form.fileOpenedDate} placeholder="Date" icon={Calendar} />
-          <FleetTimeSelect label="Time" value={form.fileOpenedTime} onChange={(v) => set("fileOpenedTime", v)} disabled={disabled} />
+          <FleetDateField
+            label="File Opened On"
+            value={form.fileOpenedDate}
+            disabled={disabled}
+            onChange={(v) => {
+              set("fileOpenedDate", v);
+              save({ file_opened_at: toIso(v, form.fileOpenedTime) });
+            }}
+          />
+          <FleetTimeSelect
+            label="Time"
+            value={form.fileOpenedTime}
+            onChange={(v) => {
+              set("fileOpenedTime", v);
+              save({ file_opened_at: toIso(form.fileOpenedDate, v) });
+            }}
+            disabled={disabled}
+          />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetReadonlyField label="File Closed On" value={form.fileClosedOn} placeholder="Date" icon={Calendar} />
+          <FleetDateField
+            label="File Closed On"
+            value={form.fileClosedOn}
+            onChange={(v) => {
+              set("fileClosedOn", v);
+              // Keep the original closing time-of-day when only the date is corrected.
+              const existing = fromIso(hire?.file_closed_at);
+              const time = existing ? fmtTime(existing) : fmtTime(now());
+              save({ file_closed_at: v ? toIso(v, time) : null });
+            }}
+          />
           <div />
         </div>
         <div className="grid grid-cols-2 gap-5">
@@ -206,7 +244,17 @@ const GeneralDetails: React.FC = () => {
             }}
             disabled={disabled}
           />
-          <div />
+          {/* Taxi Driver unlocks the Taxi Badge step after Driver Details. */}
+          <FleetSelect
+            label="Hirer Type"
+            value={form.hirerType}
+            options={HIRER_TYPE_OPTIONS}
+            onChange={(v) => {
+              set("hirerType", v);
+              save({ hirer_type: v });
+            }}
+            disabled={disabled}
+          />
         </div>
       </section>
 

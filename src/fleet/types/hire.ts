@@ -9,6 +9,23 @@ export const INSURANCE_TYPE_OPTIONS: Option[] = [
   { label: "Our Insurance", value: "our_insurance" },
 ];
 
+// Hirer Type (dropdown, next to Current Position). "Taxi Driver" unlocks the
+// Taxi Badge step in the wizard.
+export const HIRER_TYPE_TAXI = "taxi_driver";
+export const HIRER_TYPE_OPTIONS: Option[] = [
+  { label: "Taxi Driver", value: HIRER_TYPE_TAXI },
+  { label: "Non-Taxi Driver", value: "non_taxi_driver" },
+];
+
+// Taxi badge fields (OCR'd from a UK private-hire / hackney badge).
+export interface TaxiBadgeForm {
+  badgeNumber: string;
+  name: string;
+  expiry: string; // yyyy-mm-dd
+  council: string;
+  badgeType: string;
+}
+
 // Current Position (dropdown) — mandatory, fixed options per the story.
 export const CURRENT_POSITION_OPTIONS: Option[] = [
   { label: "Awaiting Hire", value: "awaiting_hire" },
@@ -20,13 +37,26 @@ export const CURRENT_POSITION_OPTIONS: Option[] = [
   { label: "Dead Case", value: "dead_case" },
 ];
 
-// Borough (Hire Vehicle Details) — London boroughs (PCO/private-hire context).
+// Borough / city (Hire Vehicle Details) — all UK cities, alphabetical.
 export const BOROUGH_OPTIONS: Option[] = [
-  "Birmingham", "Dudley", "Sandwell", "Solihull", "Walsall", "Wolverhampton",
-].map((b) => ({
-  label: b,
-  value: b.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
-}));
+  "Aberdeen", "Armagh", "Bangor", "Bath", "Belfast", "Birmingham", "Bradford", "Brighton & Hove",
+  "Bristol", "Cambridge", "Canterbury", "Cardiff", "Carlisle", "Chelmsford", "Chester",
+  "Chichester", "Colchester", "Coventry", "Derby", "Derry", "Doncaster", "Dundee", "Dunfermline",
+  "Durham", "Edinburgh", "Ely", "Exeter", "Glasgow", "Gloucester", "Hereford", "Inverness",
+  "Kingston upon Hull", "Lancaster", "Leeds", "Leicester", "Lichfield", "Lincoln", "Lisburn",
+  "Liverpool", "London", "Londonderry", "Manchester", "Milton Keynes", "Newcastle upon Tyne",
+  "Newport", "Newry", "Norwich", "Nottingham", "Oxford", "Perth", "Peterborough", "Plymouth",
+  "Portsmouth", "Preston", "Ripon", "Salford", "Salisbury", "Sheffield", "Southampton",
+  "Southend-on-Sea", "St Albans", "St Asaph", "St Davids", "Stirling", "Stoke-on-Trent",
+  "Sunderland", "Swansea", "Truro", "Wakefield", "Wells", "Westminster", "Winchester",
+  "Wolverhampton", "Worcester", "Wrexham", "York",
+]
+  .slice()
+  .sort((a, b) => a.localeCompare(b))
+  .map((b) => ({
+    label: b,
+    value: b.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+  }));
 
 // Swap Reason (Hire Vehicle Details) — why the hire car is being swapped.
 export const SWAP_REASON_OPTIONS: Option[] = [
@@ -98,6 +128,7 @@ export interface GeneralDetailsForm {
   insuranceType: string;
   rentalAdvisor: string;
   currentPosition: string;
+  hirerType: string;
   bankName: string;
   accountName: string;
   sortCode: string;
@@ -189,9 +220,11 @@ export interface HireStep {
   label: string;
 }
 
+// NOTE: the "taxi" step is only shown when Hirer Type = Taxi Driver (see AddNewHire).
 export const HIRE_STEPS: HireStep[] = [
   { key: "general", label: "General Details" },
   { key: "driver", label: "Driver Details" },
+  { key: "taxi", label: "Taxi Badge" },
   { key: "gdpr", label: "GDPR & Marketing Preferences" },
   { key: "proofs", label: "Driver Proofs & License Checks" },
   { key: "vehicle", label: "Hire Vehicle Details" },

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import FleetTopBar from "../../components/FleetTopBar";
@@ -6,6 +6,7 @@ import FleetStepper, { type StepFill } from "../../components/FleetStepper";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import GeneralDetails from "./GeneralDetails";
 import DriverDetails from "./DriverDetails";
+import TaxiBadgeDetails from "./TaxiBadgeDetails";
 import GDPRDetails from "./GDPRDetails";
 import DriverProofs from "./DriverProofs";
 import HireVehicleDetails from "./HireVehicleDetails";
@@ -21,13 +22,14 @@ import {
   type HireCompletionSummary,
   type HireRecord,
 } from "../../services/hireService";
-import { HIRE_STEPS } from "../../types/hire";
+import { HIRE_STEPS, HIRER_TYPE_TAXI } from "../../types/hire";
 
 // Each wizard step maps to a screen component. Steps not yet built (later stories)
 // render a placeholder, so new stories just drop a component in here.
 const STEP_COMPONENTS: Record<string, React.FC | undefined> = {
   general: GeneralDetails,
   driver: DriverDetails,
+  taxi: TaxiBadgeDetails,
   gdpr: GDPRDetails,
   proofs: DriverProofs,
   vehicle: HireVehicleDetails,
@@ -40,7 +42,8 @@ const STEP_COMPONENTS: Record<string, React.FC | undefined> = {
 // fill state (complete = all filled, half = 1+, empty = none). Steps whose data
 // lives in child tables (vehicle/proofs/pcn/documents) aren't covered here yet.
 const STEP_FIELDS: Record<string, string[]> = {
-  general: ["insurance_type", "rental_advisor", "current_position", "bank_name", "account_name", "sort_code", "account_number"],
+  general: ["insurance_type", "rental_advisor", "current_position", "hirer_type", "bank_name", "account_name", "sort_code", "account_number"],
+  taxi: ["taxi_badge_number", "taxi_badge_name", "taxi_badge_expiry", "taxi_badge_council", "taxi_badge_type"],
   driver: ["driver_name", "driver_address", "driver_postcode", "driver_email", "driver_telephone", "driver_mobile", "driving_licence_number", "national_insurance_number", "date_of_birth"],
   gdpr: ["where_found", "privacy_notice_date", "privacy_notice_method", "lawful_basis", "email_consent", "sms_consent", "phone_consent", "postal_consent"],
   payment: ["payment_hire_start_date", "payment_hire_end_date", "vehicle_cost_per_day", "number_of_weekly_payments", "payment_day", "security_deposit", "weekly_hire_payment", "total_planned_hire_cost", "initial_amount_due", "payment_damage_charges", "additional_charges"],
@@ -142,6 +145,17 @@ const AddNewHire: React.FC = () => {
     if (updated) setHire(updated);
   };
 
+  // The Taxi Badge step only exists when Hirer Type = Taxi Driver (General Details).
+  const steps = useMemo(
+    () => HIRE_STEPS.filter((s) => s.key !== "taxi" || hire?.hirer_type === HIRER_TYPE_TAXI),
+    [hire?.hirer_type],
+  );
+
+  // Switching away from Taxi Driver removes a step — keep the index in range.
+  useEffect(() => {
+    setActiveIndex((i) => Math.min(i, Math.max(0, steps.length - 1)));
+  }, [steps.length]);
+
   // No step gating on Fleet — every step is freely reachable in any order.
   const selectStep = (i: number) => setActiveIndex(i);
 
@@ -159,7 +173,7 @@ const AddNewHire: React.FC = () => {
         return;
       }
       setCompleted((prev) => new Set(prev).add(activeIndex));
-      if (activeIndex < HIRE_STEPS.length - 1) {
+      if (activeIndex < steps.length - 1) {
         toast.success("Details saved.");
         setActiveIndex((i) => i + 1);
       } else {
@@ -170,14 +184,14 @@ const AddNewHire: React.FC = () => {
     }
   };
 
-  const activeStep = HIRE_STEPS[activeIndex];
+  const activeStep = steps[activeIndex];
   const StepComponent = STEP_COMPONENTS[activeStep.key];
 
   // Sidebar fill state per step. Hire-row screens read the hire record. Screens
   // backed by child tables keep their own data loading so the parent does not
   // duplicate every child-screen API call just to colour the sidebar.
   const stepStatus = (i: number): StepFill => {
-    const key = HIRE_STEPS[i].key;
+    const key = steps[i].key;
     const fields = STEP_FIELDS[key];
     if (fields) return fillFromFields(hire as unknown as Record<string, unknown> | null, fields);
     if (key === "vehicle") {
@@ -206,7 +220,7 @@ const AddNewHire: React.FC = () => {
         hireId={hireId}
       />
       <div className="px-10 py-10 flex items-start gap-10">
-        <FleetStepper steps={HIRE_STEPS} activeIndex={activeIndex} statusOf={stepStatus} onSelect={selectStep} />
+        <FleetStepper steps={steps} activeIndex={activeIndex} statusOf={stepStatus} onSelect={selectStep} />
         <div className="flex-1 flex justify-center">
           <HireProvider value={{ hireId, hire, save, activeVehicleId, setActiveVehicleId }}>
             {loadingHire ? null : StepComponent ? (

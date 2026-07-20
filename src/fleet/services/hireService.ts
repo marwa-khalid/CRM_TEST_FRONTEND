@@ -12,6 +12,12 @@ export interface HireRecord {
   insurance_type?: string;
   rental_advisor?: string;
   current_position?: string;
+  hirer_type?: string;
+  taxi_badge_number?: string;
+  taxi_badge_name?: string;
+  taxi_badge_expiry?: string;
+  taxi_badge_council?: string;
+  taxi_badge_type?: string;
   // Derived (list view): the most recently added hire vehicle's status + registration.
   last_vehicle_hire_status?: string;
   last_vehicle_registration?: string;

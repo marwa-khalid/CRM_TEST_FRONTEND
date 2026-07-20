@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Paperclip, Plus } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetTaskModal from "../components/FleetTaskModal";
 import FleetEventModal from "../components/FleetEventModal";
@@ -40,6 +40,8 @@ const entryStyle = (entry: Entry): { pill: string; dot: string; text: string; st
 const entryTimeOf = (e: Entry): string => (e.kind === "event" ? e.event.start_time || "" : e.task.due_time || "");
 const entryKey = (e: Entry): string => (e.kind === "event" ? `e${e.event.id}` : `t${e.task.id}`);
 const sortByTime = (a: Entry, b: Entry) => entryTimeOf(a).localeCompare(entryTimeOf(b));
+const hasAttachment = (e: Entry): boolean =>
+  Boolean(e.kind === "event" ? e.event.attachment_path : e.task.attachment_path);
 
 const FleetTasksCalendar: React.FC = () => {
   const [tasks, setTasks] = useState<FleetTask[]>([]);
@@ -120,6 +122,7 @@ const FleetTasksCalendar: React.FC = () => {
         <span className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} />
         <span className="w-14 shrink-0 text-xs text-neutral-500">{time || "—"}</span>
         <span className={`flex-1 truncate text-sm ${style.strike ? "line-through text-neutral-400" : "text-neutral-900"}`}>{style.title}</span>
+        {hasAttachment(entry) && <Paperclip size={13} className="shrink-0 text-neutral-400" aria-label="Has attachment" />}
         <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${style.pill} ${style.text}`}>{entry.kind === "event" ? "Event" : "Task"}</span>
       </button>
     );

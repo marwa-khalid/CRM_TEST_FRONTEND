@@ -10,8 +10,6 @@ import {
   FleetTextArea,
   FleetTextInput,
   FleetTimeSelect,
-  FleetPostcodeLookup,
-  FleetAddressAutocomplete,
 } from "../../components/fields";
 import {
   addPcnNote,
@@ -396,52 +394,6 @@ const PenaltyCharges: React.FC = () => {
       <h2 className="text-black text-2xl font-semibold leading-6">
         Penalty Charges - PCN Management
       </h2>
-
-      <section className={SECTION}>
-        <h3 className={H3}>Council Details Section</h3>
-        <div className="h-px bg-neutral-100" />
-        <FleetTextInput
-          label="Council Name"
-          placeholder="Enter"
-          value={form.councilName}
-          onChange={(v) => set("councilName", v)}
-          onBlur={() => savePartial({ councilName: form.councilName })}
-        />
-        <FleetAddressAutocomplete
-          label="Council Address"
-          placeholder="Enter Address"
-          address={form.councilAddress}
-          onChange={(v) => set("councilAddress", v)}
-          onBlur={() => savePartial({ councilAddress: form.councilAddress })}
-          onPlaceSelected={(place) => {
-            set("councilAddress", place.address);
-            if (place.postcode) set("councilPostcode", place.postcode);
-            savePartial({
-              councilAddress: place.address,
-              ...(place.postcode ? { councilPostcode: place.postcode } : {}),
-            });
-          }}
-        />
-        <div className="grid grid-cols-2 gap-5">
-          <FleetPostcodeLookup
-            label="Council PostCode"
-            postcode={form.councilPostcode}
-            onChange={(v) => set("councilPostcode", v.toUpperCase())}
-            onBlur={() =>
-              savePartial({ councilPostcode: form.councilPostcode })
-            }
-            onAddressSelect={(addr) => {
-              set("councilAddress", addr.address);
-              set("councilPostcode", addr.postcode);
-              savePartial({
-                councilAddress: addr.address,
-                councilPostcode: addr.postcode,
-              });
-            }}
-          />
-          <div />
-        </div>
-      </section>
 
       <section className={SECTION}>
         <h3 className={H3}>PCN Details Section</h3>

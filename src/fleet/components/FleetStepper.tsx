@@ -13,6 +13,8 @@ interface Props {
   // Per-step fill state: complete = all fields filled, half = 1+ filled, empty = none.
   statusOf?: (index: number) => StepFill;
   onSelect?: (index: number) => void;
+  /** Customer-side steps for the SAME record. Indices continue after `steps`. */
+  customerSteps?: HireStep[];
 }
 
 const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
@@ -23,9 +25,10 @@ const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
 
 const CARD = "self-stretch p-6 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 
-const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect }) => {
+const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect, customerSteps = [] }) => {
   const [clientOpen, setClientOpen] = useState(true);
-  const [customerOpen, setCustomerOpen] = useState(false);
+  // Open the Customer Side card when the active step lives inside it.
+  const [customerOpen, setCustomerOpen] = useState(activeIndex >= steps.length);
 
   return (
     <div className="w-72 shrink-0 font-sans-headline flex flex-col gap-4">
@@ -66,16 +69,45 @@ const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect 
         )}
       </div>
 
-      {/* Skyline Customer Side — no screens yet */}
+      {/* Skyline Customer Side — same record, indices continue after the client steps */}
       <div className={CARD}>
         <button type="button" onClick={() => setCustomerOpen((o) => !o)} className="flex justify-between items-center">
-          <span className="text-neutral-500 text-base font-semibold">Customer Side</span>
+          <span className={`text-base font-semibold ${customerSteps.length ? "text-neutral-900" : "text-neutral-500"}`}>
+            Customer Side
+          </span>
           <Chevron open={customerOpen} />
         </button>
         {customerOpen && (
           <>
             <div className="h-px bg-neutral-100" />
-            <span className="text-neutral-400 text-sm">Screens coming soon.</span>
+            {customerSteps.length === 0 ? (
+              <span className="text-neutral-400 text-sm">Screens coming soon.</span>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {customerSteps.map((step, i) => {
+                  const index = steps.length + i;
+                  const isCurrent = index === activeIndex;
+                  const status = statusOf?.(index) ?? "empty";
+                  const icon = isCurrent
+                    ? CurrentScreen
+                    : status === "complete"
+                      ? CompleteScreen
+                      : status === "half"
+                        ? HalfFilledScreen
+                        : EmptyScreen;
+                  return (
+                    <button key={step.key} type="button" onClick={() => onSelect?.(index)} className="flex items-center gap-3 text-left">
+                      <img src={icon} alt="" className="w-4 h-4 shrink-0" />
+                      <span
+                        className={`text-sm leading-4 ${isCurrent || status !== "empty" ? "text-black" : "text-neutral-700"} ${isCurrent ? "font-medium" : "font-normal"}`}
+                      >
+                        {step.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
       </div>

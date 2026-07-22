@@ -1,7 +1,7 @@
 import React from "react";
 import { ExternalLink } from "lucide-react";
 import { FleetDateField, FleetReadonlyField } from "../../components/fields";
-import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import Vector6 from "../../assets/icons/Calendar.svg";
 import { useVehicle } from "./VehicleContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";

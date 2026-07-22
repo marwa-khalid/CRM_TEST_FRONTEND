@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { Plus, Mail } from "lucide-react";
 import { FleetTextInput, FleetDateField, FleetTimeSelect } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
+import FleetUploadModal from "../../components/FleetUploadModal";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import {
   createLicensingAuthority,
@@ -72,8 +73,7 @@ const LicensingAuthority: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const platingInput = useRef<HTMLInputElement>(null);
-  const motInput = useRef<HTMLInputElement>(null);
+  const [uploadKind, setUploadKind] = useState<CertificateKind | null>(null);
 
   const active = authorities[activeIndex] ?? null;
 
@@ -145,12 +145,11 @@ const LicensingAuthority: React.FC = () => {
   // user story. Only blank fields are filled, so amendments survive a re-upload.
   const handleCertificate = async (kind: CertificateKind, file: File) => {
     if (!recordId || !active) return;
-    setBusy(true);
-    try {
+    // Progress is shown by the upload modal, so no full-screen spinner here.
+    {
       const stored = await uploadCertificate(recordId, active.id, kind, file);
       if (!stored) {
-        toast.error("Could not upload the certificate.");
-        return;
+        throw new Error("Could not upload the certificate.");
       }
       setAuthorities((rows) => rows.map((r) => (r.id === stored.id ? stored : r)));
 
@@ -185,8 +184,6 @@ const LicensingAuthority: React.FC = () => {
       const updated = await updateLicensingAuthority(recordId, active.id, payload);
       if (updated) setAuthorities((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
       toast.success(`Certificate read — ${count} field${count === 1 ? "" : "s"} filled. Please check before saving.`);
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -197,7 +194,7 @@ const LicensingAuthority: React.FC = () => {
       const cleared = await removeCertificate(recordId, active.id, kind);
       if (cleared) setAuthorities((rows) => rows.map((r) => (r.id === cleared.id ? cleared : r)));
     }
-    (kind === "plating" ? platingInput : motInput).current?.click();
+    setUploadKind(kind);
   };
 
   const sendConfirmation = async (kind: CertificateKind) => {
@@ -227,27 +224,12 @@ const LicensingAuthority: React.FC = () => {
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       {(loading || busy) && <FleetSpinnerLoader />}
 
-      <input
-        ref={platingInput}
-        type="file"
+      <FleetUploadModal
+        open={uploadKind !== null}
+        onClose={() => setUploadKind(null)}
+        onUploaded={(file) => handleCertificate(uploadKind!, file)}
+        title={uploadKind === "mot" ? "Upload MOT Centre Certificate" : "Upload Plating Expiry Certificate"}
         accept="image/*,.pdf"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleCertificate("plating", file);
-          e.target.value = "";
-        }}
-      />
-      <input
-        ref={motInput}
-        type="file"
-        accept="image/*,.pdf"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleCertificate("mot", file);
-          e.target.value = "";
-        }}
       />
 
       <div className="flex justify-between items-center">
@@ -299,7 +281,7 @@ const LicensingAuthority: React.FC = () => {
           {/* Section A — plating authority contact details */}
           <section className={SECTION}>
             <div className="flex justify-between items-center gap-4">
-              <h3 className={H3}>Plating Authority Contact Details &amp; Plating Details</h3>
+              <h3 className={H3}>Plating Authority Contact Details</h3>
               {!active.plating_certificate_name && (
                 <button type="button" disabled={busy} onClick={() => pickCertificate("plating")} className={`${BTN_DARK} shrink-0`}>
                   <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />

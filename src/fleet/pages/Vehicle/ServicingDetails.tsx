@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetDateField, FleetTimeSelect } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
+import FleetUploadModal from "../../components/FleetUploadModal";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import RemoveIcon from "../../assets/icons/Remove.svg";
 import {
@@ -43,7 +44,7 @@ const ServicingDetails: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const invoiceInput = useRef<HTMLInputElement>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const active = services[activeIndex] ?? null;
 
@@ -51,7 +52,14 @@ const ServicingDetails: React.FC = () => {
     if (!recordId) return;
     setLoading(true);
     try {
-      const rows = await listVehicleServices(recordId);
+      let rows = await listVehicleServices(recordId);
+      // Always show a servicing form — create a first blank record so the Garage
+      // and Servicing sections render before any invoice is uploaded. Uploading
+      // an invoice fills this record; a later upload adds another.
+      if (rows.length === 0) {
+        const created = await createVehicleService(recordId);
+        if (created) rows = [created];
+      }
       setServices(rows);
       // Show the newest record by default — it's the one that determines the
       // current Next Service Due At.
@@ -72,18 +80,23 @@ const ServicingDetails: React.FC = () => {
     if (updated) setServices((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
   };
 
-  // Every invoice creates its own servicing record, so the log keeps the full
-  // history rather than overwriting the previous service.
+  // A servicing record is untouched if it has no invoice and no entered data —
+  // the auto-created first record, or one just added.
+  const isBlank = (r?: VehicleServiceRecord | null) =>
+    !!r && !r.invoice_name && !r.garage_name && !r.serviced_at_mileage && !r.serviced_on && !r.case_reference;
+
+  // The first invoice fills the blank starter record; each later invoice adds a
+  // new record so the log keeps the full history rather than overwriting.
   const handleInvoice = async (file: File) => {
     if (!recordId) return;
-    setBusy(true);
-    try {
-      const created = await createVehicleService(recordId);
-      if (!created) {
-        toast.error("Could not create the servicing record.");
-        return;
+    // Progress is shown by the upload modal, so no full-screen spinner here.
+    {
+      const target = isBlank(active) ? active! : await createVehicleService(recordId);
+      if (!target) {
+        throw new Error("Could not create the servicing record.");
       }
-      const stored = (await uploadServiceInvoice(recordId, created.id, file)) ?? created;
+      const isNew = !isBlank(active);
+      const stored = (await uploadServiceInvoice(recordId, target.id, file)) ?? target;
 
       const invoice = await extractServiceInvoice(file);
       const payload: Record<string, unknown> = {};
@@ -100,19 +113,20 @@ const ServicingDetails: React.FC = () => {
       if (invoice.caseReference) payload.case_reference = invoice.caseReference;
 
       const count = Object.keys(payload).length;
-      const updated = count ? await updateVehicleService(recordId, created.id, payload) : null;
+      const updated = count ? await updateVehicleService(recordId, target.id, payload) : null;
       const finalRecord = updated ?? stored;
 
-      setServices((rows) => [...rows, finalRecord]);
-      setActiveIndex(services.length);
+      setServices((rows) => {
+        if (isNew) return [...rows, finalRecord];
+        return rows.map((r) => (r.id === finalRecord.id ? finalRecord : r));
+      });
+      setActiveIndex(isNew ? services.length : activeIndex);
 
       if (!count) {
         toast.warn("Invoice saved, but nothing could be read from it. Please enter the details manually.");
       } else {
         toast.success(`Invoice read — ${count} field${count === 1 ? "" : "s"} filled. Please check before saving.`);
       }
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -144,23 +158,19 @@ const ServicingDetails: React.FC = () => {
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       {(loading || busy) && <FleetSpinnerLoader />}
 
-      <input
-        ref={invoiceInput}
-        type="file"
+      <FleetUploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onUploaded={handleInvoice}
+        title="Upload Service Invoice"
         accept="image/*,.pdf"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleInvoice(file);
-          e.target.value = "";
-        }}
       />
 
       <div className="flex justify-between items-center">
         <h2 className="text-black text-2xl font-semibold leading-6">Servicing Details</h2>
-        <button type="button" disabled={busy} onClick={() => invoiceInput.current?.click()} className={BTN_DARK}>
+        <button type="button" disabled={busy} onClick={() => setUploadOpen(true)} className={BTN_DARK}>
           <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
-          {busy ? "Reading invoice…" : "Upload Service Invoice"}
+          Upload Service Invoice
         </button>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import CurrentScreen from "../assets/icons/CurrentScreen.svg";
 import CompleteScreen from "../assets/icons/CompleteScreen.svg";
 import HalfFilledScreen from "../assets/icons/HalfFilledScreen.svg";
@@ -26,15 +26,24 @@ const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
 const CARD = "self-stretch p-6 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 
 const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect, customerSteps = [] }) => {
-  const [clientOpen, setClientOpen] = useState(true);
-  // Open the Customer Side card when the active step lives inside it.
-  const [customerOpen, setCustomerOpen] = useState(activeIndex >= steps.length);
+  // Accordion: only one side is expanded at a time, so opening one collapses the
+  // other. Follows the active step across the client/customer boundary.
+  const [openPanel, setOpenPanel] = useState<"client" | "customer">(
+    activeIndex >= steps.length ? "customer" : "client",
+  );
+  useEffect(() => {
+    setOpenPanel(activeIndex >= steps.length ? "customer" : "client");
+  }, [activeIndex, steps.length]);
+  const clientOpen = openPanel === "client";
+  const customerOpen = openPanel === "customer";
+  const setClientOpen = () => setOpenPanel("client");
+  const setCustomerOpen = () => setOpenPanel("customer");
 
   return (
     <div className="w-72 shrink-0 font-sans-headline flex flex-col gap-4">
       {/* Skyline Client Side — the current wizard */}
       <div className={CARD}>
-        <button type="button" onClick={() => setClientOpen((o) => !o)} className="flex justify-between items-center">
+        <button type="button" onClick={setClientOpen} className="flex justify-between items-center">
           <span className="text-neutral-900 text-base font-semibold">Client Side</span>
           <Chevron open={clientOpen} />
         </button>
@@ -71,7 +80,7 @@ const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect,
 
       {/* Skyline Customer Side — same record, indices continue after the client steps */}
       <div className={CARD}>
-        <button type="button" onClick={() => setCustomerOpen((o) => !o)} className="flex justify-between items-center">
+        <button type="button" onClick={setCustomerOpen} className="flex justify-between items-center">
           <span className={`text-base font-semibold ${customerSteps.length ? "text-neutral-900" : "text-neutral-500"}`}>
             Customer Side
           </span>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FleetReadonlyField } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
-import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import Vector6 from "../../assets/icons/Calendar.svg";
 import { listVehicles } from "../../services/vehicleService";
 import { useVehicle } from "./VehicleContext";
 

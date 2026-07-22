@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetSelect, FleetDateField, FleetReadonlyField } from "../../components/fields";
-import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
+import FleetUploadModal from "../../components/FleetUploadModal";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
-import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import Vector6 from "../../assets/icons/Calendar.svg";
 import { extractV5C } from "../../services/vehicleRecordService";
 import {
   CONTRACT_TYPE_OPTIONS,
@@ -91,8 +91,7 @@ const Checkbox: React.FC<{ checked: boolean; label: string; onChange: (v: boolea
 const VehicleDetails: React.FC = () => {
   const { vehicle, save } = useVehicle();
   const [form, setForm] = useState<Form>(EMPTY);
-  const [reading, setReading] = useState(false);
-  const v5cInput = useRef<HTMLInputElement>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   useEffect(() => {
     if (!vehicle) return;
@@ -132,9 +131,7 @@ const VehicleDetails: React.FC = () => {
   // truth for them, and the user story says the user may amend afterwards. The
   // two classification dropdowns are never touched; those stay the user's choice.
   const handleV5C = async (file: File) => {
-    setReading(true);
-    try {
-      const v5c = await extractV5C(file);
+    const v5c = await extractV5C(file);
       const next: Partial<Form> = {};
       if (v5c.registration) next.registrationNumber = v5c.registration;
       if (v5c.make) next.make = v5c.make;
@@ -164,38 +161,29 @@ const VehicleDetails: React.FC = () => {
       (Object.keys(next) as Array<keyof Form>).forEach((k) => {
         payload[TO_BACKEND[k]] = next[k];
       });
-      await save(payload);
-      toast.success(`V5C read — ${readCount} field${readCount === 1 ? "" : "s"} filled. Please check before saving.`);
-    } finally {
-      setReading(false);
-    }
+    await save(payload);
+    toast.success(`V5C read — ${readCount} field${readCount === 1 ? "" : "s"} filled. Please check before saving.`);
   };
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {reading && <FleetSpinnerLoader />}
+      <FleetUploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onUploaded={handleV5C}
+        title="Upload V5C"
+        accept="image/*,.pdf"
+      />
 
       <div className="flex justify-between items-center">
         <h2 className="text-black text-2xl font-semibold leading-6">Vehicle Details</h2>
-        <input
-          ref={v5cInput}
-          type="file"
-          accept="image/*,.pdf"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleV5C(file);
-            e.target.value = "";
-          }}
-        />
         <button
           type="button"
-          disabled={reading}
-          onClick={() => v5cInput.current?.click()}
-          className="h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm inline-flex items-center justify-center gap-2 hover:bg-black disabled:opacity-70"
+          onClick={() => setUploadOpen(true)}
+          className="h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm inline-flex items-center justify-center gap-2 hover:bg-black"
         >
           <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
-          {reading ? "Reading V5C…" : "Upload V5C"}
+          Upload V5C
         </button>
       </div>
 

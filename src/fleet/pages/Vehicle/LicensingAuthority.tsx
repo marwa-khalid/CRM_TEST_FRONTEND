@@ -217,14 +217,14 @@ const LicensingAuthority: React.FC = () => {
 
   if (!recordId) {
     return (
-      <div className="flex-1 min-w-0 font-sans-headline">
+      <div className="w-full max-w-[788px] font-sans-headline">
         <span className="text-neutral-400 text-sm">Open the Vehicle Details screen first.</span>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col gap-6 font-sans-headline">
+    <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       {(loading || busy) && <FleetSpinnerLoader />}
 
       <input

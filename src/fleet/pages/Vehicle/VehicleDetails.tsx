@@ -3,7 +3,7 @@ import { toast } from "react-toastify";
 import { FleetTextInput, FleetSelect, FleetDateField, FleetReadonlyField } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
-import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
+import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { extractV5C } from "../../services/vehicleRecordService";
 import {
   CONTRACT_TYPE_OPTIONS,
@@ -172,7 +172,7 @@ const VehicleDetails: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col gap-6 font-sans-headline">
+    <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       {reading && <FleetSpinnerLoader />}
 
       <div className="flex justify-between items-center">

@@ -1,7 +1,7 @@
 import React from "react";
 import { ExternalLink } from "lucide-react";
 import { FleetDateField, FleetReadonlyField } from "../../components/fields";
-import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
+import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { useVehicle } from "./VehicleContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
@@ -20,7 +20,7 @@ const RoadFundLicense: React.FC = () => {
   const { vehicle, save } = useVehicle();
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col gap-6 font-sans-headline">
+    <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       <h2 className="text-black text-2xl font-semibold leading-6">Road Fund License</h2>
 
       <section className={SECTION}>

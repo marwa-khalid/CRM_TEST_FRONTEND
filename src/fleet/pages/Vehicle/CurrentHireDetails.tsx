@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FleetReadonlyField } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
-import Vector6 from "../../assets/AutoClaim_icon/Vector-6.svg";
+import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
 import { listVehicles } from "../../services/vehicleService";
 import { useVehicle } from "./VehicleContext";
 
@@ -52,7 +52,7 @@ const CurrentHireDetails: React.FC = () => {
   const telephone = s(hire?.driver_telephone) || s(hire?.driver_mobile);
 
   return (
-    <div className="flex-1 min-w-0 flex flex-col gap-6 font-sans-headline">
+    <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       {loading && <FleetSpinnerLoader />}
 
       <h2 className="text-black text-2xl font-semibold leading-6">Current Hire Details</h2>

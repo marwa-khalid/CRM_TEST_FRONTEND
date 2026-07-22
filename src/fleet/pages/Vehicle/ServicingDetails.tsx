@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetDateField, FleetTimeSelect } from "../../components/fields";
+import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomplete, FleetPostcodeLookup } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
@@ -73,10 +73,13 @@ const ServicingDetails: React.FC = () => {
     load();
   }, [load]);
 
-  const patch = async (field: string, value: unknown) => {
+  const patch = async (field: string, value: unknown) => patchMany({ [field]: value });
+
+  // Several fields at once — used when a postcode/address lookup fills both.
+  const patchMany = async (fields: Record<string, unknown>) => {
     if (!recordId || !active) return;
-    setServices((rows) => rows.map((r) => (r.id === active.id ? { ...r, [field]: value } : r)));
-    const updated = await updateVehicleService(recordId, active.id, { [field]: value });
+    setServices((rows) => rows.map((r) => (r.id === active.id ? { ...r, ...fields } : r)));
+    const updated = await updateVehicleService(recordId, active.id, fields);
     if (updated) setServices((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
   };
 
@@ -215,9 +218,21 @@ const ServicingDetails: React.FC = () => {
             <section className={SECTION}>
               <h3 className={H3}>Garage Details</h3>
               <FleetTextInput label="Servicing Garage Name" placeholder="Enter Garage Name" value={active.garage_name || ""} onChange={(v) => patch("garage_name", v)} />
-              <FleetTextInput label="Address" placeholder="Enter Address" value={active.address || ""} onChange={(v) => patch("address", v)} />
+              <FleetAddressAutocomplete
+                label="Address"
+                placeholder="Enter Address"
+                address={active.address || ""}
+                onChange={(v) => patch("address", v)}
+                onPlaceSelected={(place) => patchMany({ address: place.address, ...(place.postcode ? { postcode: place.postcode } : {}) })}
+              />
               <div className="grid grid-cols-2 gap-5">
-                <FleetTextInput label="Postcode" placeholder="Enter Postcode" value={active.postcode || ""} onChange={(v) => patch("postcode", v)} />
+                <FleetPostcodeLookup
+                  label="Postcode"
+                  placeholder="Enter Postcode"
+                  postcode={active.postcode || ""}
+                  onChange={(v) => patch("postcode", v)}
+                  onAddressSelect={(addr) => patchMany({ address: addr.address, postcode: addr.postcode })}
+                />
                 <FleetTextInput label="Contact Number" placeholder="Enter Contact Number" inputMode="tel" value={active.contact_number || ""} onChange={(v) => patch("contact_number", v)} />
               </div>
               <div className="grid grid-cols-2 gap-5">

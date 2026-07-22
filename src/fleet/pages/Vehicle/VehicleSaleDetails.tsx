@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { ExternalLink } from "lucide-react";
-import { FleetTextInput, FleetMoneyInput, FleetDateField } from "../../components/fields";
+import { FleetTextInput, FleetMoneyInput, FleetDateField, FleetAddressAutocomplete, FleetPostcodeLookup } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import { openSaleDocumentsPrintView } from "../../services/vehicleRecordService";
 import { useVehicle } from "./VehicleContext";
@@ -96,9 +96,34 @@ const VehicleSaleDetails: React.FC = () => {
       <section className={SECTION}>
         <h3 className={H3}>Vehicle Purchaser Details</h3>
         <FleetTextInput label="Purchaser Name" placeholder="Enter Name" value={form.purchaserName} onChange={(v) => set("purchaserName", v)} onBlur={() => saveField("purchaserName")} />
-        <FleetTextInput label="Address" placeholder="Enter Address" value={form.purchaserAddress} onChange={(v) => set("purchaserAddress", v)} onBlur={() => saveField("purchaserAddress")} />
+        <FleetAddressAutocomplete
+          label="Address"
+          placeholder="Enter Address"
+          address={form.purchaserAddress}
+          onChange={(v) => set("purchaserAddress", v)}
+          onBlur={() => saveField("purchaserAddress")}
+          onPlaceSelected={(place) => {
+            set("purchaserAddress", place.address);
+            if (place.postcode) set("purchaserPostcode", place.postcode);
+            save({
+              purchaser_address: place.address,
+              ...(place.postcode ? { purchaser_postcode: place.postcode } : {}),
+            });
+          }}
+        />
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Postcode" placeholder="Enter Postcode" value={form.purchaserPostcode} onChange={(v) => set("purchaserPostcode", v)} onBlur={() => saveField("purchaserPostcode")} />
+          <FleetPostcodeLookup
+            label="Postcode"
+            placeholder="Enter Postcode"
+            postcode={form.purchaserPostcode}
+            onChange={(v) => set("purchaserPostcode", v)}
+            onBlur={() => saveField("purchaserPostcode")}
+            onAddressSelect={(addr) => {
+              set("purchaserAddress", addr.address);
+              set("purchaserPostcode", addr.postcode);
+              save({ purchaser_address: addr.address, purchaser_postcode: addr.postcode });
+            }}
+          />
           <FleetTextInput label="Telephone" placeholder="+44" inputMode="tel" value={form.purchaserTelephone} onChange={(v) => set("purchaserTelephone", v)} onBlur={() => saveField("purchaserTelephone")} />
         </div>
         <div className="grid grid-cols-2 gap-5">

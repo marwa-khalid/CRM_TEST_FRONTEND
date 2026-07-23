@@ -217,15 +217,21 @@ const RecordPaymentModal: React.FC<{
   const [paymentMode, setPaymentMode] = useState(editingTxn?.payment_mode || "cash");
   const [notes, setNotes] = useState(editingTxn?.notes || "");
   const [receipt, setReceipt] = useState<File | null>(null);
-  const [reading, setReading] = useState(false);
+  // Inline upload flow (matches FleetUploadModal): 1 choose · 2 reading · 3 done.
+  const [receiptStep, setReceiptStep] = useState<1 | 2 | 3>(1);
+  const [receiptProgress, setReceiptProgress] = useState(0);
   const receiptInput = useRef<HTMLInputElement>(null);
+  const reading = receiptStep === 2;
 
   // Reading a bank transfer receipt pre-fills the fields below. Only blank fields
   // are filled so a value the user already typed is never overwritten; the mode
   // switches to Bank Transfer since that's what a receipt evidences.
   const handleReceipt = async (file: File) => {
     setReceipt(file);
-    setReading(true);
+    setReceiptStep(2);
+    setReceiptProgress(0);
+    // Crawl the bar to 90% while OCR runs, then jump to 100% on completion.
+    const timer = setInterval(() => setReceiptProgress((p) => (p >= 90 ? 90 : p + 8)), 120);
     try {
       const parsed = await extractPaymentReceipt(file);
       if (parsed.amount) setPaidAmount(parsed.amount);
@@ -235,13 +241,22 @@ const RecordPaymentModal: React.FC<{
         .filter(Boolean)
         .join(" · ");
       if (readNote) setNotes((current) => (current.trim() ? current : readNote));
+      clearInterval(timer);
+      setReceiptProgress(100);
+      setReceiptStep(3);
       const missing = !parsed.amount || !parsed.paymentDate;
       if (missing) toast.info("Receipt read — please check the amount and date.");
       else toast.success("Receipt read.");
-    } finally {
-      setReading(false);
+    } catch {
+      clearInterval(timer);
+      setReceiptStep(1);
+      setReceiptProgress(0);
+      toast.error("Could not read the receipt. Please try again.");
     }
   };
+
+  const receiptSize = (bytes: number) =>
+    bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)}KB` : `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   const thisAmount = num(paidAmount);
   // In edit mode the amount replaces the edited transaction, so exclude it from "already paid".
   const otherPaid = alreadyPaid - (editingTxn ? num(editingTxn.amount) : 0);
@@ -289,7 +304,9 @@ const RecordPaymentModal: React.FC<{
         */}
 
         <div className="h-px bg-neutral-100" />
-        {/* Receipt first — reading it fills the fields below. */}
+        {/* Receipt first — reading it fills the fields below. Same choose →
+            progress → green-check flow as the standard upload, but inline (we're
+            already inside the Record Payment modal, so no nested popup). */}
         <div className="flex flex-col gap-2">
           <span className="text-neutral-700 text-sm font-medium">Bank Transfer Receipt</span>
           <input
@@ -299,22 +316,62 @@ const RecordPaymentModal: React.FC<{
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handleReceipt(file);
               e.target.value = "";
+              if (file) handleReceipt(file);
             }}
           />
-          <button
-            type="button"
-            disabled={reading}
-            onClick={() => receiptInput.current?.click()}
-            className="px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center gap-3 text-left hover:outline-neutral-900 disabled:opacity-60"
+          <div
+            onClick={() => receiptStep === 1 && receiptInput.current?.click()}
+            onDragOver={(e) => receiptStep === 1 && e.preventDefault()}
+            onDrop={(e) => {
+              if (receiptStep !== 1) return;
+              e.preventDefault();
+              const file = e.dataTransfer.files?.[0];
+              if (file) handleReceipt(file);
+            }}
+            className={`p-8 rounded-lg border-2 border-dashed border-neutral-200 flex flex-col items-center justify-center gap-3 transition-colors ${
+              receiptStep === 1 ? "cursor-pointer hover:bg-neutral-50" : "bg-white"
+            }`}
           >
-            <img src={UploadFileIcon} alt="" className="w-4 h-4 shrink-0" />
-            <span className="flex-1 min-w-0 truncate text-base text-neutral-900">
-              {reading ? "Reading receipt…" : receipt?.name || "Upload receipt to fill in the payment"}
-            </span>
-            {receipt && !reading && <span className="shrink-0 text-sm text-neutral-500">Replace</span>}
-          </button>
+            {receiptStep === 3 ? (
+              <span className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
+                <span className="w-3 h-1.5 border-l-2 border-b-2 border-white -rotate-45 -translate-y-[1px]" />
+              </span>
+            ) : receiptStep === 2 ? (
+              <span className="w-10 h-10 rounded-full border-[3px] border-neutral-200 border-t-neutral-900 animate-spin" aria-hidden />
+            ) : (
+              <img src={UploadFileIcon} alt="" className="w-8 h-8 opacity-40" />
+            )}
+            <div className="flex flex-col items-center gap-1 text-center">
+              <div className="text-black text-base font-semibold">
+                {receiptStep === 1 && "Choose file or Drag & Drop here"}
+                {receiptStep === 2 && `Reading — ${receiptProgress}%`}
+                {receiptStep === 3 && "Receipt read"}
+              </div>
+              <div className="text-neutral-500 text-sm">
+                {receiptStep === 1 ? "JPG, PNG, PDF Supported" : receipt ? `${receipt.name} · ${receiptSize(receipt.size)}` : ""}
+              </div>
+            </div>
+            {(receiptStep === 2 || receiptStep === 3) && (
+              <div className="w-full max-w-[420px] h-2 bg-neutral-100 rounded-full overflow-hidden">
+                <div className="h-full bg-neutral-900 rounded-full transition-all duration-200" style={{ width: `${receiptProgress}%` }} />
+              </div>
+            )}
+            {receiptStep === 3 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setReceiptStep(1);
+                  setReceiptProgress(0);
+                  receiptInput.current?.click();
+                }}
+                className="text-neutral-500 text-sm hover:text-neutral-900 underline"
+              >
+                Replace
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="h-px bg-neutral-100" />

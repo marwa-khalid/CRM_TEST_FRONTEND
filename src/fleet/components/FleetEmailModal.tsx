@@ -128,7 +128,7 @@ const FleetEmailModal: React.FC<Props> = ({
       toast.warn("Please add at least one recipient email address.");
       return;
     }
-    if (!hireId) {
+    if (!hireId && !sendOverride) {
       toast.error("Save the hire before sending an email.");
       return;
     }

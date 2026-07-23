@@ -199,11 +199,29 @@ const AddNewHire: React.FC = () => {
   // No step gating on Fleet — every step is freely reachable in any order.
   const selectStep = (i: number) => setActiveIndex(i);
 
+  const [vehicleLoading, setVehicleLoading] = useState(false);
+
+  // Opening any customer-side screen needs a vehicle record, which needs the hire
+  // to exist. Create the hire on first open (like the client side does on first
+  // save) so the customer screens are usable straight away — no "open Vehicle
+  // Details first" dead end.
   useEffect(() => {
-    if (!isCustomerStep || !hireId || vehicle) return;
-    getHireVehicleRecord(hireId).then((record) => {
-      if (record) setVehicle(record);
-    });
+    if (!isCustomerStep || vehicle) return;
+    let cancelled = false;
+    setVehicleLoading(true);
+    (async () => {
+      try {
+        const id = hireId ?? (await ensureHire());
+        if (!id || cancelled) return;
+        const record = await getHireVehicleRecord(id);
+        if (record && !cancelled) setVehicle(record);
+      } finally {
+        if (!cancelled) setVehicleLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [isCustomerStep, hireId, vehicle]);
 
   const saveVehicle = async (partial: Record<string, unknown>) => {
@@ -312,7 +330,7 @@ const AddNewHire: React.FC = () => {
             {loadingHire ? null : StepComponent ? (
               isCustomerStep ? (
                 <VehicleProvider
-                  value={{ vehicleId: vehicle?.id ?? null, vehicle, hire, save: saveVehicle, ensureVehicle, refresh: refreshVehicle }}
+                  value={{ vehicleId: vehicle?.id ?? null, vehicle, loading: vehicleLoading, hire, save: saveVehicle, ensureVehicle, refresh: refreshVehicle }}
                 >
                   <StepComponent />
                 </VehicleProvider>

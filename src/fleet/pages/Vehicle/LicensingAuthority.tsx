@@ -4,6 +4,7 @@ import { Plus, Mail } from "lucide-react";
 import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomplete, FleetPostcodeLookup } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import FleetUploadModal from "../../components/FleetUploadModal";
+import FleetEmailModal, { type FleetEmailSendArgs } from "../../components/FleetEmailModal";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import {
   createLicensingAuthority,
@@ -11,6 +12,7 @@ import {
   extractMotCertificate,
   extractPlatingCertificate,
   listLicensingAuthorities,
+  getAppointmentEmailPreview,
   removeCertificate,
   sendAppointmentPassedEmail,
   updateLicensingAuthority,
@@ -66,7 +68,7 @@ const CertificateBar: React.FC<{
   ) : null;
 
 const LicensingAuthority: React.FC = () => {
-  const { vehicle } = useVehicle();
+  const { vehicle, loading: recordLoading } = useVehicle();
   const recordId = vehicle?.id ?? null;
 
   const [authorities, setAuthorities] = useState<Authority[]>([]);
@@ -74,6 +76,10 @@ const LicensingAuthority: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploadKind, setUploadKind] = useState<CertificateKind | null>(null);
+  const [email, setEmail] = useState<
+    { kind: CertificateKind; authorityId: number; to: string; subject: string; body: string; html: string } | null
+  >(null);
+  const [preparingEmail, setPreparingEmail] = useState(false);
 
   const active = authorities[activeIndex] ?? null;
 
@@ -200,25 +206,28 @@ const LicensingAuthority: React.FC = () => {
     setUploadKind(kind);
   };
 
+  // Open the email preview: fetch the default recipient (logged-in user), subject
+  // and editable body, then show the shared email modal to review/edit/send.
   const sendConfirmation = async (kind: CertificateKind) => {
     if (!recordId || !active) return;
     const label = kind === "plating" ? "Plating" : "MOT";
-    setBusy(true);
+    setPreparingEmail(true);
     try {
-      await sendAppointmentPassedEmail(recordId, active.id, kind);
-      toast.success(`${label} confirmation email sent to the Fleet inbox.`);
-    } catch (err) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      toast.error(detail || `Could not send the ${label} confirmation email.`);
+      const preview = await getAppointmentEmailPreview(recordId, active.id, kind);
+      setEmail({ kind, authorityId: active.id, ...preview });
+    } catch {
+      toast.error(`Could not prepare the ${label} confirmation email.`);
     } finally {
-      setBusy(false);
+      setPreparingEmail(false);
     }
   };
 
   if (!recordId) {
     return (
       <div className="w-full max-w-[788px] font-sans-headline">
-        <span className="text-neutral-400 text-sm">Open the Vehicle Details screen first.</span>
+        <span className="text-neutral-400 text-sm">
+          {recordLoading ? "Loading…" : "This vehicle record isn't available yet."}
+        </span>
       </div>
     );
   }
@@ -226,6 +235,16 @@ const LicensingAuthority: React.FC = () => {
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
       {(loading || busy) && <FleetSpinnerLoader />}
+
+      {/* Labeled loader while the email preview is being prepared. */}
+      {preparingEmail && (
+        <div className="fixed inset-0 z-[9999] bg-[#e8e6df]/80 flex items-center justify-center font-sans-headline">
+          <div className="bg-white rounded-lg px-8 py-6 flex flex-col items-center gap-4 shadow-[0px_4px_20px_0px_rgba(0,0,0,0.12)]">
+            <div className="w-8 h-8 border-[3px] border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
+            <span className="text-neutral-900 text-sm font-medium">Preparing email preview…</span>
+          </div>
+        </div>
+      )}
 
       <FleetUploadModal
         open={uploadKind !== null}
@@ -426,6 +445,27 @@ const LicensingAuthority: React.FC = () => {
           )}
         </>
       )}
+
+      {/* Preview → edit → send. Recipient defaults to the logged-in user. */}
+      <FleetEmailModal
+        open={email !== null}
+        onClose={() => setEmail(null)}
+        hireId={vehicle?.hire_id ?? null}
+        title={email?.kind === "mot" ? "MOT Confirmation" : "Plating Confirmation"}
+        defaultTo={email?.to || ""}
+        defaultSubject={email?.subject || ""}
+        defaultBody={email?.body || ""}
+        sendOverride={async (args: FleetEmailSendArgs) => {
+          if (!recordId || !email) return { status: "failed" as const };
+          await sendAppointmentPassedEmail(recordId, email.authorityId, email.kind, {
+            to: args.to,
+            cc: args.cc,
+            subject: args.subject,
+            body: args.body,
+          });
+          return { status: "sent" as const };
+        }}
+      />
     </div>
   );
 };

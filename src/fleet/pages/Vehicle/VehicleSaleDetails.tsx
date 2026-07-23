@@ -38,7 +38,7 @@ const TO_BACKEND: Record<keyof Form, string> = {
 };
 
 const VehicleSaleDetails: React.FC = () => {
-  const { vehicle, save } = useVehicle();
+  const { vehicle, save, loading: recordLoading } = useVehicle();
   const [form, setForm] = useState<Form>(EMPTY);
   const [printing, setPrinting] = useState(false);
 
@@ -81,7 +81,9 @@ const VehicleSaleDetails: React.FC = () => {
   if (!vehicle?.id) {
     return (
       <div className="w-full max-w-[788px] font-sans-headline">
-        <span className="text-neutral-400 text-sm">Open the Vehicle Details screen first.</span>
+        <span className="text-neutral-400 text-sm">
+          {recordLoading ? "Loading…" : "This vehicle record isn't available yet."}
+        </span>
       </div>
     );
   }

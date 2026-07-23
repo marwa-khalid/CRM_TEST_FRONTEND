@@ -201,13 +201,30 @@ export const openLicensingLettersPrintView = async (recordId: number): Promise<v
   }
 };
 
-// "Appointment passed" confirmation. The body is built server-side from the
-// stored licensing authority record, so the email can never drift from the data.
+export interface AppointmentEmailPreview {
+  to: string;
+  subject: string;
+  body: string;
+  html: string;
+}
+
+// The default recipient (the logged-in user), subject and editable body for the
+// plating/MOT confirmation — shown in the preview before sending.
+export const getAppointmentEmailPreview = async (
+  recordId: number,
+  authorityId: number,
+  kind: CertificateKind,
+): Promise<AppointmentEmailPreview> => {
+  const { data } = await fleetApi.get(`${base(recordId)}/${authorityId}/email/${kind}/preview`);
+  return data;
+};
+
+// "Appointment passed" confirmation — sends the reviewed/edited to, subject and body.
 export const sendAppointmentPassedEmail = async (
   recordId: number,
   authorityId: number,
   kind: CertificateKind,
-  payload: { to?: string; cc?: string; subject?: string } = {},
+  payload: { to?: string; cc?: string; subject?: string; body?: string } = {},
 ): Promise<void> => {
   await fleetApi.post(`${base(recordId)}/${authorityId}/email/${kind}`, payload);
 };

@@ -14,7 +14,7 @@ const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1
 const BTN_DARK = "h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm inline-flex items-center justify-center gap-2 hover:bg-black disabled:opacity-70";
 
 const LicensingAuthoritySummary: React.FC = () => {
-  const { vehicle } = useVehicle();
+  const { vehicle, loading: recordLoading } = useVehicle();
   const recordId = vehicle?.id ?? null;
 
   const [authorities, setAuthorities] = useState<LicensingAuthority[]>([]);
@@ -58,7 +58,9 @@ const LicensingAuthoritySummary: React.FC = () => {
   if (!recordId) {
     return (
       <div className="w-full max-w-[788px] font-sans-headline">
-        <span className="text-neutral-400 text-sm">Open the Vehicle Details screen first.</span>
+        <span className="text-neutral-400 text-sm">
+          {recordLoading ? "Loading…" : "This vehicle record isn't available yet."}
+        </span>
       </div>
     );
   }

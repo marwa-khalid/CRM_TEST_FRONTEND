@@ -37,7 +37,7 @@ const displayDate = (value?: string | null): string => {
 };
 
 const ServicingDetails: React.FC = () => {
-  const { vehicle } = useVehicle();
+  const { vehicle, loading: recordLoading } = useVehicle();
   const recordId = vehicle?.id ?? null;
 
   const [services, setServices] = useState<VehicleServiceRecord[]>([]);
@@ -148,7 +148,9 @@ const ServicingDetails: React.FC = () => {
   if (!recordId) {
     return (
       <div className="w-full max-w-[788px] font-sans-headline">
-        <span className="text-neutral-400 text-sm">Open the Vehicle Details screen first.</span>
+        <span className="text-neutral-400 text-sm">
+          {recordLoading ? "Loading…" : "This vehicle record isn't available yet."}
+        </span>
       </div>
     );
   }

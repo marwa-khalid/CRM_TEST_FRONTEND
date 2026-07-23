@@ -5,6 +5,8 @@ import type { HireRecord } from "../../services/hireService";
 interface VehicleContextValue {
   vehicleId: number | null;
   vehicle: VehicleRecord | null;
+  /** True while the record for this hire is being fetched/created. */
+  loading: boolean;
   /** The Client Side of the same record — customer screens read from it. */
   hire: HireRecord | null;
   /** Creates the record on first use, then PATCHes the given fields. */

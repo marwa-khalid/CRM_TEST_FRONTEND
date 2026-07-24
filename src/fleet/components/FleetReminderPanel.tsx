@@ -105,11 +105,10 @@ const FleetReminderPanel: React.FC<Props> = ({ reminders, onClose }) => {
                   key={r._id}
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setSelectedId((cur) => (cur === r._id ? null : r._id)); }}
-                  className={`w-full flex items-start gap-3 px-6 py-3 text-left text-neutral-900 ${
+                  className={`w-full flex items-start px-6 py-3 text-left text-neutral-900 ${
                     selectedId === r._id ? "bg-neutral-100 outline outline-1 -outline-offset-1 outline-neutral-300" : "hover:bg-neutral-50"
                   }`}
                 >
-                  <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${overdue ? "bg-[#e5484d]" : "bg-[#ff7402]"}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-semibold">{KIND_LABEL[r.kind] || "Reminder"}</span>

@@ -11,9 +11,10 @@ import {
   toUkMobileE164,
 } from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
+import FleetConfirmModal from "../../components/FleetConfirmModal";
 import type { DriverDetailsForm } from "../../types/hire";
 import { extractDriverDetailsFromLicence } from "../../services/driverService";
-import { getHireDocuments, uploadHireDocument, deleteHireDocument, getHireDocumentFileUrl } from "../../services/hireService";
+import { getHireDocuments, uploadHireDocument, deleteHireDocument, getHireDocumentFileUrl, type HireDocument } from "../../services/hireService";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import { useHire } from "./HireContext";
 
@@ -61,33 +62,67 @@ const DriverDetails: React.FC = () => {
   // True after a licence upload — any OCR-target field still empty then is flagged red.
   const [ocrAttempted, setOcrAttempted] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [licenceDocs, setLicenceDocs] = useState<HireDocument[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [licenceName, setLicenceName] = useState("");
   const [licenceLoading, setLicenceLoading] = useState(false);
+  const [viewingDoc, setViewingDoc] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { hire, hireId, save } = useHire();
   const hydrated = useRef(false);
   const licenceHydrated = useRef(false);
 
-  // Restore the saved licence preview on reopen (the image is persisted as a doc and
-  // streamed back through the auth-checked file endpoint).
+  const licencesOf = (docs: HireDocument[]) =>
+    docs.filter((d) => d.doc_type === LICENCE_DOC_TYPE).sort((a, b) => b.id - a.id);
+
+  // Restore the uploaded licences (newest first) + the latest image preview.
   useEffect(() => {
     if (licenceHydrated.current || !hireId) return;
     licenceHydrated.current = true;
     setLicenceLoading(true);
     getHireDocuments(hireId)
       .then(async (docs) => {
-        // Newest licence doc (in case an old one hasn't finished deleting yet).
-        const lic = docs.filter((d) => d.doc_type === LICENCE_DOC_TYPE).sort((a, b) => b.id - a.id)[0];
-        if (lic) {
-          setLicenceName(lic.filename || "Driving licence");
-          if (IMG_EXT.test(lic.filename || "")) {
-            setPreviewUrl(await getHireDocumentFileUrl(hireId, lic.id));
-          }
+        const licences = licencesOf(docs);
+        setLicenceDocs(licences);
+        const latest = licences[0];
+        if (latest && IMG_EXT.test(latest.filename || "")) {
+          setPreviewUrl(await getHireDocumentFileUrl(hireId, latest.id));
         }
       })
       .finally(() => setLicenceLoading(false));
   }, [hireId]);
+
+  const openLicence = async (docId: number) => {
+    if (!hireId) return;
+    setViewingDoc(true);
+    try {
+      const url = await getHireDocumentFileUrl(hireId, docId);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      else toast.error("Could not open the file.");
+    } finally {
+      setViewingDoc(false);
+    }
+  };
+
+  // Delete the current (latest) licence file; a previous upload, if any, becomes
+  // the shown one, otherwise the screen reverts to the upload prompt.
+  const handleDeleteLicence = async () => {
+    setConfirmDelete(false);
+    const latest = licenceDocs[0];
+    if (!hireId || !latest) return;
+    setLicenceLoading(true);
+    try {
+      await deleteHireDocument(hireId, latest.id);
+      const docs = licencesOf(await getHireDocuments(hireId));
+      setLicenceDocs(docs);
+      if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+      const next = docs[0];
+      setPreviewUrl(next && IMG_EXT.test(next.filename || "") ? await getHireDocumentFileUrl(hireId, next.id) : null);
+      toast.success("Driving licence deleted.");
+    } finally {
+      setLicenceLoading(false);
+    }
+  };
 
   // Pre-fill from the saved hire once (reopen an existing hire / after creation).
   useEffect(() => {
@@ -117,18 +152,14 @@ const DriverDetails: React.FC = () => {
   };
 
   const handleUploaded = async (file: File) => {
-    setLicenceName(file.name);
+    // Show the new image immediately as the preview.
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
-    // Persist the licence image (REPLACING any previous one) so the preview that
-    // restores on reopen is the newly-uploaded licence, not a stale one.
+    // Keep the licence image as history (newest first); the OCR form data below is
+    // still a clean replace so a previous licence's data can't linger.
     if (hireId) {
-      getHireDocuments(hireId).then((existing) => {
-        existing
-          .filter((d) => d.doc_type === LICENCE_DOC_TYPE)
-          .forEach((d) => deleteHireDocument(hireId, d.id));
-        uploadHireDocument(hireId, LICENCE_DOC_TYPE, file);
-      });
+      await uploadHireDocument(hireId, LICENCE_DOC_TYPE, file);
+      setLicenceDocs(licencesOf(await getHireDocuments(hireId)));
     }
 
     // Real OCR extract (Name/Address/Postcode/DL Number/DOB). Loading is shown by
@@ -166,7 +197,7 @@ const DriverDetails: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {licenceLoading && <FleetSpinnerLoader />}
+      {(licenceLoading || viewingDoc) && <FleetSpinnerLoader />}
       <h2 className="text-black text-2xl font-semibold leading-6">Driver Details</h2>
 
       {/* Driving License upload + preview */}
@@ -174,24 +205,40 @@ const DriverDetails: React.FC = () => {
         <h3 className="text-black text-xl font-semibold leading-5">Driving License</h3>
         <div className="h-px bg-neutral-100" />
 
-        {licenceName ? (
+        {licenceDocs.length > 0 ? (
           <div className="flex flex-col gap-3">
             <div className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col items-center gap-3">
               {previewUrl ? (
                 <img src={previewUrl} alt="Driving licence" className="max-h-64 max-w-full rounded object-contain" />
               ) : (
-                <div className="px-6 py-8 text-neutral-500 text-sm">PDF uploaded — {licenceName}</div>
+                <div className="px-6 py-8 text-neutral-500 text-sm">PDF uploaded — {licenceDocs[0].filename}</div>
               )}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-neutral-500 text-sm truncate">{licenceName}</span>
               <button
                 type="button"
-                onClick={() => setUploadOpen(true)}
-                className="text-neutral-900 text-sm font-medium underline underline-offset-2"
+                onClick={() => openLicence(licenceDocs[0].id)}
+                className="min-w-0 truncate text-left text-neutral-700 text-sm hover:underline"
+                title="View file"
               >
-                Replace
+                {licenceDocs[0].filename || "Driving licence"}
               </button>
+              <div className="shrink-0 flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setUploadOpen(true)}
+                  className="text-neutral-900 text-sm font-medium underline underline-offset-2"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-red-600 text-sm font-medium underline underline-offset-2"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -322,7 +369,24 @@ const DriverDetails: React.FC = () => {
         </div>
       </section>
 
-      <FleetUploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} />
+      <FleetUploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onUploaded={handleUploaded}
+        title="Upload Driving License"
+        history={licenceDocs}
+        onView={openLicence}
+      />
+
+      {confirmDelete && (
+        <FleetConfirmModal
+          title="Delete Driving Licence"
+          message="Are you sure you want to delete the current driving licence file?"
+          confirmLabel="Delete"
+          onConfirm={handleDeleteLicence}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </div>
   );
 };

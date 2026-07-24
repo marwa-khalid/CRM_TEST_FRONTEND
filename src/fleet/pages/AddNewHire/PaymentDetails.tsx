@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetMoneyInput, FleetSelect, FleetDateField, FleetInlineLoader, currentTime24, formatMoney, formatTime24 } from "../../components/fields";
+import { fileTypeIcon } from "../../utils/fileIcon";
+import { formatUploadedAt } from "../../components/FleetDocumentList";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import FleetWhatsAppModal from "../../components/FleetWhatsAppModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
@@ -20,7 +22,7 @@ import PencilIcon from "../../assets/icons/PencilIcon.svg";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import { sendFleetWhatsApp } from "../../services/whatsappService";
 import { deleteVehicle, listVehicles, updateVehicle } from "../../services/vehicleService";
-import { uploadHireDocument, getHireDocuments, getHireDocumentFileUrl, type HireDocument } from "../../services/hireService";
+import { uploadHireDocument, getHireDocuments, getHireDocumentFileUrl, deleteHireDocument, type HireDocument } from "../../services/hireService";
 import type { Option } from "../../types/hire";
 
 const STATUS_OPTIONS: Option[] = [
@@ -231,19 +233,20 @@ const RecordPaymentModal: React.FC<{
   const receiptInput = useRef<HTMLInputElement>(null);
   const reading = receiptStep === 2;
 
-  useEffect(() => {
+  const reloadReceipts = useCallback(async () => {
     if (!hireId) return;
     setReceiptDocsLoading(true);
-    getHireDocuments(hireId)
-      .then((docs) => {
-        setReceiptDocs(
-          docs
-            .filter((doc) => doc.doc_type === "payment_receipt")
-            .sort((a, b) => b.id - a.id),
-        );
-      })
-      .finally(() => setReceiptDocsLoading(false));
+    try {
+      const docs = await getHireDocuments(hireId);
+      setReceiptDocs(docs.filter((doc) => doc.doc_type === "payment_receipt").sort((a, b) => b.id - a.id));
+    } finally {
+      setReceiptDocsLoading(false);
+    }
   }, [hireId]);
+
+  useEffect(() => {
+    reloadReceipts();
+  }, [reloadReceipts]);
 
   const openReceiptDoc = async (doc: HireDocument) => {
     if (!hireId) return;
@@ -253,6 +256,23 @@ const RecordPaymentModal: React.FC<{
       return;
     }
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const [deleteReceiptTarget, setDeleteReceiptTarget] = useState<HireDocument | null>(null);
+  const confirmDeleteReceipt = async () => {
+    const doc = deleteReceiptTarget;
+    setDeleteReceiptTarget(null);
+    if (!hireId || !doc) return;
+    // If it's the receipt currently shown in the upload area, clear it back to
+    // the empty state so the drop zone is ready for a new one.
+    if (receiptDocs[0]?.id === doc.id) {
+      setReceipt(null);
+      setReceiptStep(1);
+      setReceiptProgress(0);
+    }
+    setReceiptDocs((docs) => docs.filter((d) => d.id !== doc.id)); // optimistic
+    await deleteHireDocument(hireId, doc.id);
+    toast.success("Receipt deleted.");
   };
 
   // Reading a bank transfer receipt pre-fills the fields below. Only blank fields
@@ -268,7 +288,9 @@ const RecordPaymentModal: React.FC<{
     try {
       const parsed = await extractPaymentReceipt(file);
       if (parsed.amount) setPaidAmount(parsed.amount);
-      if (parsed.paymentDate) setPaymentDate(ddmmyyyyToIso(parsed.paymentDate));
+      // No date on the receipt → drop any previous date and default to today, but
+      // still flag it red so the user verifies it.
+      setPaymentDate(parsed.paymentDate ? ddmmyyyyToIso(parsed.paymentDate) : todayLocalISO());
       setPaymentMode("bank_transfer");
       const readNote = [parsed.reference && `Ref: ${parsed.reference}`, parsed.payer && `From: ${parsed.payer}`]
         .filter(Boolean)
@@ -281,6 +303,16 @@ const RecordPaymentModal: React.FC<{
       // itself, rather than a toast the user has to remember.
       setReceiptMissing({ amount: !parsed.amount, paymentDate: !parsed.paymentDate });
       toast.success("Receipt read.");
+      // Persist it now so it appears in the list in real time (upload no longer
+      // waits for the payment to be saved).
+      if (hireId) {
+        try {
+          await uploadHireDocument(hireId, "payment_receipt", file);
+          await reloadReceipts();
+        } catch {
+          toast.warn("Receipt read, but could not be uploaded.");
+        }
+      }
     } catch {
       clearInterval(timer);
       setReceiptStep(1);
@@ -386,52 +418,79 @@ const RecordPaymentModal: React.FC<{
                 {receiptStep === 1 ? "JPG, PNG, PDF Supported" : receipt ? `${receipt.name} · ${receiptSize(receipt.size)}` : ""}
               </div>
             </div>
-            {(receiptStep === 2 || receiptStep === 3) && (
+            {receiptStep === 2 && (
               <div className="w-full max-w-[420px] h-2 bg-neutral-100 rounded-full overflow-hidden">
                 <div className="h-full bg-neutral-900 rounded-full transition-all duration-200" style={{ width: `${receiptProgress}%` }} />
               </div>
             )}
             {receiptStep === 3 && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setReceiptStep(1);
-                  setReceiptProgress(0);
-                  receiptInput.current?.click();
-                }}
-                className="text-neutral-500 text-sm hover:text-neutral-900 underline"
-              >
-                Replace
-              </button>
+              <div className="flex items-center gap-5" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReceiptStep(1);
+                    setReceiptProgress(0);
+                    receiptInput.current?.click();
+                  }}
+                  className="text-neutral-500 text-sm hover:text-neutral-900 underline"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { if (receiptDocs[0]) setDeleteReceiptTarget(receiptDocs[0]); }}
+                  className="text-red-600 text-sm hover:text-red-700 underline"
+                >
+                  Delete
+                </button>
+              </div>
             )}
           </div>
-          <div className="rounded outline outline-1 -outline-offset-1 outline-neutral-100">
+          <div className="rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100">
             <button
               type="button"
               onClick={() => setReceiptDocsOpen((open) => !open)}
-              className="w-full px-3 py-2 flex items-center justify-between gap-3 text-left text-sm text-neutral-900 hover:bg-neutral-50"
+              className="w-full px-3 py-2.5 flex items-center justify-between gap-3 text-left text-sm text-neutral-900 hover:bg-neutral-50"
             >
-              <span className="font-medium">View uploaded receipts</span>
-              <span className="text-neutral-500">
-                {receiptDocsLoading ? "Loading..." : `${receiptDocs.length} file${receiptDocs.length === 1 ? "" : "s"}`}
+              <span className="font-medium">Uploaded Receipts</span>
+              <span className="text-neutral-500 text-xs">
+                {receiptDocsLoading ? "Loading…" : `${receiptDocs.length} file${receiptDocs.length === 1 ? "" : "s"} · ${receiptDocsOpen ? "Hide" : "Show"}`}
               </span>
             </button>
             {receiptDocsOpen && (
-              <div className="border-t border-neutral-100 divide-y divide-neutral-100">
+              <div className="border-t border-neutral-100 p-2 flex flex-col gap-2">
                 {receiptDocs.length ? receiptDocs.map((doc) => (
-                  <div key={doc.id} className="px-3 py-2 flex items-center justify-between gap-3">
-                    <span className="min-w-0 truncate text-sm text-neutral-700">{doc.filename || "Payment receipt"}</span>
+                  <div key={doc.id} className="flex items-center gap-3 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-200 bg-white">
+                    <img src={fileTypeIcon(doc.filename)} alt="" className="w-6 h-6 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => openReceiptDoc(doc)}
+                        title="View file"
+                        className="block max-w-full truncate text-left text-neutral-900 text-sm hover:underline"
+                      >
+                        {doc.filename || "Payment receipt"}
+                      </button>
+                      <span className="text-neutral-500 text-xs">Uploaded {formatUploadedAt(doc.created_at)}</span>
+                    </div>
                     <button
                       type="button"
                       onClick={() => openReceiptDoc(doc)}
-                      className="h-8 px-3 py-2 shrink-0 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50"
+                      className="h-8 px-3 shrink-0 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50"
                     >
                       View
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteReceiptTarget(doc)}
+                      title="Delete receipt"
+                      className="shrink-0 w-8 h-8 flex items-center justify-center rounded hover:bg-neutral-100"
+                    >
+                      <img src={RemoveIcon} alt="Delete" className="w-4 h-4" />
+                    </button>
                   </div>
                 )) : (
-                  <div className="px-3 py-2 text-sm text-neutral-400">No uploaded receipts yet.</div>
+                  <div className="px-3 py-3 text-sm text-neutral-400">No uploaded receipts yet.</div>
                 )}
               </div>
             )}
@@ -502,7 +561,7 @@ const RecordPaymentModal: React.FC<{
               payment_date: paymentDate || null,
               payment_time: editingTxn?.payment_time || currentTime24(),
               notes: notes || null,
-            }, editingTxn?.id ?? null, receipt)}
+            }, editingTxn?.id ?? null, null)}
             className={`px-6 py-4 rounded text-white text-base font-medium ${
               canSave ? "bg-neutral-900 hover:bg-black" : "bg-neutral-400 cursor-not-allowed"
             }`}
@@ -511,6 +570,16 @@ const RecordPaymentModal: React.FC<{
           </button>
         </div>
       </div>
+
+      {deleteReceiptTarget && (
+        <FleetConfirmModal
+          title="Delete Receipt"
+          message={`Delete "${deleteReceiptTarget.filename || "this receipt"}"?`}
+          confirmLabel="Delete"
+          onConfirm={confirmDeleteReceipt}
+          onCancel={() => setDeleteReceiptTarget(null)}
+        />
+      )}
     </div>
   );
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetDateField } from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
+import FleetConfirmModal from "../../components/FleetConfirmModal";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import { extractTaxiBadge } from "../../services/driverService";
 import {
@@ -9,6 +10,7 @@ import {
   uploadHireDocument,
   deleteHireDocument,
   getHireDocumentFileUrl,
+  type HireDocument,
 } from "../../services/hireService";
 import type { TaxiBadgeForm } from "../../types/hire";
 import { useHire } from "./HireContext";
@@ -43,31 +45,67 @@ const TaxiBadgeDetails: React.FC = () => {
   const [form, setForm] = useState<TaxiBadgeForm>(EMPTY);
   const [ocrAttempted, setOcrAttempted] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [badgeDocs, setBadgeDocs] = useState<HireDocument[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [badgeName, setBadgeName] = useState("");
   const [badgeLoading, setBadgeLoading] = useState(false);
+  const [viewingDoc, setViewingDoc] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { hire, hireId, save } = useHire();
   const hydrated = useRef(false);
   const badgeHydrated = useRef(false);
 
-  // Restore the saved badge image on reopen.
+  const badgesOf = (docs: HireDocument[]) =>
+    docs.filter((d) => d.doc_type === BADGE_DOC_TYPE).sort((a, b) => b.id - a.id);
+
+  // Restore the uploaded badges (newest first) + the latest image preview.
   useEffect(() => {
     if (badgeHydrated.current || !hireId) return;
     badgeHydrated.current = true;
     setBadgeLoading(true);
     getHireDocuments(hireId)
       .then(async (docs) => {
-        const badge = docs.filter((d) => d.doc_type === BADGE_DOC_TYPE).sort((a, b) => b.id - a.id)[0];
-        if (badge) {
-          setBadgeName(badge.filename || "Taxi badge");
-          if (IMG_EXT.test(badge.filename || "")) {
-            setPreviewUrl(await getHireDocumentFileUrl(hireId, badge.id));
-          }
+        const badges = badgesOf(docs);
+        setBadgeDocs(badges);
+        const latest = badges[0];
+        if (latest && IMG_EXT.test(latest.filename || "")) {
+          setPreviewUrl(await getHireDocumentFileUrl(hireId, latest.id));
         }
       })
       .finally(() => setBadgeLoading(false));
   }, [hireId]);
+
+  const openBadge = async (docId: number) => {
+    if (!hireId) return;
+    setViewingDoc(true);
+    try {
+      const url = await getHireDocumentFileUrl(hireId, docId);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      else toast.error("Could not open the file.");
+    } finally {
+      setViewingDoc(false);
+    }
+  };
+
+  // Delete the current (latest) badge file; a previous upload, if any, becomes the
+  // shown one, otherwise the screen reverts to the upload prompt.
+  const handleDeleteBadge = async () => {
+    setConfirmDelete(false);
+    const latest = badgeDocs[0];
+    if (!hireId || !latest) return;
+    setBadgeLoading(true);
+    try {
+      await deleteHireDocument(hireId, latest.id);
+      const docs = badgesOf(await getHireDocuments(hireId));
+      setBadgeDocs(docs);
+      if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+      const next = docs[0];
+      setPreviewUrl(next && IMG_EXT.test(next.filename || "") ? await getHireDocumentFileUrl(hireId, next.id) : null);
+      toast.success("Taxi badge deleted.");
+    } finally {
+      setBadgeLoading(false);
+    }
+  };
 
   // Pre-fill from the saved hire once.
   useEffect(() => {
@@ -88,18 +126,14 @@ const TaxiBadgeDetails: React.FC = () => {
   const saveField = (key: keyof TaxiBadgeForm) => save({ [TO_BACKEND[key]]: form[key] || null });
 
   const handleUploaded = async (file: File) => {
-    setBadgeName(file.name);
+    // Show the new image immediately as the preview.
     if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(file.type.startsWith("image/") ? URL.createObjectURL(file) : null);
-
-    // Persist the badge image, replacing any previous one.
+    // Keep the badge image as history (newest first); the OCR form data below is
+    // still a clean replace so a previous badge's details can't linger.
     if (hireId) {
-      getHireDocuments(hireId).then((existing) => {
-        existing
-          .filter((d) => d.doc_type === BADGE_DOC_TYPE)
-          .forEach((d) => deleteHireDocument(hireId, d.id));
-        uploadHireDocument(hireId, BADGE_DOC_TYPE, file);
-      });
+      await uploadHireDocument(hireId, BADGE_DOC_TYPE, file);
+      setBadgeDocs(badgesOf(await getHireDocuments(hireId)));
     }
 
     const data = await extractTaxiBadge(file);
@@ -126,7 +160,7 @@ const TaxiBadgeDetails: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {badgeLoading && <FleetSpinnerLoader />}
+      {(badgeLoading || viewingDoc) && <FleetSpinnerLoader />}
       <h2 className="text-black text-2xl font-semibold leading-6">Taxi Badge</h2>
 
       {/* Badge upload + preview */}
@@ -134,24 +168,40 @@ const TaxiBadgeDetails: React.FC = () => {
         <h3 className="text-black text-xl font-semibold leading-5">Taxi Badge</h3>
         <div className="h-px bg-neutral-100" />
 
-        {badgeName ? (
+        {badgeDocs.length > 0 ? (
           <div className="flex flex-col gap-3">
             <div className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col items-center gap-3">
               {previewUrl ? (
                 <img src={previewUrl} alt="Taxi badge" className="max-h-64 max-w-full rounded object-contain" />
               ) : (
-                <div className="px-6 py-8 text-neutral-500 text-sm">PDF uploaded — {badgeName}</div>
+                <div className="px-6 py-8 text-neutral-500 text-sm">PDF uploaded — {badgeDocs[0].filename}</div>
               )}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-neutral-500 text-sm truncate">{badgeName}</span>
               <button
                 type="button"
-                onClick={() => setUploadOpen(true)}
-                className="text-neutral-900 text-sm font-medium underline underline-offset-2"
+                onClick={() => openBadge(badgeDocs[0].id)}
+                className="min-w-0 truncate text-left text-neutral-700 text-sm hover:underline"
+                title="View file"
               >
-                Replace
+                {badgeDocs[0].filename || "Taxi badge"}
               </button>
+              <div className="shrink-0 flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setUploadOpen(true)}
+                  className="text-neutral-900 text-sm font-medium underline underline-offset-2"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-red-600 text-sm font-medium underline underline-offset-2"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -231,7 +281,19 @@ const TaxiBadgeDetails: React.FC = () => {
         onClose={() => setUploadOpen(false)}
         onUploaded={handleUploaded}
         title="Upload Taxi Badge"
+        history={badgeDocs}
+        onView={openBadge}
       />
+
+      {confirmDelete && (
+        <FleetConfirmModal
+          title="Delete Taxi Badge"
+          message="Are you sure you want to delete the current taxi badge file?"
+          confirmLabel="Delete"
+          onConfirm={handleDeleteBadge}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </div>
   );
 };

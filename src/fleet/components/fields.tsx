@@ -82,10 +82,13 @@ interface TextProps {
   maxLength?: number;
   inputMode?: "text" | "numeric" | "decimal" | "email" | "tel";
   error?: string;
+  // Grey-tinted box for read-only / frontend-computed values (e.g. a calculated
+  // "Next Service Due At"). Error styling still wins when both are set.
+  highlight?: boolean;
 }
 
 export const FleetTextInput: React.FC<TextProps> = ({
-  label, placeholder, value, onChange, onBlur, disabled, maxLength, inputMode = "text", error,
+  label, placeholder, value, onChange, onBlur, disabled, maxLength, inputMode = "text", error, highlight,
 }) => (
   <div className={WRAP}>
     <FieldLabel text={label} />
@@ -98,7 +101,7 @@ export const FleetTextInput: React.FC<TextProps> = ({
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
-      className={boxClass(error)}
+      className={error ? boxClass(error) : highlight ? FIELD_BOX_HIGHLIGHT : FIELD_BOX}
     />
     <FieldError error={error} />
   </div>

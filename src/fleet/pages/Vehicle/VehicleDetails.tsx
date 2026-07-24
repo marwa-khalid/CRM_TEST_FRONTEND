@@ -18,7 +18,7 @@ import {
   OBTAINED_FOR_PURPOSE_OPTIONS,
   VEHICLE_STATUS_OPTIONS,
 } from "../../types/vehicleRecord";
-import FleetDocumentList from "../../components/FleetDocumentList";
+import FleetUploadedFileBar from "../../components/FleetUploadedFileBar";
 import { useVehicle } from "./VehicleContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
@@ -253,6 +253,8 @@ const VehicleDetails: React.FC = () => {
         onUploaded={handleV5C}
         title="Upload V5C"
         accept="image/*,.pdf"
+        history={documents}
+        onView={openDocument}
       />
 
       <div className="flex justify-between items-center">
@@ -267,9 +269,8 @@ const VehicleDetails: React.FC = () => {
         </button>
       </div>
 
-      {/* Uploaded V5C history — latest shown by default, "Show all" expands into
-          a scrollable list so it never grows unbounded. */}
-      <FleetDocumentList title="Uploaded V5C Documents" documents={documents} onView={openDocument} />
+      {/* Latest V5C as a grey row; the full upload history lives in the modal. */}
+      <FleetUploadedFileBar doc={documents[0]} onCta={() => setUploadOpen(true)} onView={openDocument} />
 
       {/* Section A */}
       <section className={SECTION}>

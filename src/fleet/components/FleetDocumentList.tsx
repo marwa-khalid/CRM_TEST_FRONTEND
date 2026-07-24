@@ -12,7 +12,7 @@ const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1
 const H3 = "text-black text-xl font-semibold leading-5";
 
 // "23/07/2026 at 22:00" — date + 24-hour time.
-const formatUploadedAt = (value?: string | null): string => {
+export const formatUploadedAt = (value?: string | null): string => {
   if (!value) return "";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;

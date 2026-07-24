@@ -1,4 +1,7 @@
 import React, { useRef, useState } from "react";
+import { Eye } from "lucide-react";
+import { fileTypeIcon } from "../utils/fileIcon";
+import { formatUploadedAt, type FleetDoc } from "./FleetDocumentList";
 
 interface Props {
   open: boolean;
@@ -8,6 +11,9 @@ interface Props {
   onUploaded: (file: File) => void | Promise<void>;
   title?: string;
   accept?: string;
+  // Previously-uploaded files, shown as a history list inside the modal.
+  history?: FleetDoc[];
+  onView?: (docId: number) => void;
 }
 
 const UploadIcon = () => (
@@ -24,6 +30,7 @@ const fmtSize = (bytes: number) => (bytes < 1024 * 1024 ? `${(bytes / 1024).toFi
 // closes, so the file/toast are already there when the modal disappears.
 const FleetUploadModal: React.FC<Props> = ({
   open, onClose, onUploaded, title = "Upload Driving License", accept = ".jpg,.jpeg,.png,.pdf",
+  history, onView,
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1 choose · 2 uploading · 3 done
   const [file, setFile] = useState<File | null>(null);
@@ -128,6 +135,36 @@ const FleetUploadModal: React.FC<Props> = ({
             </div>
           )}
         </div>
+
+        {history && history.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="text-neutral-700 text-sm font-medium">Previously Uploaded ({history.length})</div>
+            <div className="max-h-[190px] overflow-y-auto flex flex-col gap-2 pr-1">
+              {history.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center gap-3 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-200 bg-white"
+                >
+                  <img src={fileTypeIcon(doc.filename)} alt="" className="w-6 h-6 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-neutral-900 text-sm truncate">{doc.filename || "Document"}</div>
+                    <div className="text-neutral-500 text-xs">Uploaded {formatUploadedAt(doc.created_at)}</div>
+                  </div>
+                  {onView && (
+                    <button
+                      type="button"
+                      onClick={() => onView(doc.id)}
+                      title="View file"
+                      className="shrink-0 w-8 h-8 flex items-center justify-center rounded hover:bg-neutral-100 text-neutral-700"
+                    >
+                      <Eye size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end">
           <button

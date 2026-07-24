@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomplete, FleetPostcodeLookup } from "../../components/fields";
+import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomplete, FleetPostcodeLookup, FleetUkMobileInput } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
-import FleetDocumentList from "../../components/FleetDocumentList";
+import FleetUploadedFileBar from "../../components/FleetUploadedFileBar";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import RemoveIcon from "../../assets/icons/Remove.svg";
 import {
@@ -27,7 +27,7 @@ import { useVehicle } from "./VehicleContext";
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
 const BTN_DARK = "h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm inline-flex items-center justify-center gap-2 hover:bg-black disabled:opacity-70";
-const LOG_GRID = "grid grid-cols-[1.2fr_1fr_1.2fr_1fr_44px] gap-2";
+const LOG_GRID = "grid grid-cols-[2.4fr_1fr_1.2fr] gap-3";
 const LOW_CONFIDENCE_MSG = "Low Confidence OCR Result - Please Verify";
 
 const digitsOnly = (value: string) => value.replace(/[^0-9]/g, "");
@@ -74,6 +74,8 @@ const ServicingDetails: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<VehicleServiceRecord | null>(null);
   // Shows a loader while a document is fetched for viewing (the eye icon).
   const [viewingDoc, setViewingDoc] = useState(false);
+  // Shows a loader while the active card's invoices are (re)fetched on switch.
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
   // Per service card: fields the last invoice OCR could not read. They stay red
   // until the user edits/verifies that field.
   const [ocrMissingByService, setOcrMissingByService] = useState<Record<number, ServiceOcrField[]>>({});
@@ -89,7 +91,12 @@ const ServicingDetails: React.FC = () => {
       setInvoiceDocs([]);
       return;
     }
-    setInvoiceDocs(await listVehicleDocuments(recordId, "service_invoice", undefined, activeId));
+    setInvoicesLoading(true);
+    try {
+      setInvoiceDocs(await listVehicleDocuments(recordId, "service_invoice", undefined, activeId));
+    } finally {
+      setInvoicesLoading(false);
+    }
   }, [recordId, activeId]);
 
   useEffect(() => {
@@ -265,7 +272,7 @@ const ServicingDetails: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {(recordLoading || loading || busy || viewingDoc || !recordId || !pageReady) && <FleetSpinnerLoader />}
+      {(recordLoading || loading || busy || viewingDoc || invoicesLoading || !recordId || !pageReady) && <FleetSpinnerLoader />}
 
       <FleetUploadModal
         open={uploadOpen}
@@ -273,6 +280,8 @@ const ServicingDetails: React.FC = () => {
         onUploaded={handleInvoice}
         title="Upload Service Invoice"
         accept="image/*,.pdf"
+        history={invoiceDocs}
+        onView={openInvoice}
       />
 
       <div className="flex justify-between items-center">
@@ -336,24 +345,20 @@ const ServicingDetails: React.FC = () => {
             <section className={SECTION}>
               <div className="flex justify-between items-center gap-4">
                 <h3 className={H3}>Garage Details</h3>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => replaceInvoice(active, activeIndex)}
-                  className={`${BTN_DARK} shrink-0`}
-                >
-                  <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
-                  {invoiceDocs.length ? "Upload / Replace Invoice" : "Upload Service Invoice"}
-                </button>
+                {invoiceDocs.length === 0 && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => replaceInvoice(active, activeIndex)}
+                    className={`${BTN_DARK} shrink-0`}
+                  >
+                    <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
+                    Upload Service Invoice
+                  </button>
+                )}
               </div>
-              {/* Every invoice uploaded for this card — latest shown, "Show all"
-                  expands the rest into a scrollable list. */}
-              <FleetDocumentList
-                inline
-                title="Service Invoices"
-                documents={invoiceDocs}
-                onView={openInvoice}
-              />
+              {/* Latest invoice as a grey row; the full history lives in the modal. */}
+              <FleetUploadedFileBar doc={invoiceDocs[0]} onCta={() => replaceInvoice(active, activeIndex)} onView={openInvoice} />
               <FleetTextInput
                 label="Servicing Garage Name"
                 placeholder="Enter Garage Name"
@@ -378,10 +383,8 @@ const ServicingDetails: React.FC = () => {
                   onAddressSelect={(addr) => patchMany({ address: addr.address, postcode: addr.postcode })}
                   error={ocrError("postcode")}
                 />
-                <FleetTextInput
+                <FleetUkMobileInput
                   label="Contact Number"
-                  placeholder="Enter Contact Number"
-                  inputMode="tel"
                   value={active.contact_number || ""}
                   onChange={(v) => patch("contact_number", v)}
                   error={ocrError("contact_number")}
@@ -443,16 +446,11 @@ const ServicingDetails: React.FC = () => {
                     value={active.next_service_due_at || ""}
                     onChange={(v) => patch("next_service_due_at", digitsOnly(v))}
                     error={ocrError("next_service_due_at")}
+                    highlight
                   />
                   {mileageHint && <span className="text-neutral-400 text-xs">{mileageHint}</span>}
                 </div>
-                <FleetTextInput
-                  label="Case Reference"
-                  placeholder="Enter Reference"
-                  value={active.case_reference || ""}
-                  onChange={(v) => patch("case_reference", v)}
-                  error={ocrError("case_reference")}
-                />
+                <div />
               </div>
             </section>
 
@@ -463,8 +461,6 @@ const ServicingDetails: React.FC = () => {
                   <span>SERVICED BY</span>
                   <span>SERVICED ON</span>
                   <span>SERVICED AT MILEAGE</span>
-                  <span>CASE REFERENCE</span>
-                  <span />
                 </div>
                 <div className="h-px bg-neutral-100" />
                 {/* Capped + scrollable so the log never grows unbounded. */}
@@ -477,21 +473,9 @@ const ServicingDetails: React.FC = () => {
                         }`}
                         onClick={() => setActiveIndex(i)}
                       >
-                        <span className="truncate">{service.garage_name || "—"}</span>
+                        <span className="pr-2 break-words">{service.garage_name || "—"}</span>
                         <span>{displayDate(service.serviced_on) || "—"}</span>
                         <span>{service.serviced_at_mileage || "—"}</span>
-                        <span className="truncate">{service.case_reference || "—"}</span>
-                        <button
-                          type="button"
-                          title="Remove this servicing record"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteTarget(service);
-                          }}
-                          className="justify-self-end hover:opacity-70"
-                        >
-                          <img src={RemoveIcon} alt="Remove" className="w-4 h-4" />
-                        </button>
                       </div>
                       <div className="h-px bg-neutral-100" />
                     </React.Fragment>
@@ -507,7 +491,7 @@ const ServicingDetails: React.FC = () => {
       {deleteTarget && (
         <FleetConfirmModal
           title="Delete Service Invoice"
-          message="Are you sure you want to delete this service invoice? This removes its servicing details and uploaded invoices."
+          message="Are you sure you want to delete this record?"
           confirmLabel="Delete"
           onConfirm={() => {
             const target = deleteTarget;

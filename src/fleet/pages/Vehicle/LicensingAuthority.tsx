@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { Plus, Mail } from "lucide-react";
-import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomplete, FleetPostcodeLookup } from "../../components/fields";
+import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomplete, FleetPostcodeLookup, FleetUkMobileInput } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetEmailModal, { type FleetEmailSendArgs } from "../../components/FleetEmailModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
-import FleetDocumentList from "../../components/FleetDocumentList";
+import FleetUploadedFileBar from "../../components/FleetUploadedFileBar";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import RemoveIcon from "../../assets/icons/Remove.svg";
 import {
@@ -99,6 +99,8 @@ const LicensingAuthority: React.FC = () => {
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
   // Shows a loader while a certificate is fetched for viewing (the eye icon).
   const [viewingDoc, setViewingDoc] = useState(false);
+  // Shows a loader while the active card's certificates are (re)fetched on switch.
+  const [certsLoading, setCertsLoading] = useState(false);
   // Per authority: fields the latest OCR upload did not return.
   const [ocrMissing, setOcrMissing] = useState<Record<number, Record<string, boolean>>>({});
 
@@ -120,12 +122,17 @@ const LicensingAuthority: React.FC = () => {
       setMotDocs([]);
       return;
     }
-    const [plating, mot] = await Promise.all([
-      listVehicleDocuments(recordId, "plating", activeId),
-      listVehicleDocuments(recordId, "mot", activeId),
-    ]);
-    setPlatingDocs(plating);
-    setMotDocs(mot);
+    setCertsLoading(true);
+    try {
+      const [plating, mot] = await Promise.all([
+        listVehicleDocuments(recordId, "plating", activeId),
+        listVehicleDocuments(recordId, "mot", activeId),
+      ]);
+      setPlatingDocs(plating);
+      setMotDocs(mot);
+    } finally {
+      setCertsLoading(false);
+    }
   }, [recordId, activeId]);
 
   useEffect(() => {
@@ -342,7 +349,7 @@ const LicensingAuthority: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {(recordLoading || loading || busy || viewingDoc || !recordId || !pageReady) && <FleetSpinnerLoader />}
+      {(recordLoading || loading || busy || viewingDoc || certsLoading || !recordId || !pageReady) && <FleetSpinnerLoader />}
 
       {/* Labeled loader while the email preview is being prepared. */}
       {preparingEmail && (
@@ -360,6 +367,8 @@ const LicensingAuthority: React.FC = () => {
         onUploaded={(file) => handleCertificate(uploadKind!, file)}
         title={uploadKind === "mot" ? "Upload MOT Centre Certificate" : "Upload Plating Expiry Certificate"}
         accept="image/*,.pdf"
+        history={uploadKind === "mot" ? motDocs : uploadKind === "plating" ? platingDocs : []}
+        onView={openDocument}
       />
 
       <div className="flex justify-between items-center">
@@ -425,17 +434,14 @@ const LicensingAuthority: React.FC = () => {
           <section className={SECTION}>
             <div className="flex justify-between items-center gap-4">
               <h3 className={H3}>Plating Authority Contact Details</h3>
-              <button type="button" disabled={busy} onClick={() => pickCertificate("plating")} className={`${BTN_DARK} shrink-0`}>
-                <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
-                {platingDocs.length ? "Upload Another" : "Upload Plating Certificate"}
-              </button>
+              {platingDocs.length === 0 && (
+                <button type="button" disabled={busy} onClick={() => pickCertificate("plating")} className={`${BTN_DARK} shrink-0`}>
+                  <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
+                  Upload Plating Certificate
+                </button>
+              )}
             </div>
-            <FleetDocumentList
-              inline
-              title="Plating Expiry Certificates"
-              documents={platingDocs}
-              onView={openDocument}
-            />
+            <FleetUploadedFileBar doc={platingDocs[0]} onCta={() => pickCertificate("plating")} onView={openDocument} />
             <FleetTextInput label="Licensing Authority" placeholder="Enter Licensing Authority" value={active.licensing_authority || ""} onChange={(v) => patch("licensing_authority", v)} error={missing("licensing_authority")} />
             <FleetAddressAutocomplete
               label="Address"
@@ -454,10 +460,10 @@ const LicensingAuthority: React.FC = () => {
                 onAddressSelect={(addr) => patchMany({ address: addr.address, postcode: addr.postcode })}
                 error={missing("postcode")}
               />
-              <FleetTextInput label="Telephone" placeholder="Enter Telephone" inputMode="tel" value={active.telephone || ""} onChange={(v) => patch("telephone", v)} error={missing("telephone")} />
+              <FleetTextInput label="Home Telephone" placeholder="Enter Home Telephone" inputMode="tel" value={active.telephone || ""} onChange={(v) => patch("telephone", v)} error={missing("telephone")} />
             </div>
             <div className="grid grid-cols-2 gap-5">
-              <FleetTextInput label="Contact Number" placeholder="Enter Contact Number" inputMode="tel" value={active.contact_number || ""} onChange={(v) => patch("contact_number", v)} error={missing("contact_number")} />
+              <FleetUkMobileInput label="Mobile Number" value={active.contact_number || ""} onChange={(v) => patch("contact_number", v)} error={missing("contact_number")} />
               <FleetTextInput label="Email Address" placeholder="Enter Email Address" inputMode="email" value={active.email_address || ""} onChange={(v) => patch("email_address", v)} error={missing("email_address")} />
             </div>
           </section>
@@ -483,12 +489,16 @@ const LicensingAuthority: React.FC = () => {
                 checked={!!active.plating_attended_passed}
                 onChange={(v) => patch("plating_attended_passed", v)}
               />
-              {active.plating_certificate_name && (
-                <button type="button" onClick={() => sendConfirmation("plating")} className={`${BTN_DARK} shrink-0`}>
-                  <Mail size={16} />
-                  Send Email Confirmation
-                </button>
-              )}
+              <button
+                type="button"
+                disabled={!active.plating_attended_passed}
+                title={active.plating_attended_passed ? undefined : "Mark the appointment attended & passed first"}
+                onClick={() => sendConfirmation("plating")}
+                className={`${BTN_DARK} shrink-0`}
+              >
+                <Mail size={16} />
+                Send Email Confirmation
+              </button>
             </div>
           </section>
 
@@ -496,18 +506,15 @@ const LicensingAuthority: React.FC = () => {
           <section className={SECTION}>
             <div className="flex justify-between items-center gap-4">
               <h3 className={H3}>MOT Centre Contact Details</h3>
-              <button type="button" disabled={busy} onClick={() => pickCertificate("mot")} className={`${BTN_DARK} shrink-0`}>
-                <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
-                {motDocs.length ? "Upload Another" : "Upload MOT Centre Certificate"}
-              </button>
+              {motDocs.length === 0 && (
+                <button type="button" disabled={busy} onClick={() => pickCertificate("mot")} className={`${BTN_DARK} shrink-0`}>
+                  <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
+                  Upload MOT Centre Certificate
+                </button>
+              )}
             </div>
             <div className="h-px bg-neutral-100" />
-            <FleetDocumentList
-              inline
-              title="MOT Centre Certificates"
-              documents={motDocs}
-              onView={openDocument}
-            />
+            <FleetUploadedFileBar doc={motDocs[0]} onCta={() => pickCertificate("mot")} onView={openDocument} />
             <FleetTextInput label="MOT Centre Name" placeholder="Enter MOT Centre Name" value={active.mot_centre_name || ""} onChange={(v) => patch("mot_centre_name", v)} error={missing("mot_centre_name")} />
             <FleetAddressAutocomplete
               label="Address"
@@ -552,12 +559,16 @@ const LicensingAuthority: React.FC = () => {
                 checked={!!active.mot_attended_passed}
                 onChange={(v) => patch("mot_attended_passed", v)}
               />
-              {active.mot_certificate_name && (
-                <button type="button" onClick={() => sendConfirmation("mot")} className={`${BTN_DARK} shrink-0`}>
-                  <Mail size={16} />
-                  Send Email Confirmation
-                </button>
-              )}
+              <button
+                type="button"
+                disabled={!active.mot_attended_passed}
+                title={active.mot_attended_passed ? undefined : "Mark the appointment attended & passed first"}
+                onClick={() => sendConfirmation("mot")}
+                className={`${BTN_DARK} shrink-0`}
+              >
+                <Mail size={16} />
+                Send Email Confirmation
+              </button>
             </div>
           </section>
 
@@ -576,7 +587,7 @@ const LicensingAuthority: React.FC = () => {
       {deleteIndex !== null && authorities[deleteIndex] && (
         <FleetConfirmModal
           title="Delete Licensing Authority"
-          message={`Delete Licensing Authority ${authorities[deleteIndex].position ?? deleteIndex + 1}? This removes its details and uploaded certificates.`}
+          message={`Are you sure you want to delete this record?`}
           confirmLabel="Delete"
           onConfirm={() => {
             const index = deleteIndex;

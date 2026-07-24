@@ -283,6 +283,9 @@ const DriverProofs: React.FC = () => {
   const [dl, setDl] = useState<Record<DlKey, UploadedDoc | null>>({ dlFront: null, dlBack: null });
   const [activeUpload, setActiveUpload] = useState<Target | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Target | null>(null);
+  // Previously-uploaded files for the target the upload modal is open on.
+  const [modalHistory, setModalHistory] = useState<HireDocument[]>([]);
+  const [viewingHistoryDoc, setViewingHistoryDoc] = useState(false);
   // OCR results driving the licence dates + address comparison. Proof OCR is keyed
   // by docType so either view of section 1 can drive the compare as you switch.
   const [dlOcr, setDlOcr] = useState({
@@ -320,15 +323,6 @@ const DriverProofs: React.FC = () => {
     return doc?.id ?? null;
   };
 
-  const deleteExistingDocType = async (docType: string) => {
-    if (!hireId) return;
-    const existing = await getHireDocuments(hireId);
-    await Promise.all(
-      existing
-        .filter((doc) => doc.doc_type === docType)
-        .map((doc) => deleteHireDocument(hireId, doc.id)),
-    );
-  };
 
   // Re-OCR a saved image (best-effort) so the address compare returns on reopen.
   const urlToFile = async (url: string, name: string): Promise<File | null> => {
@@ -480,6 +474,49 @@ const DriverProofs: React.FC = () => {
     return targetLabel(t);
   };
 
+  // The backend doc_type the modal's target uploads to (null = no single type,
+  // e.g. a combined PDF that splits into Front + Back).
+  const targetDocType = (t: Target): string | null => {
+    if (t.kind === "proof") {
+      const section = sections[t.index];
+      return section ? proofDocType(t.proofKind, section.id) : null;
+    }
+    if (t.kind === "dl") return t.key;
+    return null;
+  };
+
+  // Load the upload history for whatever target the modal just opened on.
+  useEffect(() => {
+    if (!activeUpload || !hireId) {
+      setModalHistory([]);
+      return;
+    }
+    const docType = targetDocType(activeUpload);
+    if (!docType) {
+      setModalHistory([]);
+      return;
+    }
+    let cancelled = false;
+    getHireDocuments(hireId).then((docs) => {
+      if (cancelled) return;
+      setModalHistory(docs.filter((d) => d.doc_type === docType).sort((a, b) => b.id - a.id));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeUpload, hireId]);
+
+  const viewHistoryDoc = async (docId: number) => {
+    if (!hireId) return;
+    setViewingHistoryDoc(true);
+    try {
+      const url = await getHireDocumentFileUrl(hireId, docId);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    } finally {
+      setViewingHistoryDoc(false);
+    }
+  };
+
   const handleUploaded = async (file: File) => {
     const target = activeUpload;
     if (!target) return;
@@ -505,7 +542,6 @@ const DriverProofs: React.FC = () => {
           .then((d) => setProofOcr((m) => ({ ...m, [docType]: { address: d.address, postcode: d.postcode } })))
           .finally(() => setOcrLoading(false));
       }
-      await deleteExistingDocType(docType);
       const id = await uploadDoc(docType, file);
       if (id) {
         setSections((secs) => {
@@ -527,12 +563,10 @@ const DriverProofs: React.FC = () => {
         if (front) setDl((prev) => { revokeDocUrls(prev.dlFront); return { ...prev, dlFront: makeDoc(front) }; });
         if (back) setDl((prev) => { revokeDocUrls(prev.dlBack); return { ...prev, dlBack: makeDoc(back) }; });
         if (front) {
-          await deleteExistingDocType("dlFront");
           const id = await uploadDoc("dlFront", front);
           if (id) setDl((prev) => (prev.dlFront ? { ...prev, dlFront: { ...prev.dlFront, docId: id } } : prev));
         }
         if (back) {
-          await deleteExistingDocType("dlBack");
           const id = await uploadDoc("dlBack", back);
           if (id) setDl((prev) => (prev.dlBack ? { ...prev, dlBack: { ...prev.dlBack, docId: id } } : prev));
         }
@@ -563,7 +597,6 @@ const DriverProofs: React.FC = () => {
         })
         .finally(() => setOcrLoading(false));
     }
-    await deleteExistingDocType(key);
     const id = await uploadDoc(key, file);
     if (id) setDl((prev) => (prev[key] ? { ...prev, [key]: { ...prev[key]!, docId: id } } : prev));
   };
@@ -619,7 +652,7 @@ const DriverProofs: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {initialLoading && <FleetSpinnerLoader />}
+      {(initialLoading || viewingHistoryDoc) && <FleetSpinnerLoader />}
       <h2 className="text-black text-2xl font-semibold leading-6">
         Driver Proofs &amp; License Checks with Address Match
       </h2>
@@ -751,6 +784,8 @@ const DriverProofs: React.FC = () => {
         onClose={() => setActiveUpload(null)}
         onUploaded={handleUploaded}
         title={activeUpload ? uploadTargetLabel(activeUpload) : "Upload Document"}
+        history={modalHistory}
+        onView={viewHistoryDoc}
       />
 
       {deleteTarget && (

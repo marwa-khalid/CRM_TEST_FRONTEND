@@ -7,6 +7,7 @@ import { listVehicleRegister, type FleetVehicleRegister } from "../services/vehi
 import FleetConfirmModal from "../components/FleetConfirmModal";
 import FleetReminderPanel from "../components/FleetReminderPanel";
 import { FleetCalendar } from "../components/FleetCalendar";
+import { FleetSelect } from "../components/fields";
 import { fleetReference } from "../utils/reference";
 // Listing-page icons (design set)
 import SearchIcon from "../assets/listingpage/search.svg";
@@ -40,7 +41,7 @@ const STATUS_LABEL: Record<string, string> = {
   on_hire: "On Hire", off_hire: "Off Hire", in_repair: "In Repair", available: "Available",
 };
 const STATUS_BADGE: Record<string, string> = {
-  on_hire: "bg-[#dce2f0] text-[#0352fd]",
+  on_hire: "bg-[#d9ffd9] text-[#159215]",
   off_hire: "bg-neutral-100 text-neutral-600",
   in_repair: "bg-[#ffe9d8] text-[#ff7402]",
   available: "bg-[#d9ffd9] text-[#159215]",
@@ -53,9 +54,9 @@ const STATUS_OPTIONS = [
   { value: "available", label: "Available" },
 ];
 
-// checkbox · Reference · Hirer · Email · Vehicle Reg · Hire Start · Hire End · Contact · Status · kebab
+// checkbox · Reference · Hirer · Vehicle Reg · Hire Start · Hire End · Email · Contact · Status · kebab
 const GRID =
-  "grid-cols-[32px_minmax(110px,1fr)_minmax(120px,1fr)_minmax(190px,1.4fr)_minmax(120px,1fr)_minmax(84px,0.75fr)_minmax(84px,0.75fr)_minmax(140px,1.1fr)_minmax(96px,0.85fr)_36px]";
+  "grid-cols-[32px_minmax(110px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(84px,0.75fr)_minmax(84px,0.75fr)_minmax(190px,1.4fr)_minmax(140px,1.1fr)_minmax(96px,0.85fr)_36px]";
 
 const monthKey = (d: Date) => d.getFullYear() * 12 + d.getMonth();
 const openedKey = (r: HireRecord): number | null => {
@@ -161,7 +162,7 @@ const StatCard: React.FC<StatConfig> = ({ title, value, icon, tile, trendPct }) 
         <div className={`p-3 rounded-sm flex items-center justify-center ${tile}`}>
           <img src={icon} alt="" className="w-5 h-5" />
         </div>
-        <img src={positive ? RiseIcon : FallIcon} alt="" className="w-12 h-6 object-contain" />
+        <img src={positive ? RiseIcon : FallIcon} alt="" className="w-12 h-12 object-contain" />
       </div>
       <div className="flex flex-col gap-1">
         <div className="text-black text-4xl font-semibold leading-10">{value}</div>
@@ -190,7 +191,9 @@ const FleetList: React.FC = () => {
   const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [menuId, setMenuId] = useState<number | null>(null);
+  // Row-actions menu: id + fixed viewport coords so it escapes the table's
+  // horizontal-scroll overflow clipping (which otherwise hides it, worst with one row).
+  const [menu, setMenu] = useState<{ id: number; top: number; right: number } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HireRecord | null>(null);
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [register, setRegister] = useState<FleetVehicleRegister[]>([]);
@@ -241,16 +244,26 @@ const FleetList: React.FC = () => {
     ];
   }, [records, register]);
 
+  // Vehicle registration options — every reg in the fleet register + on a record.
+  const vehicleOptions = useMemo(() => {
+    const regs = new Set<string>();
+    register.forEach((v) => { if (v.registration_number) regs.add(v.registration_number); });
+    records.forEach((r) => { if (r.last_vehicle_registration) regs.add(r.last_vehicle_registration); });
+    return [
+      { label: "All Vehicles", value: "" },
+      ...[...regs].sort().map((r) => ({ label: r, value: r })),
+    ];
+  }, [register, records]);
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const reg = regFilter.trim().toLowerCase();
     return records.filter((r) => {
       if (needle) {
         const hay = [fallbackReference(r), r.driver_name, driverContact(r), r.driver_email, r.last_vehicle_registration, statusLabel(r.last_vehicle_hire_status)]
           .filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(needle)) return false;
       }
-      if (reg && !(r.last_vehicle_registration || "").toLowerCase().includes(reg)) return false;
+      if (regFilter && (r.last_vehicle_registration || "") !== regFilter) return false;
       if (statusSel.length && !statusSel.includes(r.last_vehicle_hire_status || "")) return false;
       const d = (r.last_vehicle_hire_start || r.file_opened_at || "").slice(0, 10);
       if (fromDate && (!d || d < fromDate)) return false;
@@ -350,8 +363,6 @@ const FleetList: React.FC = () => {
     return nums;
   }, [totalPages, safePage]);
 
-  const INPUT = "h-12 px-5 rounded bg-white border border-neutral-200 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 font-light";
-
   return (
     <div className="min-h-screen bg-white font-sans-headline">
       {/* Topbar */}
@@ -401,12 +412,15 @@ const FleetList: React.FC = () => {
 
           {/* Filters */}
           <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
-            <input
-              value={regFilter}
-              onChange={(e) => setRegFilter(e.target.value)}
-              placeholder="Vehicle Registration"
-              className={`${INPUT} w-full md:w-[220px]`}
-            />
+            <div className="w-full md:w-[240px]">
+              <FleetSelect
+                placeholder="Vehicle Registration"
+                value={regFilter}
+                options={vehicleOptions}
+                onChange={setRegFilter}
+                menuPortal
+              />
+            </div>
             <StatusFilter
               selected={statusSel}
               onToggle={(v) => setStatusSel((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))}
@@ -472,10 +486,10 @@ const FleetList: React.FC = () => {
                 <Checkbox checked={allOnPageSelected} onChange={toggleAll} label="Select all" />
                 <span>REFERENCE NO.</span>
                 <span>HIRER NAME</span>
-                <span>EMAIL</span>
                 <span>VEHICLE REG</span>
                 <span>HIRE START</span>
                 <span>HIRE END</span>
+                <span>EMAIL</span>
                 <span>CONTACT NO.</span>
                 <span>STATUS</span>
                 <span />
@@ -499,10 +513,10 @@ const FleetList: React.FC = () => {
                       {fallbackReference(r)}
                     </button>
                     <span className="text-neutral-700 truncate">{r.driver_name || "-"}</span>
-                    <span className="text-neutral-700 truncate" title={r.driver_email || ""}>{r.driver_email || "-"}</span>
                     <span className="text-neutral-700 truncate">{r.last_vehicle_registration || "-"}</span>
                     <span className="text-[#535862]">{shortDate(r.last_vehicle_hire_start)}</span>
                     <span className="text-[#535862]">{shortDate(r.last_vehicle_hire_end)}</span>
+                    <span className="text-neutral-700 truncate" title={r.driver_email || ""}>{r.driver_email || "-"}</span>
                     <span className="text-[#535762] font-inter truncate">{driverContact(r) || "-"}</span>
                     <span>
                       {r.last_vehicle_hire_status ? (
@@ -513,18 +527,26 @@ const FleetList: React.FC = () => {
                         <span className="text-neutral-400">-</span>
                       )}
                     </span>
-                    <div className="relative flex justify-end">
-                      <button type="button" onClick={() => setMenuId((m) => (m === r.id ? null : r.id))} aria-label="Row actions" className="p-1 rounded hover:bg-neutral-100">
-                        <img src={DotsIcon} alt="" className="w-4 h-4" />
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setMenu((m) => (m?.id === r.id ? null : { id: r.id, top: rect.bottom + 4, right: window.innerWidth - rect.right }));
+                        }}
+                        aria-label="Row actions"
+                        className="p-1 rounded hover:bg-neutral-100"
+                      >
+                        <img src={DotsIcon} alt="" className="w-4 h-4 rotate-90" />
                       </button>
-                      {menuId === r.id && (
+                      {menu?.id === r.id && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setMenuId(null)} />
-                          <div className="absolute right-0 top-full mt-1 z-50 w-32 bg-white rounded-lg shadow-lg border border-neutral-200 py-1">
-                            <button type="button" onClick={() => { setMenuId(null); navigate(`/fleet/hire/${r.id}`); }} className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
+                          <div className="fixed inset-0 z-[80]" onClick={() => setMenu(null)} />
+                          <div style={{ position: "fixed", top: menu.top, right: menu.right }} className="z-[90] w-32 bg-white rounded-lg shadow-lg border border-neutral-200 py-1">
+                            <button type="button" onClick={() => { setMenu(null); navigate(`/fleet/hire/${r.id}`); }} className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
                               View
                             </button>
-                            <button type="button" onClick={() => { setMenuId(null); setDeleteTarget(r); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-neutral-50">
+                            <button type="button" onClick={() => { setMenu(null); setDeleteTarget(r); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-neutral-50">
                               Delete
                             </button>
                           </div>

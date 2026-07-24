@@ -561,7 +561,7 @@ const LicensingAuthority: React.FC = () => {
             </div>
           </section>
 
-          {authorities.length > 1 && (
+          {/* {authorities.length > 1 && (
             <button
               type="button"
               onClick={() => setDeleteIndex(activeIndex)}
@@ -569,7 +569,7 @@ const LicensingAuthority: React.FC = () => {
             >
               Remove Licensing Authority {active.position ?? activeIndex + 1}
             </button>
-          )}
+          )} */}
         </>
       )}
 

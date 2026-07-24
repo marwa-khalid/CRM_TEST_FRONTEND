@@ -457,7 +457,7 @@ export const formatMoney = (raw: string): string => {
 };
 
 export const FleetMoneyInput: React.FC<Omit<TextProps, "inputMode"> & { highlight?: boolean }> = ({
-  label, placeholder = "£", value, onChange, onBlur, disabled, highlight,
+  label, placeholder = "£", value, onChange, onBlur, disabled, highlight, error,
 }) => (
   <div className={WRAP}>
     <FieldLabel text={label} />
@@ -471,9 +471,11 @@ export const FleetMoneyInput: React.FC<Omit<TextProps, "inputMode"> & { highligh
         placeholder={placeholder === "£" ? "0.00" : placeholder}
         onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ""))}
         onBlur={() => { onChange(formatMoney(value)); onBlur?.(); }}
-        className={`${highlight ? FIELD_BOX_HIGHLIGHT : FIELD_BOX} pl-9`}
+        // An OCR miss shows the same red outline as the other fields.
+        className={`${error ? boxClass(error) : highlight ? FIELD_BOX_HIGHLIGHT : FIELD_BOX} pl-9`}
       />
     </div>
+    <FieldError error={error} />
   </div>
 );
 
@@ -648,28 +650,46 @@ interface TimeProps {
   onBlur?: () => void;
   disabled?: boolean;
   placeholder?: string;
+  error?: string;
 }
 
 export const FleetTimeSelect: React.FC<TimeProps> = ({
-  label, value, onChange, onBlur, disabled, placeholder = "Select Time",
-}) => (
-  <div className={WRAP}>
-    <FieldLabel text={label} />
-    <Select<Option, false>
-      options={TIME_OPTIONS}
-      value={TIME_OPTIONS.find((o) => o.value === formatTime24(value)) ?? null}
-      onChange={(opt) => onChange(opt ? opt.value : "")}
-      onBlur={onBlur}
-      isDisabled={disabled}
-      placeholder={placeholder}
-      styles={fleetSelectStyles}
-      className="font-sans-headline text-base"
-      classNamePrefix="fleet-select"
-      menuPlacement="auto"
-      maxMenuHeight={220}
-    />
-  </div>
-);
+  label, value, onChange, onBlur, disabled, placeholder = "Select Time", error,
+}) => {
+  const selectStyles: StylesConfig<Option, false> = error ? {
+    ...fleetSelectStyles,
+    control: (base, state) => ({
+      ...base,
+      minHeight: "52px",
+      borderRadius: "2px",
+      paddingLeft: "8px",
+      backgroundColor: state.isDisabled ? "#FAFAFA" : "#fff",
+      borderColor: "#ef4444",
+      boxShadow: "none",
+      "&:hover": { borderColor: "#ef4444" },
+    }),
+  } : fleetSelectStyles;
+
+  return (
+    <div className={WRAP}>
+      <FieldLabel text={label} />
+      <Select<Option, false>
+        options={TIME_OPTIONS}
+        value={TIME_OPTIONS.find((o) => o.value === formatTime24(value)) ?? null}
+        onChange={(opt) => onChange(opt ? opt.value : "")}
+        onBlur={onBlur}
+        isDisabled={disabled}
+        placeholder={placeholder}
+        styles={selectStyles}
+        className="font-sans-headline text-base"
+        classNamePrefix="fleet-select"
+        menuPlacement="auto"
+        maxMenuHeight={220}
+      />
+      <FieldError error={error} />
+    </div>
+  );
+};
 
 interface ReadonlyProps {
   label: string;

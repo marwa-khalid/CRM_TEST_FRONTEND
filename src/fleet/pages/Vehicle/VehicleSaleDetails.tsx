@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { ExternalLink } from "lucide-react";
-import { FleetTextInput, FleetMoneyInput, FleetDateField, FleetAddressAutocomplete, FleetPostcodeLookup } from "../../components/fields";
+import {
+  FleetTextInput,
+  FleetMoneyInput,
+  FleetDateField,
+  FleetAddressAutocomplete,
+  FleetPostcodeLookup,
+  FleetUkMobileInput,
+} from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
-import { openSaleDocumentsPrintView } from "../../services/vehicleRecordService";
+import { downloadSaleDocuments } from "../../services/vehicleRecordService";
 import { useVehicle } from "./VehicleContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
@@ -70,27 +77,23 @@ const VehicleSaleDetails: React.FC = () => {
     }
     setPrinting(true);
     try {
-      await openSaleDocumentsPrintView(vehicle.id);
+      const payload = (Object.keys(TO_BACKEND) as Array<keyof Form>).reduce<Record<string, unknown>>((acc, key) => {
+        acc[TO_BACKEND[key]] = form[key] === "" ? null : form[key];
+        return acc;
+      }, {});
+      await save(payload);
+      await downloadSaleDocuments(vehicle.id);
+      toast.success("Release documents downloaded.");
     } catch {
-      toast.error("Could not open the documents. Please allow pop-ups and try again.");
+      toast.error("Could not download the documents. Please try again.");
     } finally {
       setPrinting(false);
     }
   };
 
-  if (!vehicle?.id) {
-    return (
-      <div className="w-full max-w-[788px] font-sans-headline">
-        <span className="text-neutral-400 text-sm">
-          {recordLoading ? "Loading…" : "This vehicle record isn't available yet."}
-        </span>
-      </div>
-    );
-  }
-
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {printing && <FleetSpinnerLoader />}
+      {(recordLoading || printing || !vehicle?.id) && <FleetSpinnerLoader />}
 
       <h2 className="text-black text-2xl font-semibold leading-6">Vehicle Sale Details</h2>
 
@@ -126,7 +129,7 @@ const VehicleSaleDetails: React.FC = () => {
               save({ purchaser_address: addr.address, purchaser_postcode: addr.postcode });
             }}
           />
-          <FleetTextInput label="Telephone" placeholder="+44" inputMode="tel" value={form.purchaserTelephone} onChange={(v) => set("purchaserTelephone", v)} onBlur={() => saveField("purchaserTelephone")} />
+          <FleetUkMobileInput label="Telephone number" value={form.purchaserTelephone} onChange={(v) => set("purchaserTelephone", v)} onBlur={() => saveField("purchaserTelephone")} />
         </div>
         <div className="grid grid-cols-2 gap-5">
           <FleetTextInput label="Email" placeholder="Enter Email" inputMode="email" value={form.purchaserEmail} onChange={(v) => set("purchaserEmail", v)} onBlur={() => saveField("purchaserEmail")} />

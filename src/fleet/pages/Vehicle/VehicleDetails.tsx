@@ -2,19 +2,31 @@ import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetSelect, FleetDateField, FleetReadonlyField } from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
+import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import Vector6 from "../../assets/icons/Calendar.svg";
-import { extractV5C } from "../../services/vehicleRecordService";
+import {
+  extractV5C,
+  uploadVehicleDocument,
+  listVehicleDocuments,
+  getVehicleDocumentFileUrl,
+  type VehicleDocument,
+} from "../../services/vehicleRecordService";
 import {
   CONTRACT_TYPE_OPTIONS,
   DEPOT_BRANCH_OPTIONS,
   OBTAINED_FOR_PURPOSE_OPTIONS,
   VEHICLE_STATUS_OPTIONS,
 } from "../../types/vehicleRecord";
+import FleetDocumentList from "../../components/FleetDocumentList";
 import { useVehicle } from "./VehicleContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
+
+// After a V5C is read, any of these vehicle fields the OCR couldn't fill is
+// flagged low-confidence (red) so the user knows to verify / enter it manually.
+const LOW_CONFIDENCE_MSG = "Low Confidence OCR Result - Please Verify";
 
 interface Form {
   obtainedForPurpose: string;
@@ -72,6 +84,7 @@ const displayDate = (value?: string | null): string => {
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-GB");
 };
 
+
 // Square checkbox matching the design (filled dark when checked).
 const Checkbox: React.FC<{ checked: boolean; label: string; onChange: (v: boolean) => void }> = ({
   checked,
@@ -89,9 +102,30 @@ const Checkbox: React.FC<{ checked: boolean; label: string; onChange: (v: boolea
 );
 
 const VehicleDetails: React.FC = () => {
-  const { vehicle, save } = useVehicle();
+  const { vehicle, save, ensureVehicle, loading: recordLoading } = useVehicle();
   const [form, setForm] = useState<Form>(EMPTY);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [documents, setDocuments] = useState<VehicleDocument[]>([]);
+  // Mount-scoped loading so the loader shows every time this screen opens, even
+  // when the record is already cached at the parent (recordLoading would be
+  // false then). Stays true until the vehicle + its V5C history are in hand.
+  const [pageReady, setPageReady] = useState(false);
+  // Shows a loader while a V5C is fetched for viewing (the eye icon).
+  const [viewingDoc, setViewingDoc] = useState(false);
+  // True once a V5C has been read this session — turns on the red low-confidence
+  // hints on any V5C field the OCR left empty.
+  const [ocrAttempted, setOcrAttempted] = useState(false);
+
+  // V5C-derived fields; each shows the red hint when empty after a read.
+  const OCR_FIELDS: (keyof Form)[] = [
+    "registrationNumber", "make", "model", "manufacturer", "variant", "numberOfDoors", "numberOfSeats",
+    "bodyType", "fuelType", "transmission", "engineSizeCc", "v5cDocumentReference",
+    "chassisNumber", "dateOfFirstRegistration", "dateDelivered",
+  ];
+  const missing = (key: keyof Form): string | undefined =>
+    ocrAttempted && OCR_FIELDS.includes(key) && !String(form[key] ?? "").trim()
+      ? LOW_CONFIDENCE_MSG
+      : undefined;
 
   useEffect(() => {
     if (!vehicle) return;
@@ -120,6 +154,34 @@ const VehicleDetails: React.FC = () => {
     });
   }, [vehicle]);
 
+  const loadDocuments = async (recordId: number) => {
+    setDocuments(await listVehicleDocuments(recordId, "v5c"));
+  };
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!vehicle?.id) return; // still resolving — recordLoading covers this
+      setPageReady(false);
+      setDocuments(await listVehicleDocuments(vehicle.id, "v5c"));
+      if (!cancelled) setPageReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [vehicle?.id]);
+
+  const openDocument = async (docId: number) => {
+    if (!vehicle?.id) return;
+    setViewingDoc(true);
+    try {
+      const url = await getVehicleDocumentFileUrl(vehicle.id, docId);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      else toast.error("Could not open the file.");
+    } finally {
+      setViewingDoc(false);
+    }
+  };
+
   const set = <K extends keyof Form>(key: K, value: Form[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
@@ -132,41 +194,59 @@ const VehicleDetails: React.FC = () => {
   // two classification dropdowns are never touched; those stay the user's choice.
   const handleV5C = async (file: File) => {
     const v5c = await extractV5C(file);
-      const next: Partial<Form> = {};
-      if (v5c.registration) next.registrationNumber = v5c.registration;
-      if (v5c.make) next.make = v5c.make;
-      if (v5c.model) next.model = v5c.model;
-      if (v5c.manufacturer) next.manufacturer = v5c.manufacturer;
-      if (v5c.variant) next.variant = v5c.variant;
-      if (v5c.numberOfDoors) next.numberOfDoors = v5c.numberOfDoors;
-      if (v5c.numberOfSeats) next.numberOfSeats = v5c.numberOfSeats;
-      if (v5c.bodyType) next.bodyType = v5c.bodyType;
-      if (v5c.fuelType) next.fuelType = v5c.fuelType;
-      if (v5c.transmission) next.transmission = v5c.transmission;
-      if (v5c.engineSizeCc) next.engineSizeCc = v5c.engineSizeCc;
-      if (v5c.v5cDocumentReference) next.v5cDocumentReference = v5c.v5cDocumentReference;
-      if (v5c.chassisNumber) next.chassisNumber = v5c.chassisNumber;
-      if (v5c.dateOfFirstRegistration) next.dateOfFirstRegistration = toIsoDate(v5c.dateOfFirstRegistration);
-      if (v5c.dateDelivered) next.dateDelivered = toIsoDate(v5c.dateDelivered);
+    const next: Partial<Form> = {};
+    if (v5c.registration) next.registrationNumber = v5c.registration;
+    if (v5c.make) next.make = v5c.make;
+    if (v5c.model) next.model = v5c.model;
+    if (v5c.manufacturer) next.manufacturer = v5c.manufacturer;
+    if (v5c.variant) next.variant = v5c.variant;
+    if (v5c.numberOfDoors) next.numberOfDoors = v5c.numberOfDoors;
+    if (v5c.numberOfSeats) next.numberOfSeats = v5c.numberOfSeats;
+    if (v5c.bodyType) next.bodyType = v5c.bodyType;
+    if (v5c.fuelType) next.fuelType = v5c.fuelType;
+    if (v5c.transmission) next.transmission = v5c.transmission;
+    if (v5c.engineSizeCc) next.engineSizeCc = v5c.engineSizeCc;
+    if (v5c.v5cDocumentReference) next.v5cDocumentReference = v5c.v5cDocumentReference;
+    if (v5c.chassisNumber) next.chassisNumber = v5c.chassisNumber;
+    if (v5c.dateOfFirstRegistration) next.dateOfFirstRegistration = toIsoDate(v5c.dateOfFirstRegistration);
+    if (v5c.dateDelivered) next.dateDelivered = toIsoDate(v5c.dateDelivered);
 
-      const readCount = Object.keys(next).length;
-      if (!readCount) {
-        toast.warn("Could not read the V5C. Please enter the vehicle details manually.");
-        return;
-      }
+    // Treat the uploaded V5C as a fresh OCR result. Clear all V5C-derived fields
+    // first, then fill what OCR found, so stale data doesn't hide missed fields.
+    const cleared = OCR_FIELDS.reduce((acc, key) => ({ ...acc, [key]: "" }), {} as Partial<Form>);
+    const replaced = { ...cleared, ...next };
 
-      setForm((f) => ({ ...f, ...next }));
-      // Persist everything the OCR read in one PATCH.
-      const payload: Record<string, unknown> = {};
-      (Object.keys(next) as Array<keyof Form>).forEach((k) => {
-        payload[TO_BACKEND[k]] = next[k];
-      });
+    // Any V5C field the read didn't fill now shows the red "verify" hint.
+    setOcrAttempted(true);
+    setForm((f) => ({ ...f, ...replaced }));
+
+    // Persist the full V5C result, including blanks, so reopening the screen
+    // doesn't bring back stale values from a previous V5C.
+    const payload: Record<string, unknown> = {};
+    OCR_FIELDS.forEach((k) => {
+      payload[TO_BACKEND[k]] = replaced[k] || null;
+    });
     await save(payload);
+
+    // Store the file itself so it stays viewable in the history.
+    const recordId = vehicle?.id ?? (await ensureVehicle());
+    if (recordId) {
+      await uploadVehicleDocument(recordId, file, "v5c");
+      await loadDocuments(recordId);
+    }
+
+    const readCount = Object.keys(next).length;
+    if (!readCount) {
+      toast.warn("Could not read the V5C. Please enter the vehicle details manually.");
+      return;
+    }
     toast.success(`V5C read — ${readCount} field${readCount === 1 ? "" : "s"} filled. Please check before saving.`);
   };
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
+      {(recordLoading || !pageReady || viewingDoc) && <FleetSpinnerLoader />}
+
       <FleetUploadModal
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
@@ -186,6 +266,10 @@ const VehicleDetails: React.FC = () => {
           Upload V5C
         </button>
       </div>
+
+      {/* Uploaded V5C history — latest shown by default, "Show all" expands into
+          a scrollable list so it never grows unbounded. */}
+      <FleetDocumentList title="Uploaded V5C Documents" documents={documents} onView={openDocument} />
 
       {/* Section A */}
       <section className={SECTION}>
@@ -221,35 +305,36 @@ const VehicleDetails: React.FC = () => {
         />
 
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Registration Number" placeholder="Enter Registration" value={form.registrationNumber} onChange={(v) => set("registrationNumber", v)} onBlur={() => saveField("registrationNumber")} />
-          <FleetTextInput label="Make" placeholder="Enter Make" value={form.make} onChange={(v) => set("make", v)} onBlur={() => saveField("make")} />
+          <FleetTextInput label="Registration Number" placeholder="Enter Registration" value={form.registrationNumber} onChange={(v) => set("registrationNumber", v)} onBlur={() => saveField("registrationNumber")} error={missing("registrationNumber")} />
+          <FleetTextInput label="Make" placeholder="Enter Make" value={form.make} onChange={(v) => set("make", v)} onBlur={() => saveField("make")} error={missing("make")} />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Model" placeholder="Enter Model" value={form.model} onChange={(v) => set("model", v)} onBlur={() => saveField("model")} />
-          <FleetTextInput label="Manufacturer" placeholder="Enter Manufacturer" value={form.manufacturer} onChange={(v) => set("manufacturer", v)} onBlur={() => saveField("manufacturer")} />
+          <FleetTextInput label="Model" placeholder="Enter Model" value={form.model} onChange={(v) => set("model", v)} onBlur={() => saveField("model")} error={missing("model")} />
+          <FleetTextInput label="Manufacturer" placeholder="Enter Manufacturer" value={form.manufacturer} onChange={(v) => set("manufacturer", v)} onBlur={() => saveField("manufacturer")} error={missing("manufacturer")} />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Vehicle Model/ Variant" placeholder="Enter Variant" value={form.variant} onChange={(v) => set("variant", v)} onBlur={() => saveField("variant")} />
-          <FleetTextInput label="Number of Doors" placeholder="Enter Number of Doors" inputMode="numeric" value={form.numberOfDoors} onChange={(v) => set("numberOfDoors", v.replace(/[^0-9]/g, ""))} onBlur={() => saveField("numberOfDoors")} />
+          <FleetTextInput label="Vehicle Model/ Variant" placeholder="Enter Variant" value={form.variant} onChange={(v) => set("variant", v)} onBlur={() => saveField("variant")} error={missing("variant")} />
+          <FleetTextInput label="Number of Doors" placeholder="Enter Number of Doors" inputMode="numeric" value={form.numberOfDoors} onChange={(v) => set("numberOfDoors", v.replace(/[^0-9]/g, ""))} onBlur={() => saveField("numberOfDoors")} error={missing("numberOfDoors")} />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Number of Seats" placeholder="Enter Number of Seats" inputMode="numeric" value={form.numberOfSeats} onChange={(v) => set("numberOfSeats", v.replace(/[^0-9]/g, ""))} onBlur={() => saveField("numberOfSeats")} />
-          <FleetTextInput label="Body Type" placeholder="Enter Body Type" value={form.bodyType} onChange={(v) => set("bodyType", v)} onBlur={() => saveField("bodyType")} />
+          <FleetTextInput label="Number of Seats" placeholder="Enter Number of Seats" inputMode="numeric" value={form.numberOfSeats} onChange={(v) => set("numberOfSeats", v.replace(/[^0-9]/g, ""))} onBlur={() => saveField("numberOfSeats")} error={missing("numberOfSeats")} />
+          <FleetTextInput label="Body Type" placeholder="Enter Body Type" value={form.bodyType} onChange={(v) => set("bodyType", v)} onBlur={() => saveField("bodyType")} error={missing("bodyType")} />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Fuel Type" placeholder="Enter Fuel Type" value={form.fuelType} onChange={(v) => set("fuelType", v)} onBlur={() => saveField("fuelType")} />
-          <FleetTextInput label="Transmission" placeholder="Enter Transmission" value={form.transmission} onChange={(v) => set("transmission", v)} onBlur={() => saveField("transmission")} />
+          <FleetTextInput label="Fuel Type" placeholder="Enter Fuel Type" value={form.fuelType} onChange={(v) => set("fuelType", v)} onBlur={() => saveField("fuelType")} error={missing("fuelType")} />
+          <FleetTextInput label="Transmission" placeholder="Enter Transmission" value={form.transmission} onChange={(v) => set("transmission", v)} onBlur={() => saveField("transmission")} error={missing("transmission")} />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Engine Size (CC)" placeholder="Enter Engine Size" inputMode="numeric" value={form.engineSizeCc} onChange={(v) => set("engineSizeCc", v.replace(/[^0-9]/g, ""))} onBlur={() => saveField("engineSizeCc")} />
-          <FleetTextInput label="V5C Document Reference Number" placeholder="Enter Reference Number" value={form.v5cDocumentReference} onChange={(v) => set("v5cDocumentReference", v)} onBlur={() => saveField("v5cDocumentReference")} />
+          <FleetTextInput label="Engine Size (CC)" placeholder="Enter Engine Size" inputMode="numeric" value={form.engineSizeCc} onChange={(v) => set("engineSizeCc", v.replace(/[^0-9]/g, ""))} onBlur={() => saveField("engineSizeCc")} error={missing("engineSizeCc")} />
+          <FleetTextInput label="V5C Document Reference Number" placeholder="Enter Reference Number" value={form.v5cDocumentReference} onChange={(v) => set("v5cDocumentReference", v)} onBlur={() => saveField("v5cDocumentReference")} error={missing("v5cDocumentReference")} />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Chassis Number (VIN)" placeholder="Enter Chassis Number" value={form.chassisNumber} onChange={(v) => set("chassisNumber", v)} onBlur={() => saveField("chassisNumber")} />
+          <FleetTextInput label="Chassis Number (VIN)" placeholder="Enter Chassis Number" value={form.chassisNumber} onChange={(v) => set("chassisNumber", v)} onBlur={() => saveField("chassisNumber")} error={missing("chassisNumber")} />
           <FleetDateField
             label="Date of First Registration"
             value={form.dateOfFirstRegistration}
             onChange={(v) => { set("dateOfFirstRegistration", v); persist("dateOfFirstRegistration", v || null); }}
+            error={missing("dateOfFirstRegistration")}
           />
         </div>
         <div className="grid grid-cols-2 gap-5">
@@ -257,6 +342,7 @@ const VehicleDetails: React.FC = () => {
             label="Date Delivered (where available)"
             value={form.dateDelivered}
             onChange={(v) => { set("dateDelivered", v); persist("dateDelivered", v || null); }}
+            error={missing("dateDelivered")}
           />
           <div />
         </div>

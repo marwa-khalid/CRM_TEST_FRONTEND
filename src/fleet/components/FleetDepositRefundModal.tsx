@@ -240,7 +240,7 @@ const FleetDepositRefundModal: React.FC<Props> = ({ open, onClose, hireId, defau
             <div className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4">
               <h3 className="text-neutral-900 text-base font-semibold">Refund Breakdown</h3>
               <div className="grid grid-cols-2 gap-4">
-                <FleetTextInput label="Deposit Amount" inputMode="decimal" value={form.deposit} onChange={(v) => setMoneyField("deposit", v)} />
+                <FleetTextInput label="Security Deposit Amount" inputMode="decimal" value={form.deposit} onChange={(v) => setMoneyField("deposit", v)} />
                 <FleetTextInput label="Valeting Fee" inputMode="decimal" value={form.valeting_fee} onChange={(v) => setMoneyField("valeting_fee", v)} />
                 <FleetTextInput label="Vehicle Damages" inputMode="decimal" value={form.vehicle_damages} onChange={(v) => setMoneyField("vehicle_damages", v)} />
                 <FleetTextInput label="Additional Charges" inputMode="decimal" value={form.additional_charges} onChange={(v) => setMoneyField("additional_charges", v)} />

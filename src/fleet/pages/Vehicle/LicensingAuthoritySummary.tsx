@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { FleetReadonlyField } from "../../components/fields";
+import { FleetTextInput } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import PrintIcon from "../../assets/icons/Print.svg";
 import {
+  downloadLicensingAuthorityLetters,
   listLicensingAuthorities,
-  openLicensingLettersPrintView,
+  updateLicensingAuthority,
   type LicensingAuthority,
 } from "../../services/licensingAuthorityService";
 import { useVehicle } from "./VehicleContext";
@@ -20,6 +21,8 @@ const LicensingAuthoritySummary: React.FC = () => {
   const [authorities, setAuthorities] = useState<LicensingAuthority[]>([]);
   const [loading, setLoading] = useState(false);
   const [printing, setPrinting] = useState(false);
+  // Never a blank white page — render the summary and overlay the loader.
+  const [pageReady, setPageReady] = useState(false);
 
   // Always re-read on mount so edits made on the Licensing Authority screen are
   // reflected here — the story requires the two stay synchronised.
@@ -30,6 +33,7 @@ const LicensingAuthoritySummary: React.FC = () => {
       setAuthorities(await listLicensingAuthorities(recordId));
     } finally {
       setLoading(false);
+      setPageReady(true);
     }
   }, [recordId]);
 
@@ -37,60 +41,71 @@ const LicensingAuthoritySummary: React.FC = () => {
     load();
   }, [load]);
 
-  const named = authorities.filter((a) => (a.licensing_authority || "").trim());
+  const setAuthorityName = (authorityId: number, value: string) => {
+    setAuthorities((rows) =>
+      rows.map((authority) =>
+        authority.id === authorityId ? { ...authority, licensing_authority: value } : authority,
+      ),
+    );
+  };
+
+  const saveAuthorityName = async (authority: LicensingAuthority) => {
+    if (!recordId) return;
+    const updated = await updateLicensingAuthority(recordId, authority.id, {
+      licensing_authority: authority.licensing_authority || null,
+    });
+    if (updated) {
+      setAuthorities((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
+    } else {
+      toast.error("Could not save licensing authority.");
+    }
+  };
 
   const raiseLetters = async () => {
     if (!recordId) return;
-    if (named.length === 0) {
+    if (authorities.length === 0) {
       toast.warn("Add a licensing authority before raising letters.");
       return;
     }
     setPrinting(true);
     try {
-      await openLicensingLettersPrintView(recordId);
+      await downloadLicensingAuthorityLetters(recordId);
+      toast.success("Licensing authority letters downloaded.");
     } catch {
-      toast.error("Could not open the letters. Please allow pop-ups and try again.");
+      toast.error("Could not download the letters. Please try again.");
     } finally {
       setPrinting(false);
     }
   };
 
-  if (!recordId) {
-    return (
-      <div className="w-full max-w-[788px] font-sans-headline">
-        <span className="text-neutral-400 text-sm">
-          {recordLoading ? "Loading…" : "This vehicle record isn't available yet."}
-        </span>
-      </div>
-    );
-  }
-
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {(loading || printing) && <FleetSpinnerLoader />}
+      {(recordLoading || loading || printing || !recordId || !pageReady) && <FleetSpinnerLoader />}
 
       <h2 className="text-black text-2xl font-semibold leading-6">Licensing Authority Summary</h2>
 
+      {/* One card listing every authority from the Licensing Authority screen.
+          Editable here too, so the summary can be corrected before download. */}
       <section className={SECTION}>
-        {/* Read-only — the story forbids manual entry here; edits happen on the
-            Licensing Authority screen and flow through. */}
-        {named.length === 0 ? (
+        {authorities.length === 0 ? (
           <span className="text-neutral-400 text-sm">
             No licensing authorities have been added yet. Add them on the Licensing Authority screen.
           </span>
         ) : (
-          named.map((authority, i) => (
-            <FleetReadonlyField
+          authorities.map((authority, i) => (
+            <FleetTextInput
               key={authority.id}
               label={`Licensing Authority ${authority.position ?? i + 1}`}
               value={authority.licensing_authority || ""}
-              placeholder="—"
+              placeholder="Enter licensing authority"
+              onChange={(value) => setAuthorityName(authority.id, value)}
+              onBlur={() => saveAuthorityName(authority)}
             />
           ))
         )}
 
         <div className="py-2">
-          <button type="button" disabled={printing || named.length === 0} onClick={raiseLetters} className={BTN_DARK}>
+          <button type="button" disabled={printing || authorities.length === 0} onClick={raiseLetters} className={BTN_DARK}>
             <img src={PrintIcon} alt="" className="w-4 h-4 brightness-0 invert" />
             Raise Licensing Authority Letters
           </button>

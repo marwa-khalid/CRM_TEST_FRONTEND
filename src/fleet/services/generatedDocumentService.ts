@@ -97,9 +97,14 @@ export const openGeneratedDocumentPrintView = async (
   documentKey: GeneratedDocumentKey,
   vehicleId?: number,
 ): Promise<void> => {
-  const win = window.open("", "_blank", "noopener,noreferrer,width=1000,height=800");
+  const win = window.open("", "_blank", "width=1000,height=800");
   if (!win) {
     throw new Error("Popup blocked");
+  }
+  try {
+    win.opener = null;
+  } catch {
+    // Some browsers expose opener as read-only; the print view still works.
   }
 
   win.document.write(`<!doctype html>

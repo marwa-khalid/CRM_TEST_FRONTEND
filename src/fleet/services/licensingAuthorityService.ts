@@ -40,6 +40,23 @@ export interface LicensingAuthority {
 
 const base = (recordId: number) => `/fleet/vehicle-record/${recordId}/licensing-authority`;
 
+const filenameFromDisposition = (header?: string): string | null => {
+  if (!header) return null;
+  const match = header.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+  return match ? decodeURIComponent(match[1].replace(/"/g, "")) : null;
+};
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
 export const listLicensingAuthorities = async (recordId: number): Promise<LicensingAuthority[]> => {
   try {
     const { data } = await fleetApi.get(base(recordId));
@@ -163,42 +180,20 @@ export const extractPlatingCertificate = (file: File): Promise<ExtractedPlating>
 export const extractMotCertificate = (file: File): Promise<ExtractedMot> =>
   ocr("/fleet/ocr/mot-certificate", file, EMPTY_MOT);
 
-// Opens the generated letters in a new tab: preview on screen, Print button for
-// printing, and print-to-PDF for downloading. Written into a window opened
-// synchronously so the pop-up blocker doesn't reject it after the await.
-export const openLicensingLettersPrintView = async (recordId: number): Promise<void> => {
-  const win = window.open("", "_blank", "noopener,noreferrer,width=1000,height=800");
-  if (!win) throw new Error("Popup blocked");
+export const getLicensingLettersPrintHtml = async (recordId: number): Promise<string> => {
+  const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}/licensing-letters/print-view`, {
+    responseType: "text",
+  });
+  return data as string;
+};
 
-  win.document.write(`<!doctype html>
-    <html>
-      <head>
-        <title>Licensing Authority Letters</title>
-        <style>
-          body{font-family:Arial,sans-serif;margin:24px;color:#111827;background:#fff}
-          .loader{border:3px solid #e5e7eb;border-top-color:#111827;border-radius:50%;width:32px;height:32px;animation:spin 1s linear infinite}
-          main{min-height:70vh;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center}
-          @keyframes spin{to{transform:rotate(360deg)}}
-        </style>
-      </head>
-      <body><main><div class="loader"></div><strong>Preparing letters…</strong></main></body>
-    </html>`);
-  win.document.close();
-
-  try {
-    const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}/licensing-letters/print-view`, {
-      responseType: "text",
-    });
-    win.document.open();
-    win.document.write(data as string);
-    win.document.close();
-    win.focus();
-  } catch (error) {
-    win.document.open();
-    win.document.write(`<!doctype html><html><body style="font-family:Arial,sans-serif;margin:24px;color:#111827"><h1>Could not prepare the letters</h1><p>Please try again.</p></body></html>`);
-    win.document.close();
-    throw error;
-  }
+export const downloadLicensingAuthorityLetters = async (recordId: number): Promise<string> => {
+  const res = await fleetApi.get(`/fleet/vehicle-record/${recordId}/licensing-letters/download`, {
+    responseType: "blob",
+  });
+  const filename = filenameFromDisposition(res.headers["content-disposition"]) || "Licensing Authority Letters.zip";
+  downloadBlob(res.data as Blob, filename);
+  return filename;
 };
 
 export interface AppointmentEmailPreview {

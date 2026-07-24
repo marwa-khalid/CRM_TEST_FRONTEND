@@ -1,5 +1,22 @@
 import fleetApi from "./fleetApi";
 
+const filenameFromDisposition = (header?: string): string | null => {
+  if (!header) return null;
+  const match = header.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+  return match ? decodeURIComponent(match[1].replace(/"/g, "")) : null;
+};
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
 export interface VehicleRecord {
   id: number;
   hire_id?: number | null;
@@ -121,12 +138,33 @@ export const extractV5C = async (file: File): Promise<ExtractedV5C> => {
   }
 };
 
+export const getSaleDocumentsPrintHtml = async (recordId: number): Promise<string> => {
+  const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}/sale-documents/print-view`, {
+    responseType: "text",
+  });
+  return data as string;
+};
+
+export const downloadSaleDocuments = async (recordId: number): Promise<string> => {
+  const res = await fleetApi.get(`/fleet/vehicle-record/${recordId}/sale-documents/download`, {
+    responseType: "blob",
+  });
+  const filename = filenameFromDisposition(res.headers["content-disposition"]) || "Release of Liability and Receipt.doc";
+  downloadBlob(res.data as Blob, filename);
+  return filename;
+};
+
 // Opens the Release of Liability + Sale Receipt in a new tab: preview, Print,
 // and print-to-PDF for downloading. The window is opened synchronously so the
 // pop-up blocker doesn't reject it after the await.
 export const openSaleDocumentsPrintView = async (recordId: number): Promise<void> => {
-  const win = window.open("", "_blank", "noopener,noreferrer,width=1000,height=800");
+  const win = window.open("", "_blank", "width=1000,height=800");
   if (!win) throw new Error("Popup blocked");
+  try {
+    win.opener = null;
+  } catch {
+    // Some browsers expose opener as read-only; the print view still works.
+  }
 
   win.document.write(`<!doctype html>
     <html>
@@ -144,9 +182,7 @@ export const openSaleDocumentsPrintView = async (recordId: number): Promise<void
   win.document.close();
 
   try {
-    const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}/sale-documents/print-view`, {
-      responseType: "text",
-    });
+    const data = await getSaleDocumentsPrintHtml(recordId);
     win.document.open();
     win.document.write(data as string);
     win.document.close();
@@ -156,5 +192,65 @@ export const openSaleDocumentsPrintView = async (recordId: number): Promise<void
     win.document.write(`<!doctype html><html><body style="font-family:Arial,sans-serif;margin:24px;color:#111827"><h1>Could not prepare the documents</h1><p>Please try again.</p></body></html>`);
     win.document.close();
     throw error;
+  }
+};
+
+export interface VehicleDocument {
+  id: number;
+  vehicle_record_id: number;
+  doc_type?: string | null;
+  filename?: string | null;
+  file_url?: string | null;
+  created_at?: string | null;
+}
+
+// Store the uploaded file against the record (kept as history — a replacement
+// V5C adds a new row rather than overwriting).
+export const uploadVehicleDocument = async (
+  recordId: number,
+  file: File,
+  docType = "v5c",
+): Promise<VehicleDocument | null> => {
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const { data } = await fleetApi.post(`/fleet/vehicle-record/${recordId}/documents?doc_type=${docType}`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+export const listVehicleDocuments = async (
+  recordId: number,
+  docType = "v5c",
+  authorityId?: number,
+  serviceId?: number,
+): Promise<VehicleDocument[]> => {
+  try {
+    const authorityQuery = authorityId ? `&authority_id=${authorityId}` : "";
+    const serviceQuery = serviceId ? `&service_id=${serviceId}` : "";
+    const { data } = await fleetApi.get(
+      `/fleet/vehicle-record/${recordId}/documents?doc_type=${docType}${authorityQuery}${serviceQuery}`,
+    );
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
+
+// Fetches the file (auth-checked) as a blob and returns an object URL the caller
+// can open in a new tab — a plain link can't send the Bearer token.
+export const getVehicleDocumentFileUrl = async (
+  recordId: number,
+  docId: number,
+): Promise<string | null> => {
+  try {
+    const res = await fleetApi.get(`/fleet/vehicle-record/${recordId}/documents/${docId}/file`, { responseType: "blob" });
+    return URL.createObjectURL(res.data as Blob);
+  } catch {
+    return null;
   }
 };

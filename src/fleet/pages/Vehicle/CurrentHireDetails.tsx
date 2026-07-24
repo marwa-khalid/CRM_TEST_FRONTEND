@@ -22,7 +22,7 @@ const displayDate = (value: unknown): string => {
  * can never drift out of sync.
  */
 const CurrentHireDetails: React.FC = () => {
-  const { hire } = useVehicle();
+  const { hire, loading: recordLoading } = useVehicle();
   const [dates, setDates] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [loading, setLoading] = useState(false);
 
@@ -53,7 +53,7 @@ const CurrentHireDetails: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {loading && <FleetSpinnerLoader />}
+      {(recordLoading || loading || !hire?.id) && <FleetSpinnerLoader />}
 
       <h2 className="text-black text-2xl font-semibold leading-6">Current Hire Details</h2>
 

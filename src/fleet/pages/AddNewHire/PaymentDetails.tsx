@@ -20,7 +20,7 @@ import PencilIcon from "../../assets/icons/PencilIcon.svg";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import { sendFleetWhatsApp } from "../../services/whatsappService";
 import { deleteVehicle, listVehicles, updateVehicle } from "../../services/vehicleService";
-import { uploadHireDocument } from "../../services/hireService";
+import { uploadHireDocument, getHireDocuments, getHireDocumentFileUrl, type HireDocument } from "../../services/hireService";
 import type { Option } from "../../types/hire";
 
 const STATUS_OPTIONS: Option[] = [
@@ -58,6 +58,8 @@ const H3 = "text-black text-xl font-semibold leading-5";
 const PAYMENT_SCHEDULE_GRID = "grid-cols-[44px_1fr_1fr_1fr_1fr_0.9fr_136px]";
 const money = (n: number) => `£${n.toFixed(2)}`;
 const ERROR = "text-red-500 text-xs";
+// Same wording as the other OCR screens use for a low-confidence read.
+const RECEIPT_MISS_MSG = "Low Confidence OCR Result - Please Verify";
 const PAYMENT_MODE_OPTIONS: Option[] = [
   { label: "Cash", value: "cash" },
   { label: "Bank Transfer", value: "bank_transfer" },
@@ -198,12 +200,13 @@ interface NewTransaction {
 }
 
 const RecordPaymentModal: React.FC<{
+  hireId: number | null;
   row: PaymentRow;
   editTransactionId: number | null; // null = add a new part-payment; else edit that one
   saving: boolean;
   onCancel: () => void;
   onSave: (transaction: NewTransaction, editTransactionId: number | null, receiptFile: File | null) => void | Promise<void>;
-}> = ({ row, editTransactionId, saving, onCancel, onSave }) => {
+}> = ({ hireId, row, editTransactionId, saving, onCancel, onSave }) => {
   const alreadyPaid = num(row.paid_amount);
   const dueRemaining = remainingDue(row);
   const txns = row.transactions ?? [];
@@ -220,8 +223,37 @@ const RecordPaymentModal: React.FC<{
   // Inline upload flow (matches FleetUploadModal): 1 choose · 2 reading · 3 done.
   const [receiptStep, setReceiptStep] = useState<1 | 2 | 3>(1);
   const [receiptProgress, setReceiptProgress] = useState(0);
+  // Fields the receipt OCR could not read — flagged red until the user fills them.
+  const [receiptMissing, setReceiptMissing] = useState({ amount: false, paymentDate: false });
+  const [receiptDocsOpen, setReceiptDocsOpen] = useState(false);
+  const [receiptDocsLoading, setReceiptDocsLoading] = useState(false);
+  const [receiptDocs, setReceiptDocs] = useState<HireDocument[]>([]);
   const receiptInput = useRef<HTMLInputElement>(null);
   const reading = receiptStep === 2;
+
+  useEffect(() => {
+    if (!hireId) return;
+    setReceiptDocsLoading(true);
+    getHireDocuments(hireId)
+      .then((docs) => {
+        setReceiptDocs(
+          docs
+            .filter((doc) => doc.doc_type === "payment_receipt")
+            .sort((a, b) => b.id - a.id),
+        );
+      })
+      .finally(() => setReceiptDocsLoading(false));
+  }, [hireId]);
+
+  const openReceiptDoc = async (doc: HireDocument) => {
+    if (!hireId) return;
+    const url = await getHireDocumentFileUrl(hireId, doc.id);
+    if (!url) {
+      toast.error("Could not open the receipt.");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   // Reading a bank transfer receipt pre-fills the fields below. Only blank fields
   // are filled so a value the user already typed is never overwritten; the mode
@@ -230,6 +262,7 @@ const RecordPaymentModal: React.FC<{
     setReceipt(file);
     setReceiptStep(2);
     setReceiptProgress(0);
+    setReceiptMissing({ amount: false, paymentDate: false });
     // Crawl the bar to 90% while OCR runs, then jump to 100% on completion.
     const timer = setInterval(() => setReceiptProgress((p) => (p >= 90 ? 90 : p + 8)), 120);
     try {
@@ -244,9 +277,10 @@ const RecordPaymentModal: React.FC<{
       clearInterval(timer);
       setReceiptProgress(100);
       setReceiptStep(3);
-      const missing = !parsed.amount || !parsed.paymentDate;
-      if (missing) toast.info("Receipt read — please check the amount and date.");
-      else toast.success("Receipt read.");
+      // Anything OCR couldn't read is flagged with a red outline on the field
+      // itself, rather than a toast the user has to remember.
+      setReceiptMissing({ amount: !parsed.amount, paymentDate: !parsed.paymentDate });
+      toast.success("Receipt read.");
     } catch {
       clearInterval(timer);
       setReceiptStep(1);
@@ -267,7 +301,7 @@ const RecordPaymentModal: React.FC<{
   return (
     <div className="fixed inset-0 z-[110] bg-black/40 flex items-center justify-center p-4">
       {saving && <FleetSpinnerLoader />}
-      <div className="w-[640px] max-w-full max-h-[92vh] overflow-y-auto p-6 bg-white rounded-lg flex flex-col gap-4 font-sans-headline">
+      <div className="w-[640px] max-w-full max-h-[92vh] overflow-y-scroll always-scrollbar p-6 bg-white rounded-lg flex flex-col gap-4 font-sans-headline">
         <div className="text-black text-xl font-semibold leading-5">{isEdit ? "Edit Payment" : "Record Payment"} — Week {row.week}</div>
 
         {/*
@@ -372,13 +406,61 @@ const RecordPaymentModal: React.FC<{
               </button>
             )}
           </div>
+          <div className="rounded outline outline-1 -outline-offset-1 outline-neutral-100">
+            <button
+              type="button"
+              onClick={() => setReceiptDocsOpen((open) => !open)}
+              className="w-full px-3 py-2 flex items-center justify-between gap-3 text-left text-sm text-neutral-900 hover:bg-neutral-50"
+            >
+              <span className="font-medium">View uploaded receipts</span>
+              <span className="text-neutral-500">
+                {receiptDocsLoading ? "Loading..." : `${receiptDocs.length} file${receiptDocs.length === 1 ? "" : "s"}`}
+              </span>
+            </button>
+            {receiptDocsOpen && (
+              <div className="border-t border-neutral-100 divide-y divide-neutral-100">
+                {receiptDocs.length ? receiptDocs.map((doc) => (
+                  <div key={doc.id} className="px-3 py-2 flex items-center justify-between gap-3">
+                    <span className="min-w-0 truncate text-sm text-neutral-700">{doc.filename || "Payment receipt"}</span>
+                    <button
+                      type="button"
+                      onClick={() => openReceiptDoc(doc)}
+                      className="h-8 px-3 py-2 shrink-0 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50"
+                    >
+                      View
+                    </button>
+                  </div>
+                )) : (
+                  <div className="px-3 py-2 text-sm text-neutral-400">No uploaded receipts yet.</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="h-px bg-neutral-100" />
         <div className="text-neutral-700 text-sm font-medium">{isEdit ? "Edit payment" : "Add a payment"}</div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetMoneyInput label="Payment Received" value={paidAmount} onChange={setPaidAmount} />
-          <FleetDateField label="Payment Date" value={paymentDate} onChange={setPaymentDate} />
+          {/* Red-outlined when the receipt OCR couldn't read them; clears as soon
+              as a value is entered. */}
+          <FleetMoneyInput
+            label="Payment Received"
+            value={paidAmount}
+            onChange={(value) => {
+              setPaidAmount(value);
+              if (value.trim()) setReceiptMissing((missing) => ({ ...missing, amount: false }));
+            }}
+            error={receiptMissing.amount ? RECEIPT_MISS_MSG : undefined}
+          />
+          <FleetDateField
+            label="Payment Date"
+            value={paymentDate}
+            onChange={(value) => {
+              setPaymentDate(value);
+              if (value) setReceiptMissing((missing) => ({ ...missing, paymentDate: false }));
+            }}
+            error={receiptMissing.paymentDate ? RECEIPT_MISS_MSG : undefined}
+          />
         </div>
         <div className="grid grid-cols-2 gap-5">
           <FleetSelect label="Payment Mode" value={paymentMode} options={PAYMENT_MODE_OPTIONS} onChange={setPaymentMode} />
@@ -1221,6 +1303,7 @@ const PaymentDetails: React.FC = () => {
 
       {recordRow && (
         <RecordPaymentModal
+          hireId={hireId}
           row={recordRow}
           editTransactionId={editTxnId}
           saving={recordSaving}

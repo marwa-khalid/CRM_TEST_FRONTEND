@@ -1,6 +1,7 @@
 import React from "react";
 import { ExternalLink } from "lucide-react";
 import { FleetDateField, FleetReadonlyField } from "../../components/fields";
+import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import Vector6 from "../../assets/icons/Calendar.svg";
 import { useVehicle } from "./VehicleContext";
 
@@ -17,10 +18,12 @@ const displayDate = (value?: string | null): string => {
 };
 
 const RoadFundLicense: React.FC = () => {
-  const { vehicle, save } = useVehicle();
+  const { vehicle, save, loading: recordLoading } = useVehicle();
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
+      {(recordLoading || !vehicle?.id) && <FleetSpinnerLoader />}
+
       <h2 className="text-black text-2xl font-semibold leading-6">Road Fund License</h2>
 
       <section className={SECTION}>

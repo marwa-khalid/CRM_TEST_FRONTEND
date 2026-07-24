@@ -3,6 +3,7 @@ import { CheckCircle2, Clock, Eye, LayoutGrid, List as ListIcon, ListTodo, Loade
 import { toast } from "react-toastify";
 import FleetConfirmModal from "../components/FleetConfirmModal";
 import FleetTaskModal from "../components/FleetTaskModal";
+import FleetPageHeader from "../components/FleetPageHeader";
 import { FleetSelect } from "../components/fields";
 import {
   listFleetTasks,
@@ -123,22 +124,7 @@ const FleetTasks: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white font-sans-headline">
-      <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] sticky top-0 z-20">
-        <div className="max-w-[1120px] mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-black text-2xl font-semibold leading-6">Tasks</h1>
-            <p className="mt-1 text-neutral-500 text-sm">Fleet task management</p>
-          </div>
-          <button
-            type="button"
-            onClick={openNew}
-            className="px-6 py-4 bg-neutral-900 rounded text-white text-base font-medium leading-4 hover:bg-black transition-colors inline-flex items-center gap-2"
-          >
-            <Plus size={18} />
-            New Task
-          </button>
-        </div>
-      </div>
+      <FleetPageHeader title="Tasks" />
 
       <main className="px-10 py-10">
         <section className="max-w-[1120px] mx-auto flex flex-col gap-5">
@@ -159,6 +145,14 @@ const FleetTasks: React.FC = () => {
               />
             </div>
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={openNew}
+                className="h-12 px-6 bg-neutral-900 rounded text-white text-sm font-medium inline-flex items-center gap-2 hover:bg-black transition-colors"
+              >
+                <Plus size={18} />
+                New Task
+              </button>
               <div className="w-40"><FleetSelect placeholder="Status" value={statusFilter} options={statusOptions} onChange={setStatusFilter} menuPortal /></div>
               <div className="w-36"><FleetSelect placeholder="Priority" value={priorityFilter} options={priorityOptions} onChange={setPriorityFilter} menuPortal unsorted /></div>
               <button

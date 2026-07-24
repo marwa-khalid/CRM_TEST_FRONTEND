@@ -18,9 +18,11 @@ export interface HireRecord {
   taxi_badge_expiry?: string;
   taxi_badge_council?: string;
   taxi_badge_type?: string;
-  // Derived (list view): the most recently added hire vehicle's status + registration.
+  // Derived (list view): the most recently added hire vehicle's status + registration + dates.
   last_vehicle_hire_status?: string;
   last_vehicle_registration?: string;
+  last_vehicle_hire_start?: string;
+  last_vehicle_hire_end?: string;
   bank_name?: string;
   account_name?: string;
   sort_code?: string;
@@ -339,5 +341,23 @@ export const savePcnReminder = async (
     return data ?? null;
   } catch {
     return null;
+  }
+};
+
+// Fleet expiry reminders (road tax / plate / MOT) currently due — read-only view.
+export interface FleetDueReminder {
+  kind: string;
+  title: string;
+  vehicle: string;
+  expiry_date: string;
+  hire_id?: number | null;
+}
+
+export const getDueReminders = async (): Promise<FleetDueReminder[]> => {
+  try {
+    const { data } = await fleetApi.get("/fleet/reminders/due");
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
   }
 };

@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Paperclip, Plus } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetTaskModal from "../components/FleetTaskModal";
 import FleetEventModal from "../components/FleetEventModal";
+import FleetPageHeader from "../components/FleetPageHeader";
 import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
 import { listFleetTasks, type FleetTask } from "../services/taskService";
 import { listCalendarEvents, type FleetEvent } from "../services/eventService";
@@ -140,22 +141,7 @@ const FleetTasksCalendar: React.FC = () => {
   return (
     <div className="min-h-screen bg-white font-sans-headline">
       {loading && <FleetSpinnerLoader />}
-      <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] sticky top-0 z-20">
-        <div className="max-w-[1120px] mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-black text-2xl font-semibold leading-6">Calendar</h1>
-            <p className="mt-1 text-neutral-500 text-sm">Fleet events &amp; task due dates</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => openNewEvent()}
-            className="px-6 py-4 bg-neutral-900 rounded text-white text-base font-medium leading-4 hover:bg-black transition-colors inline-flex items-center gap-2"
-          >
-            <Plus size={18} />
-            New Event
-          </button>
-        </div>
-      </div>
+      <FleetPageHeader title="Calendar" />
 
       <main className="px-10 py-10">
         <section className="max-w-[1120px] mx-auto flex flex-col gap-5">
@@ -173,20 +159,30 @@ const FleetTasksCalendar: React.FC = () => {
               </button>
             </div>
 
-            {/* View switcher */}
-            <div className="flex items-center rounded border border-neutral-200 overflow-hidden">
-              {VIEWS.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setView(v)}
-                  className={`h-9 px-3.5 text-sm capitalize ${v !== "month" ? "border-l border-neutral-200" : ""} ${
-                    view === v ? "bg-neutral-900 text-white" : "bg-white text-neutral-600 hover:bg-neutral-50"
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
+            <div className="flex items-center gap-3">
+              {/* View switcher */}
+              <div className="flex items-center rounded border border-neutral-200 overflow-hidden">
+                {VIEWS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setView(v)}
+                    className={`h-9 px-3.5 text-sm capitalize ${v !== "month" ? "border-l border-neutral-200" : ""} ${
+                      view === v ? "bg-neutral-900 text-white" : "bg-white text-neutral-600 hover:bg-neutral-50"
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => openNewEvent()}
+                className="h-9 px-5 bg-neutral-900 rounded text-white text-sm font-medium inline-flex items-center gap-2 hover:bg-black transition-colors"
+              >
+                <Plus size={18} />
+                New Event
+              </button>
             </div>
           </div>
 

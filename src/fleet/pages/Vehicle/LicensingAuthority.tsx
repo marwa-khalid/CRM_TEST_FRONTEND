@@ -492,10 +492,10 @@ const LicensingAuthority: React.FC = () => {
             </div>
           </section>
 
-          {/* Section B — MOT centre + private hire MOT details */}
+          {/* Section B1 — MOT centre contact details */}
           <section className={SECTION}>
             <div className="flex justify-between items-center gap-4">
-              <h3 className={H3}>MOT Centre Contact Details &amp; Private Hire MOT Details</h3>
+              <h3 className={H3}>MOT Centre Contact Details</h3>
               <button type="button" disabled={busy} onClick={() => pickCertificate("mot")} className={`${BTN_DARK} shrink-0`}>
                 <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
                 {motDocs.length ? "Upload Another" : "Upload MOT Centre Certificate"}
@@ -532,6 +532,12 @@ const LicensingAuthority: React.FC = () => {
               <FleetTextInput label="Email Address" placeholder="Enter Email Address" inputMode="email" value={active.mot_email_address || ""} onChange={(v) => patch("mot_email_address", v)} error={missing("mot_email_address")} />
               <div />
             </div>
+          </section>
+
+          {/* Section B2 — private hire MOT details */}
+          <section className={SECTION}>
+            <h3 className={H3}>Private Hire MOT Details</h3>
+            <div className="h-px bg-neutral-100" />
             <div className="grid grid-cols-2 gap-5">
               <FleetDateField label="Last MOT Date" value={active.last_mot_date || ""} onChange={(v) => patch("last_mot_date", v || null)} error={missing("last_mot_date")} />
               <FleetDateField label="MOT Expiry Date" value={active.mot_expiry_date || ""} onChange={(v) => patch("mot_expiry_date", v || null)} error={missing("mot_expiry_date")} />

@@ -1,19 +1,29 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock, Eye, LayoutGrid, List as ListIcon, ListTodo, Loader2, MessageSquareReply, Paperclip, Plus, RefreshCw, Search } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { LayoutGrid, List as ListIcon, MoreVertical, Paperclip, X } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetConfirmModal from "../components/FleetConfirmModal";
 import FleetTaskModal from "../components/FleetTaskModal";
 import FleetPageHeader from "../components/FleetPageHeader";
+import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
+import { FleetCalendar } from "../components/FleetCalendar";
 import { FleetSelect } from "../components/fields";
+import CalendarIcon from "../assets/listingpage/calendar.svg";
 import {
   listFleetTasks,
   deleteFleetTask,
+  updateFleetTask,
   TASK_STATUSES,
   TASK_PRIORITIES,
   type FleetTask,
 } from "../services/taskService";
+import FleetTaskDetailSlider, { type FleetTaskDetailTab } from "../components/FleetTaskDetailSlider";
 import type { Option } from "../types/hire";
 import TrashIcon from "../assets/icons/Remove.svg";
+import TotalTasksIcon from "../assets/listingpage/totaltasks.svg";
+import PendingIcon from "../assets/listingpage/pending.svg";
+import ProgressIcon from "../assets/listingpage/progress.svg";
+import AlertIcon from "../assets/icons/Alert.svg";
+import CompletedIcon from "../assets/listingpage/checkcircle.svg";
 
 const ALL: Option = { label: "All", value: "" };
 const statusOptions: Option[] = [ALL, ...TASK_STATUSES.map((s) => ({ label: s, value: s }))];
@@ -24,6 +34,7 @@ const statusBadge = (value?: string | null): string => {
   if (s === "completed") return "bg-green-100 text-green-600";
   if (s === "in progress") return "bg-blue-100 text-blue-600";
   if (s === "awaiting response") return "bg-yellow-100 text-yellow-700";
+  if (s === "overdue") return "bg-red-100 text-red-600";
   return "bg-neutral-100 text-neutral-600"; // pending / default
 };
 const priorityBadge = (value?: string | null): string => {
@@ -41,17 +52,92 @@ const fmtDue = (date?: string | null, time?: string | null): string => {
   return time ? `${day} · ${time}` : day;
 };
 
-const LIST_GRID = "grid-cols-[2fr_1fr_0.9fr_1.2fr_1fr_80px]";
+// checkbox · Task · Assigned to · Vehicle · Due Date · Status · Priority · kebab
+const LIST_GRID = "grid-cols-[28px_minmax(240px,2fr)_minmax(120px,1fr)_minmax(110px,0.9fr)_minmax(96px,0.8fr)_minmax(96px,0.8fr)_minmax(88px,0.7fr)_32px]";
 
-type StatIcon = React.ComponentType<{ size?: number; className?: string }>;
-const StatCard: React.FC<{ title: string; value: number; Icon: StatIcon; accent: string }> = ({ title, value, Icon, accent }) => (
-  <div className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 bg-white flex flex-col gap-3">
-    <span className={`w-9 h-9 rounded flex items-center justify-center ${accent}`}>
-      <Icon size={18} />
-    </span>
-    <div className="flex flex-col gap-0.5">
-      <div className="text-black text-3xl font-semibold leading-9">{value}</div>
-      <div className="text-neutral-500 text-sm font-medium">{title}</div>
+// Small grey square checkbox matching the design.
+const TaskCheckbox: React.FC<{ checked: boolean; onChange: () => void; label?: string }> = ({ checked, onChange, label }) => (
+  <button type="button" role="checkbox" aria-checked={checked} aria-label={label} onClick={onChange} className="shrink-0">
+    <span className={`block w-5 h-5 rounded-sm ${checked ? "bg-neutral-900 border-[6px] border-neutral-300" : "bg-neutral-300"}`} />
+  </button>
+);
+
+// Close a popup when the user clicks outside it.
+const useOutside = (onClose: () => void) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [onClose]);
+  return ref;
+};
+
+// Date field — calendar.svg trigger + Fleet's own popup calendar (same as the listing).
+const DateField: React.FC<{ value: string; onChange: (v: string) => void; placeholder: string }> = ({ value, onChange, placeholder }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useOutside(() => setOpen(false));
+  const selected = value ? new Date(`${value}T00:00:00`) : null;
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen((o) => !o)} className="w-[150px] h-12 px-5 rounded bg-white border border-neutral-200 flex items-center justify-between gap-2 hover:border-neutral-400">
+        <span className={`text-sm font-light ${value ? "text-neutral-700" : "text-neutral-400"}`}>
+          {selected ? selected.toLocaleDateString("en-GB") : placeholder}
+        </span>
+        <img src={CalendarIcon} alt="" className="w-4 h-4 shrink-0" />
+      </button>
+      {open && (
+        <FleetCalendar
+          selectedDate={selected}
+          onSelect={(d) => {
+            onChange(d.toLocaleDateString("sv-SE"));
+            setOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// A closed filter reads as plain borderless "Label ⌄" text (Figma); opening
+// shows the standard Fleet select menu unchanged.
+const FilterChip: React.FC<{
+  placeholder: string;
+  value: string;
+  options: Option[];
+  onChange: (v: string) => void;
+  unsorted?: boolean;
+}> = ({ placeholder, value, options, onChange, unsorted }) => (
+  <div className="inline-flex items-center">
+    <FleetSelect chip placeholder={placeholder} value={value} options={options} onChange={onChange} menuPortal unsorted={unsorted} />
+  </div>
+);
+
+interface TaskStat {
+  title: string;
+  value: number;
+  icon: string;
+  bg: string;
+  trend: number;
+}
+const StatCard: React.FC<TaskStat> = ({ title, value, icon, bg, trend }) => (
+  <div className={`flex-1 min-w-0 p-4 rounded-lg ${bg} flex flex-col gap-4`}>
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-1">
+        <div className="text-black text-2xl font-semibold leading-6">{value}</div>
+        <div className="text-neutral-700 text-sm font-medium">{title}</div>
+      </div>
+      <span className="p-3 rounded-sm shrink-0">
+        <img src={icon} alt="" className="w-5 h-5" />
+      </span>
+    </div>
+    <div className="flex items-center gap-2">
+      <span className={`text-xs font-semibold ${trend > 0 ? "text-[#159215]" : trend < 0 ? "text-[#e5484d]" : "text-neutral-500"}`}>
+        {trend > 0 ? "+" : ""}{trend}%
+      </span>
+      <span className="text-neutral-700 text-sm">vs last month</span>
     </div>
   </div>
 );
@@ -62,10 +148,20 @@ const FleetTasks: React.FC = () => {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
+  const [assignedFilter, setAssignedFilter] = useState("");
+  const [regFilter, setRegFilter] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [editing, setEditing] = useState<FleetTask | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<FleetTask | null>(null);
   const [view, setView] = useState<"card" | "list">("card"); // card is the default
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  // Row-actions menu: id + fixed viewport coords so it escapes any overflow clip.
+  const [menu, setMenu] = useState<{ id: number; top: number; right: number } | null>(null);
+  // Detail slider (4 tabs — Task Details / Attachments / Notes / Task History).
+  const [detailTask, setDetailTask] = useState<FleetTask | null>(null);
+  const [detailTab, setDetailTab] = useState<FleetTaskDetailTab>("Task Details");
 
   const load = async () => {
     setLoading(true);
@@ -77,18 +173,42 @@ const FleetTasks: React.FC = () => {
     load();
   }, []);
 
-  // Counts derive from the loaded tasks by their actual status. Overdue is a red
-  // visual state on the row/badge, not a separate status bucket.
-  const statCards = useMemo(() => {
-    const byStatus = (label: string) =>
-      tasks.filter((t) => (t.status || "").toLowerCase() === label.toLowerCase()).length;
+  // Counts by status (+ Overdue) with a real month-over-month trend from created_at.
+  const statCards = useMemo<TaskStat[]>(() => {
+    const monthKey = (d: Date) => d.getFullYear() * 12 + d.getMonth();
+    const thisKey = monthKey(new Date());
+    const lastKey = thisKey - 1;
+    const trendFor = (subset: FleetTask[]) => {
+      let t = 0, l = 0;
+      subset.forEach((x) => {
+        if (!x.created_at) return;
+        const d = new Date(x.created_at);
+        if (Number.isNaN(d.getTime())) return;
+        const k = monthKey(d);
+        if (k === thisKey) t += 1;
+        else if (k === lastKey) l += 1;
+      });
+      return l === 0 ? (t > 0 ? 100 : 0) : Math.round(((t - l) / l) * 100);
+    };
+    const byStatus = (label: string) => tasks.filter((t) => (t.status || "").toLowerCase() === label.toLowerCase());
+    const overdue = tasks.filter((t) => t.is_overdue);
     return [
-      { title: "Total", value: tasks.length, Icon: ListTodo, accent: "bg-neutral-100 text-neutral-700" },
-      { title: "Pending", value: byStatus("Pending"), Icon: Clock, accent: "bg-neutral-100 text-neutral-600" },
-      { title: "In Progress", value: byStatus("In Progress"), Icon: Loader2, accent: "bg-amber-100 text-amber-600" },
-      { title: "Awaiting Response", value: byStatus("Awaiting Response"), Icon: MessageSquareReply, accent: "bg-blue-100 text-blue-600" },
-      { title: "Completed", value: byStatus("Completed"), Icon: CheckCircle2, accent: "bg-green-100 text-green-600" },
+      { title: "Total Tasks", value: tasks.length, icon: TotalTasksIcon, bg: "bg-[#d9ecff]", trend: trendFor(tasks) },
+      { title: "Pending", value: byStatus("Pending").length, icon: PendingIcon, bg: "bg-[#ffe3e4]", trend: trendFor(byStatus("Pending")) },
+      { title: "In Progress", value: byStatus("In Progress").length, icon: ProgressIcon, bg: "bg-[#fff1d7]", trend: trendFor(byStatus("In Progress")) },
+      { title: "Overdue", value: overdue.length, icon: AlertIcon, bg: "bg-[#ffe3e4]", trend: trendFor(overdue) },
+      { title: "Completed", value: byStatus("Completed").length, icon: CompletedIcon, bg: "bg-[#d9ffd9]", trend: trendFor(byStatus("Completed")) },
     ];
+  }, [tasks]);
+
+  // "Assigned to" / "Vehicle Reg" option lists, built from the tasks themselves.
+  const assignedOptions = useMemo<Option[]>(() => {
+    const names = Array.from(new Set(tasks.map((t) => (t.assigned_user || "").trim()).filter(Boolean)));
+    return [{ label: "All Assignees", value: "" }, ...names.map((n) => ({ label: n, value: n }))];
+  }, [tasks]);
+  const regOptions = useMemo<Option[]>(() => {
+    const regs = Array.from(new Set(tasks.map((t) => (t.vehicle_registration || "").trim()).filter(Boolean)));
+    return [{ label: "All Vehicles", value: "" }, ...regs.map((r) => ({ label: r, value: r }))];
   }, [tasks]);
 
   const visible = useMemo(() => {
@@ -96,6 +216,10 @@ const FleetTasks: React.FC = () => {
     return tasks.filter((t) => {
       if (statusFilter && (t.status || "") !== statusFilter) return false;
       if (priorityFilter && (t.priority || "") !== priorityFilter) return false;
+      if (assignedFilter && (t.assigned_user || "") !== assignedFilter) return false;
+      if (regFilter && (t.vehicle_registration || "") !== regFilter) return false;
+      if (fromDate && (!t.due_date || t.due_date < fromDate)) return false;
+      if (toDate && (!t.due_date || t.due_date > toDate)) return false;
       if (!needle) return true;
       return [t.title, t.assigned_user, t.vehicle_registration, t.department]
         .filter(Boolean)
@@ -103,10 +227,39 @@ const FleetTasks: React.FC = () => {
         .toLowerCase()
         .includes(needle);
     });
-  }, [tasks, query, statusFilter, priorityFilter]);
+  }, [tasks, query, statusFilter, priorityFilter, assignedFilter, regFilter, fromDate, toDate]);
+
+  // Active-filter chips shown below the toolbar (each removable).
+  const activePills = useMemo(() => {
+    const pills: { key: string; label: string; clear: () => void }[] = [];
+    if (statusFilter) pills.push({ key: "status", label: `Status: ${statusFilter}`, clear: () => setStatusFilter("") });
+    if (priorityFilter) pills.push({ key: "priority", label: `Priority: ${priorityFilter}`, clear: () => setPriorityFilter("") });
+    if (assignedFilter) pills.push({ key: "assigned", label: `Assigned: ${assignedFilter}`, clear: () => setAssignedFilter("") });
+    if (regFilter) pills.push({ key: "reg", label: `Vehicle: ${regFilter}`, clear: () => setRegFilter("") });
+    if (fromDate) pills.push({ key: "from", label: `From: ${new Date(`${fromDate}T00:00:00`).toLocaleDateString("en-GB")}`, clear: () => setFromDate("") });
+    if (toDate) pills.push({ key: "to", label: `To: ${new Date(`${toDate}T00:00:00`).toLocaleDateString("en-GB")}`, clear: () => setToDate("") });
+    return pills;
+  }, [statusFilter, priorityFilter, assignedFilter, regFilter, fromDate, toDate]);
+
+  const clearAllFilters = () => {
+    setStatusFilter(""); setPriorityFilter(""); setAssignedFilter(""); setRegFilter(""); setFromDate(""); setToDate("");
+  };
 
   const openNew = () => { setEditing(null); setShowModal(true); };
   const openEdit = (task: FleetTask) => { setEditing(task); setShowModal(true); };
+  const openDetail = (task: FleetTask, tab: FleetTaskDetailTab = "Task Details") => { setDetailTab(tab); setDetailTask(task); };
+
+  // Open the fixed-position row-actions menu from a kebab button's rect.
+  const openMenu = (e: React.MouseEvent<HTMLButtonElement>, id: number) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMenu((m) => (m?.id === id ? null : { id, top: rect.bottom + 4, right: window.innerWidth - rect.right }));
+  };
+
+  const markComplete = async (task: FleetTask) => {
+    setTasks((rs) => rs.map((r) => (r.id === task.id ? { ...r, status: "Completed" } : r))); // optimistic
+    const updated = await updateFleetTask(task.id, { status: "Completed" });
+    if (updated) toast.success("Marked as complete."); else { toast.error("Couldn't update the task."); load(); }
+  };
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -124,45 +277,26 @@ const FleetTasks: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white font-sans-headline">
+      {loading && <FleetSpinnerLoader />}
       <FleetPageHeader title="Tasks" />
 
       <main className="px-10 py-10">
         <section className="max-w-[1120px] mx-auto flex flex-col gap-5">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch gap-4">
             {statCards.map((s) => (
               <StatCard key={s.title} {...s} />
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="h-12 flex-1 min-w-[240px] max-w-[420px] px-4 border border-neutral-200 rounded flex items-center gap-3">
-              <Search size={18} className="text-neutral-400" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search tasks…"
-                className="w-full outline-none text-sm text-neutral-900 placeholder:text-neutral-400"
-              />
-            </div>
+          {/* Search + actions */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search task"
+              className="w-full lg:max-w-[491px] h-12 px-5 rounded bg-white border border-neutral-200 outline-none text-sm text-neutral-900 placeholder:text-neutral-400 font-light focus:border-neutral-400"
+            />
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={openNew}
-                className="h-12 px-6 bg-neutral-900 rounded text-white text-sm font-medium inline-flex items-center gap-2 hover:bg-black transition-colors"
-              >
-                <Plus size={18} />
-                New Task
-              </button>
-              <div className="w-40"><FleetSelect placeholder="Status" value={statusFilter} options={statusOptions} onChange={setStatusFilter} menuPortal /></div>
-              <div className="w-36"><FleetSelect placeholder="Priority" value={priorityFilter} options={priorityOptions} onChange={setPriorityFilter} menuPortal unsorted /></div>
-              <button
-                type="button"
-                onClick={load}
-                className="h-12 px-4 border border-neutral-200 rounded text-sm font-medium text-neutral-900 inline-flex items-center gap-2 hover:bg-neutral-50"
-              >
-                <RefreshCw size={16} />
-                Refresh
-              </button>
               {/* Card (default) / List view toggle. */}
               <div className="h-12 flex items-center rounded border border-neutral-200 overflow-hidden">
                 <button
@@ -184,124 +318,223 @@ const FleetTasks: React.FC = () => {
                   <ListIcon size={16} />
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={openNew}
+                className="h-12 px-10 bg-black rounded text-white text-base font-medium inline-flex items-center justify-center gap-2 hover:bg-neutral-800"
+              >
+                Add Task
+              </button>
             </div>
           </div>
 
-          {loading ? (
-            <div className="h-48 flex items-center justify-center text-neutral-500 text-sm gap-2">
-              <Loader2 size={18} className="animate-spin" />
-              Loading tasks…
+          {/* Filters — closed each reads as a Figma "Label ⌄" chip; opening shows the select menu. */}
+          <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-7 flex-wrap">
+            <FilterChip placeholder="Status" value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
+            <FilterChip placeholder="Priority" value={priorityFilter} options={priorityOptions} onChange={setPriorityFilter} unsorted />
+            <FilterChip placeholder="Assigned To" value={assignedFilter} options={assignedOptions} onChange={setAssignedFilter} />
+            <FilterChip placeholder="Vehicle Reg" value={regFilter} options={regOptions} onChange={setRegFilter} />
+            <div className="flex items-center gap-2 md:ml-auto">
+              <span className="text-sm text-[#444] shrink-0">Date Range</span>
+              <DateField value={fromDate} onChange={setFromDate} placeholder="From" />
+              <DateField value={toDate} onChange={setToDate} placeholder="To" />
             </div>
-          ) : visible.length === 0 ? (
+          </div>
+
+          {/* Active filter pills — each removable, plus Clear all. */}
+          {activePills.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {activePills.map((p) => (
+                <span key={p.key} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white rounded-full border border-neutral-200 text-sm text-neutral-700">
+                  {p.label}
+                  <button type="button" onClick={p.clear} className="text-neutral-400 hover:text-neutral-700" aria-label={`Remove ${p.label} filter`}>
+                    <X size={14} />
+                  </button>
+                </span>
+              ))}
+              <button type="button" onClick={clearAllFilters} className="ml-1 text-sm text-neutral-600 hover:underline">
+                Clear all
+              </button>
+            </div>
+          )}
+
+          {loading ? null : visible.length === 0 ? (
             <div className="h-48 flex flex-col items-center justify-center text-center gap-1">
               <p className="text-neutral-900 text-base font-semibold">No tasks</p>
               <p className="text-neutral-500 text-sm">Create your first task to get started.</p>
             </div>
           ) : view === "list" ? (
-            <div className="border border-neutral-100 rounded-lg overflow-hidden">
-              <div className={`grid ${LIST_GRID} gap-4 bg-neutral-50 px-5 py-3 text-xs font-semibold text-neutral-500 uppercase`}>
-                <span>Task</span>
-                <span>Status</span>
-                <span>Priority</span>
-                <span>Due</span>
-                <span>Assigned</span>
-                <span>Action</span>
-              </div>
-              {visible.map((task) => (
-                <div
-                  key={task.id}
-                  className={`w-full grid ${LIST_GRID} gap-4 px-5 py-4 text-left border-t border-neutral-100 hover:bg-neutral-50 transition-colors items-center`}
-                >
-                  <button type="button" onClick={() => openEdit(task)} className="text-left min-w-0">
-                    <span className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-neutral-900 text-sm font-semibold truncate hover:underline">{task.title}</span>
-                      {task.attachment_path && (
-                        <Paperclip size={13} className="shrink-0 text-neutral-400" aria-label="Has attachment" />
-                      )}
-                    </span>
-                    {task.vehicle_registration && (
-                      <span className="block text-neutral-400 text-xs mt-0.5">{task.vehicle_registration}</span>
-                    )}
-                  </button>
-                  <span>
-                    {/* Status keeps its own colour (Pending stays grey even when overdue);
-                        overdue is shown by the red due date + the Overdue widget. */}
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${statusBadge(task.status)}`}>
-                      {task.status || "Pending"}
-                    </span>
-                  </span>
-                  <span>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${priorityBadge(task.priority)}`}>{task.priority || "—"}</span>
-                  </span>
-                  <span className={`text-sm ${task.is_overdue ? "text-red-600 font-medium" : "text-neutral-700"}`}>
-                    {fmtDue(task.due_date, task.due_time)}
-                  </span>
-                  <span className="text-neutral-700 text-sm truncate">{task.assigned_user || "—"}</span>
-                  <span className="flex justify-start items-center gap-3">
-                    <button type="button" onClick={() => openEdit(task)} aria-label="View / edit">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => setDeleteTarget(task)} aria-label="Delete task" title="Delete">
-                      <img src={TrashIcon} alt="" />
-                    </button>
-                  </span>
+            <div className="border border-neutral-100 rounded-lg overflow-x-auto">
+              <div className="min-w-[920px]">
+                <div className={`grid ${LIST_GRID} gap-2 bg-neutral-100 px-4 h-12 items-center text-neutral-900 text-sm font-semibold`}>
+                  <TaskCheckbox
+                    checked={visible.length > 0 && visible.every((t) => selected.has(t.id))}
+                    onChange={() =>
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        const allOn = visible.every((t) => next.has(t.id));
+                        visible.forEach((t) => (allOn ? next.delete(t.id) : next.add(t.id)));
+                        return next;
+                      })
+                    }
+                    label="Select all"
+                  />
+                  <span>TASK</span>
+                  <span>ASSIGNED TO</span>
+                  <span>VEHICLE</span>
+                  <span>DUE DATE</span>
+                  <span>STATUS</span>
+                  <span>PRIORITY</span>
+                  <span />
                 </div>
-              ))}
+                {visible.map((task) => (
+                  <div
+                    key={task.id}
+                    className={`grid ${LIST_GRID} gap-2 px-4 py-3 items-start text-sm border-t border-neutral-100 hover:bg-neutral-50 transition-colors`}
+                  >
+                    <TaskCheckbox
+                      checked={selected.has(task.id)}
+                      onChange={() =>
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          next.has(task.id) ? next.delete(task.id) : next.add(task.id);
+                          return next;
+                        })
+                      }
+                      label={`Select ${task.title}`}
+                    />
+                    <div className="min-w-0">
+                      <button type="button" onClick={() => openEdit(task)} className="text-left flex items-center gap-1.5 max-w-full">
+                        <span className="text-neutral-900 text-sm font-semibold truncate hover:underline">{task.title}</span>
+                        {task.attachment_path && <Paperclip size={13} className="shrink-0 text-neutral-400" aria-label="Has attachment" />}
+                      </button>
+                      {task.description && <p className="text-neutral-500 text-xs mt-0.5 line-clamp-2">{task.description}</p>}
+                    </div>
+                    <span className="text-neutral-600 truncate">{task.assigned_user || "—"}</span>
+                    <span className="text-neutral-600 truncate">{task.vehicle_registration || "—"}</span>
+                    <span className={task.is_overdue ? "text-red-600 font-medium" : "text-neutral-600"}>{fmtDue(task.due_date, task.due_time)}</span>
+                    <span>
+                      <span className={`inline-flex items-center px-2 py-1 rounded text-[10px] font-medium uppercase ${statusBadge(task.status)}`}>
+                        {task.status || "Pending"}
+                      </span>
+                    </span>
+                    <span>
+                      <span className={`inline-flex items-center px-2 py-1 rounded text-[10px] font-medium uppercase ${priorityBadge(task.priority)}`}>
+                        {task.priority || "—"}
+                      </span>
+                    </span>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        aria-label="Row actions"
+                        onClick={(e) => openMenu(e, task.id)}
+                        className="text-neutral-400 hover:text-neutral-700"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {visible.map((task) => (
-                <div
-                  key={task.id}
-                  className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 bg-white flex flex-col gap-3 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <button type="button" onClick={() => openEdit(task)} className="text-left min-w-0 flex-1">
-                      <span className="flex items-start gap-1.5 min-w-0">
-                        <span className="text-neutral-900 text-sm font-semibold hover:underline line-clamp-2">{task.title}</span>
-                        {task.attachment_path && (
-                          <Paperclip size={13} className="shrink-0 mt-0.5 text-neutral-400" aria-label="Has attachment" />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+              {visible.map((task) => {
+                const overdue = task.is_overdue && (task.status || "").toLowerCase() !== "completed";
+                return (
+                  <div
+                    key={task.id}
+                    className="rounded-lg border border-neutral-200 p-5 flex flex-col gap-3 hover:shadow-sm transition"
+                  >
+                    {/* title + description + kebab */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => openDetail(task)}
+                          className="text-left text-neutral-900 text-base font-semibold hover:underline line-clamp-2"
+                        >
+                          {task.title}
+                        </button>
+                        {task.description && (
+                          <div className="text-neutral-500 text-sm mt-1 line-clamp-2">{task.description}</div>
                         )}
-                      </span>
-                    </button>
-                    <div className="shrink-0 flex items-center gap-3">
-                      <button type="button" onClick={() => openEdit(task)} aria-label="View / edit">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button type="button" onClick={() => setDeleteTarget(task)} aria-label="Delete task" title="Delete">
-                        <img src={TrashIcon} alt="" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${statusBadge(task.status)}`}>
-                      {task.status || "Pending"}
-                    </span>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${priorityBadge(task.priority)}`}>{task.priority || "—"}</span>
-                  </div>
-                  <div className="h-px bg-neutral-100" />
-                  <div className="flex flex-col gap-1.5 text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-neutral-400">Due</span>
-                      <span className={task.is_overdue ? "text-red-600 font-medium" : "text-neutral-700"}>{fmtDue(task.due_date, task.due_time)}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-neutral-400">Assigned</span>
-                      <span className="text-neutral-700 truncate max-w-[60%]">{task.assigned_user || "—"}</span>
-                    </div>
-                    {task.vehicle_registration && (
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-neutral-400">Vehicle</span>
-                        <span className="text-neutral-700">{task.vehicle_registration}</span>
                       </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        {task.attachment_path && <Paperclip size={14} className="text-neutral-400" aria-label="Has attachment" />}
+                        <button type="button" aria-label="Task actions" onClick={(e) => openMenu(e, task.id)} className="p-1 text-neutral-400 hover:text-neutral-700 rounded">
+                          <MoreVertical size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {task.vehicle_registration && (
+                      <div className="text-sm text-neutral-600">{task.vehicle_registration}</div>
                     )}
+                    <div className="text-sm text-neutral-700">
+                      Assigned to: <span className="font-semibold">{task.assigned_user || "—"}</span>
+                    </div>
+
+                    {/* footer pinned to the bottom */}
+                    <div className="mt-auto">
+                      <div className="h-px bg-neutral-100 w-full" />
+                      <div className="flex items-center justify-between pt-3 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${statusBadge(overdue ? "Overdue" : task.status)}`}>
+                            {overdue ? "Overdue" : task.status || "Pending"}
+                          </span>
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${priorityBadge(task.priority)}`}>{task.priority || "—"}</span>
+                        </div>
+                        <span className="text-neutral-600 text-xs">
+                          Due: <span className={`font-semibold ${overdue ? "text-red-600" : ""}`}>{fmtDue(task.due_date, task.due_time)}</span>
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
       </main>
+
+      {/* Shared row-actions menu (list + card), fixed-positioned to escape clipping. */}
+      {menu && (() => {
+        const task = visible.find((t) => t.id === menu.id);
+        if (!task) return null;
+        return (
+          <>
+            <div className="fixed inset-0 z-[80]" onClick={() => setMenu(null)} />
+            <div style={{ position: "fixed", top: menu.top, right: menu.right }} className="z-[90] w-44 bg-white rounded-lg shadow-lg border border-neutral-200 py-1">
+              <button type="button" onClick={() => { setMenu(null); openDetail(task); }} className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
+                View Details
+              </button>
+              {(task.status || "").toLowerCase() !== "completed" && (
+                <button type="button" onClick={() => { setMenu(null); markComplete(task); }} className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
+                  Mark as Complete
+                </button>
+              )}
+              <button type="button" onClick={() => { setMenu(null); openEdit(task); }} className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
+                Edit
+              </button>
+              <button type="button" onClick={() => { setMenu(null); setDeleteTarget(task); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-neutral-50">
+                Delete
+              </button>
+            </div>
+          </>
+        );
+      })()}
+
+      {detailTask && (
+        <FleetTaskDetailSlider
+          key={`${detailTask.id}-${detailTab}`}
+          task={detailTask}
+          initialTab={detailTab}
+          onClose={() => setDetailTask(null)}
+          onEdit={() => { setEditing(detailTask); setShowModal(true); setDetailTask(null); }}
+          onRefresh={load}
+        />
+      )}
 
       {showModal && (
         <FleetTaskModal

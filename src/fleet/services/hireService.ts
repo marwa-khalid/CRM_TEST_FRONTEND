@@ -361,3 +361,14 @@ export const getDueReminders = async (): Promise<FleetDueReminder[]> => {
     return [];
   }
 };
+
+// Every vehicle expiry (road fund / plate / MOT) with its actual date — for the
+// Fleet calendar (not limited to the 7-day due window like getDueReminders).
+export const listAllExpiries = async (): Promise<FleetDueReminder[]> => {
+  try {
+    const { data } = await fleetApi.get("/fleet/reminders/expiries");
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};

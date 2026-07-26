@@ -43,6 +43,43 @@ const fleetSelectStyles: StylesConfig<Option, false> = {
   }),
 };
 
+// Borderless "chip" trigger — closed it reads as plain "Label ⌄" text (Figma
+// filter chips): no box, and the label + chevron hug each other (the control
+// shrink-wraps to its content). The open menu keeps the standard select look,
+// just given a sensible min-width since the trigger itself is narrow.
+const fleetChipSelectStyles: StylesConfig<Option, false> = {
+  ...fleetSelectStyles,
+  container: (base) => ({ ...base, width: "auto" }),
+  control: (base) => ({
+    ...base,
+    minHeight: "40px",
+    width: "auto",
+    border: "none",
+    backgroundColor: "transparent",
+    boxShadow: "none",
+    padding: 0,
+    flexWrap: "nowrap",
+    cursor: "pointer",
+    "&:hover": {},
+  }),
+  // flex 0 0 auto stops the value box from growing, so the chevron sits right
+  // after the text instead of being pushed to a far right edge.
+  valueContainer: (base) => ({ ...base, padding: 0, flex: "0 0 auto", width: "auto" }),
+  placeholder: (base) => ({ ...base, color: "#444444", fontWeight: 400, margin: 0, whiteSpace: "nowrap" }),
+  singleValue: (base) => ({ ...base, color: "#444444", fontWeight: 400, margin: 0, whiteSpace: "nowrap" }),
+  dropdownIndicator: (base) => ({ ...base, color: "#444444", padding: "0 0 0 4px" }),
+  menu: (base) => ({
+    ...base,
+    borderRadius: "6px",
+    overflow: "hidden",
+    border: "1px solid #EEEEEE",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+    zIndex: 30,
+    minWidth: "180px",
+    width: "max-content",
+  }),
+};
+
 // Fleet-local form primitives, so the module never imports Claims components.
 const FIELD_BOX =
   "w-full self-stretch px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 " +
@@ -532,6 +569,8 @@ interface SelectProps {
   // order is meaningful (weekdays Mon→Sun, priority Low→High) to keep it as given.
   unsorted?: boolean;
   menuPlacement?: "auto" | "bottom" | "top";
+  // Borderless "Label ▾" chip trigger (the open menu is unchanged).
+  chip?: boolean;
 }
 
 // Ascending by label, but keep an empty-value placeholder (e.g. "All") pinned at
@@ -549,7 +588,7 @@ const sortOptions = (options: Option[]): Option[] => {
 };
 
 export const FleetSelect: React.FC<SelectProps> = ({
-  label, placeholder = "Select", value, options, onChange, onBlur, disabled, menuPortal, unsorted, menuPlacement = "auto",
+  label, placeholder = "Select", value, options, onChange, onBlur, disabled, menuPortal, unsorted, menuPlacement = "auto", chip,
 }) => (
   <div className={WRAP}>
     {label && <FieldLabel text={label} />}
@@ -560,7 +599,10 @@ export const FleetSelect: React.FC<SelectProps> = ({
       onBlur={onBlur}
       isDisabled={disabled}
       placeholder={placeholder}
-      styles={menuPortal ? { ...fleetSelectStyles, menuPortal: (base) => ({ ...base, zIndex: 9999 }) } : fleetSelectStyles}
+      styles={((): StylesConfig<Option, false> => {
+        const s = chip ? fleetChipSelectStyles : fleetSelectStyles;
+        return menuPortal ? { ...s, menuPortal: (base) => ({ ...base, zIndex: 9999 }) } : s;
+      })()}
       className="font-sans-headline text-base"
       classNamePrefix="fleet-select"
       menuPlacement={menuPlacement}

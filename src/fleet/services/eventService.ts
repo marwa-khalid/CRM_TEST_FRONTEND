@@ -21,7 +21,14 @@ export interface FleetEvent {
   attachment_path?: string | null;
   attachment_name?: string | null;
   vehicle_registration?: string | null;
+  source?: string | null;       // "manual" | "system"
+  source_type?: string | null;  // e.g. plating_expiry / mot_expiry / road_fund_licence_expiry
 }
+
+// The backend source_type values for the auto-synced vehicle-expiry events. The
+// Fleet calendar plots expiries from a dedicated endpoint, so these system
+// events are filtered out to avoid showing each expiry twice.
+export const EXPIRY_EVENT_SOURCE_TYPES = ["road_fund_licence_expiry", "plating_expiry", "mot_expiry"];
 
 export interface FleetEventPayload {
   title: string;

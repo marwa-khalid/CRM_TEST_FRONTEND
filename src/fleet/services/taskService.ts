@@ -145,3 +145,65 @@ export const uploadTaskAttachment = async (file: File): Promise<{ path: string; 
     return null;
   }
 };
+
+// ── Notes + history (shared /tasks backend — same endpoints Claims uses) ──────
+export interface FleetTaskNote {
+  id: number;
+  text: string;
+  author_name?: string | null;
+  created_at?: string | null;
+}
+export interface FleetTaskHistoryEvent {
+  id: number;
+  title: string;
+  detail?: string | null;
+  actor_name?: string | null;
+  created_at?: string | null;
+}
+
+export const getFleetTaskNotes = async (id: number): Promise<FleetTaskNote[]> => {
+  try {
+    const { data } = await fleetApi.get(`/tasks/${id}/notes`);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
+
+export const addFleetTaskNote = async (id: number, text: string): Promise<FleetTaskNote | null> => {
+  try {
+    const { data } = await fleetApi.post(`/tasks/${id}/notes`, { text });
+    return data ?? null;
+  } catch (error) {
+    console.warn("Unable to add note.", error);
+    return null;
+  }
+};
+
+export const deleteFleetTaskNote = async (noteId: number): Promise<boolean> => {
+  try {
+    await fleetApi.delete(`/tasks/notes/${noteId}`);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export const getFleetTaskHistory = async (id: number): Promise<FleetTaskHistoryEvent[]> => {
+  try {
+    const { data } = await fleetApi.get(`/tasks/${id}/history`);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
+
+// Short-lived presigned URL for viewing/downloading an attachment (S3 key).
+export const getFleetAttachmentUrl = async (key: string): Promise<string> => {
+  try {
+    const { data } = await fleetApi.get("/tasks/attachment-url", { params: { key } });
+    return data?.url || (typeof data === "string" ? data : "");
+  } catch {
+    return "";
+  }
+};

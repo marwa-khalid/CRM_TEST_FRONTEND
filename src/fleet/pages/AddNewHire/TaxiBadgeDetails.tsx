@@ -12,12 +12,24 @@ import {
   getHireDocumentFileUrl,
   type HireDocument,
 } from "../../services/hireService";
+import UploadFileIcon from "../../assets/icons/UploadFile.svg";
+import RemoveIcon from "../../assets/icons/Remove.svg";
 import type { TaxiBadgeForm } from "../../types/hire";
 import { useHire } from "./HireContext";
 
 const BADGE_DOC_TYPE = "taxi_badge";
 const IMG_EXT = /\.(png|jpe?g|gif|webp|bmp)$/i;
 const LOW_CONFIDENCE_MSG = "Low Confidence OCR Result - Please Verify";
+
+// dd-mm-yy for the document date pills (Postgres timestamps lack a "Z" — append
+// it so the date is read as UTC, matching the rest of the fleet).
+const shortDate = (iso?: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso.endsWith("Z") || iso.includes("+") ? iso : `${iso}Z`);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }).replace(/\//g, "-");
+};
 
 const TO_BACKEND: Record<keyof TaxiBadgeForm, string> = {
   badgeNumber: "taxi_badge_number",
@@ -41,6 +53,14 @@ const toIsoDate = (value: string): string => {
   return match ? `${match[3]}-${match[2]}-${match[1]}` : value;
 };
 
+const hasLowBadgeNumberConfidence = (value: string): boolean => {
+  const cleaned = value.trim();
+  if (!cleaned) return true;
+  // Solihull badges are normally NN/NNNNN. Glare can hide the final digit, but
+  // keeping the visible part is still better than leaving the field blank.
+  return /^\d{2}\/\d{1,4}$/.test(cleaned);
+};
+
 const TaxiBadgeDetails: React.FC = () => {
   const [form, setForm] = useState<TaxiBadgeForm>(EMPTY);
   const [ocrAttempted, setOcrAttempted] = useState(false);
@@ -49,7 +69,7 @@ const TaxiBadgeDetails: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [badgeLoading, setBadgeLoading] = useState(false);
   const [viewingDoc, setViewingDoc] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<HireDocument | null>(null);
 
   const { hire, hireId, save } = useHire();
   const hydrated = useRef(false);
@@ -90,12 +110,12 @@ const TaxiBadgeDetails: React.FC = () => {
   // Delete the current (latest) badge file; a previous upload, if any, becomes the
   // shown one, otherwise the screen reverts to the upload prompt.
   const handleDeleteBadge = async () => {
-    setConfirmDelete(false);
-    const latest = badgeDocs[0];
-    if (!hireId || !latest) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    if (!hireId || !target) return;
     setBadgeLoading(true);
     try {
-      await deleteHireDocument(hireId, latest.id);
+      await deleteHireDocument(hireId, target.id);
       const docs = badgesOf(await getHireDocuments(hireId));
       setBadgeDocs(docs);
       if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
@@ -154,8 +174,20 @@ const TaxiBadgeDetails: React.FC = () => {
     });
     save(fullSave);
 
-    if (Object.keys(updates).length) toast.success("Taxi badge details extracted.");
-    else toast.info("Couldn't read the badge — please enter the details manually.");
+    if (!Object.keys(updates).length) {
+      toast.info("Couldn't read the badge — please enter the details manually.");
+    } else if (
+      !updates.badgeNumber ||
+      hasLowBadgeNumberConfidence(updates.badgeNumber) ||
+      !updates.name ||
+      !updates.expiry ||
+      !updates.council ||
+      !updates.badgeType
+    ) {
+      toast.warn("Taxi badge partially extracted. Please verify the highlighted fields.");
+    } else {
+      toast.success("Taxi badge details extracted.");
+    }
   };
 
   return (
@@ -177,29 +209,37 @@ const TaxiBadgeDetails: React.FC = () => {
                 <div className="px-6 py-8 text-neutral-500 text-sm">PDF uploaded — {badgeDocs[0].filename}</div>
               )}
             </div>
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => openBadge(badgeDocs[0].id)}
-                className="min-w-0 truncate text-left text-neutral-700 text-sm hover:underline"
-                title="View file"
-              >
-                {badgeDocs[0].filename || "Taxi badge"}
-              </button>
-              <div className="shrink-0 flex items-center gap-4">
+            <div className="self-stretch px-4 py-3 rounded-lg bg-neutral-50 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => openBadge(badgeDocs[0].id)}
+                  className="min-w-0 truncate text-left text-neutral-900 text-base font-medium hover:underline"
+                  title="View file"
+                >
+                  {badgeDocs[0].filename || "Taxi badge"}
+                </button>
+                <span className="px-3 py-1 bg-neutral-100 rounded-full text-neutral-500 text-xs shrink-0">
+                  {shortDate(badgeDocs[0].created_at)}
+                </span>
+              </div>
+              <div className="shrink-0 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setUploadOpen(true)}
-                  className="text-neutral-900 text-sm font-medium underline underline-offset-2"
+                  className="h-8 px-3 rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm font-medium inline-flex items-center gap-2 hover:bg-neutral-50"
                 >
+                  <img src={UploadFileIcon} alt="" className="w-4 h-4" />
                   Replace
                 </button>
                 <button
                   type="button"
-                  onClick={() => setConfirmDelete(true)}
-                  className="text-red-600 text-sm font-medium underline underline-offset-2"
+                  onClick={() => setDeleteTarget(badgeDocs[0])}
+                  aria-label="Delete"
+                  title="Delete"
+                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded hover:bg-neutral-100"
                 >
-                  Delete
+                  <img src={RemoveIcon} alt="" className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -234,7 +274,7 @@ const TaxiBadgeDetails: React.FC = () => {
             value={form.badgeNumber}
             onChange={(v) => set("badgeNumber", v)}
             onBlur={() => saveField("badgeNumber")}
-            error={ocrAttempted && !form.badgeNumber ? LOW_CONFIDENCE_MSG : undefined}
+            error={ocrAttempted && hasLowBadgeNumberConfidence(form.badgeNumber) ? LOW_CONFIDENCE_MSG : undefined}
           />
           <FleetTextInput
             label="Name on Badge"
@@ -285,13 +325,13 @@ const TaxiBadgeDetails: React.FC = () => {
         onView={openBadge}
       />
 
-      {confirmDelete && (
+      {deleteTarget && (
         <FleetConfirmModal
           title="Delete Taxi Badge"
-          message="Are you sure you want to delete the current taxi badge file?"
+          message={`Are you sure you want to delete "${deleteTarget.filename || "this taxi badge file"}"?`}
           confirmLabel="Delete"
           onConfirm={handleDeleteBadge}
-          onCancel={() => setConfirmDelete(false)}
+          onCancel={() => setDeleteTarget(null)}
         />
       )}
     </div>

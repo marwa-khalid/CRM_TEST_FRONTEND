@@ -5,23 +5,14 @@ import type { VehicleDocument } from "../services/vehicleRecordService";
 
 // Uploaded documents — Figma "Current" report card + "Previous Reports (N)" list
 // with per-row dates, remove icons and a Show All Reports expander. Shared across
-// Vehicle Details (grey), Servicing and Licensing Authority (blue).
-type Variant = "blue" | "grey";
-const THEME: Record<Variant, { outline: string; file: string; currentPill: string; showAll: string; heading: string }> = {
-  blue: {
-    outline: "outline-blue-200",
-    file: "text-blue-600",
-    currentPill: "bg-blue-100 text-blue-500",
-    showAll: "text-blue-500",
-    heading: "text-neutral-900 text-base font-medium leading-4",
-  },
-  grey: {
-    outline: "outline-neutral-200",
-    file: "text-neutral-900",
-    currentPill: "bg-neutral-900 text-white",
-    showAll: "text-neutral-900",
-    heading: "text-neutral-500 text-sm font-semibold uppercase tracking-wide leading-4",
-  },
+// Vehicle Details, Servicing and Licensing Authority — all grey (Fleet has no blue).
+const t = {
+  outline: "outline-neutral-200",
+  bg: "bg-neutral-50",
+  file: "text-neutral-900",
+  currentPill: "bg-neutral-900 text-white",
+  showAll: "text-neutral-500",
+  heading: "text-neutral-500 text-sm font-semibold uppercase tracking-wide leading-4",
 };
 
 // dd-mm-yy (Postgres timestamps lack a "Z" — append it so it's read as UTC).
@@ -43,18 +34,16 @@ const FleetUploadedDocuments: React.FC<{
   docs: VehicleDocument[];
   onView: (id: number) => void;
   onRemove: (doc: VehicleDocument) => void;
-  variant?: Variant;
-}> = ({ docs, onView, onRemove, variant = "blue" }) => {
+}> = ({ docs, onView, onRemove }) => {
   const [showAll, setShowAll] = useState(false);
   if (docs.length === 0) return null;
-  const t = THEME[variant];
   const FILE = `${t.file} text-base font-medium font-sans-headline leading-4 truncate text-left hover:underline`;
   const [current, ...previous] = docs;
   const shown = showAll ? previous : previous.slice(0, 2);
   return (
     <div className="flex flex-col gap-3">
       {/* Current */}
-      <div className={`self-stretch px-4 py-3 rounded-sm outline outline-1 -outline-offset-1 ${t.outline} flex items-center justify-between gap-3`}>
+      <div className={`self-stretch px-4 py-3 rounded-lg ${t.bg} flex items-center justify-between gap-3`}>
         <div className="flex items-center gap-3 min-w-0">
           <button type="button" onClick={() => onView(current.id)} className={FILE}>{current.filename || "Document"}</button>
           <span className={`px-3 py-1 rounded-full text-xs shrink-0 ${t.currentPill}`}>Current</span>
@@ -64,7 +53,7 @@ const FleetUploadedDocuments: React.FC<{
 
       {/* Previous reports */}
       {previous.length > 0 && (
-        <div className={`self-stretch px-4 py-3 rounded-sm outline outline-1 -outline-offset-1 ${t.outline} flex flex-col gap-3`}>
+        <div className={`self-stretch px-4 py-3 rounded-lg ${t.bg} flex flex-col gap-3`}>
           <div className={t.heading}>Previous Reports ({previous.length})</div>
           {shown.map((doc, i) => (
             <React.Fragment key={doc.id}>

@@ -96,7 +96,7 @@ const FIELD_BOX_ERROR =
 const FIELD_BOX_HIGHLIGHT =
   "w-full self-stretch px-5 py-4 bg-neutral-100 rounded outline outline-1 -outline-offset-1 outline-neutral-200 " +
   "text-base font-light text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-400 " +
-  "disabled:bg-blue-50 disabled:text-neutral-500 leading-4";
+  "disabled:bg-neutral-100 disabled:text-neutral-500 leading-4";
 
 const LABEL = "text-neutral-700 text-sm font-medium font-sans-headline";
 const WRAP = "w-full min-w-0 flex flex-col gap-2 font-sans-headline";

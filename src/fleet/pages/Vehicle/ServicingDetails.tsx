@@ -24,6 +24,7 @@ import {
   type VehicleDocument,
 } from "../../services/vehicleRecordService";
 import { useVehicle } from "./VehicleContext";
+import { useHire } from "../AddNewHire/HireContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
@@ -88,16 +89,19 @@ const ServicingDetails: React.FC = () => {
   // Invoice history for the active card — every uploaded invoice stays viewable
   // (latest + "Show all"), and replacing one adds a new row rather than overwriting.
   // Keyed on the id (not the record object) so editing a field doesn't refetch.
-  const loadInvoices = useCallback(async () => {
+  // `silent` refreshes the list without the full-screen spinner — used after an
+  // upload/delete, where the modal already shows its own progress and a second
+  // overlay would flash over it.
+  const loadInvoices = useCallback(async (silent = false) => {
     if (!recordId || !activeId) {
       setInvoiceDocs([]);
       return;
     }
-    setInvoicesLoading(true);
+    if (!silent) setInvoicesLoading(true);
     try {
       setInvoiceDocs(await listVehicleDocuments(recordId, "service_invoice", undefined, activeId));
     } finally {
-      setInvoicesLoading(false);
+      if (!silent) setInvoicesLoading(false);
     }
   }, [recordId, activeId]);
 
@@ -124,7 +128,7 @@ const ServicingDetails: React.FC = () => {
     setInvoiceDocs((rows) => rows.filter((r) => r.id !== target.id)); // optimistic
     const ok = await deleteVehicleDocument(recordId, target.id);
     if (ok) toast.success("Document removed.");
-    else { toast.error("Couldn't remove the document."); loadInvoices(); }
+    else { toast.error("Couldn't remove the document."); loadInvoices(true); }
   };
 
   // Mount-scoped readiness so the loader shows over the (empty) fields until the
@@ -156,6 +160,11 @@ const ServicingDetails: React.FC = () => {
     load();
   }, [load]);
 
+  // Buffer of pending edits per service id, flushed on navigation rather than
+  // PATCHed on every field — one request per screen instead of dozens.
+  const { registerFlusher } = useHire();
+  const pendingRef = useRef<Record<number, Record<string, unknown>>>({});
+
   const patch = async (field: string, value: unknown) => patchMany({ [field]: value });
 
   // Several fields at once — used when a postcode/address lookup fills both.
@@ -167,9 +176,23 @@ const ServicingDetails: React.FC = () => {
       [active.id]: (prev[active.id] || []).filter((field) => !touched.includes(field)),
     }));
     setServices((rows) => rows.map((r) => (r.id === active.id ? { ...r, ...fields } : r)));
-    const updated = await updateVehicleService(recordId, active.id, fields);
-    if (updated) setServices((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
+    // Buffer instead of PATCHing now — flushPending persists it on navigation.
+    pendingRef.current[active.id] = { ...(pendingRef.current[active.id] || {}), ...fields };
   };
+
+  // Persist every service card's buffered edits (called before the wizard
+  // navigates away). Merges each server response back into local state.
+  const flushPending = useCallback(async () => {
+    if (!recordId) return;
+    const buffers = pendingRef.current;
+    pendingRef.current = {};
+    for (const [idStr, fields] of Object.entries(buffers)) {
+      if (!fields || Object.keys(fields).length === 0) continue;
+      const updated = await updateVehicleService(recordId, Number(idStr), fields);
+      if (updated) setServices((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
+    }
+  }, [recordId]);
+  useEffect(() => registerFlusher(flushPending), [registerFlusher, flushPending]);
 
   // Top CTA — just add a new (blank) service card and make it active. Uploading
   // its invoice is done from the card's own "Upload Service Invoice" button.
@@ -240,12 +263,13 @@ const ServicingDetails: React.FC = () => {
     const updated = count ? await updateVehicleService(recordId, targetId, payload) : null;
     const finalRecord = updated ?? stored;
     if (finalRecord) setServices((rows) => rows.map((r) => (r.id === targetId ? finalRecord : r)));
-    await loadInvoices();
+    // Silent — the upload modal's own progress bar is the only loader on screen.
+    await loadInvoices(true);
 
     if (!count) {
       toast.warn("Invoice saved, but nothing could be read from it. Please enter the details manually.");
     } else {
-      toast.success(`Invoice read — ${count} field${count === 1 ? "" : "s"} filled. Please check before saving.`);
+      toast.success("Invoice read. Please check the details before saving.");
     }
   };
 
@@ -369,7 +393,7 @@ const ServicingDetails: React.FC = () => {
                 {/* )} */}
               </div>
               {/* Uploaded service invoices — current + previous reports (Figma). */}
-              <FleetUploadedDocuments variant="blue" docs={invoiceDocs} onView={openInvoice} onRemove={setDeleteDoc} />
+              <FleetUploadedDocuments docs={invoiceDocs} onView={openInvoice} onRemove={setDeleteDoc} />
               <FleetTextInput
                 label="Servicing Garage Name"
                 placeholder="Enter Garage Name"

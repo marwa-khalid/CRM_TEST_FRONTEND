@@ -70,6 +70,7 @@ export default function FleetOperations() {
   const [loading, setLoading] = useState(true);
   const [regSel, setRegSel] = useState<string[]>([]);
   const [statusSel, setStatusSel] = useState<string[]>([]);
+  const [showAll, setShowAll] = useState(false);
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, v: string) =>
     setter((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]));
 
@@ -166,21 +167,23 @@ export default function FleetOperations() {
             <div className="py-12 text-center text-sm text-neutral-400">No fleet vehicles match.</div>
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {filteredVehicles.slice(0, 8).map((vehicle, index) => (
+              {(showAll ? filteredVehicles : filteredVehicles.slice(0, 8)).map((vehicle, index) => (
                 <VehicleCard key={`${vehicle.registration}-${index}`} vehicle={vehicle} />
               ))}
             </div>
           )}
 
-          <div className="flex justify-center pt-4">
-            <button
-              type="button"
-              onClick={() => window.location.assign("/fleet")}
-              className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200"
-            >
-              View All Vehicles
-            </button>
-          </div>
+          {!showAll && filteredVehicles.length > 8 && (
+            <div className="flex justify-center pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAll(true)}
+                className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200"
+              >
+                View All Vehicles
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </section>

@@ -8,14 +8,17 @@ interface Props {
   onBack: () => void;
   onDiscard: () => void;
   onSaveNext: () => void;
+  // Persist any buffered field edits before leaving the wizard for another page.
+  onBeforeNavigate?: () => Promise<void>;
   saving?: boolean;
   hireId?: number | null;
 }
 
-const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext, saving, hireId }) => {
+const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext, onBeforeNavigate, saving, hireId }) => {
   const navigate = useNavigate();
-  const openFleetPage = (page: "activity" | "document-library") => {
+  const openFleetPage = async (page: "activity" | "document-library") => {
     if (!hireId) return;
+    await onBeforeNavigate?.();
     navigate(`/fleet/${page}?hire_id=${hireId}`);
   };
 

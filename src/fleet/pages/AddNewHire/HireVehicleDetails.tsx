@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetSelect, FleetCreatableSelect, FleetDateField, FleetInlineLoader, currentTime24, formatTime24 } from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
@@ -219,7 +219,7 @@ const HireVehicleDetails: React.FC = () => {
   const [generatedActionLoading, setGeneratedActionLoading] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const { hire, hireId, activeVehicleId, setActiveVehicleId } = useHire();
+  const { hire, hireId, activeVehicleId, setActiveVehicleId, registerFlusher } = useHire();
 
   const active = vehicles[activeIndex];
   const onHire = active.hireStatus === "on_hire";
@@ -333,12 +333,37 @@ const HireVehicleDetails: React.FC = () => {
     await saveRegisterFromVehicle({ ...active, ...updates });
   };
 
-  // Persist a partial (snake-cased columns) to the active vehicle, best-effort.
+  // Per-field typing is buffered (per hire-vehicle id) and flushed once on
+  // navigation, so a screenful of edits is one PATCH instead of one-per-field.
+  const pendingRef = useRef<Record<number, Record<string, unknown>>>({});
+
+  // Persist a partial (snake-cased columns) to the active vehicle immediately —
+  // used by deliberate actions (status, checkout, registration select). Any
+  // buffered copy of the same fields is dropped so a later flush can't overwrite
+  // what this action just wrote.
   const saveActive = (partial: Record<string, unknown>) => {
     const v = vehicles[activeIndex];
-    if (hireId && v?.id) return updateVehicle(hireId, v.id, partial);
+    if (hireId && v?.id) {
+      const buf = pendingRef.current[v.id];
+      if (buf) Object.keys(partial).forEach((k) => delete buf[k]);
+      return updateVehicle(hireId, v.id, partial);
+    }
     return Promise.resolve();
   };
+  const bufferField = (partial: Record<string, unknown>) => {
+    const v = vehicles[activeIndex];
+    if (!v?.id) return;
+    pendingRef.current[v.id] = { ...(pendingRef.current[v.id] || {}), ...partial };
+  };
+  const flushFields = useCallback(async () => {
+    if (!hireId) return;
+    const buffers = pendingRef.current;
+    pendingRef.current = {};
+    for (const [idStr, partial] of Object.entries(buffers)) {
+      if (partial && Object.keys(partial).length) await updateVehicle(hireId, Number(idStr), partial);
+    }
+  }, [hireId]);
+  useEffect(() => registerFlusher(flushFields), [registerFlusher, flushFields]);
 
   const onHireDate = (key: "hireStartDate" | "hireEndDate", column: string, value: string) => {
     const dateTime = value ? currentTime24() : "";
@@ -792,16 +817,16 @@ const HireVehicleDetails: React.FC = () => {
         <h3 className={H3}>Hire Vehicle Details</h3>
         <div className="h-px bg-neutral-100" />
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Vehicle Cost Per Week" placeholder="Enter Cost" inputMode="decimal" value={active.vehicleCostPerWeek} onChange={(v) => set("vehicleCostPerWeek", v)} onBlur={() => saveActive({ vehicle_cost_per_week: active.vehicleCostPerWeek })} />
+          <FleetTextInput label="Vehicle Cost Per Week" placeholder="Enter Cost" inputMode="decimal" value={active.vehicleCostPerWeek} onChange={(v) => set("vehicleCostPerWeek", v)} onBlur={() => bufferField({ vehicle_cost_per_week: active.vehicleCostPerWeek })} />
           {/* Swap vehicles carry the deposit taken on Vehicle1 — only the first card collects it. */}
           {activeIndex === 0 ? (
-            <FleetTextInput label="Security Deposit" placeholder="Enter Deposit" inputMode="decimal" value={active.deposit} onChange={(v) => set("deposit", v)} onBlur={() => saveActive({ deposit: active.deposit })} />
+            <FleetTextInput label="Security Deposit" placeholder="Enter Deposit" inputMode="decimal" value={active.deposit} onChange={(v) => set("deposit", v)} onBlur={() => bufferField({ deposit: active.deposit })} />
           ) : (
             <div />
           )}
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetSelect label="Borough" value={active.borough} options={BOROUGH_OPTIONS} onChange={(v) => { set("borough", v); saveActive({ borough: v }); }} />
+          <FleetSelect label="Borough" value={active.borough} options={BOROUGH_OPTIONS} onChange={(v) => { set("borough", v); bufferField({ borough: v }); }} />
           <div />
         </div>
         <div className="grid grid-cols-2 gap-5">
@@ -821,7 +846,7 @@ const HireVehicleDetails: React.FC = () => {
             value={active.make}
             onChange={(v) => set("make", v)}
             onBlur={async () => {
-              await saveActive({ make: active.make || null });
+              bufferField({ make: active.make || null });
               await saveRegisterFromVehicle(active);
             }}
           />
@@ -831,7 +856,7 @@ const HireVehicleDetails: React.FC = () => {
             value={active.model}
             onChange={(v) => set("model", v)}
             onBlur={async () => {
-              await saveActive({ model: active.model || null });
+              bufferField({ model: active.model || null });
               await saveRegisterFromVehicle(active);
             }}
           />
@@ -844,7 +869,7 @@ const HireVehicleDetails: React.FC = () => {
             options={TRANSMISSION_OPTIONS}
             onChange={async (v) => {
               set("transmission", v);
-              await saveActive({ transmission: v || null });
+              bufferField({ transmission: v || null });
               await saveRegisterFromVehicle({ ...active, transmission: v });
             }}
           />
@@ -896,13 +921,13 @@ const HireVehicleDetails: React.FC = () => {
           <div className="w-96 flex flex-col gap-5">
             <span className="text-neutral-700 text-sm font-medium">Do you want to swap the car?</span>
             <div className="flex items-center gap-5">
-              <Radio checked={active.swapCar === "yes"} label="Yes" onClick={() => { set("swapCar", "yes"); saveActive({ swap_car: "yes" }); }} />
-              <Radio checked={active.swapCar === "no"} label="No" onClick={() => { set("swapCar", "no"); saveActive({ swap_car: "no" }); }} />
+              <Radio checked={active.swapCar === "yes"} label="Yes" onClick={() => { set("swapCar", "yes"); bufferField({ swap_car: "yes" }); }} />
+              <Radio checked={active.swapCar === "no"} label="No" onClick={() => { set("swapCar", "no"); bufferField({ swap_car: "no" }); }} />
             </div>
           </div>
           {active.swapCar === "yes" && (
             <div className="flex-1">
-              <FleetSelect label="Swap Reason" value={active.swapReason} options={SWAP_REASON_OPTIONS} onChange={(v) => { set("swapReason", v); saveActive({ swap_reason: v }); }} />
+              <FleetSelect label="Swap Reason" value={active.swapReason} options={SWAP_REASON_OPTIONS} onChange={(v) => { set("swapReason", v); bufferField({ swap_reason: v }); }} />
             </div>
           )}
         </div>
@@ -914,7 +939,7 @@ const HireVehicleDetails: React.FC = () => {
               <textarea
                 value={active.swapReasonText}
                 onChange={(e) => set("swapReasonText", e.target.value)}
-                onBlur={() => saveActive({ swap_reason_text: active.swapReasonText })}
+                onBlur={() => bufferField({ swap_reason_text: active.swapReasonText })}
                 placeholder="Reason to swap"
                 rows={3}
                 className="h-24 px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
@@ -947,7 +972,7 @@ const HireVehicleDetails: React.FC = () => {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetTextInput label="Total Hire Period" placeholder="Auto-calculated" value={active.totalHirePeriod} onChange={(v) => set("totalHirePeriod", v)} onBlur={() => saveActive({ total_hire_period: active.totalHirePeriod })} />
+          <FleetTextInput label="Total Hire Period" placeholder="Auto-calculated" value={active.totalHirePeriod} onChange={(v) => set("totalHirePeriod", v)} onBlur={() => bufferField({ total_hire_period: active.totalHirePeriod })} />
           <div />
         </div>
       </section>
@@ -1047,12 +1072,12 @@ const HireVehicleDetails: React.FC = () => {
             )}
 
             <div className="grid grid-cols-2 gap-5">
-              <FleetDateField label="Date Received" value={active.dateReceived} onChange={(v) => { set("dateReceived", v); saveActive({ insurance_date_received: v || null }); }} />
+              <FleetDateField label="Date Received" value={active.dateReceived} onChange={(v) => { set("dateReceived", v); bufferField({ insurance_date_received: v || null }); }} />
               <div />
             </div>
             <div className="grid grid-cols-2 gap-5">
-              <FleetDateField label="Policy Start Date" value={active.policyStartDate} onChange={(v) => { set("policyStartDate", v); saveActive({ policy_start_date: v || null }); }} />
-              <FleetDateField label="Policy End Date" value={active.policyEndDate} onChange={(v) => { set("policyEndDate", v); saveActive({ policy_end_date: v || null }); }} />
+              <FleetDateField label="Policy Start Date" value={active.policyStartDate} onChange={(v) => { set("policyStartDate", v); bufferField({ policy_start_date: v || null }); }} />
+              <FleetDateField label="Policy End Date" value={active.policyEndDate} onChange={(v) => { set("policyEndDate", v); bufferField({ policy_end_date: v || null }); }} />
             </div>
           </>
         )}

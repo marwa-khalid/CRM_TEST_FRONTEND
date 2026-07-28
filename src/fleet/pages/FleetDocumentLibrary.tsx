@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Download, Eye, History } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -9,10 +9,22 @@ import {
   type HireDocument,
   type HireRecord,
 } from "../services/hireService";
+import {
+  getHireVehicleRecord,
+  listAllVehicleRecordDocuments,
+  getVehicleDocumentFileUrl,
+} from "../services/vehicleRecordService";
+
+// Documents come from two stores: the hire (driving licence, taxi badge,
+// checklist, user uploads) and the customer-side vehicle record (V5C,
+// plating/MOT certificates, service invoices). We show both, tagging each with
+// its source so file/preview requests hit the right endpoint.
+type LibraryDoc = HireDocument & { __source: "hire" | "vehicle"; __recordId?: number };
 import { fleetReference } from "../utils/reference";
 import { fileTypeIcon } from "../utils/fileIcon";
 import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
 import FleetDocumentSlider, { type FleetDocTab } from "../components/FleetDocumentSlider";
+import FleetUploadModal from "../components/FleetUploadModal";
 
 const PAGE_SIZE = 10;
 const TABS = ["Show All", "Fleet Entrance Document", "User Uploads"] as const;
@@ -61,23 +73,37 @@ const FleetDocumentLibrary: React.FC = () => {
   const hireId = Number(params.get("hire_id")) || null;
 
   const [hire, setHire] = useState<HireRecord | null>(null);
-  const [documents, setDocuments] = useState<HireDocument[]>([]);
+  const [documents, setDocuments] = useState<LibraryDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("Show All");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
-  const [detailDoc, setDetailDoc] = useState<HireDocument | null>(null);
+  const [detailDoc, setDetailDoc] = useState<LibraryDoc | null>(null);
   const [detailTab, setDetailTab] = useState<FleetDocTab>("File Preview");
 
   const load = async () => {
     if (!hireId) { setLoading(false); return; }
     setLoading(true);
-    const [h, docs] = await Promise.all([getHire(hireId), getHireDocuments(hireId)]);
+    const [h, hireDocs, record] = await Promise.all([
+      getHire(hireId),
+      getHireDocuments(hireId),
+      getHireVehicleRecord(hireId),
+    ]);
+    const vehicleDocs = record ? await listAllVehicleRecordDocuments(record.id) : [];
     setHire(h);
-    setDocuments([...docs].sort((a, b) => b.id - a.id));
+    const merged: LibraryDoc[] = [
+      ...hireDocs.map((d) => ({ ...d, __source: "hire" as const })),
+      ...vehicleDocs.map((d) => ({ ...(d as unknown as HireDocument), __source: "vehicle" as const, __recordId: record!.id })),
+    ];
+    // Sort newest-first by upload time, falling back to id within a source.
+    merged.sort((a, b) => {
+      const ta = new Date(a.created_at || "").getTime() || 0;
+      const tb = new Date(b.created_at || "").getTime() || 0;
+      return tb - ta || b.id - a.id;
+    });
+    setDocuments(merged);
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [hireId]);
@@ -99,30 +125,42 @@ const FleetDocumentLibrary: React.FC = () => {
   const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const pages = totalPages <= 8 ? Array.from({ length: totalPages }, (_, i) => i + 1) : [1, 2, 3, 4, 5, 6, 7, 8, "dots", totalPages];
 
-  const openFile = async (doc: HireDocument) => {
-    if (!hireId) return;
-    const url = await getHireDocumentFileUrl(hireId, doc.id);
+  const resolveUrl = (doc: LibraryDoc): Promise<string | null> =>
+    doc.__source === "vehicle" && doc.__recordId
+      ? getVehicleDocumentFileUrl(doc.__recordId, doc.id)
+      : hireId ? getHireDocumentFileUrl(hireId, doc.id) : Promise.resolve(null);
+
+  const openFile = async (doc: LibraryDoc) => {
+    const url = await resolveUrl(doc);
     if (url) window.open(url, "_blank", "noopener,noreferrer");
   };
-  const openDetail = (doc: HireDocument, tab: FleetDocTab) => { setDetailTab(tab); setDetailDoc(doc); };
+  const openDetail = (doc: LibraryDoc, tab: FleetDocTab) => { setDetailTab(tab); setDetailDoc(doc); };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !hireId) return;
-    setUploading(true);
-    try { await uploadHireDocument(hireId, file, "user_upload"); await load(); }
-    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
+  // The upload modal drives its own progress; on success we refresh the list.
+  const handleUploaded = async (file: File) => {
+    if (!hireId) return;
+    await uploadHireDocument(hireId, file, "user_upload");
+    await load();
   };
 
   return (
     <div className="min-h-screen bg-white font-sans-headline">
-      {(loading || uploading) && <FleetSpinnerLoader />}
-      <input ref={fileRef} type="file" className="hidden" onChange={handleUpload} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv" />
+      {loading && <FleetSpinnerLoader />}
+
+      <FleetUploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onUploaded={handleUploaded}
+        title="Upload Document"
+        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+      />
 
       <FleetDocumentSlider
         open={detailDoc !== null}
         doc={detailDoc}
         hireId={hireId}
+        source={detailDoc?.__source}
+        recordId={detailDoc?.__recordId ?? null}
         category={detailDoc ? categoryOf(detailDoc) : ""}
         initialTab={detailTab}
         onClose={() => setDetailDoc(null)}
@@ -144,7 +182,7 @@ const FleetDocumentLibrary: React.FC = () => {
         </div>
         <button
           type="button"
-          onClick={() => fileRef.current?.click()}
+          onClick={() => setUploadOpen(true)}
           disabled={!hireId}
           className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-medium hover:bg-black transition disabled:opacity-50"
         >
@@ -192,7 +230,7 @@ const FleetDocumentLibrary: React.FC = () => {
             </div>
           ) : (
             pageItems.map((doc) => (
-              <div key={doc.id} className="w-full p-4 rounded-lg border border-neutral-100 flex justify-between items-center hover:bg-neutral-50 transition">
+              <div key={`${doc.__source}-${doc.id}`} className="w-full p-4 rounded-lg border border-neutral-100 flex justify-between items-center hover:bg-neutral-50 transition">
                 <div className="flex items-start gap-6 min-w-0">
                   <div className="w-12 h-12 bg-neutral-100 rounded flex items-center justify-center shrink-0">
                     <img src={fileTypeIcon(doc.filename)} alt="" className="w-7 h-7" />

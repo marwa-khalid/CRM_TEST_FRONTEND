@@ -9,8 +9,10 @@ interface VehicleContextValue {
   loading: boolean;
   /** The Client Side of the same record — customer screens read from it. */
   hire: HireRecord | null;
-  /** Creates the record on first use, then PATCHes the given fields. */
+  /** Buffers the given fields (persisted on navigation), creating the record on first use. */
   save: (partial: Record<string, unknown>) => Promise<void>;
+  /** Persists any buffered edits immediately — call before an action that reads the record server-side. */
+  flush: () => Promise<void>;
   ensureVehicle: () => Promise<number | null>;
   refresh: () => Promise<void>;
 }

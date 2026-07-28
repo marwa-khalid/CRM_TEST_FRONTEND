@@ -28,7 +28,7 @@ const RoadFundLicense: React.FC = () => {
 
       <section className={SECTION}>
         <div className="flex justify-between items-center gap-4">
-          <h3 className="text-black text-xl font-semibold leading-5">Road Fund License Details</h3>
+          <h3 className="text-black text-xl font-semibold leading-5"></h3>
           <a
             href={ROAD_TAX_CHECK_URL}
             target="_blank"

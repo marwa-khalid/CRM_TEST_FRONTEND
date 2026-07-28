@@ -46,7 +46,7 @@ const PayReimburseHirerModal: React.FC<Props> = ({ open, onClose, onSubmit, defa
 
         <div className="flex flex-col gap-2">
           <label className="text-neutral-700 text-sm font-medium">How much do we owe to the hirer?</label>
-          <div className="px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center gap-2 focus-within:outline-blue-500">
+          <div className="px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center gap-2 focus-within:outline-neutral-900">
             <span className="text-neutral-500 text-base">£</span>
             <input
               inputMode="decimal"
@@ -65,7 +65,7 @@ const PayReimburseHirerModal: React.FC<Props> = ({ open, onClose, onSubmit, defa
             onChange={(e) => setReason(e.target.value)}
             placeholder="Value"
             rows={3}
-            className="h-24 px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-blue-500 resize-none"
+            className="h-24 px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
           />
         </div>
 

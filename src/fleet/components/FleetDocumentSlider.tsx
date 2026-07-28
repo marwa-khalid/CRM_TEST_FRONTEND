@@ -1,7 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Download, ExternalLink, Loader2 } from "lucide-react";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+// react-pdf bundles its own pdf.js (5.4.x); the app's top-level pdfjs-dist is a
+// different version, so load the worker from react-pdf's copy — pdf.js refuses
+// to render if the worker version doesn't exactly match its API version.
+import pdfWorkerUrl from "react-pdf/node_modules/pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { fileTypeIcon } from "../utils/fileIcon";
 import { getHireDocumentFileUrl, type HireDocument } from "../services/hireService";
+import { getVehicleDocumentFileUrl } from "../services/vehicleRecordService";
+
+// Render PDF pages with pdf.js (same engine as the Claims document library) so
+// the preview shows page-by-page instead of the browser's native PDF viewer.
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export type FleetDocTab = "File Preview" | "Meta Data" | "Version History" | "Audit Log";
 const TABS: FleetDocTab[] = ["File Preview", "Meta Data", "Version History", "Audit Log"];
@@ -35,22 +47,31 @@ const FleetDocumentSlider: React.FC<{
   open: boolean;
   doc: HireDocument | null;
   hireId: number | null;
+  // Which store the doc lives in — vehicle-record docs are fetched by recordId.
+  source?: "hire" | "vehicle";
+  recordId?: number | null;
   category: string;
   initialTab?: FleetDocTab;
   onClose: () => void;
-}> = ({ open, doc, hireId, category, initialTab = "File Preview", onClose }) => {
+}> = ({ open, doc, hireId, source = "hire", recordId = null, category, initialTab = "File Preview", onClose }) => {
   const [tab, setTab] = useState<FleetDocTab>(initialTab);
   const [url, setUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
+  const [numPages, setNumPages] = useState(0);
 
   useEffect(() => { setTab(initialTab); }, [initialTab, doc?.id]);
 
   useEffect(() => {
-    if (!open || !doc || !hireId) return;
+    if (!open || !doc) return;
+    const fetchUrl =
+      source === "vehicle" && recordId
+        ? getVehicleDocumentFileUrl(recordId, doc.id)
+        : hireId ? getHireDocumentFileUrl(hireId, doc.id) : Promise.resolve(null);
     setUrl(null);
+    setNumPages(0);
     setLoadingUrl(true);
-    getHireDocumentFileUrl(hireId, doc.id).then((u) => setUrl(u)).finally(() => setLoadingUrl(false));
-  }, [open, doc?.id, hireId]);
+    fetchUrl.then((u) => setUrl(u)).finally(() => setLoadingUrl(false));
+  }, [open, doc?.id, hireId, source, recordId]);
 
   if (!open || !doc) return null;
   const openFile = () => url && window.open(url, "_blank", "noopener,noreferrer");
@@ -103,7 +124,25 @@ const FleetDocumentSlider: React.FC<{
               ) : isImage(doc.filename) ? (
                 <img src={url} alt={doc.filename} className="max-w-full max-h-[560px] object-contain rounded bg-white" />
               ) : isPdf(doc.filename) ? (
-                <iframe src={url} title={doc.filename} className="w-full h-[560px] rounded bg-white border border-neutral-100" />
+                <div className="w-full flex flex-col items-center gap-6">
+                  <Document
+                    file={url}
+                    onLoadSuccess={({ numPages: n }) => setNumPages(n)}
+                    loading={<span className="flex items-center gap-2 text-neutral-500 text-sm"><Loader2 size={18} className="animate-spin" /> Rendering pages…</span>}
+                    error={<span className="text-neutral-400 text-sm">Couldn’t render this PDF. <button type="button" onClick={openFile} className="text-neutral-900 font-medium underline">Open the file</button></span>}
+                  >
+                    {Array.from({ length: numPages }).map((_, i) => (
+                      <Page
+                        key={i}
+                        pageNumber={i + 1}
+                        width={720}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                        className="mb-6 bg-white rounded shadow-[0px_2px_10px_0px_rgba(0,0,0,0.08)] overflow-hidden"
+                      />
+                    ))}
+                  </Document>
+                </div>
               ) : (
                 <button type="button" onClick={openFile} className="flex flex-col items-center gap-3 text-neutral-500">
                   <img src={fileTypeIcon(doc.filename)} alt="" className="w-14 h-14" />

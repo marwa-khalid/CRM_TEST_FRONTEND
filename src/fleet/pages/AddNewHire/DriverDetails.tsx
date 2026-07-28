@@ -16,10 +16,22 @@ import type { DriverDetailsForm } from "../../types/hire";
 import { extractDriverDetailsFromLicence } from "../../services/driverService";
 import { getHireDocuments, uploadHireDocument, deleteHireDocument, getHireDocumentFileUrl, type HireDocument } from "../../services/hireService";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
+import UploadFileIcon from "../../assets/icons/UploadFile.svg";
+import RemoveIcon from "../../assets/icons/Remove.svg";
 import { useHire } from "./HireContext";
 
 const LICENCE_DOC_TYPE = "driving_licence";
 const IMG_EXT = /\.(png|jpe?g|gif|webp|bmp)$/i;
+
+// dd-mm-yy for the document date pills (Postgres timestamps lack a "Z" — append
+// it so the date is read as UTC, matching the rest of the fleet).
+const shortDate = (iso?: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso.endsWith("Z") || iso.includes("+") ? iso : `${iso}Z`);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }).replace(/\//g, "-");
+};
 
 // Form field -> backend column (fleet_hire).
 const TO_BACKEND: Record<keyof DriverDetailsForm, string> = {
@@ -66,7 +78,7 @@ const DriverDetails: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [licenceLoading, setLicenceLoading] = useState(false);
   const [viewingDoc, setViewingDoc] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<HireDocument | null>(null);
 
   const { hire, hireId, save } = useHire();
   const hydrated = useRef(false);
@@ -107,12 +119,12 @@ const DriverDetails: React.FC = () => {
   // Delete the current (latest) licence file; a previous upload, if any, becomes
   // the shown one, otherwise the screen reverts to the upload prompt.
   const handleDeleteLicence = async () => {
-    setConfirmDelete(false);
-    const latest = licenceDocs[0];
-    if (!hireId || !latest) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    if (!hireId || !target) return;
     setLicenceLoading(true);
     try {
-      await deleteHireDocument(hireId, latest.id);
+      await deleteHireDocument(hireId, target.id);
       const docs = licencesOf(await getHireDocuments(hireId));
       setLicenceDocs(docs);
       if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
@@ -214,29 +226,37 @@ const DriverDetails: React.FC = () => {
                 <div className="px-6 py-8 text-neutral-500 text-sm">PDF uploaded — {licenceDocs[0].filename}</div>
               )}
             </div>
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => openLicence(licenceDocs[0].id)}
-                className="min-w-0 truncate text-left text-neutral-700 text-sm hover:underline"
-                title="View file"
-              >
-                {licenceDocs[0].filename || "Driving licence"}
-              </button>
-              <div className="shrink-0 flex items-center gap-4">
+            <div className="self-stretch px-4 py-3 rounded-lg bg-neutral-50 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => openLicence(licenceDocs[0].id)}
+                  className="min-w-0 truncate text-left text-neutral-900 text-base font-medium hover:underline"
+                  title="View file"
+                >
+                  {licenceDocs[0].filename || "Driving licence"}
+                </button>
+                <span className="px-3 py-1 bg-neutral-100 rounded-full text-neutral-500 text-xs shrink-0">
+                  {shortDate(licenceDocs[0].created_at)}
+                </span>
+              </div>
+              <div className="shrink-0 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setUploadOpen(true)}
-                  className="text-neutral-900 text-sm font-medium underline underline-offset-2"
+                  className="h-8 px-3 rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm font-medium inline-flex items-center gap-2 hover:bg-neutral-50"
                 >
+                  <img src={UploadFileIcon} alt="" className="w-4 h-4" />
                   Replace
                 </button>
                 <button
                   type="button"
-                  onClick={() => setConfirmDelete(true)}
-                  className="text-red-600 text-sm font-medium underline underline-offset-2"
+                  onClick={() => setDeleteTarget(licenceDocs[0])}
+                  aria-label="Delete"
+                  title="Delete"
+                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded hover:bg-neutral-100"
                 >
-                  Delete
+                  <img src={RemoveIcon} alt="" className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -378,13 +398,13 @@ const DriverDetails: React.FC = () => {
         onView={openLicence}
       />
 
-      {confirmDelete && (
+      {deleteTarget && (
         <FleetConfirmModal
           title="Delete Driving Licence"
-          message="Are you sure you want to delete the current driving licence file?"
+          message={`Are you sure you want to delete "${deleteTarget.filename || "this driving licence file"}"?`}
           confirmLabel="Delete"
           onConfirm={handleDeleteLicence}
-          onCancel={() => setConfirmDelete(false)}
+          onCancel={() => setDeleteTarget(null)}
         />
       )}
     </div>

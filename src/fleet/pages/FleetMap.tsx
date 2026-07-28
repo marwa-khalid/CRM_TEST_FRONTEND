@@ -15,7 +15,7 @@ import { listFleetMapVehicles, type FleetMapVehicle } from "../services/mapServi
 type StatusKey = "Available" | "On Hire" | "In Repair" | "Breakdown" | "Reserved" | "Off Fleet";
 const STATUS: Record<string, { hex: string; badge: string; soft: string }> = {
   available: { hex: "#16a34a", badge: "bg-[#e7f8ec] text-[#15803d]", soft: "bg-green-50 text-green-600" },
-  "on hire": { hex: "#2563eb", badge: "bg-[#e6efff] text-[#1d4ed8]", soft: "bg-blue-50 text-blue-600" },
+  "on hire": { hex: "#111827", badge: "bg-neutral-900 text-white", soft: "bg-neutral-200 text-neutral-900" },
   "in repair": { hex: "#f59e0b", badge: "bg-[#fff3df] text-[#b45309]", soft: "bg-amber-50 text-amber-600" },
   breakdown: { hex: "#dc2626", badge: "bg-[#fdeaea] text-[#dc2626]", soft: "bg-red-50 text-red-600" },
   reserved: { hex: "#7c3aed", badge: "bg-[#f1eafe] text-[#6d28d9]", soft: "bg-purple-50 text-purple-600" },
@@ -117,7 +117,7 @@ const FleetMap: React.FC = () => {
           tally[s] = (tally[s] || 0) + 1;
         });
         const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
-        const hex = STATUS[top]?.hex || "#2563eb";
+        const hex = STATUS[top]?.hex || "#111827";
         const n = c.getChildCount();
         return L.divIcon({
           className: "",
@@ -204,7 +204,7 @@ const FleetMap: React.FC = () => {
 
   const cards = [
     { label: "Available", value: counts.available, sub: "Vehicles", Icon: Car, tint: "bg-green-50 text-green-600" },
-    { label: "On Hire", value: counts.onHire, sub: "Vehicles", Icon: Car, tint: "bg-blue-50 text-blue-600" },
+    { label: "On Hire", value: counts.onHire, sub: "Vehicles", Icon: Car, tint: "bg-neutral-200 text-neutral-900" },
     { label: "In Repair", value: counts.inRepair, sub: "Vehicles", Icon: Wrench, tint: "bg-amber-50 text-amber-600" },
     { label: "Breakdown", value: counts.breakdown, sub: "Vehicles", Icon: AlertTriangle, tint: "bg-red-50 text-red-600" },
     { label: "Depot", value: counts.depots, sub: "Locations", Icon: MapPin, tint: "bg-purple-50 text-purple-600" },
@@ -346,7 +346,7 @@ const FleetMap: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 mt-3">
                   <button type="button" className="flex-1 h-8 rounded-lg border border-neutral-300 text-neutral-700 text-xs font-medium hover:bg-neutral-50">View Details</button>
-                  <button type="button" className="flex-1 h-8 rounded-lg bg-[#2563eb] text-white text-xs font-medium hover:bg-blue-700">Allocate</button>
+                  <button type="button" className="flex-1 h-8 rounded-lg bg-neutral-900 text-white text-xs font-medium hover:bg-black">Allocate</button>
                 </div>
               </div>
             )}
@@ -362,7 +362,7 @@ const FleetMap: React.FC = () => {
             </div>
             <div className="px-3 flex items-center gap-5 border-b border-neutral-100">
               {([["vehicles", `Nearby Vehicles (${nearby.length})`], ["depots", `Depots & Garages (${depots.length + garages.length})`]] as const).map(([k, label]) => (
-                <button key={k} type="button" onClick={() => setTab(k)} className={`py-3 text-sm border-b-2 -mb-px ${tab === k ? "border-[#2563eb] text-[#2563eb] font-medium" : "border-transparent text-neutral-500 hover:text-neutral-700"}`}>{label}</button>
+                <button key={k} type="button" onClick={() => setTab(k)} className={`py-3 text-sm border-b-2 -mb-px ${tab === k ? "border-neutral-900 text-neutral-900 font-medium" : "border-transparent text-neutral-500 hover:text-neutral-700"}`}>{label}</button>
               ))}
             </div>
 
@@ -371,7 +371,7 @@ const FleetMap: React.FC = () => {
                 nearby.length === 0 ? (
                   <div className="p-6 text-center text-sm text-neutral-400">No vehicles match.</div>
                 ) : nearby.map(({ v, km }) => (
-                  <button key={v.id} type="button" onClick={() => setSelectedId(v.id)} className={`w-full text-left px-4 py-3 border-b border-neutral-100 flex items-center gap-3 hover:bg-neutral-50 ${v.id === selectedId ? "bg-blue-50/40" : ""}`}>
+                  <button key={v.id} type="button" onClick={() => setSelectedId(v.id)} className={`w-full text-left px-4 py-3 border-b border-neutral-100 flex items-center gap-3 hover:bg-neutral-50 ${v.id === selectedId ? "bg-neutral-100" : ""}`}>
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cfg(v).hex }} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center justify-between gap-2">
@@ -416,7 +416,7 @@ const FleetMap: React.FC = () => {
         <div className="rounded-xl border border-neutral-200 bg-white p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-neutral-900 text-lg font-semibold">Overview by Location</h2>
-            <button type="button" className="text-sm text-[#2563eb] font-medium inline-flex items-center gap-1 hover:underline">View All Depots <ChevronRight size={14} /></button>
+            <button type="button" className="text-sm text-neutral-900 font-medium inline-flex items-center gap-1 hover:underline">View All Depots <ChevronRight size={14} /></button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-4">
             {depots.map((d) => (
@@ -427,7 +427,7 @@ const FleetMap: React.FC = () => {
                 </span>
                 <span className="flex items-center gap-5 shrink-0 text-center">
                   <span><span className="block text-lg font-bold text-green-600">{d.available}</span><span className="text-[11px] text-neutral-400">Available</span></span>
-                  <span><span className="block text-lg font-bold text-blue-600">{d.onHire}</span><span className="text-[11px] text-neutral-400">On Hire</span></span>
+                  <span><span className="block text-lg font-bold text-neutral-900">{d.onHire}</span><span className="text-[11px] text-neutral-400">On Hire</span></span>
                   <span><span className="block text-lg font-bold text-amber-600">{d.inRepair}</span><span className="text-[11px] text-neutral-400">In Repair</span></span>
                 </span>
               </div>

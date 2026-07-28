@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -49,6 +49,7 @@ const STATUS_BADGE: Record<string, string> = {
   available: "bg-[#d9ffd9] text-[#159215]",
 };
 const statusLabel = (v?: string) => (v ? STATUS_LABEL[v] || "-" : "-");
+const normReg = (s?: string | null) => (s || "").replace(/\s+/g, "").toUpperCase();
 const STATUS_OPTIONS = [
   { value: "on_hire", label: "On Hire" },
   { value: "off_hire", label: "Off Hire" },
@@ -189,6 +190,29 @@ const FleetList: React.FC = () => {
     });
   }, []);
 
+  // A vehicle marked "In Repair" on its Vehicle Details record overrides the
+  // hire's on/off-hire status on the listing. Matched by hire id, then registration.
+  const inRepair = useMemo(() => {
+    const hireIds = new Set<number>();
+    const regs = new Set<string>();
+    vehicleRecords.forEach((v) => {
+      if ((v.vehicle_status || "").toLowerCase().includes("repair")) {
+        if (v.hire_id != null) hireIds.add(v.hire_id);
+        if (v.registration_number) regs.add(normReg(v.registration_number));
+      }
+    });
+    return { hireIds, regs };
+  }, [vehicleRecords]);
+
+  const effectiveStatus = useCallback(
+    (r: HireRecord): string =>
+      inRepair.hireIds.has(r.id) ||
+      (!!r.last_vehicle_registration && inRepair.regs.has(normReg(r.last_vehicle_registration)))
+        ? "in_repair"
+        : (r.last_vehicle_hire_status || ""),
+    [inRepair],
+  );
+
   const stats = useMemo<StatConfig[]>(() => {
     const thisKey = monthKey(new Date());
     const lastKey = thisKey - 1;
@@ -201,7 +225,7 @@ const FleetList: React.FC = () => {
       });
       return l === 0 ? (t > 0 ? 100 : 0) : Math.round(((t - l) / l) * 100);
     };
-    const by = (v: string) => records.filter((r) => (r.last_vehicle_hire_status || "") === v);
+    const by = (v: string) => records.filter((r) => effectiveStatus(r) === v);
     // Available = vehicles in the fleet register still free for hire (not on hire).
     const availableCars = register.filter((v) => !v.is_active).length;
     return [
@@ -212,7 +236,7 @@ const FleetList: React.FC = () => {
       { title: "In Repair", value: vehicleRecords.filter((v) => (v.vehicle_status || "").toLowerCase().includes("repair")).length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: 0 },
       { title: "Available", value: availableCars, icon: CheckCircleIcon, tile: "bg-[#d9ffd9]", trendPct: 0 },
     ];
-  }, [records, register, vehicleRecords]);
+  }, [records, register, vehicleRecords, effectiveStatus]);
 
   // Vehicle registration options — every reg in the fleet register + on a record.
   const vehicleOptions = useMemo(() => {
@@ -229,18 +253,18 @@ const FleetList: React.FC = () => {
     const needle = query.trim().toLowerCase();
     return records.filter((r) => {
       if (needle) {
-        const hay = [fallbackReference(r), r.driver_name, driverContact(r), r.driver_email, r.last_vehicle_registration, statusLabel(r.last_vehicle_hire_status)]
+        const hay = [fallbackReference(r), r.driver_name, driverContact(r), r.driver_email, r.last_vehicle_registration, statusLabel(effectiveStatus(r))]
           .filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(needle)) return false;
       }
       if (regSel.length && !regSel.includes(r.last_vehicle_registration || "")) return false;
-      if (statusSel.length && !statusSel.includes(r.last_vehicle_hire_status || "")) return false;
+      if (statusSel.length && !statusSel.includes(effectiveStatus(r))) return false;
       const d = (r.last_vehicle_hire_start || r.file_opened_at || "").slice(0, 10);
       if (fromDate && (!d || d < fromDate)) return false;
       if (toDate && (!d || d > toDate)) return false;
       return true;
     });
-  }, [records, query, regSel, statusSel, fromDate, toDate]);
+  }, [records, query, regSel, statusSel, fromDate, toDate, effectiveStatus]);
 
   useEffect(() => {
     setPage(1);
@@ -304,7 +328,7 @@ const FleetList: React.FC = () => {
     const header = ["Reference No.", "Hirer Name", "Email", "Vehicle Reg", "Hire Start", "Hire End", "Contact No.", "Status"];
     const body = rows.map((r) => [
       fallbackReference(r), r.driver_name || "", r.driver_email || "", r.last_vehicle_registration || "",
-      r.last_vehicle_hire_start || "", r.last_vehicle_hire_end || "", driverContact(r), statusLabel(r.last_vehicle_hire_status),
+      r.last_vehicle_hire_start || "", r.last_vehicle_hire_end || "", driverContact(r), statusLabel(effectiveStatus(r)),
     ]);
     const csv = [header, ...body].map((cols) => cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
@@ -483,7 +507,7 @@ const FleetList: React.FC = () => {
                 pageItems.map((r) => (
                   <div key={r.id} className={`grid ${GRID} gap-2 px-4 py-3 items-center text-sm border-t border-[#eee] hover:bg-neutral-50`}>
                     <Checkbox checked={selected.has(r.id)} onChange={() => toggleOne(r.id)} label={`Select ${fallbackReference(r)}`} />
-                    <button type="button" onClick={() => navigate(`/fleet/hire/${r.id}`)} className="text-left text-neutral-900 font-medium hover:underline truncate">
+                    <button type="button" onClick={() => navigate(`/fleet/hire/${r.id}`)} className="text-left text-neutral-700  hover:underline truncate">
                       {fallbackReference(r)}
                     </button>
                     <span className="text-neutral-700 truncate">{r.driver_name || "-"}</span>
@@ -493,9 +517,9 @@ const FleetList: React.FC = () => {
                     <span className="text-neutral-700 truncate" title={r.driver_email || ""}>{r.driver_email || "-"}</span>
                     <span className="text-[#535762] font-inter truncate">{driverContact(r) || "-"}</span>
                     <span>
-                      {r.last_vehicle_hire_status ? (
-                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${STATUS_BADGE[r.last_vehicle_hire_status] || "bg-neutral-100 text-neutral-600"}`}>
-                          {statusLabel(r.last_vehicle_hire_status)}
+                      {effectiveStatus(r) ? (
+                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${STATUS_BADGE[effectiveStatus(r)] || "bg-neutral-100 text-neutral-600"}`}>
+                          {statusLabel(effectiveStatus(r))}
                         </span>
                       ) : (
                         <span className="text-neutral-400">-</span>

@@ -253,7 +253,7 @@ const VehicleDetails: React.FC = () => {
       toast.warn("Could not read the V5C. Please enter the vehicle details manually.");
       return;
     }
-    toast.success(`V5C read — ${readCount} field${readCount === 1 ? "" : "s"} filled. Please check before saving.`);
+    toast.success("V5C read. Please check the details before saving.");
   };
 
   return (
@@ -283,7 +283,7 @@ const VehicleDetails: React.FC = () => {
       </div>
 
       {/* Uploaded V5C documents — current + previous reports (Figma design). */}
-      <FleetUploadedDocuments docs={documents} onView={openDocument} onRemove={setDeleteDoc} variant="grey" />
+      <FleetUploadedDocuments docs={documents} onView={openDocument} onRemove={setDeleteDoc} />
 
       {/* Section A */}
       <section className={SECTION}>

@@ -30,7 +30,7 @@ const priorityDot = (p?: string | null) => {
 const statusDot = (s?: string | null) => {
   const v = (s || "").toLowerCase();
   if (v === "completed") return "bg-green-500";
-  if (v === "in progress") return "bg-blue-500";
+  if (v === "in progress") return "bg-neutral-900";
   if (v === "awaiting response") return "bg-yellow-500";
   if (v === "overdue") return "bg-red-500";
   return "bg-neutral-400";

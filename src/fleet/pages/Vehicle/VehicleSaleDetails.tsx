@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Mail } from "lucide-react";
 import {
   FleetTextInput,
   FleetMoneyInput,
@@ -10,7 +10,8 @@ import {
   FleetUkMobileInput,
 } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
-import { downloadSaleDocuments } from "../../services/vehicleRecordService";
+import FleetEmailModal, { type FleetEmailSendArgs } from "../../components/FleetEmailModal";
+import { downloadSaleDocuments, getSaleAccountsEmailPreview, sendSaleAccountsEmail } from "../../services/vehicleRecordService";
 import { useVehicle } from "./VehicleContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
@@ -45,9 +46,11 @@ const TO_BACKEND: Record<keyof Form, string> = {
 };
 
 const VehicleSaleDetails: React.FC = () => {
-  const { vehicle, save, loading: recordLoading } = useVehicle();
+  const { vehicle, save, flush, loading: recordLoading } = useVehicle();
   const [form, setForm] = useState<Form>(EMPTY);
   const [printing, setPrinting] = useState(false);
+  const [preparingEmail, setPreparingEmail] = useState(false);
+  const [email, setEmail] = useState<{ to: string; subject: string; body: string } | null>(null);
 
   useEffect(() => {
     if (!vehicle) return;
@@ -82,6 +85,7 @@ const VehicleSaleDetails: React.FC = () => {
         return acc;
       }, {});
       await save(payload);
+      await flush(); // persist before the server generates the doc from the record
       await downloadSaleDocuments(vehicle.id);
       toast.success("Release documents downloaded.");
     } catch {
@@ -91,9 +95,29 @@ const VehicleSaleDetails: React.FC = () => {
     }
   };
 
+  const informAccounts = async () => {
+    if (!vehicle?.id) return;
+    setPreparingEmail(true);
+    try {
+      // Persist the current form so the email reflects the latest sale data.
+      const payload = (Object.keys(TO_BACKEND) as Array<keyof Form>).reduce<Record<string, unknown>>((acc, key) => {
+        acc[TO_BACKEND[key]] = form[key] === "" ? null : form[key];
+        return acc;
+      }, {});
+      await save(payload);
+      await flush(); // persist before the server builds the email from the record
+      const preview = await getSaleAccountsEmailPreview(vehicle.id);
+      setEmail({ to: preview.to, subject: preview.subject, body: preview.body });
+    } catch {
+      toast.error("Could not prepare the accounts email.");
+    } finally {
+      setPreparingEmail(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {(recordLoading || printing || !vehicle?.id) && <FleetSpinnerLoader />}
+      {(recordLoading || printing || preparingEmail || !vehicle?.id) && <FleetSpinnerLoader />}
 
       <h2 className="text-black text-2xl font-semibold leading-6">Vehicle Sale Details</h2>
 
@@ -145,7 +169,13 @@ const VehicleSaleDetails: React.FC = () => {
 
       {/* Section B — sale figures, also manual. */}
       <section className={SECTION}>
-        <h3 className={H3}>Sale Details</h3>
+        <div className="flex items-center justify-between gap-4">
+          <h3 className={H3}>Sale Details</h3>
+          <button type="button" disabled={preparingEmail} onClick={informAccounts} className={BTN_DARK}>
+            <Mail size={16} />
+            Inform Accounts
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-5">
           <FleetDateField
             label="Vehicle Sold On"
@@ -159,6 +189,26 @@ const VehicleSaleDetails: React.FC = () => {
           <FleetMoneyInput label="Sold For (Exc. VAT)" value={form.soldForExcVat} onChange={(v) => set("soldForExcVat", v)} onBlur={() => saveField("soldForExcVat")} />
         </div>
       </section>
+
+      <FleetEmailModal
+        open={email !== null}
+        onClose={() => setEmail(null)}
+        hireId={vehicle?.hire_id ?? null}
+        title="Inform Accounts"
+        defaultTo={email?.to || ""}
+        defaultSubject={email?.subject || ""}
+        defaultBody={email?.body || ""}
+        sendOverride={async (args: FleetEmailSendArgs) => {
+          if (!vehicle?.id) return { status: "failed" as const };
+          await sendSaleAccountsEmail(vehicle.id, {
+            to: args.to,
+            cc: args.cc,
+            subject: args.subject,
+            body: args.body,
+          });
+          return { status: "sent" as const };
+        }}
+      />
     </div>
   );
 };

@@ -30,6 +30,7 @@ import {
   type LicensingAuthority as Authority,
 } from "../../services/licensingAuthorityService";
 import { useVehicle } from "./VehicleContext";
+import { useHire } from "../AddNewHire/HireContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
@@ -118,13 +119,16 @@ const LicensingAuthority: React.FC = () => {
   // Certificate history for the active authority — every uploaded plating/MOT
   // certificate stays viewable (latest + "Show all"), like the V5C on screen 1.
   // Keyed on the id (not the record object) so editing a field doesn't refetch.
-  const loadCertificates = useCallback(async () => {
+  // `silent` refreshes the list without the full-screen spinner — used after an
+  // upload/delete, where the modal already shows its own progress and a second
+  // overlay would flash over it.
+  const loadCertificates = useCallback(async (silent = false) => {
     if (!recordId || !activeId) {
       setPlatingDocs([]);
       setMotDocs([]);
       return;
     }
-    setCertsLoading(true);
+    if (!silent) setCertsLoading(true);
     try {
       const [plating, mot] = await Promise.all([
         listVehicleDocuments(recordId, "plating", activeId),
@@ -133,7 +137,7 @@ const LicensingAuthority: React.FC = () => {
       setPlatingDocs(plating);
       setMotDocs(mot);
     } finally {
-      setCertsLoading(false);
+      if (!silent) setCertsLoading(false);
     }
   }, [recordId, activeId]);
 
@@ -161,7 +165,7 @@ const LicensingAuthority: React.FC = () => {
     setMotDocs((rows) => rows.filter((r) => r.id !== target.id));
     const ok = await deleteVehicleDocument(recordId, target.id);
     if (ok) toast.success("Document removed.");
-    else { toast.error("Couldn't remove the document."); loadCertificates(); }
+    else { toast.error("Couldn't remove the document."); loadCertificates(true); }
   };
 
   const load = useCallback(async () => {
@@ -191,7 +195,12 @@ const LicensingAuthority: React.FC = () => {
     load();
   }, [load]);
 
-  // Patch one field and keep the local row in step with the server's response.
+  // Buffer of pending edits per authority id, flushed on navigation (see below)
+  // rather than PATCHed on every field — one request per screen instead of dozens.
+  const { registerFlusher } = useHire();
+  const pendingRef = useRef<Record<number, Record<string, unknown>>>({});
+
+  // Patch one field — buffered, kept in local state for immediate display.
   const patch = async (field: string, value: unknown) => patchMany({ [field]: value });
 
   // Several fields at once — used when a postcode/address lookup fills both.
@@ -209,11 +218,23 @@ const LicensingAuthority: React.FC = () => {
       });
       return { ...prev, [active.id]: current };
     });
-    const updated = await updateLicensingAuthority(recordId, active.id, fields);
-    if (updated) {
-      setAuthorities((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
-    }
+    // Buffer instead of PATCHing now — flushPending persists it on navigation.
+    pendingRef.current[active.id] = { ...(pendingRef.current[active.id] || {}), ...fields };
   };
+
+  // Persist every authority's buffered edits (called by the wizard before it
+  // navigates away). Merges each server response back into local state.
+  const flushPending = useCallback(async () => {
+    if (!recordId) return;
+    const buffers = pendingRef.current;
+    pendingRef.current = {};
+    for (const [idStr, fields] of Object.entries(buffers)) {
+      if (!fields || Object.keys(fields).length === 0) continue;
+      const updated = await updateLicensingAuthority(recordId, Number(idStr), fields);
+      if (updated) setAuthorities((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
+    }
+  }, [recordId]);
+  useEffect(() => registerFlusher(flushPending), [registerFlusher, flushPending]);
 
   const handleAdd = async () => {
     if (!recordId) return;
@@ -256,7 +277,8 @@ const LicensingAuthority: React.FC = () => {
   };
 
   // A single upload fills BOTH the contact block and the detail block, per the
-  // user story. Only blank fields are filled, so amendments survive a re-upload.
+  // user story. Treat each upload as a clean OCR replace for these fields so a
+  // previous certificate's values cannot linger when the new OCR misses a field.
   const handleCertificate = async (kind: CertificateKind, file: File) => {
     if (!recordId || !active) return;
     // Progress is shown by the upload modal, so no full-screen spinner here.
@@ -281,15 +303,9 @@ const LicensingAuthority: React.FC = () => {
           plating_start_date: p.platingStartDate ? toIsoDate(p.platingStartDate) : "",
           plating_expiry_date: p.platingExpiryDate ? toIsoDate(p.platingExpiryDate) : "",
         };
-        if (p.licensingAuthority) payload.licensing_authority = p.licensingAuthority;
-        if (p.address) payload.address = p.address;
-        if (p.postcode) payload.postcode = p.postcode;
-        if (p.telephone) payload.telephone = p.telephone;
-        if (p.contactNumber) payload.contact_number = p.contactNumber;
-        if (p.emailAddress) payload.email_address = p.emailAddress;
-        if (p.plateNumber) payload.plate_number = p.plateNumber;
-        if (p.platingStartDate) payload.plating_start_date = toIsoDate(p.platingStartDate);
-        if (p.platingExpiryDate) payload.plating_expiry_date = toIsoDate(p.platingExpiryDate);
+        PLATING_OCR_FIELDS.forEach((field) => {
+          payload[field] = extracted[field] || null;
+        });
         setOcrMissing((prev) => {
           const current = { ...(prev[active.id] || {}) };
           PLATING_OCR_FIELDS.forEach((field) => {
@@ -309,13 +325,9 @@ const LicensingAuthority: React.FC = () => {
           last_mot_date: m.lastMotDate ? toIsoDate(m.lastMotDate) : "",
           mot_expiry_date: m.motExpiryDate ? toIsoDate(m.motExpiryDate) : "",
         };
-        if (m.motCentreName) payload.mot_centre_name = m.motCentreName;
-        if (m.address) payload.mot_address = m.address;
-        if (m.postcode) payload.mot_postcode = m.postcode;
-        if (m.telephone) payload.mot_telephone = m.telephone;
-        if (m.emailAddress) payload.mot_email_address = m.emailAddress;
-        if (m.lastMotDate) payload.last_mot_date = toIsoDate(m.lastMotDate);
-        if (m.motExpiryDate) payload.mot_expiry_date = toIsoDate(m.motExpiryDate);
+        MOT_OCR_FIELDS.forEach((field) => {
+          payload[field] = extracted[field] || null;
+        });
         setOcrMissing((prev) => {
           const current = { ...(prev[active.id] || {}) };
           MOT_OCR_FIELDS.forEach((field) => {
@@ -327,17 +339,18 @@ const LicensingAuthority: React.FC = () => {
       }
 
       // Every upload is kept as history, so refresh the document list for this
-      // authority once the new certificate is stored.
-      await loadCertificates();
+      // authority once the new certificate is stored — silently, so the modal's
+      // own progress bar stays the only loader on screen.
+      await loadCertificates(true);
 
-      const count = Object.keys(payload).length;
+      const count = Object.values(payload).filter(Boolean).length;
+      const updated = await updateLicensingAuthority(recordId, active.id, payload);
+      if (updated) setAuthorities((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
       if (!count) {
         toast.warn("Certificate saved, but nothing could be read from it. Please enter the details manually.");
         return;
       }
-      const updated = await updateLicensingAuthority(recordId, active.id, payload);
-      if (updated) setAuthorities((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
-      toast.success(`Certificate read — ${count} field${count === 1 ? "" : "s"} filled. Please check before saving.`);
+      toast.success("Certificate read. Please check the details before saving.");
     }
   };
 
@@ -352,6 +365,7 @@ const LicensingAuthority: React.FC = () => {
     const label = kind === "plating" ? "Plating" : "MOT";
     setPreparingEmail(true);
     try {
+      await flushPending(); // persist buffered edits before the server builds the email
       const preview = await getAppointmentEmailPreview(recordId, active.id, kind);
       setEmail({ kind, authorityId: active.id, ...preview });
     } catch {
@@ -455,7 +469,7 @@ const LicensingAuthority: React.FC = () => {
                 </button>
               {/* )} */}
             </div>
-            <FleetUploadedDocuments variant="blue" docs={platingDocs} onView={openDocument} onRemove={setDeleteDoc} />
+            <FleetUploadedDocuments docs={platingDocs} onView={openDocument} onRemove={setDeleteDoc} />
             <FleetTextInput label="Licensing Authority" placeholder="Enter Licensing Authority" value={active.licensing_authority || ""} onChange={(v) => patch("licensing_authority", v)} error={missing("licensing_authority")} />
             <FleetAddressAutocomplete
               label="Address"
@@ -528,7 +542,7 @@ const LicensingAuthority: React.FC = () => {
               {/* )} */}
             </div>
             <div className="h-px bg-neutral-100" />
-            <FleetUploadedDocuments variant="blue" docs={motDocs} onView={openDocument} onRemove={setDeleteDoc} />
+            <FleetUploadedDocuments docs={motDocs} onView={openDocument} onRemove={setDeleteDoc} />
             <FleetTextInput label="MOT Centre Name" placeholder="Enter MOT Centre Name" value={active.mot_centre_name || ""} onChange={(v) => patch("mot_centre_name", v)} error={missing("mot_centre_name")} />
             <FleetAddressAutocomplete
               label="Address"

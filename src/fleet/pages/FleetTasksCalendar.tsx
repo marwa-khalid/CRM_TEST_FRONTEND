@@ -53,7 +53,7 @@ type Entry =
 const entryStyle = (entry: Entry): { pill: string; dot: string; text: string; strike: boolean; title: string } => {
   if (entry.kind === "event") {
     // Manual calendar events — Fleet black/grey theme (not blue).
-    return { pill: "bg-neutral-200 hover:bg-neutral-300", dot: "bg-neutral-900", text: "text-neutral-900", strike: false, title: entry.event.title };
+    return { pill: "bg-neutral-100 hover:bg-neutral-200", dot: "bg-neutral-700", text: "text-neutral-700", strike: false, title: entry.event.title };
   }
   if (entry.kind === "expiry") {
     // Road fund / plate / MOT expiries — same purple as tasks (Task Management),

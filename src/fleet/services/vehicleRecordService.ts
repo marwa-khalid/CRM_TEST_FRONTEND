@@ -145,11 +145,31 @@ export const getSaleDocumentsPrintHtml = async (recordId: number): Promise<strin
   return data as string;
 };
 
+export interface FleetSaleEmailPreview {
+  to: string;
+  subject: string;
+  body: string;
+  html: string;
+}
+
+// "Inform Accounts" email — editable preview (default recipient/subject/body).
+export const getSaleAccountsEmailPreview = async (recordId: number): Promise<FleetSaleEmailPreview> => {
+  const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}/sale/accounts-email/preview`);
+  return data;
+};
+
+export const sendSaleAccountsEmail = async (
+  recordId: number,
+  args: { to: string; cc?: string; subject: string; body: string },
+): Promise<void> => {
+  await fleetApi.post(`/fleet/vehicle-record/${recordId}/sale/accounts-email`, args);
+};
+
 export const downloadSaleDocuments = async (recordId: number): Promise<string> => {
   const res = await fleetApi.get(`/fleet/vehicle-record/${recordId}/sale-documents/download`, {
     responseType: "blob",
   });
-  const filename = filenameFromDisposition(res.headers["content-disposition"]) || "Release of Liability and Receipt.doc";
+  const filename = filenameFromDisposition(res.headers["content-disposition"]) || "Release of Liability and Receipt.docx";
   downloadBlob(res.data as Blob, filename);
   return filename;
 };
@@ -220,6 +240,18 @@ export const uploadVehicleDocument = async (
     return data;
   } catch {
     return null;
+  }
+};
+
+// Every uploaded document on a vehicle record (V5C, plating/MOT certificates,
+// service invoices) regardless of type — used to surface the customer-side
+// uploads in the hire's Documents Library.
+export const listAllVehicleRecordDocuments = async (recordId: number): Promise<VehicleDocument[]> => {
+  try {
+    const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}/documents`);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
   }
 };
 

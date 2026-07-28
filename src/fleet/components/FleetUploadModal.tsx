@@ -51,14 +51,17 @@ const FleetUploadModal: React.FC<Props> = ({
     onClose();
   };
 
-  // Crawl the bar to 90% while the upload is in flight, then jump to 100% and
-  // close on success — never close before the parent's upload actually resolves.
+  // The OCR gives no real progress events, so the percentage eases toward 95% —
+  // fast at first, then adding less each tick so it keeps climbing without
+  // stalling on one number — and snaps to 100% when the upload actually resolves.
   const handleFile = async (f: File) => {
     setFile(f);
     setError("");
     setStep(2);
     setProgress(0);
-    const timer = setInterval(() => setProgress((p) => (p >= 90 ? 90 : p + 8)), 120);
+    const timer = setInterval(() => {
+      setProgress((p) => (p >= 95 ? 95 : Math.min(95, p + Math.max(1, Math.round((95 - p) * 0.08)))));
+    }, 220);
     try {
       await Promise.resolve(onUploaded(f));
       clearInterval(timer);
@@ -136,6 +139,8 @@ const FleetUploadModal: React.FC<Props> = ({
           )}
         </div>
 
+        {/* Previously Uploaded — hidden for now at the user's request. Kept here so
+            it can be switched back on in a few days; do not delete.
         {history && history.length > 0 && (
           <div className="flex flex-col gap-2">
             <div className="text-neutral-700 text-sm font-medium">Previously Uploaded ({history.length})</div>
@@ -165,6 +170,7 @@ const FleetUploadModal: React.FC<Props> = ({
             </div>
           </div>
         )}
+        */}
 
         <div className="flex justify-end">
           <button

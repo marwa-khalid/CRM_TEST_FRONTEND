@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import FleetTopBar from "../../components/FleetTopBar";
@@ -173,12 +173,44 @@ const AddNewHire: React.FC = () => {
 
   const [saving, setSaving] = useState(false);
 
+  // --- Deferred save ---------------------------------------------------------
+  // Field edits are buffered here and flushed once on navigation, so a screenful
+  // of changes is one PATCH instead of one-per-field. Screens with their own API
+  // (Licensing, Servicing) register their own flusher via `registerFlusher`.
+  const flushersRef = useRef<Set<() => Promise<void>>>(new Set());
+  const registerFlusher = useCallback((fn: () => Promise<void>) => {
+    flushersRef.current.add(fn);
+    return () => {
+      flushersRef.current.delete(fn);
+    };
+  }, []);
+  const flushAll = useCallback(async () => {
+    for (const fn of Array.from(flushersRef.current)) {
+      try {
+        await fn();
+      } catch {
+        // Keep flushing the rest; a failed field save shouldn't block the others.
+      }
+    }
+  }, []);
+
+  // Buffer of pending hire-field edits (merged, latest-wins), flushed by flushHire.
+  const pendingHireRef = useRef<Record<string, unknown>>({});
   const save = async (partial: Record<string, unknown>) => {
     const id = await ensureHire();
     if (!id) return;
-    const updated = await updateHire(id, partial);
-    if (updated) setHire(updated);
+    pendingHireRef.current = { ...pendingHireRef.current, ...partial };
+    // Optimistic local update so the sidebar fill + read-backs stay in step.
+    setHire((h) => (h ? ({ ...h, ...partial } as HireRecord) : h));
   };
+  const flushHire = useCallback(async () => {
+    const pending = pendingHireRef.current;
+    const id = hireIdRef.current;
+    if (!id || Object.keys(pending).length === 0) return;
+    pendingHireRef.current = {};
+    const updated = await updateHire(id, pending);
+    if (updated) setHire(updated);
+  }, []);
 
   // The Taxi Badge step only exists when Hirer Type = Taxi Driver (General Details).
   const steps = useMemo(
@@ -197,7 +229,13 @@ const AddNewHire: React.FC = () => {
   const isCustomerStep = activeIndex >= steps.length;
 
   // No step gating on Fleet — every step is freely reachable in any order.
-  const selectStep = (i: number) => setActiveIndex(i);
+  // Persist the current screen's buffered edits, but don't block the click on it:
+  // flushAll() captures the current flushers synchronously (before this screen
+  // unmounts), then runs in the background while we switch immediately.
+  const selectStep = (i: number) => {
+    void flushAll();
+    setActiveIndex(i);
+  };
 
   const [vehicleLoading, setVehicleLoading] = useState(false);
 
@@ -224,6 +262,14 @@ const AddNewHire: React.FC = () => {
     };
   }, [isCustomerStep, hireId, vehicle]);
 
+  // Pending vehicle-field edits + a ref mirror of `vehicle` so the memoized
+  // flusher always sees the latest record id.
+  const pendingVehicleRef = useRef<Record<string, unknown>>({});
+  const vehicleRef = useRef<VehicleRecord | null>(null);
+  useEffect(() => {
+    vehicleRef.current = vehicle;
+  }, [vehicle]);
+
   const saveVehicle = async (partial: Record<string, unknown>) => {
     let record = vehicle;
     if (!record && hireId) record = await getHireVehicleRecord(hireId);
@@ -231,10 +277,31 @@ const AddNewHire: React.FC = () => {
       toast.error("Could not open the vehicle record yet.");
       return;
     }
-    const updated = await updateVehicleRecord(record.id, partial);
-    setVehicle(updated ?? record);
-    if (!updated) toast.error("Could not save. Please try again.");
+    pendingVehicleRef.current = { ...pendingVehicleRef.current, ...partial };
+    // Optimistic merge so the sidebar fill + this screen's read-backs stay in step.
+    setVehicle((v) => ({ ...(v ?? record), ...partial } as VehicleRecord));
   };
+  const flushVehicle = useCallback(async () => {
+    const pending = pendingVehicleRef.current;
+    if (Object.keys(pending).length === 0) return;
+    let record = vehicleRef.current;
+    if (!record && hireIdRef.current) record = await getHireVehicleRecord(hireIdRef.current);
+    if (!record) return;
+    pendingVehicleRef.current = {};
+    const updated = await updateVehicleRecord(record.id, pending);
+    if (updated) setVehicle(updated);
+    else toast.error("Could not save. Please try again.");
+  }, []);
+
+  // Register the hire + vehicle flushers so navigation persists their buffers.
+  useEffect(() => {
+    const off1 = registerFlusher(flushHire);
+    const off2 = registerFlusher(flushVehicle);
+    return () => {
+      off1();
+      off2();
+    };
+  }, [registerFlusher, flushHire, flushVehicle]);
 
   const refreshVehicle = async () => {
     if (!hireId) return;
@@ -250,14 +317,24 @@ const AddNewHire: React.FC = () => {
     return record?.id ?? null;
   };
 
-  const goBack = () => navigate("/fleet");
-  const discard = () => navigate("/fleet");
+  // Back to the listing still persists what the user entered (they didn't discard).
+  const goBack = async () => {
+    await flushAll();
+    navigate("/fleet");
+  };
+  // Discard intentionally drops buffered edits — clear them so no flusher fires.
+  const discard = () => {
+    pendingHireRef.current = {};
+    pendingVehicleRef.current = {};
+    navigate("/fleet");
+  };
   const saveNext = async () => {
     if (saving) return;
     setSaving(true);
     const minSpin = new Promise((resolve) => setTimeout(resolve, 400)); // keep loader visible
     try {
       const id = await ensureHire();
+      await flushAll(); // persist this screen's buffered field edits
       await minSpin;
       if (!id) {
         toast.error("Couldn't save — please try again.");
@@ -314,6 +391,7 @@ const AddNewHire: React.FC = () => {
         onBack={goBack}
         onDiscard={discard}
         onSaveNext={saveNext}
+        onBeforeNavigate={flushAll}
         saving={saving}
         hireId={hireId}
       />
@@ -326,11 +404,11 @@ const AddNewHire: React.FC = () => {
           customerSteps={VEHICLE_STEPS}
         />
         <div className="flex-1 flex justify-center">
-          <HireProvider value={{ hireId, hire, save, activeVehicleId, setActiveVehicleId }}>
+          <HireProvider value={{ hireId, hire, save, activeVehicleId, setActiveVehicleId, registerFlusher }}>
             {loadingHire ? null : StepComponent ? (
               isCustomerStep ? (
                 <VehicleProvider
-                  value={{ vehicleId: vehicle?.id ?? null, vehicle, loading: vehicleLoading, hire, save: saveVehicle, ensureVehicle, refresh: refreshVehicle }}
+                  value={{ vehicleId: vehicle?.id ?? null, vehicle, loading: vehicleLoading, hire, save: saveVehicle, flush: flushVehicle, ensureVehicle, refresh: refreshVehicle }}
                 >
                   <StepComponent />
                 </VehicleProvider>

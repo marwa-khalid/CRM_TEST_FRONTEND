@@ -6,12 +6,13 @@ import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetEmailModal, { type FleetEmailSendArgs } from "../../components/FleetEmailModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
-import FleetUploadedFileBar from "../../components/FleetUploadedFileBar";
+import FleetUploadedDocuments from "../../components/FleetUploadedDocuments";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import RemoveIcon from "../../assets/icons/Remove.svg";
 import {
   listVehicleDocuments,
   getVehicleDocumentFileUrl,
+  deleteVehicleDocument,
   type VehicleDocument,
 } from "../../services/vehicleRecordService";
 import {
@@ -93,6 +94,7 @@ const LicensingAuthority: React.FC = () => {
   const [preparingEmail, setPreparingEmail] = useState(false);
   const [platingDocs, setPlatingDocs] = useState<VehicleDocument[]>([]);
   const [motDocs, setMotDocs] = useState<VehicleDocument[]>([]);
+  const [deleteDoc, setDeleteDoc] = useState<VehicleDocument | null>(null);
   // Never a blank white page — render the form and overlay the loader until ready.
   const [pageReady, setPageReady] = useState(false);
   // Delete goes through a confirmation modal rather than removing immediately.
@@ -151,6 +153,17 @@ const LicensingAuthority: React.FC = () => {
     }
   };
 
+  const confirmDeleteDoc = async () => {
+    if (!deleteDoc || !recordId) return;
+    const target = deleteDoc;
+    setDeleteDoc(null);
+    setPlatingDocs((rows) => rows.filter((r) => r.id !== target.id)); // optimistic (both lists)
+    setMotDocs((rows) => rows.filter((r) => r.id !== target.id));
+    const ok = await deleteVehicleDocument(recordId, target.id);
+    if (ok) toast.success("Document removed.");
+    else { toast.error("Couldn't remove the document."); loadCertificates(); }
+  };
+
   const load = useCallback(async () => {
     if (!recordId) return;
     setLoading(true);
@@ -166,7 +179,8 @@ const LicensingAuthority: React.FC = () => {
         }
       }
       setAuthorities(rows);
-      setActiveIndex((i) => Math.min(i, Math.max(0, rows.length - 1)));
+      // Open the first card by default.
+      setActiveIndex(0);
     } finally {
       setLoading(false);
       setPageReady(true);
@@ -434,14 +448,14 @@ const LicensingAuthority: React.FC = () => {
           <section className={SECTION}>
             <div className="flex justify-between items-center gap-4">
               <h3 className={H3}>Plating Authority Contact Details</h3>
-              {platingDocs.length === 0 && (
+              {/* {platingDocs.length === 0 && ( */}
                 <button type="button" disabled={busy} onClick={() => pickCertificate("plating")} className={`${BTN_DARK} shrink-0`}>
                   <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
                   Upload Plating Certificate
                 </button>
-              )}
+              {/* )} */}
             </div>
-            <FleetUploadedFileBar doc={platingDocs[0]} onCta={() => pickCertificate("plating")} onView={openDocument} />
+            <FleetUploadedDocuments variant="blue" docs={platingDocs} onView={openDocument} onRemove={setDeleteDoc} />
             <FleetTextInput label="Licensing Authority" placeholder="Enter Licensing Authority" value={active.licensing_authority || ""} onChange={(v) => patch("licensing_authority", v)} error={missing("licensing_authority")} />
             <FleetAddressAutocomplete
               label="Address"
@@ -506,15 +520,15 @@ const LicensingAuthority: React.FC = () => {
           <section className={SECTION}>
             <div className="flex justify-between items-center gap-4">
               <h3 className={H3}>MOT Centre Contact Details</h3>
-              {motDocs.length === 0 && (
+              {/* {motDocs.length === 0 && ( */}
                 <button type="button" disabled={busy} onClick={() => pickCertificate("mot")} className={`${BTN_DARK} shrink-0`}>
                   <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
                   Upload MOT Centre Certificate
                 </button>
-              )}
+              {/* )} */}
             </div>
             <div className="h-px bg-neutral-100" />
-            <FleetUploadedFileBar doc={motDocs[0]} onCta={() => pickCertificate("mot")} onView={openDocument} />
+            <FleetUploadedDocuments variant="blue" docs={motDocs} onView={openDocument} onRemove={setDeleteDoc} />
             <FleetTextInput label="MOT Centre Name" placeholder="Enter MOT Centre Name" value={active.mot_centre_name || ""} onChange={(v) => patch("mot_centre_name", v)} error={missing("mot_centre_name")} />
             <FleetAddressAutocomplete
               label="Address"
@@ -595,6 +609,16 @@ const LicensingAuthority: React.FC = () => {
             handleDeleteAt(index);
           }}
           onCancel={() => setDeleteIndex(null)}
+        />
+      )}
+
+      {deleteDoc && (
+        <FleetConfirmModal
+          title="Delete Document"
+          message={`Are you sure you want to delete "${deleteDoc.filename || "this document"}"?`}
+          confirmLabel="Remove"
+          onConfirm={confirmDeleteDoc}
+          onCancel={() => setDeleteDoc(null)}
         />
       )}
 

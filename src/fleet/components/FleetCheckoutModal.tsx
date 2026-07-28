@@ -85,7 +85,7 @@ export const FleetCheckoutModal: React.FC<{
       {submitting && <FleetSpinnerLoader />}
       <div className="w-[680px] max-w-full h-[75vh] max-h-[92vh] p-6 bg-white rounded-lg flex flex-col gap-4 font-sans-headline overflow-y-auto">
         <div className="flex justify-between items-center">
-          <h3 className="text-black text-xl font-semibold leading-5">
+          <h3 className="text-black text-xl font-semibold leading-7">
             {step === 1 ? "Mileage & Return Details" : step === 2 ? "Vehicle Cleanliness - Hire Start & Hire End" : "Charges & Notes"}
           </h3>
           <Dots step={step} totalSteps={totalSteps} disabled={submitting} onSelect={setStep} />

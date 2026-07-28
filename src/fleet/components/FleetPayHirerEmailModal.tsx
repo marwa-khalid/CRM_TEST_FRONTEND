@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput } from "./fields";
+import OutlookIcon from "./OutlookIcon";
 import { sendPayHirer } from "../services/emailService";
 
 interface Props {
@@ -95,7 +96,10 @@ const FleetPayHirerEmailModal: React.FC<Props> = ({
     <div className="fixed inset-0 z-[140] bg-black/40 flex items-center justify-center p-4 font-sans-headline">
       <div className="w-[680px] max-w-full h-[88vh] bg-white rounded-lg flex flex-col overflow-hidden">
         <div className="px-6 py-4 flex justify-between items-center border-b border-neutral-100 shrink-0">
-          <h2 className="text-neutral-900 text-xl font-semibold leading-5">Pay / Reimburse Hirer</h2>
+          <div className="flex items-center gap-3 min-w-0">
+            <OutlookIcon />
+            <h2 className="text-neutral-900 text-xl font-semibold leading-7">Pay / Reimburse Hirer</h2>
+          </div>
           <button type="button" onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 text-neutral-500 text-xl leading-none">x</button>
         </div>
 

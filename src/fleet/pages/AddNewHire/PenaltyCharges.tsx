@@ -150,7 +150,7 @@ const PcnDocumentRow: React.FC<{
                     onRemove(doc);
                   }
                 }}
-                title="Remove document"
+                title="Delete document"
                 className="w-5 h-5 shrink-0 hover:opacity-70"
               >
                 <img src={RemoveIcon} alt="" className="w-5 h-5" />

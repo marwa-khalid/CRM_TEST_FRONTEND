@@ -613,12 +613,12 @@ export const FleetSelect: React.FC<SelectProps> = ({
 );
 
 export const FleetCreatableSelect: React.FC<SelectProps> = ({
-  label, placeholder = "Select", value, options, onChange, onBlur, disabled, unsorted,
+  label, placeholder = "Select", value, options, onChange, onBlur, disabled, unsorted, menuPortal,
 }) => {
   const selected = options.find((o) => o.value === value) ?? (value ? { value, label: value } : null);
   return (
     <div className={WRAP}>
-      <FieldLabel text={label} />
+      {label && <FieldLabel text={label} />}
       <CreatableSelect<Option, false>
         options={unsorted ? options : sortOptions(options)}
         value={selected}
@@ -627,7 +627,8 @@ export const FleetCreatableSelect: React.FC<SelectProps> = ({
         onBlur={onBlur}
         isDisabled={disabled}
         placeholder={placeholder}
-        styles={fleetSelectStyles}
+        styles={menuPortal ? { ...fleetSelectStyles, menuPortal: (base) => ({ ...base, zIndex: 9999 }) } : fleetSelectStyles}
+        menuPortalTarget={menuPortal && typeof document !== "undefined" ? document.body : undefined}
         className="font-sans-headline text-base"
         classNamePrefix="fleet-select"
         menuPlacement="auto"

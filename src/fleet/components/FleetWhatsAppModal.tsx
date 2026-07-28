@@ -141,7 +141,7 @@ const FleetWhatsAppModal: React.FC<Props> = ({
           <div className="flex items-center gap-3 min-w-0">
             <MessageCircle size={22} className="shrink-0 text-green-600" />
             <div className="flex flex-col gap-1 min-w-0">
-              <h2 className="text-neutral-900 text-xl font-semibold leading-5 truncate">{title}</h2>
+              <h2 className="text-neutral-900 text-xl font-semibold leading-7 truncate">{title}</h2>
             </div>
           </div>
           <div className="flex items-center gap-3">

@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetTextArea, FleetSelect, FleetDateField, FleetTimeSelect } from "./fields";
+import { FleetTextInput, FleetTextArea, FleetSelect, FleetCreatableSelect, FleetDateField, FleetTimeSelect } from "./fields";
+import { useFleetAssignees } from "../hooks/useFleetAssignees";
+import { listVehicleRegister } from "../services/vehicleService";
 import {
   createFleetTask,
   updateFleetTask,
@@ -43,8 +45,28 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved }
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
+  // Assigned To — same options as the Claims side (real users + shared samples).
+  const assignees = useFleetAssignees();
+  // Vehicle Reg — fleet register vehicles, plus the ability to add a new one.
+  const [vehicleRegs, setVehicleRegs] = useState<string[]>([]);
+  useEffect(() => {
+    listVehicleRegister().then((rows) => setVehicleRegs(rows.map((r) => r.registration_number).filter(Boolean)));
+  }, []);
+
   const set = <K extends keyof FleetTaskPayload>(key: K, value: FleetTaskPayload[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const assigneeOptions = useMemo<Option[]>(() => {
+    const set = new Set<string>(assignees);
+    if (form.assigned_user) set.add(form.assigned_user);
+    return [...set].map((n) => ({ label: n, value: n }));
+  }, [assignees, form.assigned_user]);
+
+  const vehicleOptions = useMemo<Option[]>(() => {
+    const set = new Set<string>(vehicleRegs);
+    if (form.vehicle_registration) set.add(form.vehicle_registration);
+    return [...set].sort().map((r) => ({ label: r, value: r }));
+  }, [vehicleRegs, form.vehicle_registration]);
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -153,19 +175,23 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved }
               onChange={(v) => set("department", v)}
               menuPortal
             />
-            <FleetTextInput
+            <FleetSelect
               label="Assigned To"
-              placeholder="Name or email"
+              placeholder="Select user"
               value={form.assigned_user || ""}
+              options={assigneeOptions}
               onChange={(v) => set("assigned_user", v)}
+              menuPortal
             />
           </div>
 
-          <FleetTextInput
+          <FleetCreatableSelect
             label="Vehicle Reg (optional)"
-            placeholder="e.g. AB12 CDE"
+            placeholder="Select or add a vehicle"
             value={form.vehicle_registration || ""}
+            options={vehicleOptions}
             onChange={(v) => set("vehicle_registration", v)}
+            menuPortal
           />
 
           {/* Attachment */}

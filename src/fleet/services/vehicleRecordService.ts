@@ -241,6 +241,16 @@ export const listVehicleDocuments = async (
   }
 };
 
+// Removes a single uploaded document (history row) from a vehicle record.
+export const deleteVehicleDocument = async (recordId: number, docId: number): Promise<boolean> => {
+  try {
+    await fleetApi.delete(`/fleet/vehicle-record/${recordId}/documents/${docId}`);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // Fetches the file (auth-checked) as a blob and returns an object URL the caller
 // can open in a new tab — a plain link can't send the Bearer token.
 export const getVehicleDocumentFileUrl = async (

@@ -3,6 +3,8 @@ import { toast } from "react-toastify";
 import { FleetTextInput, FleetSelect, FleetDateField, FleetReadonlyField } from "../../components/fields";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
+import FleetConfirmModal from "../../components/FleetConfirmModal";
+import FleetUploadedDocuments from "../../components/FleetUploadedDocuments";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import Vector6 from "../../assets/icons/Calendar.svg";
 import {
@@ -10,6 +12,7 @@ import {
   uploadVehicleDocument,
   listVehicleDocuments,
   getVehicleDocumentFileUrl,
+  deleteVehicleDocument,
   type VehicleDocument,
 } from "../../services/vehicleRecordService";
 import {
@@ -18,7 +21,6 @@ import {
   OBTAINED_FOR_PURPOSE_OPTIONS,
   VEHICLE_STATUS_OPTIONS,
 } from "../../types/vehicleRecord";
-import FleetUploadedFileBar from "../../components/FleetUploadedFileBar";
 import { useVehicle } from "./VehicleContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
@@ -106,6 +108,7 @@ const VehicleDetails: React.FC = () => {
   const [form, setForm] = useState<Form>(EMPTY);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [documents, setDocuments] = useState<VehicleDocument[]>([]);
+  const [deleteDoc, setDeleteDoc] = useState<VehicleDocument | null>(null);
   // Mount-scoped loading so the loader shows every time this screen opens, even
   // when the record is already cached at the parent (recordLoading would be
   // false then). Stays true until the vehicle + its V5C history are in hand.
@@ -180,6 +183,16 @@ const VehicleDetails: React.FC = () => {
     } finally {
       setViewingDoc(false);
     }
+  };
+
+  const confirmDeleteDoc = async () => {
+    if (!deleteDoc || !vehicle?.id) return;
+    const target = deleteDoc;
+    setDeleteDoc(null);
+    setDocuments((rows) => rows.filter((r) => r.id !== target.id)); // optimistic
+    const ok = await deleteVehicleDocument(vehicle.id, target.id);
+    if (ok) toast.success("Document removed.");
+    else { toast.error("Couldn't remove the document."); loadDocuments(vehicle.id); }
   };
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) =>
@@ -269,8 +282,8 @@ const VehicleDetails: React.FC = () => {
         </button>
       </div>
 
-      {/* Latest V5C as a grey row; the full upload history lives in the modal. */}
-      <FleetUploadedFileBar doc={documents[0]} onCta={() => setUploadOpen(true)} onView={openDocument} />
+      {/* Uploaded V5C documents — current + previous reports (Figma design). */}
+      <FleetUploadedDocuments docs={documents} onView={openDocument} onRemove={setDeleteDoc} variant="grey" />
 
       {/* Section A */}
       <section className={SECTION}>
@@ -389,6 +402,16 @@ const VehicleDetails: React.FC = () => {
           />
         </div>
       </section>
+
+      {deleteDoc && (
+        <FleetConfirmModal
+          title="Delete Document"
+          message={`Are you sure you want to delete "${deleteDoc.filename || "this document"}"?`}
+          confirmLabel="Delete"
+          onConfirm={confirmDeleteDoc}
+          onCancel={() => setDeleteDoc(null)}
+        />
+      )}
     </div>
   );
 };

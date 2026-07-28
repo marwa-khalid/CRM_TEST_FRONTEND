@@ -58,7 +58,7 @@ const CurrentHireDetails: React.FC = () => {
       <h2 className="text-black text-2xl font-semibold leading-6">Current Hire Details</h2>
 
       <section className={SECTION}>
-        <h3 className="text-black text-xl font-semibold leading-5">Current/Last Hire Details</h3>
+        {/* <h3 className="text-black text-xl font-semibold leading-5">Current/Last Hire Details</h3> */}
 
         {/* Read-only throughout — the story forbids editing or saving here.
             Blank fields are correct when the vehicle has no hire yet. */}
@@ -69,7 +69,7 @@ const CurrentHireDetails: React.FC = () => {
         <FleetReadonlyField label="Address" value={s(hire?.driver_address)} placeholder="—" />
         <div className="grid grid-cols-2 gap-5">
           <FleetReadonlyField label="Postcode" value={s(hire?.driver_postcode)} placeholder="—" />
-          <FleetReadonlyField label="Telephone" value={telephone} placeholder="—" />
+          <FleetReadonlyField label="Mobile Number" value={telephone} placeholder="—" />
         </div>
         <div className="grid grid-cols-2 gap-5">
           <FleetReadonlyField

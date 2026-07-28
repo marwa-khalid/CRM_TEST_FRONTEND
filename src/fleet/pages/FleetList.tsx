@@ -1,17 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Loader2, Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { listHires, deleteHire, getDueReminders, type HireRecord, type FleetDueReminder } from "../services/hireService";
 import { listVehicleRegister, type FleetVehicleRegister } from "../services/vehicleService";
+import { listVehicleRecords, type VehicleRecord } from "../services/vehicleRecordService";
 import FleetConfirmModal from "../components/FleetConfirmModal";
 import FleetReminderPanel from "../components/FleetReminderPanel";
+import FleetNotificationBell from "../components/FleetNotificationBell";
+import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
+import FleetMultiSelectFilter from "../components/FleetMultiSelectFilter";
 import { FleetCalendar } from "../components/FleetCalendar";
-import { FleetSelect } from "../components/fields";
 import { fleetReference } from "../utils/reference";
 // Listing-page icons (design set)
 import SearchIcon from "../assets/listingpage/search.svg";
-import NotificationIcon from "../assets/listingpage/notification.svg";
 import VehiclesIcon from "../assets/listingpage/vehicles.svg";
 import CheckIcon from "../assets/listingpage/check.svg";
 import BlockIcon from "../assets/listingpage/block.svg";
@@ -84,41 +86,6 @@ const useOutside = (onClose: () => void) => {
   return ref;
 };
 
-// Status filter — multi-select dropdown, same shape as the Claims listing.
-const StatusFilter: React.FC<{ selected: string[]; onToggle: (v: string) => void; onClear: () => void }> = ({ selected, onToggle, onClear }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useOutside(() => setOpen(false));
-  return (
-    <div className="relative" ref={ref}>
-      <button type="button" onClick={() => setOpen((o) => !o)} className="flex items-center gap-1.5 text-[#0352fd] text-sm font-medium hover:opacity-80">
-        {selected.length > 0 && (
-          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#0352fd] text-white text-[11px] flex items-center justify-center">{selected.length}</span>
-        )}
-        Status
-        <ChevronDown size={14} />
-      </button>
-      {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 w-max min-w-[180px] bg-white rounded-md shadow-[0px_4px_12px_0px_rgba(0,0,0,0.1)] border border-neutral-100 p-2 flex flex-col gap-1">
-          {selected.length > 0 && (
-            <button type="button" onClick={onClear} className="w-full text-left p-2.5 text-xs text-neutral-500 hover:bg-neutral-50 rounded">
-              Clear Status
-            </button>
-          )}
-          {STATUS_OPTIONS.map((o) => {
-            const checked = selected.includes(o.value);
-            return (
-              <button key={o.value} type="button" onClick={() => onToggle(o.value)} className={`w-full flex items-center gap-2 text-left p-2.5 rounded ${checked ? "bg-neutral-100" : "hover:bg-neutral-50"}`}>
-                <span className={`w-5 h-5 rounded shrink-0 ${checked ? "bg-neutral-900 border-[6px] border-neutral-300" : "bg-neutral-300"}`} />
-                <span className="text-neutral-700 text-sm truncate">{o.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
-
 // Date field — calendar.svg trigger + Fleet's own popup calendar (kept in-module).
 const DateField: React.FC<{ value: string; onChange: (v: string) => void; placeholder: string }> = ({ value, onChange, placeholder }) => {
   const [open, setOpen] = useState(false);
@@ -185,7 +152,7 @@ const FleetList: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const [query, setQuery] = useState("");
-  const [regFilter, setRegFilter] = useState("");
+  const [regSel, setRegSel] = useState<string[]>([]);
   const [statusSel, setStatusSel] = useState<string[]>([]);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -197,14 +164,16 @@ const FleetList: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<HireRecord | null>(null);
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [register, setRegister] = useState<FleetVehicleRegister[]>([]);
+  const [vehicleRecords, setVehicleRecords] = useState<VehicleRecord[]>([]);
   const [reminders, setReminders] = useState<FleetDueReminder[]>([]);
   const [showReminders, setShowReminders] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const [hires, reg] = await Promise.all([listHires(), listVehicleRegister()]);
+    const [hires, reg, vrecs] = await Promise.all([listHires(), listVehicleRegister(), listVehicleRecords()]);
     setRecords(hires);
     setRegister(reg);
+    setVehicleRecords(vrecs);
     setSelected(new Set());
     setLoading(false);
   };
@@ -239,10 +208,11 @@ const FleetList: React.FC = () => {
       { title: "Total Hires", value: records.length, icon: VehiclesIcon, tile: "bg-[#d9ecff]", trendPct: trendFor(records) },
       { title: "On Hire", value: by("on_hire").length, icon: CheckIcon, tile: "bg-[#d9ecff]", trendPct: trendFor(by("on_hire")) },
       { title: "Off Hire", value: by("off_hire").length, icon: BlockIcon, tile: "bg-[#eee]", trendPct: trendFor(by("off_hire")) },
-      { title: "In Repair", value: by("in_repair").length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: trendFor(by("in_repair")) },
+      // Linked to the Vehicle Details "In Repair" status (per vehicle record), not hires.
+      { title: "In Repair", value: vehicleRecords.filter((v) => (v.vehicle_status || "").toLowerCase().includes("repair")).length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: 0 },
       { title: "Available", value: availableCars, icon: CheckCircleIcon, tile: "bg-[#d9ffd9]", trendPct: 0 },
     ];
-  }, [records, register]);
+  }, [records, register, vehicleRecords]);
 
   // Vehicle registration options — every reg in the fleet register + on a record.
   const vehicleOptions = useMemo(() => {
@@ -263,18 +233,18 @@ const FleetList: React.FC = () => {
           .filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(needle)) return false;
       }
-      if (regFilter && (r.last_vehicle_registration || "") !== regFilter) return false;
+      if (regSel.length && !regSel.includes(r.last_vehicle_registration || "")) return false;
       if (statusSel.length && !statusSel.includes(r.last_vehicle_hire_status || "")) return false;
       const d = (r.last_vehicle_hire_start || r.file_opened_at || "").slice(0, 10);
       if (fromDate && (!d || d < fromDate)) return false;
       if (toDate && (!d || d > toDate)) return false;
       return true;
     });
-  }, [records, query, regFilter, statusSel, fromDate, toDate]);
+  }, [records, query, regSel, statusSel, fromDate, toDate]);
 
   useEffect(() => {
     setPage(1);
-  }, [query, regFilter, statusSel, fromDate, toDate]);
+  }, [query, regSel, statusSel, fromDate, toDate]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -365,12 +335,13 @@ const FleetList: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white font-sans-headline">
+      {loading && <FleetSpinnerLoader />}
       {/* Topbar */}
       <div className="h-20 px-4 sm:px-6 lg:px-10 flex items-center justify-between border-b border-[#eee]">
         <h1 className="text-black text-2xl font-semibold">Fleet</h1>
         <div className="flex items-center gap-6">
           <img src={SearchIcon} alt="Search" className="w-5 h-5" />
-          <img src={NotificationIcon} alt="Notifications" className="w-5 h-5" />
+          <FleetNotificationBell />
         </div>
       </div>
 
@@ -410,18 +381,18 @@ const FleetList: React.FC = () => {
             </div>
           </div>
 
-          {/* Filters */}
+          {/* Filters — borderless multi-select (Vehicle + Status), same shape. */}
           <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
-            <div className="w-full md:w-[240px]">
-              <FleetSelect
-                placeholder="Vehicle Registration"
-                value={regFilter}
-                options={vehicleOptions}
-                onChange={setRegFilter}
-                menuPortal
-              />
-            </div>
-            <StatusFilter
+            <FleetMultiSelectFilter
+              label="Vehicle"
+              options={vehicleOptions.filter((o) => o.value)}
+              selected={regSel}
+              onToggle={(v) => setRegSel((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))}
+              onClear={() => setRegSel([])}
+            />
+            <FleetMultiSelectFilter
+              label="Status"
+              options={STATUS_OPTIONS}
               selected={statusSel}
               onToggle={(v) => setStatusSel((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))}
               onClear={() => setStatusSel([])}
@@ -442,11 +413,19 @@ const FleetList: React.FC = () => {
             </div>
           </div>
 
-          {/* Active filter pills — selected statuses as removable chips + Clear all. */}
-          {statusSel.length > 0 && (
+          {/* Active filter pills — selected vehicles + statuses as removable chips. */}
+          {(statusSel.length > 0 || regSel.length > 0) && (
             <div className="flex items-center gap-2 flex-wrap">
+              {regSel.map((v) => (
+                <span key={`reg-${v}`} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white rounded-full border border-neutral-200 text-sm text-neutral-700">
+                  {v}
+                  <button type="button" onClick={() => setRegSel((s) => s.filter((x) => x !== v))} className="text-neutral-400 hover:text-neutral-700" aria-label={`Remove ${v} filter`}>
+                    <X size={14} />
+                  </button>
+                </span>
+              ))}
               {statusSel.map((v) => (
-                <span key={v} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white rounded-full border border-neutral-200 text-sm text-neutral-700">
+                <span key={`st-${v}`} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white rounded-full border border-neutral-200 text-sm text-neutral-700">
                   {statusLabel(v)}
                   <button
                     type="button"
@@ -458,7 +437,7 @@ const FleetList: React.FC = () => {
                   </button>
                 </span>
               ))}
-              <button type="button" onClick={() => setStatusSel([])} className="ml-1 text-sm text-neutral-600 hover:underline">
+              <button type="button" onClick={() => { setStatusSel([]); setRegSel([]); }} className="ml-1 text-sm text-neutral-600 hover:underline">
                 Clear all
               </button>
             </div>
@@ -495,12 +474,7 @@ const FleetList: React.FC = () => {
                 <span />
               </div>
 
-              {loading ? (
-                <div className="h-48 flex items-center justify-center text-neutral-500 text-sm gap-2 border-t border-[#eee]">
-                  <Loader2 size={18} className="animate-spin" />
-                  Loading fleet records…
-                </div>
-              ) : pageItems.length === 0 ? (
+              {loading ? null : pageItems.length === 0 ? (
                 <div className="h-48 flex flex-col items-center justify-center text-center border-t border-[#eee]">
                   <p className="text-neutral-900 text-base font-semibold">No fleet records found</p>
                   <p className="text-neutral-500 text-sm mt-1">Try adjusting the search or filters.</p>

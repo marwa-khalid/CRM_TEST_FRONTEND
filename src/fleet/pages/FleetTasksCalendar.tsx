@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Filter, Plus, Search } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Filter, Paperclip, Plus, Search } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetTaskModal from "../components/FleetTaskModal";
 import FleetEventModal from "../components/FleetEventModal";
@@ -52,7 +52,8 @@ type Entry =
 
 const entryStyle = (entry: Entry): { pill: string; dot: string; text: string; strike: boolean; title: string } => {
   if (entry.kind === "event") {
-    return { pill: "bg-blue-100 hover:bg-blue-200", dot: "bg-blue-500", text: "text-blue-800", strike: false, title: entry.event.title };
+    // Manual calendar events — Fleet black/grey theme (not blue).
+    return { pill: "bg-neutral-200 hover:bg-neutral-300", dot: "bg-neutral-900", text: "text-neutral-900", strike: false, title: entry.event.title };
   }
   if (entry.kind === "expiry") {
     // Road fund / plate / MOT expiries — same purple as tasks (Task Management),
@@ -82,6 +83,24 @@ const chipCls = (e: Entry): string => {
   const s = entryStyle(e);
   return `${s.pill} ${s.text} border-l-[3px] border-current rounded`;
 };
+
+// Agenda helpers (Teams-style rows): a light source tint + a secondary line.
+const agendaTint = (e: Entry): string => {
+  if (e.kind === "event") return "bg-neutral-50";
+  if (e.kind === "expiry") return "bg-purple-50";
+  const t = e.task;
+  if (isDone(t)) return "bg-green-50";
+  if (t.is_overdue) return "bg-red-50";
+  return "bg-purple-50";
+};
+const agendaSubtitle = (e: Entry): string => {
+  if (e.kind === "event") return e.event.event_type || "Event";
+  if (e.kind === "expiry") return `Expiry${e.expiry.vehicle ? " · " + e.expiry.vehicle : ""}`;
+  const t = e.task;
+  return `Task${t.assigned_user ? " · " + t.assigned_user : ""}${t.vehicle_registration ? " · " + t.vehicle_registration : ""}`;
+};
+const hasAttachment = (e: Entry): boolean =>
+  Boolean(e.kind === "event" ? e.event.attachment_path : e.kind === "task" ? e.task.attachment_path : false);
 
 // Filter by entry kind (Events / Tasks / Expiries), mirroring the Claims "All Types".
 const TYPE_OPTIONS: Option[] = [
@@ -249,11 +268,8 @@ const FleetTasksCalendar: React.FC = () => {
     if (entry.kind === "task") return openEditTask(entry.task);
   };
 
-  const agendaMonthPrefix = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
-  const agendaDates = useMemo(
-    () => [...entriesByDate.keys()].filter((k) => k.startsWith(agendaMonthPrefix)).sort(),
-    [entriesByDate, agendaMonthPrefix],
-  );
+  // Agenda is all-time (like the Teams calendar) — the From/To filters narrow it.
+  const agendaDates = useMemo(() => [...entriesByDate.keys()].sort(), [entriesByDate]);
 
   // Day / Week time grid — hour rows with entries positioned by time; all-day
   // entries (incl. expiries) pinned at the top of each column.
@@ -524,43 +540,46 @@ const FleetTasksCalendar: React.FC = () => {
             </div>
           )}
 
-          {/* ── AGENDA ────────────────────────────────────────────── */}
+          {/* ── AGENDA (Teams-style) ──────────────────────────────── */}
           {view === "agenda" && (
             agendaDates.length === 0 ? (
-              <div className="text-neutral-400 text-sm py-10 text-center border border-dashed border-neutral-200 rounded">
-                Nothing scheduled in {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}.
-              </div>
+              <div className="py-12 text-center text-sm text-neutral-500">You're up to date!</div>
             ) : (
-              <div className="flex flex-col gap-5">
+              <div className="max-w-3xl w-full mx-auto flex flex-col gap-5">
                 {agendaDates.map((dateKey) => {
+                  const d = new Date(`${dateKey}T00:00:00`);
+                  const isToday = dateKey === todayISO;
+                  const past = dateKey < todayISO;
                   const list = entriesByDate.get(dateKey)!.slice().sort(sortByTime);
                   return (
-                    <div key={dateKey} className="rounded border border-neutral-200 overflow-hidden bg-white shadow-sm">
-                      <div className="px-4 py-2.5 bg-neutral-50 text-sm font-semibold text-neutral-700 border-b border-neutral-100">
-                        {new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                        {dateKey === todayISO && <span className="ml-2 text-[11px] font-normal text-neutral-400">· Today</span>}
+                    <div key={dateKey}>
+                      {/* Date header — big day number + weekday, month, year */}
+                      <div className="flex items-baseline gap-2 mb-2 pb-2 border-b border-neutral-200">
+                        <span className={`text-[20px] font-semibold ${isToday ? "text-neutral-900" : "text-neutral-800"}`}>{d.getDate()}</span>
+                        <span className={`text-[13px] ${isToday ? "text-neutral-900" : "text-neutral-500"}`}>
+                          {d.toLocaleDateString("en-GB", { weekday: "long" })}, {d.toLocaleDateString("en-GB", { month: "short" })} {d.getFullYear()}
+                          {isToday && " · Today"}
+                        </span>
                       </div>
-                      <div className="divide-y divide-neutral-50">
+                      <div className="flex flex-col gap-2">
                         {list.map((entry) => {
                           const style = entryStyle(entry);
+                          const time = entryTimeOf(entry);
                           return (
                             <button
                               key={entryKey(entry)}
                               type="button"
                               onClick={() => openEntry(entry)}
-                              className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-neutral-50 transition-colors"
+                              className={`flex items-stretch gap-3 rounded-md p-3 text-left border border-neutral-200 transition hover:brightness-95 ${agendaTint(entry)}`}
                             >
-                              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${style.dot}`} />
-                              <div className="flex-1 min-w-0">
-                                <div className={`text-sm font-semibold truncate ${style.strike ? "line-through text-neutral-400" : "text-neutral-900"}`}>{style.title}</div>
-                                <div className="text-xs text-neutral-500 truncate">
-                                  {entryLabel(entry)}
-                                  {entryTimeOf(entry) ? ` · ${entryTimeOf(entry)}` : ""}
-                                  {assignedOf(entry) ? ` · ${assignedOf(entry)}` : ""}
-                                  {vehicleOf(entry) ? ` · ${vehicleOf(entry)}` : ""}
-                                </div>
+                              {/* Left source-colour bar */}
+                              <div className={`w-1 rounded shrink-0 ${style.dot}`} style={{ opacity: past ? 0.45 : 1 }} />
+                              <div className="w-20 shrink-0 text-[13px] text-neutral-500">{time || "All day"}</div>
+                              <div className="min-w-0 flex-1">
+                                <div className={`text-[14px] font-semibold truncate ${style.strike ? "line-through text-neutral-400" : "text-neutral-900"}`}>{style.title}</div>
+                                <div className="text-[12px] text-neutral-500 truncate">{agendaSubtitle(entry)}</div>
                               </div>
-                              <span className={`px-2 py-0.5 rounded text-[11px] font-semibold shrink-0 ${style.pill} ${style.text}`}>{entryLabel(entry)}</span>
+                              {hasAttachment(entry) && <Paperclip size={14} className="self-center shrink-0 text-neutral-400" aria-label="Has attachment" />}
                             </button>
                           );
                         })}
@@ -618,7 +637,7 @@ const FleetTasksCalendar: React.FC = () => {
 
           {/* Legend */}
           <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-500">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /> Events</span>
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-neutral-900" /> Events</span>
             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" /> Tasks &amp; Expiries</span>
             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> Completed</span>
             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" /> Overdue</span>

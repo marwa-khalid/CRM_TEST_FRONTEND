@@ -6,7 +6,7 @@ import FleetTaskModal from "../components/FleetTaskModal";
 import FleetPageHeader from "../components/FleetPageHeader";
 import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
 import { FleetCalendar } from "../components/FleetCalendar";
-import { FleetSelect } from "../components/fields";
+import FleetMultiSelectFilter from "../components/FleetMultiSelectFilter";
 import CalendarIcon from "../assets/listingpage/calendar.svg";
 import {
   listFleetTasks,
@@ -101,20 +101,6 @@ const DateField: React.FC<{ value: string; onChange: (v: string) => void; placeh
   );
 };
 
-// A closed filter reads as plain borderless "Label ⌄" text (Figma); opening
-// shows the standard Fleet select menu unchanged.
-const FilterChip: React.FC<{
-  placeholder: string;
-  value: string;
-  options: Option[];
-  onChange: (v: string) => void;
-  unsorted?: boolean;
-}> = ({ placeholder, value, options, onChange, unsorted }) => (
-  <div className="inline-flex items-center">
-    <FleetSelect chip placeholder={placeholder} value={value} options={options} onChange={onChange} menuPortal unsorted={unsorted} />
-  </div>
-);
-
 interface TaskStat {
   title: string;
   value: number;
@@ -146,10 +132,10 @@ const FleetTasks: React.FC = () => {
   const [tasks, setTasks] = useState<FleetTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [priorityFilter, setPriorityFilter] = useState("");
-  const [assignedFilter, setAssignedFilter] = useState("");
-  const [regFilter, setRegFilter] = useState("");
+  const [statusSel, setStatusSel] = useState<string[]>([]);
+  const [prioritySel, setPrioritySel] = useState<string[]>([]);
+  const [assignedSel, setAssignedSel] = useState<string[]>([]);
+  const [regSel, setRegSel] = useState<string[]>([]);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [editing, setEditing] = useState<FleetTask | null>(null);
@@ -214,10 +200,10 @@ const FleetTasks: React.FC = () => {
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return tasks.filter((t) => {
-      if (statusFilter && (t.status || "") !== statusFilter) return false;
-      if (priorityFilter && (t.priority || "") !== priorityFilter) return false;
-      if (assignedFilter && (t.assigned_user || "") !== assignedFilter) return false;
-      if (regFilter && (t.vehicle_registration || "") !== regFilter) return false;
+      if (statusSel.length && !statusSel.includes(t.status || "")) return false;
+      if (prioritySel.length && !prioritySel.includes(t.priority || "")) return false;
+      if (assignedSel.length && !assignedSel.includes(t.assigned_user || "")) return false;
+      if (regSel.length && !regSel.includes(t.vehicle_registration || "")) return false;
       if (fromDate && (!t.due_date || t.due_date < fromDate)) return false;
       if (toDate && (!t.due_date || t.due_date > toDate)) return false;
       if (!needle) return true;
@@ -227,23 +213,26 @@ const FleetTasks: React.FC = () => {
         .toLowerCase()
         .includes(needle);
     });
-  }, [tasks, query, statusFilter, priorityFilter, assignedFilter, regFilter, fromDate, toDate]);
+  }, [tasks, query, statusSel, prioritySel, assignedSel, regSel, fromDate, toDate]);
 
   // Active-filter chips shown below the toolbar (each removable).
   const activePills = useMemo(() => {
     const pills: { key: string; label: string; clear: () => void }[] = [];
-    if (statusFilter) pills.push({ key: "status", label: `Status: ${statusFilter}`, clear: () => setStatusFilter("") });
-    if (priorityFilter) pills.push({ key: "priority", label: `Priority: ${priorityFilter}`, clear: () => setPriorityFilter("") });
-    if (assignedFilter) pills.push({ key: "assigned", label: `Assigned: ${assignedFilter}`, clear: () => setAssignedFilter("") });
-    if (regFilter) pills.push({ key: "reg", label: `Vehicle: ${regFilter}`, clear: () => setRegFilter("") });
+    const remove = (setter: React.Dispatch<React.SetStateAction<string[]>>, v: string) => setter((s) => s.filter((x) => x !== v));
+    statusSel.forEach((v) => pills.push({ key: `status-${v}`, label: `Status: ${v}`, clear: () => remove(setStatusSel, v) }));
+    prioritySel.forEach((v) => pills.push({ key: `priority-${v}`, label: `Priority: ${v}`, clear: () => remove(setPrioritySel, v) }));
+    assignedSel.forEach((v) => pills.push({ key: `assigned-${v}`, label: `Assigned: ${v}`, clear: () => remove(setAssignedSel, v) }));
+    regSel.forEach((v) => pills.push({ key: `reg-${v}`, label: `Vehicle: ${v}`, clear: () => remove(setRegSel, v) }));
     if (fromDate) pills.push({ key: "from", label: `From: ${new Date(`${fromDate}T00:00:00`).toLocaleDateString("en-GB")}`, clear: () => setFromDate("") });
     if (toDate) pills.push({ key: "to", label: `To: ${new Date(`${toDate}T00:00:00`).toLocaleDateString("en-GB")}`, clear: () => setToDate("") });
     return pills;
-  }, [statusFilter, priorityFilter, assignedFilter, regFilter, fromDate, toDate]);
+  }, [statusSel, prioritySel, assignedSel, regSel, fromDate, toDate]);
 
   const clearAllFilters = () => {
-    setStatusFilter(""); setPriorityFilter(""); setAssignedFilter(""); setRegFilter(""); setFromDate(""); setToDate("");
+    setStatusSel([]); setPrioritySel([]); setAssignedSel([]); setRegSel([]); setFromDate(""); setToDate("");
   };
+  const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, v: string) =>
+    setter((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]));
 
   const openNew = () => { setEditing(null); setShowModal(true); };
   const openEdit = (task: FleetTask) => { setEditing(task); setShowModal(true); };
@@ -328,12 +317,12 @@ const FleetTasks: React.FC = () => {
             </div>
           </div>
 
-          {/* Filters — closed each reads as a Figma "Label ⌄" chip; opening shows the select menu. */}
+          {/* Filters — borderless multi-select (same shape as the Fleet listing). */}
           <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-7 flex-wrap">
-            <FilterChip placeholder="Status" value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
-            <FilterChip placeholder="Priority" value={priorityFilter} options={priorityOptions} onChange={setPriorityFilter} unsorted />
-            <FilterChip placeholder="Assigned To" value={assignedFilter} options={assignedOptions} onChange={setAssignedFilter} />
-            <FilterChip placeholder="Vehicle Reg" value={regFilter} options={regOptions} onChange={setRegFilter} />
+            <FleetMultiSelectFilter label="Status" options={statusOptions.filter((o) => o.value)} selected={statusSel} onToggle={(v) => toggle(setStatusSel, v)} onClear={() => setStatusSel([])} />
+            <FleetMultiSelectFilter label="Priority" options={priorityOptions.filter((o) => o.value)} selected={prioritySel} onToggle={(v) => toggle(setPrioritySel, v)} onClear={() => setPrioritySel([])} />
+            <FleetMultiSelectFilter label="Assigned To" options={assignedOptions.filter((o) => o.value)} selected={assignedSel} onToggle={(v) => toggle(setAssignedSel, v)} onClear={() => setAssignedSel([])} />
+            <FleetMultiSelectFilter label="Vehicle Reg" options={regOptions.filter((o) => o.value)} selected={regSel} onToggle={(v) => toggle(setRegSel, v)} onClear={() => setRegSel([])} />
             <div className="flex items-center gap-2 md:ml-auto">
               <span className="text-sm text-[#444] shrink-0">Date Range</span>
               <DateField value={fromDate} onChange={setFromDate} placeholder="From" />

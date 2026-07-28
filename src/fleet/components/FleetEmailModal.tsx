@@ -162,7 +162,7 @@ const FleetEmailModal: React.FC<Props> = ({
           <div className="flex items-center gap-3 min-w-0">
             <OutlookIcon />
             <div className="flex flex-col gap-1 min-w-0">
-              <h2 className="text-neutral-900 text-xl font-semibold leading-5 truncate">
+              <h2 className="text-neutral-900 text-xl font-semibold leading-7 truncate">
                 {title}
               </h2>
               {/* <span className="text-[#0078D4] text-xs font-medium">Outlook email preview</span> */}

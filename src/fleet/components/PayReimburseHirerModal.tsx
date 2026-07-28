@@ -42,7 +42,7 @@ const PayReimburseHirerModal: React.FC<Props> = ({ open, onClose, onSubmit, defa
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 font-sans-headline">
       <div className="w-[440px] max-w-full p-6 bg-white rounded-lg shadow-[0px_2px_8px_0px_rgba(0,0,0,0.08)] flex flex-col gap-6">
-        <h2 className="text-neutral-900 text-xl font-semibold leading-5">Pay / Reimburse Hirer</h2>
+        <h2 className="text-neutral-900 text-xl font-semibold leading-7">Pay / Reimburse Hirer</h2>
 
         <div className="flex flex-col gap-2">
           <label className="text-neutral-700 text-sm font-medium">How much do we owe to the hirer?</label>

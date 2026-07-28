@@ -7,6 +7,7 @@ import FleetIcon from "../assets/listingpage/fleet.svg";
 import TasksIcon from "../assets/listingpage/tasks.svg";
 import CalendarIcon from "../assets/listingpage/calendarsidebar.svg";
 import ReportsIcon from "../assets/listingpage/reports.svg";
+import MapIcon from "../assets/listingpage/map.svg";
 import AccountArrows from "../assets/listingpage/doublearrow.svg";
 
 // Best-effort current user for the profile block — real identity from storage /
@@ -67,6 +68,7 @@ const FleetShell: React.FC = () => {
     { label: "Tasks", icon: TasksIcon, to: "/fleet/tasks" },
     { label: "Calendar", icon: CalendarIcon, to: "/fleet/calendar" },
     { label: "Reports", icon: ReportsIcon, onClick: () => navigate("/dashboard") },
+    { label: "Fleet Map", icon: MapIcon, to: "/fleet/map" },
   ];
 
   const rowBase = "w-full flex items-center gap-3 px-5 py-3 text-[15px] leading-none transition-colors";

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { Download, Paperclip, Trash2, Upload } from "lucide-react";
+import { Download, Trash2, Upload } from "lucide-react";
+import { fileTypeIcon } from "../utils/fileIcon";
 import {
   updateFleetTask,
   uploadTaskAttachment,
@@ -141,7 +142,7 @@ const AttachmentsTab: React.FC<{ task: FleetTask; onUpdated: (t: FleetTask) => v
         {files.length === 0 && <div className="text-neutral-400 text-sm">No attachments yet.</div>}
         {files.map((p) => (
           <div key={p} className="p-3 rounded-lg border border-neutral-200 flex items-center gap-3">
-            <span className="w-10 h-10 rounded bg-neutral-100 flex items-center justify-center shrink-0"><Paperclip size={16} className="text-neutral-500" /></span>
+            <img src={fileTypeIcon(p)} alt="" className="w-10 h-10 shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="text-neutral-900 text-sm font-medium line-clamp-1">{baseName(p)}</div>
             </div>

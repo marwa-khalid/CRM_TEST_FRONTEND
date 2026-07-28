@@ -150,7 +150,6 @@ export const buildTaskNotifications = (overdue: any[], dueToday: any[]): NotifIt
 const TABS: { key: string; label: string }[] = [
   { key: "All", label: "All" },
   { key: "Claims", label: "Claims" },
-  { key: "Fleet", label: "Fleet" },
   { key: "Tasks", label: "Tasks" },
   { key: "System", label: "System Alerts" },
   { key: "Mentions", label: "Mentions" },

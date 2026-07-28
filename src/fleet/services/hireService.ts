@@ -349,6 +349,8 @@ export interface FleetDueReminder {
   kind: string;
   title: string;
   vehicle: string;
+  make_model?: string | null;
+  authority?: string | null;
   expiry_date: string;
   hire_id?: number | null;
 }

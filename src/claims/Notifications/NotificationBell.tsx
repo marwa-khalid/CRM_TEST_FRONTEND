@@ -29,19 +29,22 @@ const NotificationBell: React.FC<{ onOpenTask?: () => void; iconSize?: number }>
 
   const fetchDbNotifs = useCallback(() => {
     return getNotifications()
-      .then(({ data }) => setDbNotifs(Array.isArray(data) ? data : []))
+      // Fleet notifications live on the Fleet bell — keep them out of Claims.
+      .then(({ data }) =>
+        setDbNotifs((Array.isArray(data) ? data : []).filter((n: any) => n?.tab !== "Fleet" && n?.category !== "Fleet")),
+      )
       .catch(() => setDbNotifs([]));
   }, []);
 
   useEffect(() => {
     listTasks({ status: "Overdue", page_size: 50 })
-      .then(({ data }) => setOverdue(data?.items ?? []))
+      .then(({ data }) => setOverdue((data?.items ?? []).filter((t: any) => t.department !== "Fleet")))
       .catch(() => setOverdue([]));
     const today = new Date().toISOString().split("T")[0];
     listTasks({ due_from: today, due_to: today, page_size: 50 })
       .then(({ data }) =>
         setDueToday(
-          (data?.items ?? []).filter((t: any) => !["Completed", "Rejected"].includes(t.status)),
+          (data?.items ?? []).filter((t: any) => t.department !== "Fleet" && !["Completed", "Rejected"].includes(t.status)),
         ),
       )
       .catch(() => setDueToday([]));

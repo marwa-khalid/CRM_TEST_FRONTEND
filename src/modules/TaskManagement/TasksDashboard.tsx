@@ -43,6 +43,7 @@ import Select from "react-select";
 import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDetailsForm";
 import FleetOperations from "./FleetDummy";
 import PlateExpiry from "./PlateExpiryDummy";
+import MotExpiry from "./MotExpiry";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -2106,6 +2107,7 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
           </div>
         </div> */}
         <PlateExpiry />
+        <MotExpiry />
         {/* Storage & Recovery + Operational Insights */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <div className="rounded-lg border border-neutral-200 px-4 py-6 flex flex-col gap-6">

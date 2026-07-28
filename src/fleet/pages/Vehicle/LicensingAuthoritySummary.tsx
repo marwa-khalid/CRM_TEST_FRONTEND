@@ -11,7 +11,7 @@ import {
 } from "../../services/licensingAuthorityService";
 import { useVehicle } from "./VehicleContext";
 
-const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
+const SECTION = "self-stretch p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3";
 const BTN_DARK = "h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm inline-flex items-center justify-center gap-2 hover:bg-black disabled:opacity-70";
 
 const LicensingAuthoritySummary: React.FC = () => {
@@ -79,7 +79,7 @@ const LicensingAuthoritySummary: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
+    <div className="w-full max-w-[788px] flex flex-col gap-4 font-sans-headline">
       {(recordLoading || loading || printing || !recordId || !pageReady) && <FleetSpinnerLoader />}
 
       <h2 className="text-black text-2xl font-semibold leading-6">Licensing Authority Summary</h2>
@@ -104,7 +104,7 @@ const LicensingAuthoritySummary: React.FC = () => {
           ))
         )}
 
-        <div className="py-2">
+        <div className="pt-1">
           <button type="button" disabled={printing || authorities.length === 0} onClick={raiseLetters} className={BTN_DARK}>
             <img src={PrintIcon} alt="" className="w-4 h-4 brightness-0 invert" />
             Raise Licensing Authority Letters

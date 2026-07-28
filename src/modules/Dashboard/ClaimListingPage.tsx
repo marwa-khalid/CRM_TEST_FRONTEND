@@ -579,7 +579,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             <section className="px-10 py-6 flex-1 overflow-auto">
-              <div className="grid grid-cols-5 gap-4 mb-10">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
                 {stats.map((stat) => (
                   <StatCard key={stat.title} {...stat} />
                 ))}

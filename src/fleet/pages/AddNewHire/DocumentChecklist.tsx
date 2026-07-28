@@ -142,7 +142,7 @@ const ChecklistDocumentRow: React.FC<{
                   onRemove();
                 }
               }}
-              title="Remove document"
+              title="Delete document"
               className="w-5 h-5 shrink-0 hover:opacity-70"
             >
               <img src={RemoveIcon} alt="" className="w-5 h-5" />
@@ -305,9 +305,9 @@ const DocumentChecklist: React.FC = () => {
 
       {deleteTarget && (
         <FleetConfirmModal
-          title="Remove Document"
-          message={`Are you sure you want to remove ${deleteTarget.filename || "this document"}?`}
-          confirmLabel="Remove"
+          title="Delete Document"
+          message={`Are you sure you want to delete ${deleteTarget.filename || "this document"}?`}
+          confirmLabel="Delete"
           onConfirm={confirmDelete}
           onCancel={() => setDeleteTarget(null)}
         />

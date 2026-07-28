@@ -4,7 +4,7 @@ import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomple
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
-import FleetUploadedFileBar from "../../components/FleetUploadedFileBar";
+import FleetUploadedDocuments from "../../components/FleetUploadedDocuments";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import RemoveIcon from "../../assets/icons/Remove.svg";
 import {
@@ -20,6 +20,7 @@ import {
 import {
   listVehicleDocuments,
   getVehicleDocumentFileUrl,
+  deleteVehicleDocument,
   type VehicleDocument,
 } from "../../services/vehicleRecordService";
 import { useVehicle } from "./VehicleContext";
@@ -72,6 +73,7 @@ const ServicingDetails: React.FC = () => {
   const [invoiceDocs, setInvoiceDocs] = useState<VehicleDocument[]>([]);
   // Delete goes through a confirmation modal rather than removing immediately.
   const [deleteTarget, setDeleteTarget] = useState<VehicleServiceRecord | null>(null);
+  const [deleteDoc, setDeleteDoc] = useState<VehicleDocument | null>(null);
   // Shows a loader while a document is fetched for viewing (the eye icon).
   const [viewingDoc, setViewingDoc] = useState(false);
   // Shows a loader while the active card's invoices are (re)fetched on switch.
@@ -115,6 +117,16 @@ const ServicingDetails: React.FC = () => {
     }
   };
 
+  const confirmDeleteDoc = async () => {
+    if (!deleteDoc || !recordId) return;
+    const target = deleteDoc;
+    setDeleteDoc(null);
+    setInvoiceDocs((rows) => rows.filter((r) => r.id !== target.id)); // optimistic
+    const ok = await deleteVehicleDocument(recordId, target.id);
+    if (ok) toast.success("Document removed.");
+    else { toast.error("Couldn't remove the document."); loadInvoices(); }
+  };
+
   // Mount-scoped readiness so the loader shows over the (empty) fields until the
   // records arrive — never a blank white page.
   const [pageReady, setPageReady] = useState(false);
@@ -132,9 +144,8 @@ const ServicingDetails: React.FC = () => {
         if (created) rows = [created];
       }
       setServices(rows);
-      // Show the newest record by default — it's the one that determines the
-      // current Next Service Due At.
-      setActiveIndex(Math.max(0, rows.length - 1));
+      // Open the first card by default.
+      setActiveIndex(0);
     } finally {
       setLoading(false);
       setPageReady(true);
@@ -345,7 +356,7 @@ const ServicingDetails: React.FC = () => {
             <section className={SECTION}>
               <div className="flex justify-between items-center gap-4">
                 <h3 className={H3}>Garage Details</h3>
-                {invoiceDocs.length === 0 && (
+                {/* {invoiceDocs.length === 0 && ( */}
                   <button
                     type="button"
                     disabled={busy}
@@ -355,10 +366,10 @@ const ServicingDetails: React.FC = () => {
                     <img src={UploadFileIcon} alt="" className="w-4 h-4 brightness-0 invert" />
                     Upload Service Invoice
                   </button>
-                )}
+                {/* )} */}
               </div>
-              {/* Latest invoice as a grey row; the full history lives in the modal. */}
-              <FleetUploadedFileBar doc={invoiceDocs[0]} onCta={() => replaceInvoice(active, activeIndex)} onView={openInvoice} />
+              {/* Uploaded service invoices — current + previous reports (Figma). */}
+              <FleetUploadedDocuments variant="blue" docs={invoiceDocs} onView={openInvoice} onRemove={setDeleteDoc} />
               <FleetTextInput
                 label="Servicing Garage Name"
                 placeholder="Enter Garage Name"
@@ -384,7 +395,7 @@ const ServicingDetails: React.FC = () => {
                   error={ocrError("postcode")}
                 />
                 <FleetUkMobileInput
-                  label="Contact Number"
+                  label="Mobile Number"
                   value={active.contact_number || ""}
                   onChange={(v) => patch("contact_number", v)}
                   error={ocrError("contact_number")}
@@ -499,6 +510,16 @@ const ServicingDetails: React.FC = () => {
             handleDelete(target);
           }}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {deleteDoc && (
+        <FleetConfirmModal
+          title="Delete Document"
+          message={`Are you sure you want to delete "${deleteDoc.filename || "this document"}"?`}
+          confirmLabel="Delete"
+          onConfirm={confirmDeleteDoc}
+          onCancel={() => setDeleteDoc(null)}
         />
       )}
     </div>

@@ -1,144 +1,45 @@
-type VehicleStatus = "available" | "hire" | "repair" | "cams";
+import { useEffect, useMemo, useState } from "react";
+// Temporary cross-module use — this Fleet Operations block lives on the Claims
+// dashboard for now and reads real Fleet data. Moves to the Fleet dashboard later.
+import { listVehicleRegister, type FleetVehicleRegister } from "../../fleet/services/vehicleService";
+import { listHires, type HireRecord } from "../../fleet/services/hireService";
+import FleetMultiSelectFilter from "../../fleet/components/FleetMultiSelectFilter";
+
+type StatusKey = "available" | "hire" | "off" | "repair";
 
 type Vehicle = {
   registration: string;
   model: string;
-  status: VehicleStatus;
+  statusKey: StatusKey;
+  statusLabel: string;
   hireInfo?: string;
   customer?: string;
 };
 
-const vehicles: Vehicle[] = [
-  {
-    registration: "AB21XYZ",
-    model: "BMW 3 Series",
-    status: "available",
-  },
-  {
-    registration: "CD34ABC",
-    model: "Audi A4",
-    status: "hire",
-    hireInfo: "On Hire for 10 Days",
-    customer: "Emily Johnson",
-  },
-  {
-    registration: "EF56DEF",
-    model: "Mercedes C-Class",
-    status: "repair",
-  },
-  {
-    registration: "EF56DEF",
-    model: "Mercedes C-Class",
-    status: "hire",
-    hireInfo: "On Hire for 7 Days",
-    customer: "Michael Brown",
-  },
-  {
-    registration: "CD34ABC",
-    model: "Tesla Model S",
-    status: "cams",
-  },
-  {
-    registration: "EF56DEF",
-    model: "Audi A4",
-    status: "repair",
-  },
-  {
-    registration: "GH78GHI",
-    model: "Mercedes C-Class",
-    status: "hire",
-    hireInfo: "On Hire for 3 Days",
-    customer: "Sara Wilson",
-  },
-  {
-    registration: "IJ90JKL",
-    model: "Ford Mustang",
-    status: "cams",
-    hireInfo: "On Hire for 7 Days",
-    customer: "David Lee",
-  },
-];
-
-const summaryItems = [
-  {
-    label: "Available",
-    value: 20,
-    className: "bg-green-100 text-green-700",
-  },
-  {
-    label: "On Hire",
-    value: 16,
-    className: "bg-blue-100 text-blue-600",
-  },
-  {
-    label: "In Repair",
-    value: 12,
-    className: "bg-orange-100 text-orange-500",
-  },
-  {
-    label: "CAMS Cars",
-    value: 12,
-    className: "bg-gray-200 text-zinc-500",
-  },
-];
-
-const statusStyles: Record<
-  VehicleStatus,
-  {
-    label: string;
-    className: string;
-  }
-> = {
-  available: {
-    label: "Available",
-    className: "bg-green-100 text-green-700",
-  },
-  hire: {
-    label: "On Hire",
-    className: "bg-slate-200 text-blue-600",
-  },
-  repair: {
-    label: "In Repair",
-    className: "bg-orange-100 text-orange-500",
-  },
-  cams: {
-    label: "CAMS Cars",
-    className: "bg-gray-200 text-zinc-500",
-  },
+const STATUS_STYLE: Record<StatusKey, string> = {
+  available: "bg-green-100 text-green-700",
+  hire: "bg-slate-200 text-blue-600",
+  off: "bg-neutral-200 text-neutral-600",
+  repair: "bg-orange-100 text-orange-500",
+};
+const STATUS_MAP: Record<string, { key: StatusKey; label: string }> = {
+  on_hire: { key: "hire", label: "On Hire" },
+  off_hire: { key: "off", label: "Off Hire" },
+  in_repair: { key: "repair", label: "In Repair" },
+  available: { key: "available", label: "Available" },
 };
 
-function FilterButton({ label }: { label: string }) {
+const normReg = (v?: string | null) => (v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const daysSince = (iso?: string | null): number | null => {
+  if (!iso) return null;
+  const d = new Date(iso.length <= 10 ? `${iso}T00:00:00` : iso).getTime();
+  return Number.isNaN(d) ? null : Math.max(1, Math.round((Date.now() - d) / 86400000));
+};
+
+function StatusBadge({ vehicle }: { vehicle: Vehicle }) {
   return (
-    <button
-      type="button"
-      className="flex items-center gap-2 rounded p-2 text-sm font-weight-400 font-normal leading-4 text-blue-600"
-    >
-      <span>{label}</span>
-
-      <svg
-        className="h-4 w-4"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        aria-hidden="true"
-      >
-        <path
-          fillRule="evenodd"
-          d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-          clipRule="evenodd"
-        />
-      </svg>
-    </button>
-  );
-}
-
-function StatusBadge({ status }: { status: VehicleStatus }) {
-  const statusData = statusStyles[status];
-
-  return (
-    <span
-      className={`inline-flex h-fit w-fit shrink-0 items-center justify-center rounded px-2 py-1 text-xs font-weight-400 font-normal leading-4 ${statusData.className}`}
-    >
-      {statusData.label}
+    <span className={`inline-flex h-fit w-fit shrink-0 items-center justify-center rounded px-2 py-1 text-xs font-weight-400 font-normal leading-4 ${STATUS_STYLE[vehicle.statusKey]}`}>
+      {vehicle.statusLabel}
     </span>
   );
 }
@@ -148,83 +49,133 @@ function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
     <div className="flex min-h-32 flex-1 items-start justify-between rounded-lg border border-neutral-200 p-4">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-weight-500 text-black">
-            {vehicle.registration}
-          </h3>
-
-          <p className="text-xs font-weight-400 font-normal text-neutral-700">
-            {vehicle.model}
-          </p>
+          <h3 className="text-sm font-weight-500 text-black">{vehicle.registration}</h3>
+          <p className="text-xs font-weight-400 font-normal text-neutral-700">{vehicle.model}</p>
         </div>
-
         {vehicle.hireInfo && (
           <div className="flex flex-col gap-1">
-            <p className="text-xs font-weight-400 font-normal text-neutral-700">
-              {vehicle.hireInfo}
-            </p>
-
-            {vehicle.customer && (
-              <p className="text-xs font-weight-400 font-normal text-neutral-500">
-                {vehicle.customer}
-              </p>
-            )}
+            <p className="text-xs font-weight-400 font-normal text-neutral-700">{vehicle.hireInfo}</p>
+            {vehicle.customer && <p className="text-xs font-weight-400 font-normal text-neutral-500">{vehicle.customer}</p>}
           </div>
         )}
       </div>
-
-      <StatusBadge status={vehicle.status} />
+      <StatusBadge vehicle={vehicle} />
     </div>
   );
 }
 
 export default function FleetOperations() {
+  const [register, setRegister] = useState<FleetVehicleRegister[]>([]);
+  const [hires, setHires] = useState<HireRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [regSel, setRegSel] = useState<string[]>([]);
+  const [statusSel, setStatusSel] = useState<string[]>([]);
+  const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, v: string) =>
+    setter((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]));
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([listVehicleRegister(), listHires()])
+      .then(([reg, hs]) => {
+        if (cancelled) return;
+        setRegister(Array.isArray(reg) ? reg : []);
+        setHires(Array.isArray(hs) ? hs : []);
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => { cancelled = true; };
+  }, []);
+
+  // Latest hire per registration — prefer an on-hire one so a returned-then-rehired
+  // vehicle reads as On Hire.
+  const hireByReg = useMemo(() => {
+    const m = new Map<string, HireRecord>();
+    hires.forEach((h) => {
+      const key = normReg(h.last_vehicle_registration);
+      if (!key) return;
+      const existing = m.get(key);
+      if (!existing || (h.last_vehicle_hire_status || "") === "on_hire") m.set(key, h);
+    });
+    return m;
+  }, [hires]);
+
+  const vehicles: Vehicle[] = register.map((v) => {
+    const hire = hireByReg.get(normReg(v.registration_number));
+    const raw = (hire?.last_vehicle_hire_status || (v.is_active ? "on_hire" : "available")).toLowerCase();
+    const st = STATUS_MAP[raw] || STATUS_MAP.available;
+    const days = st.key === "hire" ? daysSince(hire?.last_vehicle_hire_start) : null;
+    return {
+      registration: v.registration_number || "—",
+      model: [v.make, v.model].filter(Boolean).join(" ") || "—",
+      statusKey: st.key,
+      statusLabel: st.label,
+      hireInfo: days ? `On Hire for ${days} Day${days === 1 ? "" : "s"}` : undefined,
+      customer: st.key === "hire" ? hire?.driver_name || undefined : undefined,
+    };
+  });
+
+  const regOptions = useMemo(
+    () => Array.from(new Set(register.map((v) => v.registration_number).filter(Boolean))).sort().map((r) => ({ label: r as string, value: r as string })),
+    [register],
+  );
+  const statusOptions = [
+    { label: "Available", value: "available" },
+    { label: "On Hire", value: "hire" },
+    { label: "Off Hire", value: "off" },
+  ];
+  const filteredVehicles = vehicles.filter(
+    (v) => (!regSel.length || regSel.includes(v.registration)) && (!statusSel.length || statusSel.includes(v.statusKey)),
+  );
+
+  const countKey = (k: StatusKey) => vehicles.filter((v) => v.statusKey === k).length;
+  const summaryItems = [
+    { label: "Available", value: countKey("available"), className: "bg-green-100 text-green-700" },
+    { label: "On Hire", value: countKey("hire"), className: "bg-blue-100 text-blue-600" },
+    { label: "Off Hire", value: countKey("off"), className: "bg-gray-200 text-zinc-500" },
+  ];
+
   return (
-    <section className="w-full rounded-lg border border-neutral-200 px-4 py-6  font-['Stack_Sans_Headline']">
+    <section className="w-full rounded-lg border border-neutral-200 px-4 py-6 font-['Stack_Sans_Headline']">
       <div className="flex flex-col gap-10">
-        <h2 className="text-xl font-weight-600 leading-5 text-black">
-          Fleet Operations
-        </h2>
+        <h2 className="text-xl font-weight-600 leading-5 text-black">Fleet Operations</h2>
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
               <div className="flex flex-col gap-1">
-                <p className="text-2xl font-weight-600 leading-6 text-black">
-                  45 Vehicles
-                </p>
+                <p className="text-2xl font-weight-600 leading-6 text-black">{register.length} Vehicles</p>
                 <p className="text-sm font-weight-500 text-zinc-500">Total Fleet</p>
               </div>
-
-              <div className="flex items-start gap-5">
-                <FilterButton label="Registration" />
-                <FilterButton label="Status" />
+              <div className="flex items-center gap-5">
+                <FleetMultiSelectFilter label="Registration" options={regOptions} selected={regSel} onToggle={(v) => toggle(setRegSel, v)} onClear={() => setRegSel([])} />
+                <FleetMultiSelectFilter label="Status" options={statusOptions} selected={statusSel} onToggle={(v) => toggle(setStatusSel, v)} onClear={() => setStatusSel([])} />
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               {summaryItems.map((item) => (
-                <div
-                  key={item.label}
-                  className={`rounded p-3 text-sm font-weight-400 font-normal leading-4 ${item.className}`}
-                >
+                <div key={item.label} className={`rounded p-3 text-sm font-weight-400 font-normal leading-4 ${item.className}`}>
                   {item.label} {item.value}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {vehicles.map((vehicle, index) => (
-              <VehicleCard
-                key={`${vehicle.registration}-${vehicle.model}-${index}`}
-                vehicle={vehicle}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="py-12 text-center text-sm text-neutral-400">Loading fleet…</div>
+          ) : filteredVehicles.length === 0 ? (
+            <div className="py-12 text-center text-sm text-neutral-400">No fleet vehicles match.</div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {filteredVehicles.slice(0, 8).map((vehicle, index) => (
+                <VehicleCard key={`${vehicle.registration}-${index}`} vehicle={vehicle} />
+              ))}
+            </div>
+          )}
 
           <div className="flex justify-center pt-4">
             <button
               type="button"
+              onClick={() => window.location.assign("/fleet")}
               className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200"
             >
               View All Vehicles

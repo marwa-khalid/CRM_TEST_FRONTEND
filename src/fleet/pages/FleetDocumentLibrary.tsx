@@ -1,128 +1,271 @@
-import React, { useEffect, useState } from "react";
-import { ArrowLeft, Eye, FileText, Loader2 } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Download, Eye, History } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getHire,
-  getHireDocumentFileUrl,
   getHireDocuments,
+  getHireDocumentFileUrl,
+  uploadHireDocument,
   type HireDocument,
   type HireRecord,
 } from "../services/hireService";
 import { fleetReference } from "../utils/reference";
+import { fileTypeIcon } from "../utils/fileIcon";
+import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
+import FleetDocumentSlider, { type FleetDocTab } from "../components/FleetDocumentSlider";
 
-const formatDateTime = (value?: string) => {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  const date = d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }).replace(/\//g, "-");
-  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
-  return `${date} . ${time}`;
-};
+const PAGE_SIZE = 10;
+const TABS = ["Show All", "Fleet Entrance Document", "User Uploads"] as const;
 
-const fieldLabel = (value: string) =>
-  value
+const docTypeLabel = (doc: HireDocument): string =>
+  (doc.doc_type || "")
     .replace(/^checklist_/, "")
     .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+    .replace(/\b\w/g, (c) => c.toUpperCase()) || "Document";
 
-const fallbackReference = (hire: HireRecord | null, hireId: number | null) => {
-  if (!hire?.fleet_reference && !hireId) return "Fleet Documents Library";
-  return fleetReference(hire, hireId);
+// No source flag on fleet docs yet — categorise by doc_type keyword.
+const categoryOf = (doc: HireDocument): string => {
+  const t = (doc.doc_type || "").toLowerCase();
+  return /user|upload|manual|misc|other/.test(t) ? "User Uploads" : "Fleet Entrance Document";
 };
+
+const relativeTime = (value?: string): string => {
+  if (!value) return "";
+  const d = new Date(value.endsWith("Z") || value.includes("+") ? value : `${value}Z`).getTime();
+  if (Number.isNaN(d)) return "";
+  const s = Math.max(0, Math.floor((Date.now() - d) / 1000));
+  if (s < 60) return `${s} sec${s === 1 ? "" : "s"} ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min${m === 1 ? "" : "s"} ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hour${h === 1 ? "" : "s"} ago`;
+  const days = Math.floor(h / 24);
+  if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const w = Math.floor(days / 7);
+  if (w < 4) return `${w} week${w === 1 ? "" : "s"} ago`;
+  const mo = Math.floor(days / 30);
+  if (mo < 12) return `${mo} month${mo === 1 ? "" : "s"} ago`;
+  return `${Math.floor(days / 365)} year${Math.floor(days / 365) === 1 ? "" : "s"} ago`;
+};
+
+const ActionButton: React.FC<{ Icon: any; label: string; onClick: () => void }> = ({ Icon, label, onClick }) => (
+  <button type="button" onClick={onClick} className="h-8 px-3 rounded flex items-center gap-2 text-neutral-900 hover:bg-neutral-100 transition-colors">
+    <Icon size={16} />
+    <span className="text-sm font-light">{label}</span>
+  </button>
+);
 
 const FleetDocumentLibrary: React.FC = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const hireId = Number(params.get("hire_id")) || null;
+
   const [hire, setHire] = useState<HireRecord | null>(null);
   const [documents, setDocuments] = useState<HireDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openingId, setOpeningId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("Show All");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!hireId) {
-      setLoading(false);
-      return;
-    }
+  const [detailDoc, setDetailDoc] = useState<HireDocument | null>(null);
+  const [detailTab, setDetailTab] = useState<FleetDocTab>("File Preview");
+
+  const load = async () => {
+    if (!hireId) { setLoading(false); return; }
     setLoading(true);
-    Promise.all([getHire(hireId), getHireDocuments(hireId)])
-      .then(([hireRecord, docs]) => {
-        setHire(hireRecord);
-        setDocuments([...docs].sort((a, b) => b.id - a.id));
-      })
-      .finally(() => setLoading(false));
-  }, [hireId]);
+    const [h, docs] = await Promise.all([getHire(hireId), getHireDocuments(hireId)]);
+    setHire(h);
+    setDocuments([...docs].sort((a, b) => b.id - a.id));
+    setLoading(false);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [hireId]);
+  useEffect(() => { setPage(1); }, [activeTab, query]);
 
-  const openDocument = async (doc: HireDocument) => {
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return documents.filter((d) => {
+      if (activeTab !== "Show All" && categoryOf(d) !== activeTab) return false;
+      if (needle && !(d.filename || "").toLowerCase().includes(needle)) return false;
+      return true;
+    });
+  }, [documents, activeTab, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const startEntry = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const endEntry = Math.min(safePage * PAGE_SIZE, filtered.length);
+  const pageItems = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pages = totalPages <= 8 ? Array.from({ length: totalPages }, (_, i) => i + 1) : [1, 2, 3, 4, 5, 6, 7, 8, "dots", totalPages];
+
+  const openFile = async (doc: HireDocument) => {
     if (!hireId) return;
-    setOpeningId(doc.id);
-    try {
-      const url = await getHireDocumentFileUrl(hireId, doc.id);
-      if (url) window.open(url, "_blank", "noopener,noreferrer");
-    } finally {
-      setOpeningId(null);
-    }
+    const url = await getHireDocumentFileUrl(hireId, doc.id);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const openDetail = (doc: HireDocument, tab: FleetDocTab) => { setDetailTab(tab); setDetailDoc(doc); };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !hireId) return;
+    setUploading(true);
+    try { await uploadHireDocument(hireId, file, "user_upload"); await load(); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
   };
 
   return (
     <div className="min-h-screen bg-white font-sans-headline">
-      <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex items-center gap-5 sticky top-0 z-20">
+      {(loading || uploading) && <FleetSpinnerLoader />}
+      <input ref={fileRef} type="file" className="hidden" onChange={handleUpload} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv" />
+
+      <FleetDocumentSlider
+        open={detailDoc !== null}
+        doc={detailDoc}
+        hireId={hireId}
+        category={detailDoc ? categoryOf(detailDoc) : ""}
+        initialTab={detailTab}
+        onClose={() => setDetailDoc(null)}
+      />
+
+      {/* Header */}
+      <div className="w-full px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center">
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(hireId ? `/fleet/hire/${hireId}` : "/fleet")}
+            className="inline-flex items-center gap-1 cursor-pointer text-neutral-600 hover:text-neutral-900"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-xs font-semibold">Back to Fleet Record</span>
+          </button>
+          <div className="text-black text-2xl font-semibold leading-6">Fleet Documents Library</div>
+          <p className="text-neutral-500 text-sm">{fleetReference(hire, hireId)}</p>
+        </div>
         <button
           type="button"
-          onClick={() => navigate(hireId ? `/fleet/hire/${hireId}` : "/fleet")}
-          aria-label="Back"
-          className="w-9 h-9 rounded flex items-center justify-center hover:bg-neutral-100"
+          onClick={() => fileRef.current?.click()}
+          disabled={!hireId}
+          className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-medium hover:bg-black transition disabled:opacity-50"
         >
-          <ArrowLeft size={22} />
+          Upload Document
         </button>
-        <div>
-          <h1 className="text-black text-2xl font-semibold leading-6">Fleet Documents Library</h1>
-          <p className="mt-1 text-neutral-500 text-sm">{fallbackReference(hire, hireId)}</p>
-        </div>
       </div>
 
-      <main className="px-10 py-10">
-        <section className="max-w-[980px] mx-auto flex flex-col gap-4">
-          {loading ? (
-            <div className="h-48 flex items-center justify-center text-neutral-500 text-sm gap-2">
-              <Loader2 size={18} className="animate-spin" />
-              Loading documents...
-            </div>
-          ) : documents.length === 0 ? (
-            <div className="h-48 rounded-lg border border-neutral-100 flex flex-col items-center justify-center text-center">
-              <FileText size={24} className="text-neutral-300" />
-              <p className="mt-3 text-neutral-900 text-base font-semibold">No documents yet</p>
-              <p className="mt-1 text-neutral-500 text-sm">Documents uploaded against this fleet record will appear here.</p>
+      <div className="flex flex-col items-center py-16">
+        {/* Search */}
+        <div className="w-full max-w-[1000px] mb-6">
+          <div className="w-full px-5 py-4 bg-white rounded border border-neutral-200 flex items-center gap-3">
+            <input
+              type="text"
+              placeholder="Search Document"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full text-neutral-700 text-base font-light focus:outline-none placeholder:text-neutral-400"
+            />
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="w-full max-w-[1000px] flex flex-wrap items-center gap-3 mb-8">
+          {TABS.map((tab) => {
+            const active = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-2 rounded flex items-center gap-2 text-sm transition-all border ${
+                  active ? "bg-neutral-900 border-neutral-900 text-white" : "bg-neutral-100 border-transparent text-neutral-700 hover:bg-neutral-200"
+                }`}
+              >
+                <span className="font-light">{tab}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Rows */}
+        <div className="w-full max-w-[1003px] flex flex-col gap-5">
+          {!loading && pageItems.length === 0 ? (
+            <div className="py-16 rounded-lg border border-dashed border-neutral-200 text-center text-neutral-400 text-sm">
+              No documents found.
             </div>
           ) : (
-            documents.map((doc) => (
-              <article key={doc.id} className="p-5 rounded-lg border border-neutral-100 flex items-center justify-between gap-4">
-                <div className="min-w-0 flex items-center gap-4">
-                  <div className="w-11 h-11 rounded bg-neutral-100 flex items-center justify-center text-neutral-700">
-                    <FileText size={19} />
+            pageItems.map((doc) => (
+              <div key={doc.id} className="w-full p-4 rounded-lg border border-neutral-100 flex justify-between items-center hover:bg-neutral-50 transition">
+                <div className="flex items-start gap-6 min-w-0">
+                  <div className="w-12 h-12 bg-neutral-100 rounded flex items-center justify-center shrink-0">
+                    <img src={fileTypeIcon(doc.filename)} alt="" className="w-7 h-7" />
                   </div>
-                  <div className="min-w-0">
-                    <h2 className="truncate text-neutral-900 text-base font-semibold">{doc.filename || "Document"}</h2>
-                    <p className="mt-1 text-neutral-500 text-sm">{fieldLabel(doc.doc_type)}</p>
+                  <div className="flex flex-col gap-2 min-w-0">
+                    <h3 className="text-neutral-900 text-base font-medium leading-4 truncate">{doc.filename || "Document"}</h3>
+                    <p className="text-neutral-500 text-sm font-light">
+                      {docTypeLabel(doc)} • {relativeTime(doc.created_at || doc.received_on)}
+                    </p>
+                    <div className="flex gap-1.5">
+                      {(activeTab === "Show All" ? [categoryOf(doc)] : []).map((tag) => (
+                        <span key={tag} className="px-2 py-1 bg-neutral-100 rounded text-neutral-700 text-xs font-semibold">{tag}</span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div className="shrink-0 flex items-center gap-5">
-                  <span className="text-neutral-700 text-sm">{formatDateTime(doc.created_at || doc.received_on)}</span>
-                  <button
-                    type="button"
-                    onClick={() => openDocument(doc)}
-                    disabled={openingId === doc.id}
-                    className="h-9 px-3 rounded outline outline-1 -outline-offset-1 outline-neutral-900 flex items-center gap-2 text-neutral-900 text-sm hover:bg-neutral-50 disabled:opacity-60"
-                  >
-                    {openingId === doc.id ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
-                    View
-                  </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <ActionButton Icon={Eye} label="Preview" onClick={() => openDetail(doc, "File Preview")} />
+                  <ActionButton Icon={Download} label="Download" onClick={() => openFile(doc)} />
+                  <ActionButton Icon={History} label="Version" onClick={() => openDetail(doc, "Version History")} />
                 </div>
-              </article>
+              </div>
             ))
           )}
-        </section>
-      </main>
+        </div>
+
+        {/* Pagination */}
+        {filtered.length > 0 && (
+          <div className="w-full max-w-[1003px] mt-10 flex justify-between items-center">
+            <div className="text-xs">
+              <span className="text-neutral-600">Showing </span>
+              <span className="text-black font-semibold">{startEntry}</span>
+              <span className="text-neutral-600"> to </span>
+              <span className="text-black font-semibold">{endEntry}</span>
+              <span className="text-neutral-600"> of </span>
+              <span className="text-black font-semibold">{filtered.length}</span>
+              <span className="text-neutral-600"> Entries</span>
+            </div>
+            <div className="flex items-center text-sm">
+              <button
+                type="button"
+                disabled={safePage === 1}
+                onClick={() => setPage(safePage - 1)}
+                className="h-9 px-3 bg-white rounded-l outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center disabled:opacity-50 text-neutral-600"
+              >
+                Previous
+              </button>
+              {pages.map((p, i) =>
+                p === "dots" ? (
+                  <div key={`d${i}`} className="w-9 h-9 bg-white outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center text-neutral-600">…</div>
+                ) : (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPage(Number(p))}
+                    className={`w-9 h-9 outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center justify-center ${safePage === p ? "bg-neutral-900 text-white" : "bg-white text-neutral-600"}`}
+                  >
+                    {p}
+                  </button>
+                ),
+              )}
+              <button
+                type="button"
+                disabled={safePage === totalPages}
+                onClick={() => setPage(safePage + 1)}
+                className="h-9 px-3 bg-white rounded-r outline outline-1 -outline-offset-1 outline-neutral-200 flex items-center disabled:opacity-50 text-neutral-900 font-medium"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

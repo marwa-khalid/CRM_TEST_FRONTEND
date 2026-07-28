@@ -32,7 +32,7 @@ export const FleetProvisionSlider: React.FC<{
         className={`fixed right-0 top-0 h-full w-[760px] max-w-full bg-white shadow-2xl z-[101] flex flex-col font-sans-headline transition-transform duration-300 ${isOpen ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="px-10 py-5 flex justify-between items-center shadow-[0px_4px_20px_rgba(0,0,0,0.08)]">
-          <h1 className="text-neutral-900 text-2xl font-semibold leading-6">Vehicle Provision Log</h1>
+          <h1 className="text-neutral-900 text-2xl font-semibold leading-8">Vehicle Provision Log</h1>
           <button
             type="button"
             onClick={onClose}

@@ -266,12 +266,17 @@ const RecordPaymentModal: React.FC<{
     const doc = deleteReceiptTarget;
     setDeleteReceiptTarget(null);
     if (!hireId || !doc) return;
-    // If it's the receipt currently shown in the upload area, clear it back to
-    // the empty state so the drop zone is ready for a new one.
+    // If it's the receipt currently shown, clear the upload area AND revert the
+    // fields the receipt OCR filled back to the modal's defaults.
     if (receiptDocs[0]?.id === doc.id) {
       setReceipt(null);
       setReceiptStep(1);
       setReceiptProgress(0);
+      setPaidAmount(editingTxn ? num(editingTxn.amount).toFixed(2) : dueRemaining ? dueRemaining.toFixed(2) : "");
+      setPaymentDate(editingTxn?.payment_date || todayLocalISO());
+      setPaymentMode(editingTxn?.payment_mode || "cash");
+      setNotes(editingTxn?.notes || "");
+      setReceiptMissing({ amount: false, paymentDate: false });
     }
     setReceiptDocs((docs) => docs.filter((d) => d.id !== doc.id)); // optimistic
     await deleteHireDocument(hireId, doc.id);
@@ -338,9 +343,10 @@ const RecordPaymentModal: React.FC<{
   const status = calculatedStatus({ ...row, paid_amount: totalAfterThisPayment.toFixed(2) });
   const canSave = !saving && thisAmount > 0;
   return (
-    <div className="fixed inset-0 z-[110] bg-black/40 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[110] font-sans-headline">
       {saving && <FleetSpinnerLoader />}
-      <div className="w-[640px] max-w-full max-h-[92vh] overflow-y-scroll always-scrollbar p-6 bg-white rounded-lg flex flex-col gap-4 font-sans-headline">
+      <div className="fixed inset-0 bg-black/40" onClick={onCancel} />
+      <div className="fixed top-0 right-0 h-full w-[640px] max-w-full bg-white shadow-2xl overflow-y-auto always-scrollbar p-6 flex flex-col gap-4">
         <div className="text-black text-xl font-semibold leading-5">{isEdit ? "Edit Payment" : "Record Payment"} — Week {row.week}</div>
 
         {/*

@@ -310,7 +310,11 @@ const RecordPaymentModal: React.FC<{
       // waits for the payment to be saved).
       if (hireId) {
         try {
+          // One receipt per payment: after the new upload lands, remove any
+          // previous receipt(s) so a later delete can't resurface an old one.
+          const previous = receiptDocs;
           await uploadHireDocument(hireId, "payment_receipt", file);
+          await Promise.all(previous.map((doc) => deleteHireDocument(hireId, doc.id).catch(() => {})));
           await reloadReceipts();
         } catch {
           toast.warn("Receipt read, but could not be uploaded.");
@@ -426,7 +430,7 @@ const RecordPaymentModal: React.FC<{
                 <div className="h-full bg-neutral-900 rounded-full transition-all duration-200" style={{ width: `${receiptProgress}%` }} />
               </div>
             )}
-            {receiptStep === 3 && (
+            {/* {receiptStep === 3 && (
               <div className="flex items-center gap-5" onClick={(e) => e.stopPropagation()}>
                 <button
                   type="button"
@@ -447,7 +451,7 @@ const RecordPaymentModal: React.FC<{
                   Delete
                 </button>
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Grey current-receipt card (same as the Taxi Badge screen): click the

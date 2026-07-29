@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomplete, FleetPostcodeLookup, FleetUkMobileInput } from "../../components/fields";
+import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomplete, FleetPostcodeLookup } from "../../components/fields";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import FleetUploadModal from "../../components/FleetUploadModal";
 import FleetConfirmModal from "../../components/FleetConfirmModal";
@@ -418,8 +418,13 @@ const ServicingDetails: React.FC = () => {
                   onAddressSelect={(addr) => patchMany({ address: addr.address, postcode: addr.postcode })}
                   error={ocrError("postcode")}
                 />
-                <FleetUkMobileInput
-                  label="Mobile Number"
+                {/* Garages are landlines (0121 440 4411), which don't fit the
+                    +44 mobile mask — use a plain tel input that accepts any UK
+                    number (landline or mobile). */}
+                <FleetTextInput
+                  label="Contact Number"
+                  placeholder="Enter Contact Number"
+                  inputMode="tel"
                   value={active.contact_number || ""}
                   onChange={(v) => patch("contact_number", v)}
                   error={ocrError("contact_number")}

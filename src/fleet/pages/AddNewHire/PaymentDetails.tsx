@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetMoneyInput, FleetSelect, FleetDateField, FleetInlineLoader, currentTime24, formatMoney, formatTime24 } from "../../components/fields";
-import { fileTypeIcon } from "../../utils/fileIcon";
 import { formatUploadedAt } from "../../components/FleetDocumentList";
 import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
 import FleetWhatsAppModal from "../../components/FleetWhatsAppModal";
@@ -139,6 +138,15 @@ const formatTablePaymentDateParts = (dateValue?: string, timeValue?: string): { 
   return { date: formattedDate, time: formatTime24(timeValue) };
 };
 
+// dd-mm-yy for the receipt date pill (Postgres timestamps lack a "Z").
+const shortDate = (iso?: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso.endsWith("Z") || iso.includes("+") ? iso : `${iso}Z`);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }).replace(/\//g, "-");
+};
+
 const isBlank = (value: unknown): boolean => value === undefined || value === null || String(value).trim() === "";
 const DashCell: React.FC<{ className?: string }> = ({ className = "" }) => (
   <span className={`block text-start text-neutral-400 ${className}`}>-</span>
@@ -227,7 +235,6 @@ const RecordPaymentModal: React.FC<{
   const [receiptProgress, setReceiptProgress] = useState(0);
   // Fields the receipt OCR could not read — flagged red until the user fills them.
   const [receiptMissing, setReceiptMissing] = useState({ amount: false, paymentDate: false });
-  const [receiptDocsOpen, setReceiptDocsOpen] = useState(false);
   const [receiptDocsLoading, setReceiptDocsLoading] = useState(false);
   const [receiptDocs, setReceiptDocs] = useState<HireDocument[]>([]);
   const receiptInput = useRef<HTMLInputElement>(null);
@@ -248,17 +255,13 @@ const RecordPaymentModal: React.FC<{
     reloadReceipts();
   }, [reloadReceipts]);
 
-  const openReceiptDoc = async (doc: HireDocument) => {
+  const [deleteReceiptTarget, setDeleteReceiptTarget] = useState<HireDocument | null>(null);
+  const openReceipt = async (doc: HireDocument) => {
     if (!hireId) return;
     const url = await getHireDocumentFileUrl(hireId, doc.id);
-    if (!url) {
-      toast.error("Could not open the receipt.");
-      return;
-    }
-    window.open(url, "_blank", "noopener,noreferrer");
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+    else toast.error("Could not open the receipt.");
   };
-
-  const [deleteReceiptTarget, setDeleteReceiptTarget] = useState<HireDocument | null>(null);
   const confirmDeleteReceipt = async () => {
     const doc = deleteReceiptTarget;
     setDeleteReceiptTarget(null);
@@ -412,7 +415,7 @@ const RecordPaymentModal: React.FC<{
               <div className="text-black text-base font-semibold">
                 {receiptStep === 1 && "Choose file or Drag & Drop here"}
                 {receiptStep === 2 && `Reading — ${receiptProgress}%`}
-                {receiptStep === 3 && "Receipt read"}
+                {receiptStep === 3 && "Receipt Uploaded"}
               </div>
               <div className="text-neutral-500 text-sm">
                 {receiptStep === 1 ? "JPG, PNG, PDF Supported" : receipt ? `${receipt.name} · ${receiptSize(receipt.size)}` : ""}
@@ -446,55 +449,46 @@ const RecordPaymentModal: React.FC<{
               </div>
             )}
           </div>
-          <div className="rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100">
-            <button
-              type="button"
-              onClick={() => setReceiptDocsOpen((open) => !open)}
-              className="w-full px-3 py-2.5 flex items-center justify-between gap-3 text-left text-sm text-neutral-900 hover:bg-neutral-50"
-            >
-              <span className="font-medium">Uploaded Receipts</span>
-              <span className="text-neutral-500 text-xs">
-                {receiptDocsLoading ? "Loading…" : `${receiptDocs.length} file${receiptDocs.length === 1 ? "" : "s"} · ${receiptDocsOpen ? "Hide" : "Show"}`}
-              </span>
-            </button>
-            {receiptDocsOpen && (
-              <div className="border-t border-neutral-100 p-2 flex flex-col gap-2">
-                {receiptDocs.length ? receiptDocs.map((doc) => (
-                  <div key={doc.id} className="flex items-center gap-3 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-200 bg-white">
-                    <img src={fileTypeIcon(doc.filename)} alt="" className="w-6 h-6 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <button
-                        type="button"
-                        onClick={() => openReceiptDoc(doc)}
-                        title="View file"
-                        className="block max-w-full truncate text-left text-neutral-900 text-sm hover:underline"
-                      >
-                        {doc.filename || "Payment receipt"}
-                      </button>
-                      <span className="text-neutral-500 text-xs">Uploaded {formatUploadedAt(doc.created_at)}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => openReceiptDoc(doc)}
-                      className="h-8 px-3 shrink-0 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50"
-                    >
-                      View
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteReceiptTarget(doc)}
-                      title="Delete receipt"
-                      className="shrink-0 w-8 h-8 flex items-center justify-center rounded hover:bg-neutral-100"
-                    >
-                      <img src={RemoveIcon} alt="Delete" className="w-4 h-4" />
-                    </button>
-                  </div>
-                )) : (
-                  <div className="px-3 py-3 text-sm text-neutral-400">No uploaded receipts yet.</div>
-                )}
+
+          {/* Grey current-receipt card (same as the Taxi Badge screen): click the
+              name to view, shows the upload date, plus Replace / Delete. Persists
+              across reloads, unlike the in-session dropzone state above. */}
+          {receiptDocs.length > 0 && (
+            <div className="self-stretch px-4 py-3 rounded-lg bg-neutral-50 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => openReceipt(receiptDocs[0])}
+                  className="min-w-0 truncate text-left text-neutral-900 text-base font-medium hover:underline"
+                  title="View file"
+                >
+                  {receiptDocs[0].filename || "Payment receipt"}
+                </button>
+                <span className="px-3 py-1 bg-neutral-100 rounded-full text-neutral-500 text-xs shrink-0">
+                  {shortDate(receiptDocs[0].created_at)}
+                </span>
               </div>
-            )}
-          </div>
+              <div className="shrink-0 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setReceiptStep(1); setReceiptProgress(0); receiptInput.current?.click(); }}
+                  className="h-8 px-3 rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm font-medium inline-flex items-center gap-2 hover:bg-neutral-50"
+                >
+                  <img src={UploadFileIcon} alt="" className="w-4 h-4" />
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteReceiptTarget(receiptDocs[0])}
+                  aria-label="Delete"
+                  title="Delete"
+                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded hover:bg-neutral-100"
+                >
+                  <img src={RemoveIcon} alt="" className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="h-px bg-neutral-100" />

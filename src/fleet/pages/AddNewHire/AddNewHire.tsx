@@ -152,7 +152,10 @@ const AddNewHire: React.FC = () => {
     };
   }, [hireId, activeIndex]);
 
-  const ensureHire = async (): Promise<number | null> => {
+  // Memoised so the context functions built on it keep a STABLE identity across
+  // renders — otherwise a consumer effect that lists `save` in its deps re-fires
+  // every render and loops (Maximum update depth exceeded).
+  const ensureHire = useCallback(async (): Promise<number | null> => {
     if (hireIdRef.current) return hireIdRef.current;
     if (!createPromiseRef.current) {
       createPromiseRef.current = createHire().finally(() => {
@@ -169,7 +172,7 @@ const AddNewHire: React.FC = () => {
     setHire(created);
     navigate(`/fleet/hire/${created.id}`, { replace: true });
     return created.id;
-  };
+  }, [navigate]);
 
   const [saving, setSaving] = useState(false);
 
@@ -196,13 +199,13 @@ const AddNewHire: React.FC = () => {
 
   // Buffer of pending hire-field edits (merged, latest-wins), flushed by flushHire.
   const pendingHireRef = useRef<Record<string, unknown>>({});
-  const save = async (partial: Record<string, unknown>) => {
+  const save = useCallback(async (partial: Record<string, unknown>) => {
     const id = await ensureHire();
     if (!id) return;
     pendingHireRef.current = { ...pendingHireRef.current, ...partial };
     // Optimistic local update so the sidebar fill + read-backs stay in step.
     setHire((h) => (h ? ({ ...h, ...partial } as HireRecord) : h));
-  };
+  }, [ensureHire]);
   const flushHire = useCallback(async () => {
     const pending = pendingHireRef.current;
     const id = hireIdRef.current;

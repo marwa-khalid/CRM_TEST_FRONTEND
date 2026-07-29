@@ -3,17 +3,18 @@ import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-// react-pdf bundles its own pdf.js (5.4.x); the app's top-level pdfjs-dist is a
-// different version, so load the worker from react-pdf's copy — pdf.js refuses
-// to render if the worker version doesn't exactly match its API version.
-import pdfWorkerUrl from "react-pdf/node_modules/pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { fileTypeIcon } from "../utils/fileIcon";
 import { getHireDocumentFileUrl, type HireDocument } from "../services/hireService";
 import { getVehicleDocumentFileUrl } from "../services/vehicleRecordService";
 
 // Render PDF pages with pdf.js (same engine as the Claims document library) so
-// the preview shows page-by-page instead of the browser's native PDF viewer.
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+// the preview shows page-by-page instead of the browser's native PDF viewer. The
+// worker resolves to react-pdf's pdfjs-dist (5.4.296) via the vite.config alias,
+// so the worker version matches the API version.
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
 
 export type FleetDocTab = "File Preview" | "Meta Data" | "Version History" | "Audit Log";
 const TABS: FleetDocTab[] = ["File Preview", "Meta Data", "Version History", "Audit Log"];

@@ -139,13 +139,15 @@ const FleetDocumentLibrary: React.FC = () => {
   // The upload modal drives its own progress; on success we refresh the list.
   const handleUploaded = async (file: File) => {
     if (!hireId) return;
-    await uploadHireDocument(hireId, file, "user_upload");
+    await uploadHireDocument(hireId, "user_upload", file);
     await load();
   };
 
   return (
     <div className="min-h-screen bg-white font-sans-headline">
-      {loading && <FleetSpinnerLoader />}
+      {/* Not while the upload modal is open — it shows its own progress overlay,
+          so the page-level loader would stack a second overlay on top of it. */}
+      {loading && !uploadOpen && <FleetSpinnerLoader />}
 
       <FleetUploadModal
         open={uploadOpen}

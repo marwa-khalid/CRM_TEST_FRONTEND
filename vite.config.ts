@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -13,6 +14,16 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    resolve: {
+      // react-pdf pins pdfjs-dist 5.4.296, but the app also has 5.7.284 at the top
+      // level (used by splitLicencePdf). pdf.js refuses to render when the worker
+      // version != the API version, so force a SINGLE pdfjs-dist (react-pdf's copy)
+      // everywhere — API, worker, and splitLicencePdf all resolve to 5.4.296.
+      alias: {
+        'pdfjs-dist': path.resolve('node_modules/react-pdf/node_modules/pdfjs-dist'),
+      },
+      dedupe: ['pdfjs-dist'],
+    },
     server: {
       host: '0.0.0.0', // Allows access from any IP address (external access)
       port: 5174,

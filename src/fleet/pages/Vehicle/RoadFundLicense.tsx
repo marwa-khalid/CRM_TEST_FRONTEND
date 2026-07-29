@@ -17,6 +17,16 @@ const displayDate = (value?: string | null): string => {
   return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-GB");
 };
 
+// Road tax runs 12 months: same day/month a year on (29 Feb → 28 Feb). Mirrors
+// the server's add_one_year so the Expiry Date shown live matches what's saved.
+const addOneYearISO = (value?: string | null): string => {
+  const m = (value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  const [, y, mo, d] = m;
+  const day = mo === "02" && d === "29" ? "28" : d;
+  return `${Number(y) + 1}-${mo}-${day}`;
+};
+
 const RoadFundLicense: React.FC = () => {
   const { vehicle, save, loading: recordLoading } = useVehicle();
 
@@ -46,11 +56,12 @@ const RoadFundLicense: React.FC = () => {
             value={vehicle?.road_tax_renewed_on || ""}
             onChange={(v) => save({ road_tax_renewed_on: v || null })}
           />
-          {/* Read-only: the server recalculates this as one year on, and rebuilds
-              the expiry calendar event and reminder schedule with it. */}
+          {/* Read-only: filled live as one year on from the renewal date. The
+              server recalculates the same value on save and rebuilds the expiry
+              calendar event + reminder schedule with it. */}
           <FleetReadonlyField
             label="Expiry Date"
-            value={displayDate(vehicle?.road_tax_expiry_date)}
+            value={vehicle?.road_tax_renewed_on ? displayDate(addOneYearISO(vehicle.road_tax_renewed_on)) : ""}
             placeholder="Set the renewal date"
             icon={Vector6}
           />

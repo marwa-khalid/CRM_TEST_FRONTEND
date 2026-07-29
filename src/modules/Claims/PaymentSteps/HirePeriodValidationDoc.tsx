@@ -2,7 +2,7 @@ import { slash, datedLong, DocShell, DocHeader, SectionLabel, DocFooter } from "
 
 // Print/PDF document for the Payment Pack "Hire Period Validation" sheet.
 // Non-editable A4 render of the form's key dates (figma design). Filled dates
-// show DD / MM / YYYY centred over a solid rule; empty fields show a blank rule.
+// show DD / MM / YYYY centred (no rule); empty fields show a blank rule.
 
 export type HirePeriodValidationDocData = {
   ourReference?: string;
@@ -24,7 +24,7 @@ const Row = ({ label, value }: { label: string; value?: string }) => (
   <div className="self-stretch py-1.5 border-b border-neutral-400 flex justify-between items-end">
     <span className="text-xs leading-4">{label}</span>
     {value ? (
-      <div className="min-w-[224px] border-b border-black flex flex-col items-center">
+      <div className="min-w-[224px] flex flex-col items-center">
         <span className="text-center text-xs font-bold leading-4">{slash(value)}</span>
       </div>
     ) : (

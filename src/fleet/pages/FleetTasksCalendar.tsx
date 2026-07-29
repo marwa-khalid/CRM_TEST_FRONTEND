@@ -310,6 +310,7 @@ const FleetTasksCalendar: React.FC = () => {
             {cols.map((d, ci) => {
               const isToday = sameDay(d, now);
               const iso = localISO(d);
+              const isPast = iso < todayISO; // past days keep colours but render dimmer
               const dayEntries = entriesByDate.get(iso) || [];
               const timed = dayEntries.filter((e) => toMinutes(entryTimeOf(e)) != null);
               const allDay = dayEntries.filter((e) => toMinutes(entryTimeOf(e)) == null);
@@ -332,7 +333,7 @@ const FleetTasksCalendar: React.FC = () => {
                       type="button"
                       onClick={(ev) => { ev.stopPropagation(); openEntry(e); }}
                       title={titleOf(e)}
-                      className={`absolute left-1 right-1 px-2 py-0.5 text-[11px] font-semibold truncate ${chipCls(e)}`}
+                      className={`absolute left-1 right-1 px-2 py-0.5 text-[11px] font-semibold truncate ${chipCls(e)} ${isPast ? "opacity-60" : ""}`}
                       style={{ top: 2 + idx * 22, zIndex: 6 }}
                     >
                       {titleOf(e)}
@@ -351,7 +352,7 @@ const FleetTasksCalendar: React.FC = () => {
                         type="button"
                         onClick={(ev) => { ev.stopPropagation(); openEntry(e); }}
                         title={titleOf(e)}
-                        className={`absolute left-1 right-1 px-2 py-1 text-left overflow-hidden ${chipCls(e)}`}
+                        className={`absolute left-1 right-1 px-2 py-1 text-left overflow-hidden ${chipCls(e)} ${isPast ? "opacity-60" : ""}`}
                         style={{ top, height, zIndex: 7 }}
                       >
                         <div className="text-[11px] font-semibold truncate leading-4">{titleOf(e)}</div>
@@ -490,6 +491,8 @@ const FleetTasksCalendar: React.FC = () => {
                 {monthCells.map((cell, i) => {
                   const entries = entriesByDate.get(cell.iso) || [];
                   const isToday = cell.iso === todayISO;
+                  // Past days (before today) keep their colours but render dimmer.
+                  const isPast = cell.iso < todayISO;
                   const isWeekend = cell.date.getDay() === 0 || cell.date.getDay() === 6;
                   return (
                     <div
@@ -521,7 +524,7 @@ const FleetTasksCalendar: React.FC = () => {
                               type="button"
                               onClick={(ev) => { ev.stopPropagation(); openEntry(entry); }}
                               title={style.title}
-                              className={`flex items-center gap-1.5 text-left pl-2 pr-2 py-1 text-[11px] font-semibold truncate transition-all hover:shadow-sm hover:-translate-y-px ${chipCls(entry)}`}
+                              className={`flex items-center gap-1.5 text-left pl-2 pr-2 py-1 text-[11px] font-semibold truncate transition-all hover:shadow-sm hover:-translate-y-px ${chipCls(entry)} ${isPast ? "opacity-60" : ""}`}
                             >
                               <span className={`truncate ${style.strike ? "line-through" : ""}`}>
                                 {entryTimeOf(entry) ? <span className="opacity-70 font-medium">{entryTimeOf(entry)} </span> : ""}{style.title}

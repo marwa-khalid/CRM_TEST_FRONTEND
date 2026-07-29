@@ -33,6 +33,14 @@ const shortDate = (iso?: string | null): string => {
     : d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }).replace(/\//g, "-");
 };
 
+const shortTime = (iso?: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso.endsWith("Z") || iso.includes("+") ? iso : `${iso}Z`);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+};
+
 // Form field -> backend column (fleet_hire).
 const TO_BACKEND: Record<keyof DriverDetailsForm, string> = {
   name: "driver_name",
@@ -236,9 +244,12 @@ const DriverDetails: React.FC = () => {
                 >
                   {licenceDocs[0].filename || "Driving licence"}
                 </button>
-                <span className="px-3 py-1 bg-neutral-100 rounded-full text-neutral-500 text-xs shrink-0">
-                  {shortDate(licenceDocs[0].created_at)}
-                </span>
+                <div className="shrink-0 flex items-center gap-2">
+                  <span className="px-3 py-1 bg-neutral-100 rounded-full text-neutral-500 text-xs">
+                    {shortDate(licenceDocs[0].created_at)}
+                  </span>
+                  <span className="text-neutral-400 text-[11px] leading-none">{shortTime(licenceDocs[0].created_at)}</span>
+                </div>
               </div>
               <div className="shrink-0 flex items-center gap-2">
                 <button

@@ -72,6 +72,30 @@ const VehicleSaleDetails: React.FC = () => {
   const saveField = (key: keyof Form) =>
     save({ [TO_BACKEND[key]]: form[key] === "" ? null : form[key] });
 
+  // Sale price pair: Inc is the base, Exc is Inc minus 20%. The two round-trip:
+  // Inc → Exc = Inc × 0.8;  Exc → Inc = Exc ÷ 0.8  (so 8000 ⇄ 6400).
+  const applyVat = (source: "inc" | "exc", raw: string) => {
+    const n = parseFloat(raw.replace(/[^0-9.]/g, ""));
+    setForm((f) =>
+      source === "inc"
+        ? { ...f, soldForIncVat: raw, soldForExcVat: Number.isNaN(n) ? "" : (n * 0.8).toFixed(2) }
+        : { ...f, soldForExcVat: raw, soldForIncVat: Number.isNaN(n) ? "" : (n / 0.8).toFixed(2) },
+    );
+  };
+  const saveVat = (source: "inc" | "exc") => {
+    const raw = source === "inc" ? form.soldForIncVat : form.soldForExcVat;
+    const n = parseFloat(raw.replace(/[^0-9.]/g, ""));
+    const incNum = source === "inc" ? n : n / 0.8;
+    const excNum = source === "inc" ? n * 0.8 : n;
+    const inc = Number.isNaN(incNum) ? "" : incNum.toFixed(2);
+    const exc = Number.isNaN(excNum) ? "" : excNum.toFixed(2);
+    setForm((f) => ({ ...f, soldForIncVat: inc, soldForExcVat: exc }));
+    save({
+      sold_for_inc_vat: inc === "" ? null : inc,
+      sold_for_exc_vat: exc === "" ? null : exc,
+    });
+  };
+
   const raiseDocuments = async () => {
     if (!vehicle?.id) return;
     if (!form.purchaserName.trim()) {
@@ -185,8 +209,8 @@ const VehicleSaleDetails: React.FC = () => {
           <div />
         </div>
         <div className="grid grid-cols-2 gap-5">
-          <FleetMoneyInput label="Sold For (Inc. VAT)" value={form.soldForIncVat} onChange={(v) => set("soldForIncVat", v)} onBlur={() => saveField("soldForIncVat")} />
-          <FleetMoneyInput label="Sold For (Exc. VAT)" value={form.soldForExcVat} onChange={(v) => set("soldForExcVat", v)} onBlur={() => saveField("soldForExcVat")} />
+          <FleetMoneyInput label="Sold For (Inc. VAT)" value={form.soldForIncVat} onChange={(v) => applyVat("inc", v)} onBlur={() => saveVat("inc")} />
+          <FleetMoneyInput label="Sold For (Exc. VAT)" value={form.soldForExcVat} onChange={(v) => applyVat("exc", v)} onBlur={() => saveVat("exc")} />
         </div>
       </section>
 
@@ -198,6 +222,7 @@ const VehicleSaleDetails: React.FC = () => {
         defaultTo={email?.to || ""}
         defaultSubject={email?.subject || ""}
         defaultBody={email?.body || ""}
+        allowAttachments
         sendOverride={async (args: FleetEmailSendArgs) => {
           if (!vehicle?.id) return { status: "failed" as const };
           await sendSaleAccountsEmail(vehicle.id, {
@@ -205,6 +230,7 @@ const VehicleSaleDetails: React.FC = () => {
             cc: args.cc,
             subject: args.subject,
             body: args.body,
+            files: args.files,
           });
           return { status: "sent" as const };
         }}

@@ -505,7 +505,9 @@ const ServicingDetails: React.FC = () => {
                 <div className="h-px bg-neutral-100" />
                 {/* Capped + scrollable so the log never grows unbounded. */}
                 <div className="max-h-[280px] overflow-y-auto">
-                  {services.map((service, i) => (
+                  {/* Newest first (3, 2, 1) regardless of service date; `i` stays
+                      the true index into `services` so selection is unaffected. */}
+                  {services.map((service, i) => ({ service, i })).reverse().map(({ service, i }) => (
                     <React.Fragment key={service.id}>
                       <div
                         className={`${LOG_GRID} px-4 py-3 items-center text-sm cursor-pointer hover:bg-neutral-50 ${

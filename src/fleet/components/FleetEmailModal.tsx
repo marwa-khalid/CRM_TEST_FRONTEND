@@ -26,6 +26,8 @@ interface Props {
   defaultBody?: string;
   // Files already in context (e.g. a generated document) shown pre-attached.
   initialFiles?: File[];
+  // Show the "Add Attachment" CTA so the user can attach files themselves.
+  allowAttachments?: boolean;
   onSent?: () => void | Promise<void>;
   previewHtml?: string;
   sendOverride?: (args: FleetEmailSendArgs) => Promise<SendHireEmailResult>;
@@ -70,6 +72,7 @@ const FleetEmailModal: React.FC<Props> = ({
   defaultSubject = "",
   defaultBody = "",
   initialFiles = [],
+  allowAttachments = false,
   onSent,
   previewHtml = "",
   sendOverride,
@@ -82,6 +85,7 @@ const FleetEmailModal: React.FC<Props> = ({
   const [body, setBody] = useState(defaultBody);
   const [files, setFiles] = useState<File[]>(initialFiles);
   const [sending, setSending] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset the form each time the modal is (re)opened.
@@ -100,9 +104,16 @@ const FleetEmailModal: React.FC<Props> = ({
   if (!open) return null;
 
   const addFiles = (list: FileList | null) => {
-    if (!list) return;
-    setFiles((prev) => [...prev, ...Array.from(list)]);
+    if (!list || list.length === 0) return;
+    const picked = Array.from(list);
+    setAttaching(true);
+    setFiles((prev) => [...prev, ...picked]);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    toast.success(
+      picked.length === 1 ? `Attached “${picked[0].name}”` : `Attached ${picked.length} files`,
+    );
+    // Brief spinner so the user gets an unmistakable "it's happening" signal.
+    window.setTimeout(() => setAttaching(false), 700);
   };
   const removeFile = (idx: number) => setFiles((prev) => prev.filter((_, i) => i !== idx));
 
@@ -177,7 +188,7 @@ const FleetEmailModal: React.FC<Props> = ({
           </button>
         </div>
 
-        <div className="p-6 flex flex-col gap-4 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 flex flex-col gap-4 max-h-[72vh] overflow-y-auto">
           <div className="flex items-end gap-3">
             <div className="flex-1 flex flex-col gap-2 min-w-0">
               <span className="text-neutral-700 text-sm font-medium">To</span>
@@ -261,38 +272,51 @@ const FleetEmailModal: React.FC<Props> = ({
 
           {/* Attachments */}
           <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              {/* <div className="flex items-center gap-2 text-neutral-700 text-sm font-medium">
-                <PaperclipIcon />
-                {files.length} attachment{files.length !== 1 ? "s" : ""}
-              </div> */}
-              {/* <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="h-8 px-3 py-2 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50"
-              >
-                Add Attachment
-              </button> */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(e) => addFiles(e.target.files)}
-              />
-            </div>
+            {allowAttachments && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-neutral-700 text-sm font-medium">
+                  <PaperclipIcon />
+                  {files.length} attachment{files.length !== 1 ? "s" : ""}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-8 px-3 py-2 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-900 text-sm hover:bg-neutral-50"
+                >
+                  Add Attachment
+                </button>
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => addFiles(e.target.files)}
+            />
+            {attaching && (
+              <div className="flex items-center gap-2 px-3 py-2 text-neutral-500 text-sm">
+                <span className="w-4 h-4 border-2 border-neutral-300 border-t-neutral-700 rounded-full animate-spin" />
+                Attaching…
+              </div>
+            )}
             {files.length > 0 && (
               <div className="flex flex-col gap-2">
                 {files.map((f, i) => (
                   <div
                     key={`${f.name}-${i}`}
-                    className="flex items-center justify-between gap-3 px-3 py-2 rounded outline outline-1 -outline-offset-1 outline-neutral-200"
+                    className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-neutral-100"
                   >
                     <div className="min-w-0 flex items-center gap-3">
                       <img src={attachmentIcon(f.name, f.type)} alt="" className="w-8 h-8 shrink-0" />
-                      <span className="text-neutral-700 text-sm truncate">
-                        {f.name}
-                      </span>
+                      <div className="min-w-0 flex flex-col">
+                        <span className="text-neutral-800 text-sm font-medium truncate">
+                          {f.name}
+                        </span>
+                        <span className="text-neutral-500 text-xs">
+                          Attached · {(f.size / 1024).toFixed(0)} KB
+                        </span>
+                      </div>
                     </div>
                     <button
                       type="button"

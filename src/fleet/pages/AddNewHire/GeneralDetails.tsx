@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetSelect, FleetDateField, FleetTimeSelect, roundToQuarter } from "../../components/fields";
 import PayReimburseHirerModal from "../../components/PayReimburseHirerModal";
+import FleetConfirmModal from "../../components/FleetConfirmModal";
 import FleetDepositRefundModal from "../../components/FleetDepositRefundModal";
 import FleetPayHirerEmailModal from "../../components/FleetPayHirerEmailModal";
 import { getDepositRefundPreview, getPayHirerPreview, type DepositRefundDraft } from "../../services/emailService";
@@ -65,6 +66,7 @@ const GeneralDetails: React.FC = () => {
   const [preparingRefund, setPreparingRefund] = useState(false);
   const [refundPreview, setRefundPreview] = useState("");
   const [refundDraft, setRefundDraft] = useState<DepositRefundDraft>({});
+  const [confirmClose, setConfirmClose] = useState(false);
   const { hire, hireId, save } = useHire();
   const refundableAmount = refundDraft.refund_amount_raw && Number(refundDraft.refund_amount_raw) > 0
     ? refundDraft.refund_amount_raw
@@ -95,8 +97,12 @@ const GeneralDetails: React.FC = () => {
   const set = <K extends keyof GeneralDetailsForm>(key: K, value: GeneralDetailsForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  const handleCloseFile = () => {
+  const requestCloseFile = () => {
     if (form.isClosed) return;
+    setConfirmClose(true);
+  };
+  const confirmCloseFile = () => {
+    setConfirmClose(false);
     const d = now();
     setForm((f) => ({ ...f, fileClosedOn: localISO(d), isClosed: true }));
     save({ file_closed_at: d.toISOString() });
@@ -169,7 +175,7 @@ const GeneralDetails: React.FC = () => {
           <h3 className="text-black text-xl font-semibold leading-5">File Status</h3>
           <button
             type="button"
-            onClick={handleCloseFile}
+            onClick={requestCloseFile}
             disabled={disabled}
             className="h-8 px-3 py-2 bg-neutral-900 rounded flex items-center gap-2 text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -358,6 +364,17 @@ const GeneralDetails: React.FC = () => {
         previewHtml={refundPreview}
         draft={refundDraft}
       />
+
+      {confirmClose && (
+        <FleetConfirmModal
+          title="Close File"
+          message="Are you sure you want to close this record?"
+          confirmLabel="Close File"
+          destructive={false}
+          onConfirm={confirmCloseFile}
+          onCancel={() => setConfirmClose(false)}
+        />
+      )}
     </div>
   );
 };

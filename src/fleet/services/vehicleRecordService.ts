@@ -160,9 +160,17 @@ export const getSaleAccountsEmailPreview = async (recordId: number): Promise<Fle
 
 export const sendSaleAccountsEmail = async (
   recordId: number,
-  args: { to: string; cc?: string; subject: string; body: string },
+  args: { to: string; cc?: string; subject: string; body: string; files?: File[] },
 ): Promise<void> => {
-  await fleetApi.post(`/fleet/vehicle-record/${recordId}/sale/accounts-email`, args);
+  const fd = new FormData();
+  fd.append("to", args.to);
+  if (args.cc) fd.append("cc", args.cc);
+  fd.append("subject", args.subject || "");
+  fd.append("body", args.body || "");
+  (args.files || []).forEach((f) => fd.append("files", f));
+  await fleetApi.post(`/fleet/vehicle-record/${recordId}/sale/accounts-email`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 };
 
 export const downloadSaleDocuments = async (recordId: number): Promise<string> => {

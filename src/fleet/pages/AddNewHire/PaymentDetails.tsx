@@ -147,6 +147,14 @@ const shortDate = (iso?: string | null): string => {
     : d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }).replace(/\//g, "-");
 };
 
+const shortTime = (iso?: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso.endsWith("Z") || iso.includes("+") ? iso : `${iso}Z`);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+};
+
 const isBlank = (value: unknown): boolean => value === undefined || value === null || String(value).trim() === "";
 const DashCell: React.FC<{ className?: string }> = ({ className = "" }) => (
   <span className={`block text-start text-neutral-400 ${className}`}>-</span>
@@ -474,9 +482,12 @@ const RecordPaymentModal: React.FC<{
                 >
                   {receiptDocs[0].filename || "Payment receipt"}
                 </button>
-                <span className="px-3 py-1 bg-neutral-100 rounded-full text-neutral-500 text-xs shrink-0">
-                  {shortDate(receiptDocs[0].created_at)}
-                </span>
+                <div className="shrink-0 flex items-center gap-2">
+                  <span className="px-3 py-1 bg-neutral-100 rounded-full text-neutral-500 text-xs">
+                    {shortDate(receiptDocs[0].created_at)}
+                  </span>
+                  <span className="text-neutral-400 text-[11px] leading-none">{shortTime(receiptDocs[0].created_at)}</span>
+                </div>
               </div>
               <div className="shrink-0 flex items-center gap-2">
                 <button

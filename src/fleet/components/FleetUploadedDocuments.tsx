@@ -24,6 +24,14 @@ const shortDate = (iso?: string | null): string => {
     : d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" }).replace(/\//g, "-");
 };
 
+const shortTime = (iso?: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso.endsWith("Z") || iso.includes("+") ? iso : `${iso}Z`);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+};
+
 const RemoveBtn: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <button type="button" onClick={onClick} aria-label="Remove" title="Remove" className="shrink-0 text-neutral-700 hover:opacity-70">
     <img src={TrashIcon} alt="" className="w-4 h-4" />
@@ -60,7 +68,10 @@ const FleetUploadedDocuments: React.FC<{
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <button type="button" onClick={() => onView(doc.id)} className={FILE}>{doc.filename || "Document"}</button>
-                  <span className="px-3 py-1 bg-neutral-100 rounded-full text-neutral-500 text-xs shrink-0">{shortDate(doc.created_at)}</span>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <span className="px-3 py-1 bg-neutral-100 rounded-full text-neutral-500 text-xs">{shortDate(doc.created_at)}</span>
+                    <span className="text-neutral-400 text-[11px] leading-none">{shortTime(doc.created_at)}</span>
+                  </div>
                 </div>
                 <RemoveBtn onClick={() => onRemove(doc)} />
               </div>

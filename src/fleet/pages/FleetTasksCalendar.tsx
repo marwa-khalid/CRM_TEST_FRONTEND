@@ -143,7 +143,7 @@ const DateField: React.FC<{ value: string; onChange: (v: string) => void; placeh
   );
 };
 
-const FleetTasksCalendar: React.FC = () => {
+const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
   const [tasks, setTasks] = useState<FleetTask[]>([]);
   const [events, setEvents] = useState<FleetEvent[]>([]);
   const [expiries, setExpiries] = useState<FleetDueReminder[]>([]);
@@ -171,7 +171,13 @@ const FleetTasksCalendar: React.FC = () => {
 
   const load = async () => {
     setLoading(true);
-    const [t, e, x] = await Promise.all([listFleetTasks(), listCalendarEvents(), listAllExpiries()]);
+    // Vehicle expiries (road fund / plate / MOT) belong to Vehicle Management, so
+    // only its calendar plots them; Skyline's calendar shows tasks + manual events.
+    const [t, e, x] = await Promise.all([
+      listFleetTasks({ module }),
+      listCalendarEvents({ module }),
+      module === "vehicles" ? listAllExpiries() : Promise.resolve([]),
+    ]);
     setTasks(t);
     // Drop the auto-synced expiry system-events — expiries are plotted from the
     // dedicated endpoint below, so keeping these would double each one up.
@@ -651,6 +657,7 @@ const FleetTasksCalendar: React.FC = () => {
       {showEventModal && (
         <FleetEventModal
           event={editingEvent}
+          module={module}
           defaultDate={eventDate || undefined}
           onClose={() => setShowEventModal(false)}
           onSaved={() => {
@@ -664,6 +671,7 @@ const FleetTasksCalendar: React.FC = () => {
       {showTaskModal && (
         <FleetTaskModal
           task={editingTask}
+          module={module}
           onClose={() => setShowTaskModal(false)}
           onSaved={() => {
             setShowTaskModal(false);

@@ -15,6 +15,9 @@ interface Props {
   onSelect?: (index: number) => void;
   /** Customer-side steps for the SAME record. Indices continue after `steps`. */
   customerSteps?: HireStep[];
+  /** Header for the primary card. Defaults to "Client Side" (the hire wizard);
+   *  the standalone vehicle file passes its own explanatory name. */
+  clientLabel?: string;
 }
 
 const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
@@ -25,7 +28,7 @@ const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
 
 const CARD = "self-stretch p-6 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 
-const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect, customerSteps = [] }) => {
+const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect, customerSteps = [], clientLabel = "Client Side" }) => {
   // Accordion: only one side is expanded at a time, so opening one collapses the
   // other. Follows the active step across the client/customer boundary.
   const [openPanel, setOpenPanel] = useState<"client" | "customer">(
@@ -41,10 +44,10 @@ const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect,
 
   return (
     <div className="w-72 shrink-0 font-sans-headline flex flex-col gap-4">
-      {/* Skyline Client Side — the current wizard */}
+      {/* Primary card — the hire's Client Side, or the vehicle file's own steps. */}
       <div className={CARD}>
         <button type="button" onClick={setClientOpen} className="flex justify-between items-center">
-          <span className="text-neutral-900 text-base font-semibold">Client Side</span>
+          <span className="text-neutral-900 text-base font-semibold">{clientLabel}</span>
           <Chevron open={clientOpen} />
         </button>
         {clientOpen && (
@@ -78,7 +81,10 @@ const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect,
         )}
       </div>
 
-      {/* Skyline Customer Side — same record, indices continue after the client steps */}
+      {/* Skyline Customer Side — same record, indices continue after the client steps.
+          Vehicles now live in Vehicle Management, so a hire carries no customer-side
+          vehicle file: the whole section is hidden unless customer steps are supplied. */}
+      {customerSteps.length > 0 && (
       <div className={CARD}>
         <button type="button" onClick={setCustomerOpen} className="flex justify-between items-center">
           <span className={`text-base font-semibold ${customerSteps.length ? "text-neutral-900" : "text-neutral-500"}`}>
@@ -120,6 +126,7 @@ const FleetStepper: React.FC<Props> = ({ steps, activeIndex, statusOf, onSelect,
           </>
         )}
       </div>
+      )}
     </div>
   );
 };

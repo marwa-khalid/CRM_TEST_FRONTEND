@@ -1,6 +1,6 @@
 import fleetApi from "./fleetApi";
 
-// Fleet Map client — vehicle GPS positions from the shared backend (self-seeds
+// Skyline Map client — vehicle GPS positions from the shared backend (self-seeds
 // demo data if empty). No Claims imports; keeps the Fleet slice self-contained.
 
 export interface FleetMapVehicle {

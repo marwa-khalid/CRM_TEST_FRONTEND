@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput } from "../../components/fields";
-import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
-import PrintIcon from "../../assets/icons/Print.svg";
+import { FleetTextInput } from "../../fleet/components/fields";
+import FleetSpinnerLoader from "../../fleet/components/FleetSpinnerLoader";
+import PrintIcon from "../../fleet/assets/icons/Print.svg";
 import {
   downloadLicensingAuthorityLetters,
   listLicensingAuthorities,
   updateLicensingAuthority,
   type LicensingAuthority,
-} from "../../services/licensingAuthorityService";
+} from "../services/licensingAuthorityService";
 import { useVehicle } from "./VehicleContext";
-import { useHire } from "../AddNewHire/HireContext";
+import { useHire } from "../../fleet/pages/AddNewHire/HireContext";
 
 const SECTION = "self-stretch p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-3";
 const BTN_DARK = "h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm inline-flex items-center justify-center gap-2 hover:bg-black disabled:opacity-70";

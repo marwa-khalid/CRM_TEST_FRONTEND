@@ -598,7 +598,7 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
         placeholder="Select Type"
         isLoading={isTaxiTypeLoading}
         noOptionsMessage={() => (isTaxiTypeLoading ? "Loading..." : "No taxi types found")}
-        styles={customStyles}
+        styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="auto"
         value={taxiTypeOptions.find((op) => op.value === getNestedValue(field)) || null}
         onChange={(e: any) => formik.setFieldValue(field, e?.value || null)}
         components={{ DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null }}
@@ -947,7 +947,7 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
               <Select
                 options={fuelOptions}
                 placeholder="Select Type"
-                styles={customStyles}
+                styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="auto"
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
@@ -1015,7 +1015,7 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
               <Select
                 options={transmissionOptions}
                 placeholder="Select Type"
-                styles={customStyles}
+                styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="auto"
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
@@ -1085,7 +1085,7 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
               <Select
                 options={categoryOptions}
                 placeholder="Select Category"
-                styles={customStyles}
+                styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="auto"
                 value={categoryOptions.find(
                   (op) => op.value === formik.values.vehicle.category,
                 )}

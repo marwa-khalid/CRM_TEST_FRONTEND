@@ -36,7 +36,7 @@ const fieldLabel = (value: string) =>
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const fallbackReference = (hire: HireRecord | null, hireId: number | null) => {
-  if (!hire?.fleet_reference && !hireId) return "Fleet Activity Log";
+  if (!hire?.fleet_reference && !hireId) return "Skyline Activity Log";
   return fleetReference(hire, hireId);
 };
 
@@ -104,7 +104,7 @@ const FleetActivityLog: React.FC = () => {
           <ArrowLeft size={22} />
         </button>
         <div>
-          <h1 className="text-black text-2xl font-semibold leading-6">Fleet Activity Log</h1>
+          <h1 className="text-black text-2xl font-semibold leading-6">Skyline Activity Log</h1>
           <p className="mt-1 text-neutral-500 text-sm">{fallbackReference(hire, hireId)}</p>
         </div>
       </div>

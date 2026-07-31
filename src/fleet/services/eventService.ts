@@ -32,6 +32,7 @@ export const EXPIRY_EVENT_SOURCE_TYPES = ["road_fund_licence_expiry", "plating_e
 
 export interface FleetEventPayload {
   title: string;
+  module?: string | null;   // skyline / vehicles — owning app (defaults per caller)
   event_type?: string | null;
   start_date?: string | null;
   start_time?: string | null;
@@ -47,7 +48,7 @@ export interface FleetEventPayload {
 const clean = (params: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(params).filter(([, v]) => v !== "" && v !== null && v !== undefined));
 
-export const listCalendarEvents = async (params: { start?: string; end?: string } = {}): Promise<FleetEvent[]> => {
+export const listCalendarEvents = async (params: { start?: string; end?: string; module?: string } = {}): Promise<FleetEvent[]> => {
   try {
     const { data } = await fleetApi.get("/calendar-events", { params: clean(params) });
     return Array.isArray(data) ? data : [];

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import TrashIcon from "../assets/icons/Remove.svg";
-import type { VehicleDocument } from "../services/vehicleRecordService";
+import type { VehicleDocument } from "../../vehicles/services/vehicleRecordService";
 
 // Uploaded documents — Figma "Current" report card + "Previous Reports (N)" list
 // with per-row dates, remove icons and a Show All Reports expander. Shared across

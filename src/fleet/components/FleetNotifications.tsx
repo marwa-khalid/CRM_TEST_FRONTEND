@@ -91,7 +91,7 @@ export const buildFleetTaskNotifications = (overdue: any[], dueToday: any[]): No
 
 const TABS: { key: string; label: string }[] = [
   { key: "All", label: "All" },
-  { key: "Fleet", label: "Fleet" },
+  { key: "Fleet", label: "Skyline" },
   { key: "Tasks", label: "Tasks" },
   { key: "System", label: "System Alerts" },
   { key: "Mentions", label: "Mentions" },

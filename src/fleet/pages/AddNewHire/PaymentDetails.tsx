@@ -20,7 +20,7 @@ import RemoveIcon from "../../assets/icons/Remove.svg";
 import PencilIcon from "../../assets/icons/PencilIcon.svg";
 import UploadFileIcon from "../../assets/icons/UploadFile.svg";
 import { sendFleetWhatsApp } from "../../services/whatsappService";
-import { deleteVehicle, listVehicles, updateVehicle } from "../../services/vehicleService";
+import { deleteVehicle, listVehicles, updateVehicle } from "../../../vehicles/services/vehicleService";
 import { uploadHireDocument, getHireDocuments, getHireDocumentFileUrl, deleteHireDocument, type HireDocument } from "../../services/hireService";
 import type { Option } from "../../types/hire";
 

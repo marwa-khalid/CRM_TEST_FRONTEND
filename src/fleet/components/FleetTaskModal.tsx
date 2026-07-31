@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetTextArea, FleetSelect, FleetCreatableSelect, FleetDateField, FleetTimeSelect } from "./fields";
 import { useFleetAssignees } from "../hooks/useFleetAssignees";
-import { listVehicleRegister } from "../services/vehicleService";
+import { listVehicleRegister } from "../../vehicles/services/vehicleService";
 import {
   createFleetTask,
   updateFleetTask,
@@ -25,9 +25,10 @@ interface Props {
   defaultDate?: string; // yyyy-mm-dd — seeds Due Date when creating from the calendar
   onClose: () => void;
   onSaved: () => void;
+  module?: string; // skyline / vehicles — which app's list this task belongs to
 }
 
-const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved }) => {
+const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved, module = "skyline" }) => {
   const [form, setForm] = useState<FleetTaskPayload>({
     title: task?.title || "",
     description: task?.description || "",
@@ -89,6 +90,7 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved }
     // Send nulls (not empty strings) for the optional fields the backend treats as dates/enums.
     const payload: FleetTaskPayload = {
       ...form,
+      module: task ? form.module : module, // preserve on edit; stamp on create
       title: form.title.trim(),
       description: form.description || null,
       assigned_user: form.assigned_user || null,

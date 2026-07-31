@@ -5,7 +5,7 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { fileTypeIcon } from "../utils/fileIcon";
 import { getHireDocumentFileUrl, type HireDocument } from "../services/hireService";
-import { getVehicleDocumentFileUrl } from "../services/vehicleRecordService";
+import { getVehicleDocumentFileUrl } from "../../vehicles/services/vehicleRecordService";
 
 // Render PDF pages with pdf.js (same engine as the Claims document library) so
 // the preview shows page-by-page instead of the browser's native PDF viewer. The

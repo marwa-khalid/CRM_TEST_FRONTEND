@@ -3,8 +3,8 @@ import { Plus, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { listHires, deleteHire, getDueReminders, type HireRecord, type FleetDueReminder } from "../services/hireService";
-import { listVehicleRegister, type FleetVehicleRegister } from "../services/vehicleService";
-import { listVehicleRecords, type VehicleRecord } from "../services/vehicleRecordService";
+import { listVehicleRegister, type FleetVehicleRegister } from "../../vehicles/services/vehicleService";
+import { listVehicleRecords, type VehicleRecord } from "../../vehicles/services/vehicleRecordService";
 import FleetConfirmModal from "../components/FleetConfirmModal";
 import FleetReminderPanel from "../components/FleetReminderPanel";
 import FleetNotificationBell from "../components/FleetNotificationBell";
@@ -362,7 +362,7 @@ const FleetList: React.FC = () => {
       {loading && <FleetSpinnerLoader />}
       {/* Topbar */}
       <div className="h-20 px-4 sm:px-6 lg:px-10 flex items-center justify-between border-b border-[#eee]">
-        <h1 className="text-black text-2xl font-semibold">Fleet</h1>
+        <h1 className="text-black text-2xl font-semibold">Skyline</h1>
         <div className="flex items-center gap-6">
           <img src={SearchIcon} alt="Search" className="w-5 h-5" />
           <FleetNotificationBell />
@@ -594,7 +594,7 @@ const FleetList: React.FC = () => {
 
       {deleteTarget && (
         <FleetConfirmModal
-          title="Delete Fleet Record"
+          title="Delete Skyline Record"
           message={`Are you sure you want to delete ${fallbackReference(deleteTarget)}?`}
           confirmLabel="Delete"
           onConfirm={confirmDelete}
@@ -603,7 +603,7 @@ const FleetList: React.FC = () => {
       )}
       {bulkConfirm && (
         <FleetConfirmModal
-          title="Delete Fleet Records"
+          title="Delete Skyline Records"
           message={`Are you sure you want to delete ${selected.size} selected record(s)?`}
           confirmLabel="Delete"
           onConfirm={confirmBulkDelete}

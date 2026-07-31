@@ -4,6 +4,7 @@ import LoginPage from './modules/Login/login';
 import ClaimListingPage from "./modules/Dashboard/ClaimListingPage";
 import MainLayout from './Layout/layout';
 import { FleetRoutes } from "./fleet";
+import VehicleManagementRoutes from "./vehicles";
 import { ToastContainer } from 'react-toastify';
 import ReminderWatcher from "./claims/Reminders/ReminderWatcher";
 import OTPPage from './modules/Login/OTPPage';
@@ -89,6 +90,9 @@ const AppInner: React.FC = () => {
 
         {/* Fleet module — fully self-contained under /fleet/* (src/fleet). */}
         <Route path="/fleet/*" element={<FleetRoutes />} />
+
+        {/* Vehicle Management — standalone shared vehicle pool (src/fleet). */}
+        <Route path="/vehicle-management/*" element={<VehicleManagementRoutes />} />
 
         <Route path="/questionnaire/:token" element={<QuestionnaireLayout />}>
           <Route path="step-1" element={<Step1Witness />} />

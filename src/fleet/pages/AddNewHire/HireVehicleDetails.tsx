@@ -39,7 +39,7 @@ import {
   updateVehicle,
   upsertVehicleRegister,
   type FleetVehicleRegister,
-} from "../../services/vehicleService";
+} from "../../../vehicles/services/vehicleService";
 import { extractInsuranceCertificate } from "../../services/driverService";
 import {
   BOROUGH_OPTIONS,

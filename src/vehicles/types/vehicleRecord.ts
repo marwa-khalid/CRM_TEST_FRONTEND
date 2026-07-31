@@ -1,4 +1,4 @@
-import type { Option } from "./hire";
+import type { Option } from "../../fleet/types/hire";
 
 export interface VehicleStep {
   key: string;

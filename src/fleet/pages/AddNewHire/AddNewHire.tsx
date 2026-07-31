@@ -13,14 +13,6 @@ import HireVehicleDetails from "./HireVehicleDetails";
 import PaymentDetails from "./PaymentDetails";
 import PenaltyCharges from "./PenaltyCharges";
 import DocumentChecklist from "./DocumentChecklist";
-import VehicleDetails from "../Vehicle/VehicleDetails";
-import LicensingAuthority from "../Vehicle/LicensingAuthority";
-import LicensingAuthoritySummary from "../Vehicle/LicensingAuthoritySummary";
-import CurrentHireDetails from "../Vehicle/CurrentHireDetails";
-import ServicingDetails from "../Vehicle/ServicingDetails";
-import RoadFundLicense from "../Vehicle/RoadFundLicense";
-import VehicleSaleDetails from "../Vehicle/VehicleSaleDetails";
-import { VehicleProvider } from "../Vehicle/VehicleContext";
 import { HireProvider } from "./HireContext";
 import {
   createHire,
@@ -31,15 +23,11 @@ import {
   type HireRecord,
 } from "../../services/hireService";
 import { HIRE_STEPS, HIRER_TYPE_TAXI } from "../../types/hire";
-import { VEHICLE_STEPS } from "../../types/vehicleRecord";
-import {
-  getHireVehicleRecord,
-  updateVehicleRecord,
-  type VehicleRecord,
-} from "../../services/vehicleRecordService";
 
 // Each wizard step maps to a screen component. Steps not yet built (later stories)
 // render a placeholder, so new stories just drop a component in here.
+// The vehicle file (details/licensing/servicing/…) now lives in the standalone
+// Vehicle Management module — a hire only references a registered vehicle by reg.
 const STEP_COMPONENTS: Record<string, React.FC | undefined> = {
   general: GeneralDetails,
   driver: DriverDetails,
@@ -50,14 +38,6 @@ const STEP_COMPONENTS: Record<string, React.FC | undefined> = {
   payment: PaymentDetails,
   pcn: PenaltyCharges,
   documents: DocumentChecklist,
-  // Customer Side — same record, different screens.
-  details: VehicleDetails,
-  licensing: LicensingAuthority,
-  licensing_summary: LicensingAuthoritySummary,
-  current_hire: CurrentHireDetails,
-  servicing: ServicingDetails,
-  road_fund: RoadFundLicense,
-  sales: VehicleSaleDetails,
 };
 
 // Backend fields that live on the hire record, per step — drives the sidebar
@@ -69,16 +49,6 @@ const STEP_FIELDS: Record<string, string[]> = {
   driver: ["driver_name", "driver_address", "driver_postcode", "driver_email", "driver_telephone", "driver_mobile", "driving_licence_number", "national_insurance_number", "date_of_birth"],
   gdpr: ["where_found", "privacy_notice_date", "privacy_notice_method", "lawful_basis", "email_consent", "sms_consent", "phone_consent", "postal_consent"],
   payment: ["payment_hire_start_date", "payment_hire_end_date", "vehicle_cost_per_day", "number_of_weekly_payments", "payment_day", "security_deposit", "weekly_hire_payment", "total_planned_hire_cost", "initial_amount_due", "payment_damage_charges", "additional_charges"],
-};
-
-// Customer-side steps are backed by the vehicle record rather than the hire row.
-const VEHICLE_STEP_FIELDS: Record<string, string[]> = {
-  details: [
-    "obtained_for_purpose", "contract_type", "registration_number", "make", "model",
-    "manufacturer", "variant", "number_of_doors", "number_of_seats", "body_type",
-    "fuel_type", "transmission", "engine_size_cc", "v5c_document_reference",
-    "chassis_number", "date_of_first_registration", "vehicle_status", "depot_branch",
-  ],
 };
 
 // complete = all present, half = 1+, empty = none.
@@ -104,9 +74,6 @@ const AddNewHire: React.FC = () => {
   const [activeVehicleId, setActiveVehicleId] = useState<number | null>(null);
   const [completionSummary, setCompletionSummary] = useState<HireCompletionSummary | null>(null);
   const [loadingHire, setLoadingHire] = useState(false);
-  // The Customer Side of this same record. Fetched lazily the first time a
-  // customer-side step is opened, so client-only files never create one.
-  const [vehicle, setVehicle] = useState<VehicleRecord | null>(null);
   const hireIdRef = useRef<number | null>(null);
   const createPromiseRef = useRef<Promise<HireRecord | null> | null>(null);
 
@@ -179,7 +146,7 @@ const AddNewHire: React.FC = () => {
   // --- Deferred save ---------------------------------------------------------
   // Field edits are buffered here and flushed once on navigation, so a screenful
   // of changes is one PATCH instead of one-per-field. Screens with their own API
-  // (Licensing, Servicing) register their own flusher via `registerFlusher`.
+  // (HireVehicleDetails) register their own flusher via `registerFlusher`.
   const flushersRef = useRef<Set<() => Promise<void>>>(new Set());
   const registerFlusher = useCallback((fn: () => Promise<void>) => {
     flushersRef.current.add(fn);
@@ -226,10 +193,7 @@ const AddNewHire: React.FC = () => {
     setActiveIndex((i) => Math.min(i, Math.max(0, steps.length - 1)));
   }, [steps.length]);
 
-  // Customer-side steps continue the same index space as the client steps, so
-  // one activeIndex drives both sidebar cards.
-  const allSteps = useMemo(() => [...steps, ...VEHICLE_STEPS], [steps]);
-  const isCustomerStep = activeIndex >= steps.length;
+  const allSteps = steps;
 
   // No step gating on Fleet — every step is freely reachable in any order.
   // Persist the current screen's buffered edits, but don't block the click on it:
@@ -240,85 +204,13 @@ const AddNewHire: React.FC = () => {
     setActiveIndex(i);
   };
 
-  const [vehicleLoading, setVehicleLoading] = useState(false);
-
-  // Opening any customer-side screen needs a vehicle record, which needs the hire
-  // to exist. Create the hire on first open (like the client side does on first
-  // save) so the customer screens are usable straight away — no "open Vehicle
-  // Details first" dead end.
+  // Register the hire flusher so navigation persists its buffer.
   useEffect(() => {
-    if (!isCustomerStep || vehicle) return;
-    let cancelled = false;
-    setVehicleLoading(true);
-    (async () => {
-      try {
-        const id = hireId ?? (await ensureHire());
-        if (!id || cancelled) return;
-        const record = await getHireVehicleRecord(id);
-        if (record && !cancelled) setVehicle(record);
-      } finally {
-        if (!cancelled) setVehicleLoading(false);
-      }
-    })();
+    const off = registerFlusher(flushHire);
     return () => {
-      cancelled = true;
+      off();
     };
-  }, [isCustomerStep, hireId, vehicle]);
-
-  // Pending vehicle-field edits + a ref mirror of `vehicle` so the memoized
-  // flusher always sees the latest record id.
-  const pendingVehicleRef = useRef<Record<string, unknown>>({});
-  const vehicleRef = useRef<VehicleRecord | null>(null);
-  useEffect(() => {
-    vehicleRef.current = vehicle;
-  }, [vehicle]);
-
-  const saveVehicle = async (partial: Record<string, unknown>) => {
-    let record = vehicle;
-    if (!record && hireId) record = await getHireVehicleRecord(hireId);
-    if (!record) {
-      toast.error("Could not open the vehicle record yet.");
-      return;
-    }
-    pendingVehicleRef.current = { ...pendingVehicleRef.current, ...partial };
-    // Optimistic merge so the sidebar fill + this screen's read-backs stay in step.
-    setVehicle((v) => ({ ...(v ?? record), ...partial } as VehicleRecord));
-  };
-  const flushVehicle = useCallback(async () => {
-    const pending = pendingVehicleRef.current;
-    if (Object.keys(pending).length === 0) return;
-    let record = vehicleRef.current;
-    if (!record && hireIdRef.current) record = await getHireVehicleRecord(hireIdRef.current);
-    if (!record) return;
-    pendingVehicleRef.current = {};
-    const updated = await updateVehicleRecord(record.id, pending);
-    if (updated) setVehicle(updated);
-    else toast.error("Could not save. Please try again.");
-  }, []);
-
-  // Register the hire + vehicle flushers so navigation persists their buffers.
-  useEffect(() => {
-    const off1 = registerFlusher(flushHire);
-    const off2 = registerFlusher(flushVehicle);
-    return () => {
-      off1();
-      off2();
-    };
-  }, [registerFlusher, flushHire, flushVehicle]);
-
-  const refreshVehicle = async () => {
-    if (!hireId) return;
-    const record = await getHireVehicleRecord(hireId);
-    if (record) setVehicle(record);
-  };
-
-  const ensureVehicle = async (): Promise<number | null> => {
-    if (vehicle) return vehicle.id;
-    if (!hireId) return null;
-    const record = await getHireVehicleRecord(hireId);
-    if (record) setVehicle(record);
-    return record?.id ?? null;
-  };
+  }, [registerFlusher, flushHire]);
 
   // Back to the listing still persists what the user entered (they didn't discard).
   const goBack = async () => {
@@ -328,7 +220,6 @@ const AddNewHire: React.FC = () => {
   // Discard intentionally drops buffered edits — clear them so no flusher fires.
   const discard = () => {
     pendingHireRef.current = {};
-    pendingVehicleRef.current = {};
     navigate("/fleet");
   };
   const saveNext = async () => {
@@ -365,11 +256,6 @@ const AddNewHire: React.FC = () => {
     const step = allSteps[i];
     if (!step) return "empty";
     const key = step.key;
-    if (i >= steps.length) {
-      const vehicleFields = VEHICLE_STEP_FIELDS[key];
-      if (!vehicleFields) return "empty";
-      return fillFromFields(vehicle as unknown as Record<string, unknown> | null, vehicleFields);
-    }
     const fields = STEP_FIELDS[key];
     if (fields) return fillFromFields(hire as unknown as Record<string, unknown> | null, fields);
     if (key === "vehicle") {
@@ -404,20 +290,11 @@ const AddNewHire: React.FC = () => {
           activeIndex={activeIndex}
           statusOf={stepStatus}
           onSelect={selectStep}
-          customerSteps={VEHICLE_STEPS}
         />
         <div className="flex-1 flex justify-center">
           <HireProvider value={{ hireId, hire, save, activeVehicleId, setActiveVehicleId, registerFlusher }}>
             {loadingHire ? null : StepComponent ? (
-              isCustomerStep ? (
-                <VehicleProvider
-                  value={{ vehicleId: vehicle?.id ?? null, vehicle, loading: vehicleLoading, hire, save: saveVehicle, flush: flushVehicle, ensureVehicle, refresh: refreshVehicle }}
-                >
-                  <StepComponent />
-                </VehicleProvider>
-              ) : (
-                <StepComponent />
-              )
+              <StepComponent />
             ) : (
               <div className="w-full max-w-[788px] py-20 text-center text-neutral-400 text-sm">
                 {activeStep.label} — coming soon.

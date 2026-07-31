@@ -1,17 +1,17 @@
 import React from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import LogoIcon from "../assets/listingpage/Logo.svg";
-import CollapseIcon from "../assets/listingpage/GoBack.svg";
-import HomeIcon from "../assets/listingpage/home.svg";
-import FleetIcon from "../assets/listingpage/fleet.svg";
-import TasksIcon from "../assets/listingpage/tasks.svg";
-import CalendarIcon from "../assets/listingpage/calendarsidebar.svg";
-import ReportsIcon from "../assets/listingpage/reports.svg";
-import MapIcon from "../assets/listingpage/map.svg";
-import AccountArrows from "../assets/listingpage/doublearrow.svg";
+import LogoIcon from "../../fleet/assets/listingpage/Logo.svg";
+import CollapseIcon from "../../fleet/assets/listingpage/GoBack.svg";
+import HomeIcon from "../../fleet/assets/listingpage/home.svg";
+import VehiclesIcon from "../../fleet/assets/listingpage/vehicles.svg";
+import TasksIcon from "../../fleet/assets/listingpage/tasks.svg";
+import CalendarIcon from "../../fleet/assets/listingpage/calendarsidebar.svg";
+import ReportsIcon from "../../fleet/assets/listingpage/reports.svg";
+import AccountArrows from "../../fleet/assets/listingpage/doublearrow.svg";
 
-// Best-effort current user for the profile block — real identity from storage /
-// the JWT, never a hardcoded name.
+// Vehicle Management shares the exact Skyline shell look (see FleetShell). Nav
+// points at the /vehicle-management routes instead of /fleet. Tasks & Calendar
+// are shown for parity but land on "coming soon" placeholders for now.
 const decodeJwt = (token: string): Record<string, unknown> | null => {
   try {
     const payload = token.split(".")[1];
@@ -23,8 +23,7 @@ const decodeJwt = (token: string): Record<string, unknown> | null => {
 
 const currentUser = (): { name: string; initials: string } => {
   const ls = (k: string) => localStorage.getItem(k) || "";
-  let name =
-    ls("user_name") || ls("userName") || ls("name") || ls("fullName") || "";
+  let name = ls("user_name") || ls("userName") || ls("name") || ls("fullName") || "";
   let email = ls("email") || ls("pendingLoginEmail") || "";
   if (!name || !email) {
     const claims = decodeJwt(ls("access_token"));
@@ -58,17 +57,16 @@ interface NavItem {
   onClick?: () => void;
 }
 
-const FleetShell: React.FC = () => {
+const VehicleManagementShell: React.FC = () => {
   const navigate = useNavigate();
   const { name, initials } = currentUser();
 
   const items: NavItem[] = [
     { label: "Dashboard", icon: HomeIcon, onClick: () => navigate("/dashboard") },
-    { label: "Skyline", icon: FleetIcon, to: "/fleet", end: true },
-    { label: "Tasks", icon: TasksIcon, to: "/fleet/tasks" },
-    { label: "Calendar", icon: CalendarIcon, to: "/fleet/calendar" },
+    { label: "Vehicles", icon: VehiclesIcon, to: "/vehicle-management", end: true },
+    { label: "Tasks", icon: TasksIcon, to: "/vehicle-management/tasks" },
+    { label: "Calendar", icon: CalendarIcon, to: "/vehicle-management/calendar" },
     { label: "Reports", icon: ReportsIcon, onClick: () => navigate("/dashboard") },
-    { label: "Skyline Map", icon: MapIcon, to: "/fleet/map" },
   ];
 
   const rowBase = "w-full flex items-center gap-3 px-5 py-3 text-[15px] leading-none transition-colors";
@@ -137,4 +135,4 @@ const FleetShell: React.FC = () => {
   );
 };
 
-export default FleetShell;
+export default VehicleManagementShell;

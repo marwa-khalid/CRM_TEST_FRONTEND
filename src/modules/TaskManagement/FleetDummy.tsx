@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-// Temporary cross-module use — this Fleet Operations block lives on the Claims
+// Temporary cross-module use — this Skyline Operations block lives on the Claims
 // dashboard for now and reads real Fleet data. Moves to the Fleet dashboard later.
-import { listVehicleRegister, type FleetVehicleRegister } from "../../fleet/services/vehicleService";
+import { listVehicleRegister, type FleetVehicleRegister } from "../../vehicles/services/vehicleService";
 import { listHires, type HireRecord } from "../../fleet/services/hireService";
 import FleetMultiSelectFilter from "../../fleet/components/FleetMultiSelectFilter";
 
@@ -137,7 +137,7 @@ export default function FleetOperations() {
   return (
     <section className="w-full rounded-lg border border-neutral-200 px-4 py-6 font-['Stack_Sans_Headline']">
       <div className="flex flex-col gap-10">
-        <h2 className="text-xl font-weight-600 leading-5 text-black">Fleet Operations</h2>
+        <h2 className="text-xl font-weight-600 leading-5 text-black">Skyline Operations</h2>
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">

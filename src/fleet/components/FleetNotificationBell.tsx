@@ -11,8 +11,11 @@ import { listFleetTasks, type FleetTask } from "../services/taskService";
 const isDone = (t: FleetTask) => ["completed", "rejected"].includes((t.status || "").toLowerCase());
 const todayISO = () => new Date().toLocaleDateString("sv-SE");
 
-const FleetNotificationBell: React.FC<{ iconSize?: number; onOpenTask?: () => void }> = ({ iconSize = 20, onOpenTask }) => {
+const FleetNotificationBell: React.FC<{ iconSize?: number; onOpenTask?: () => void; module?: string }> = ({ iconSize = 20, onOpenTask, module = "skyline" }) => {
   const navigate = useNavigate();
+  // Which notification feed this bell shows: Skyline ("Fleet" tag) or Vehicle
+  // Management ("Vehicles" tag). Vehicle expiries + vehicle tasks carry "Vehicles".
+  const wantedTag = module === "vehicles" ? "Vehicles" : "Fleet";
   const [open, setOpen] = useState(false);
   const [dbNotifs, setDbNotifs] = useState<NotifItem[]>([]);
   const [overdue, setOverdue] = useState<FleetTask[]>([]);
@@ -22,12 +25,13 @@ const FleetNotificationBell: React.FC<{ iconSize?: number; onOpenTask?: () => vo
 
   const fetchDb = useCallback(async () => {
     const rows = await getFleetNotifications();
-    // Keep only Fleet-tagged rows — Claims notifications never show here.
-    const fleet = rows.filter((n: any) => n?.tab === "Fleet" || n?.category === "Fleet");
-    setDbNotifs(fleet.map((n: any) => ({
+    // Keep only this module's rows — Skyline sees "Fleet", Vehicle Management sees
+    // "Vehicles"; Claims notifications never show in either.
+    const scoped = rows.filter((n: any) => n?.tab === wantedTag || n?.category === wantedTag);
+    setDbNotifs(scoped.map((n: any) => ({
       id: String(n.id ?? n.notif_id ?? `${n.title}-${n.created_at}`),
-      tab: n.tab || "Fleet",
-      category: n.category || "Fleet",
+      tab: n.tab || wantedTag,
+      category: n.category || wantedTag,
       title: n.title || "",
       description: n.description || "",
       time: n.time || timeAgo(n.created_at) || "",
@@ -35,14 +39,14 @@ const FleetNotificationBell: React.FC<{ iconSize?: number; onOpenTask?: () => vo
       unread: n.unread ?? !n.read ?? true,
       notif_id: typeof n.id === "number" ? n.id : n.notif_id,
     })));
-  }, []);
+  }, [wantedTag]);
 
   const loadTasks = useCallback(async () => {
-    const tasks = await listFleetTasks();
+    const tasks = await listFleetTasks({ module });
     const t = todayISO();
     setOverdue(tasks.filter((x) => x.is_overdue && !isDone(x)));
     setDueToday(tasks.filter((x) => (x.due_date || "").slice(0, 10) === t && !isDone(x)));
-  }, []);
+  }, [module]);
 
   useEffect(() => { fetchDb(); loadTasks(); }, [fetchDb, loadTasks]);
   useEffect(() => { if (open) { fetchDb(); loadTasks(); } }, [open, fetchDb, loadTasks]);
@@ -66,7 +70,7 @@ const FleetNotificationBell: React.FC<{ iconSize?: number; onOpenTask?: () => vo
   const handleClick = (n: NotifItem) => {
     setReadIds((prev) => new Set(prev).add(n.id));
     if (n.notif_id) markFleetNotificationRead(n.notif_id).then(fetchDb);
-    if (n.taskId) (onOpenTask ? onOpenTask() : navigate("/fleet/tasks"));
+    if (n.taskId) (onOpenTask ? onOpenTask() : navigate(module === "vehicles" ? "/vehicle-management/tasks" : "/fleet/tasks"));
     setOpen(false);
   };
 

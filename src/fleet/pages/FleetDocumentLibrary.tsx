@@ -13,7 +13,7 @@ import {
   getHireVehicleRecord,
   listAllVehicleRecordDocuments,
   getVehicleDocumentFileUrl,
-} from "../services/vehicleRecordService";
+} from "../../vehicles/services/vehicleRecordService";
 
 // Documents come from two stores: the hire (driving licence, taxi badge,
 // checklist, user uploads) and the customer-side vehicle record (V5C,
@@ -177,9 +177,9 @@ const FleetDocumentLibrary: React.FC = () => {
             className="inline-flex items-center gap-1 cursor-pointer text-neutral-600 hover:text-neutral-900"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="text-xs font-semibold">Back to Fleet Record</span>
+            <span className="text-xs font-semibold">Back to Skyline Record</span>
           </button>
-          <div className="text-black text-2xl font-semibold leading-6">Fleet Documents Library</div>
+          <div className="text-black text-2xl font-semibold leading-6">Skyline Documents Library</div>
           <p className="text-neutral-500 text-sm">{fleetReference(hire, hireId)}</p>
         </div>
         <button

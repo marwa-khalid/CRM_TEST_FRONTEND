@@ -21,9 +21,10 @@ interface Props {
   defaultDate?: string; // yyyy-mm-dd — seeds Start Date when creating from the calendar
   onClose: () => void;
   onSaved: () => void;
+  module?: string; // skyline / vehicles — which app's calendar this event belongs to
 }
 
-const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved }) => {
+const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved, module = "skyline" }) => {
   const [form, setForm] = useState<FleetEventPayload>({
     title: event?.title || "",
     event_type: event?.event_type || "Meeting",
@@ -63,6 +64,7 @@ const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved
     setSaving(true);
     const payload: FleetEventPayload = {
       ...form,
+      module: event ? form.module : module, // preserve on edit; stamp on create
       title: form.title.trim(),
       start_date: form.start_date || null,
       start_time: form.start_time || null,

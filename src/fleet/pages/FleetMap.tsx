@@ -243,7 +243,7 @@ const FleetMap: React.FC = () => {
         {/* Header row */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-neutral-900 text-2xl font-semibold">Fleet Map</h1>
+            <h1 className="text-neutral-900 text-2xl font-semibold">Skyline Map</h1>
             <p className="text-neutral-500 text-sm">Live view of all fleet vehicles and locations</p>
           </div>
           <div className="flex flex-col items-end gap-1.5">

@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from "react";
-import type { VehicleRecord } from "../../services/vehicleRecordService";
-import type { HireRecord } from "../../services/hireService";
+import type { VehicleRecord } from "../services/vehicleRecordService";
+import type { HireRecord } from "../../fleet/services/hireService";
 
 interface VehicleContextValue {
   vehicleId: number | null;

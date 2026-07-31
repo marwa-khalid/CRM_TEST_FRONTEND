@@ -128,7 +128,7 @@ const StatCard: React.FC<TaskStat> = ({ title, value, icon, bg, trend }) => (
   </div>
 );
 
-const FleetTasks: React.FC = () => {
+const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
   const [tasks, setTasks] = useState<FleetTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -151,7 +151,7 @@ const FleetTasks: React.FC = () => {
 
   const load = async () => {
     setLoading(true);
-    setTasks(await listFleetTasks());
+    setTasks(await listFleetTasks({ module }));
     setLoading(false);
   };
 
@@ -528,6 +528,7 @@ const FleetTasks: React.FC = () => {
       {showModal && (
         <FleetTaskModal
           task={editing}
+          module={module}
           onClose={() => setShowModal(false)}
           onSaved={() => {
             setShowModal(false);

@@ -8,10 +8,10 @@ import {
   FleetAddressAutocomplete,
   FleetPostcodeLookup,
   FleetUkMobileInput,
-} from "../../components/fields";
-import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
-import FleetEmailModal, { type FleetEmailSendArgs } from "../../components/FleetEmailModal";
-import { downloadSaleDocuments, getSaleAccountsEmailPreview, sendSaleAccountsEmail } from "../../services/vehicleRecordService";
+} from "../../fleet/components/fields";
+import FleetSpinnerLoader from "../../fleet/components/FleetSpinnerLoader";
+import FleetEmailModal, { type FleetEmailSendArgs } from "../../fleet/components/FleetEmailModal";
+import { downloadSaleDocuments, getSaleAccountsEmailPreview, sendSaleAccountsEmail } from "../services/vehicleRecordService";
 import { useVehicle } from "./VehicleContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";

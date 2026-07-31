@@ -1,4 +1,4 @@
-import fleetApi from "./fleetApi";
+import fleetApi from "../../fleet/services/fleetApi";
 
 export const MAX_LICENSING_AUTHORITIES = 4;
 
@@ -38,7 +38,7 @@ export interface LicensingAuthority {
   mot_certificate_url?: string | null;
 }
 
-const base = (recordId: number) => `/fleet/vehicle-record/${recordId}/licensing-authority`;
+const base = (recordId: number) => `/vehicles/vehicle-record/${recordId}/licensing-authority`;
 
 const filenameFromDisposition = (header?: string): string | null => {
   if (!header) return null;
@@ -181,14 +181,14 @@ export const extractMotCertificate = (file: File): Promise<ExtractedMot> =>
   ocr("/fleet/ocr/mot-certificate", file, EMPTY_MOT);
 
 export const getLicensingLettersPrintHtml = async (recordId: number): Promise<string> => {
-  const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}/licensing-letters/print-view`, {
+  const { data } = await fleetApi.get(`/vehicles/vehicle-record/${recordId}/licensing-letters/print-view`, {
     responseType: "text",
   });
   return data as string;
 };
 
 export const downloadLicensingAuthorityLetters = async (recordId: number): Promise<string> => {
-  const res = await fleetApi.get(`/fleet/vehicle-record/${recordId}/licensing-letters/download`, {
+  const res = await fleetApi.get(`/vehicles/vehicle-record/${recordId}/licensing-letters/download`, {
     responseType: "blob",
   });
   const filename = filenameFromDisposition(res.headers["content-disposition"]) || "Licensing Authority Letters.zip";

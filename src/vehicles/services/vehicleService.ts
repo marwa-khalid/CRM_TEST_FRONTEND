@@ -1,4 +1,4 @@
-import fleetApi from "./fleetApi";
+import fleetApi from "../../fleet/services/fleetApi";
 
 // Hire vehicles (a hire holds many — each swap adds one). All best-effort: the
 // screen keeps working from local state if the backend isn't up/migrated yet.
@@ -14,7 +14,7 @@ export interface FleetVehicleRegister {
 
 export const listVehicleRegister = async (): Promise<FleetVehicleRegister[]> => {
   try {
-    const { data } = await fleetApi.get("/fleet/vehicle-register");
+    const { data } = await fleetApi.get("/vehicles/vehicle-register");
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
@@ -25,7 +25,7 @@ export const upsertVehicleRegister = async (
   payload: Partial<FleetVehicleRegister> & { registration_number: string },
 ): Promise<FleetVehicleRegister | null> => {
   try {
-    const { data } = await fleetApi.post("/fleet/vehicle-register", payload);
+    const { data } = await fleetApi.post("/vehicles/vehicle-register", payload);
     return data ?? null;
   } catch {
     return null;

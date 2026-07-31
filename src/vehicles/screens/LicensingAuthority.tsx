@@ -1,20 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { Plus, Mail } from "lucide-react";
-import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomplete, FleetPostcodeLookup, FleetUkMobileInput } from "../../components/fields";
-import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
-import FleetUploadModal from "../../components/FleetUploadModal";
-import FleetEmailModal, { type FleetEmailSendArgs } from "../../components/FleetEmailModal";
-import FleetConfirmModal from "../../components/FleetConfirmModal";
-import FleetUploadedDocuments from "../../components/FleetUploadedDocuments";
-import UploadFileIcon from "../../assets/icons/UploadFile.svg";
-import RemoveIcon from "../../assets/icons/Remove.svg";
+import { FleetTextInput, FleetDateField, FleetTimeSelect, FleetAddressAutocomplete, FleetPostcodeLookup, FleetUkMobileInput } from "../../fleet/components/fields";
+import FleetSpinnerLoader from "../../fleet/components/FleetSpinnerLoader";
+import FleetUploadModal from "../../fleet/components/FleetUploadModal";
+import FleetEmailModal, { type FleetEmailSendArgs } from "../../fleet/components/FleetEmailModal";
+import FleetConfirmModal from "../../fleet/components/FleetConfirmModal";
+import FleetUploadedDocuments from "../../fleet/components/FleetUploadedDocuments";
+import UploadFileIcon from "../../fleet/assets/icons/UploadFile.svg";
+import RemoveIcon from "../../fleet/assets/icons/Remove.svg";
 import {
   listVehicleDocuments,
   getVehicleDocumentFileUrl,
   deleteVehicleDocument,
   type VehicleDocument,
-} from "../../services/vehicleRecordService";
+} from "../services/vehicleRecordService";
 import {
   createLicensingAuthority,
   deleteLicensingAuthority,
@@ -28,9 +28,9 @@ import {
   MAX_LICENSING_AUTHORITIES,
   type CertificateKind,
   type LicensingAuthority as Authority,
-} from "../../services/licensingAuthorityService";
+} from "../services/licensingAuthorityService";
 import { useVehicle } from "./VehicleContext";
-import { useHire } from "../AddNewHire/HireContext";
+import { useHire } from "../../fleet/pages/AddNewHire/HireContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";

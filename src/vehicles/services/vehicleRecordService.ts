@@ -1,4 +1,4 @@
-import fleetApi from "./fleetApi";
+import fleetApi from "../../fleet/services/fleetApi";
 
 const filenameFromDisposition = (header?: string): string | null => {
   if (!header) return null;
@@ -61,7 +61,7 @@ export interface VehicleRecord {
 // server-side on first open so existing hire files pick one up transparently.
 export const getHireVehicleRecord = async (hireId: number): Promise<VehicleRecord | null> => {
   try {
-    const { data } = await fleetApi.get(`/fleet/hire/${hireId}/vehicle-record`);
+    const { data } = await fleetApi.get(`/vehicles/hire/${hireId}/vehicle-record`);
     return data;
   } catch {
     return null;
@@ -70,19 +70,38 @@ export const getHireVehicleRecord = async (hireId: number): Promise<VehicleRecor
 
 export const listVehicleRecords = async (): Promise<VehicleRecord[]> => {
   try {
-    const { data } = await fleetApi.get("/fleet/vehicle-record");
+    const { data } = await fleetApi.get("/vehicles/vehicle-record");
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
   }
 };
 
-export const getVehicleRecord = async (recordId: number): Promise<VehicleRecord | null> => {
+// Register a new standalone vehicle (no hire) — the Vehicle Management module.
+export const createVehicleRecord = async (): Promise<VehicleRecord | null> => {
   try {
-    const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}`);
+    const { data } = await fleetApi.post("/vehicles/vehicle-record");
     return data;
   } catch {
     return null;
+  }
+};
+
+export const getVehicleRecord = async (recordId: number): Promise<VehicleRecord | null> => {
+  try {
+    const { data } = await fleetApi.get(`/vehicles/vehicle-record/${recordId}`);
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+export const deleteVehicleRecord = async (recordId: number): Promise<boolean> => {
+  try {
+    await fleetApi.delete(`/vehicles/vehicle-record/${recordId}`);
+    return true;
+  } catch {
+    return false;
   }
 };
 
@@ -91,7 +110,7 @@ export const updateVehicleRecord = async (
   payload: Record<string, unknown>,
 ): Promise<VehicleRecord | null> => {
   try {
-    const { data } = await fleetApi.patch(`/fleet/vehicle-record/${recordId}`, payload);
+    const { data } = await fleetApi.patch(`/vehicles/vehicle-record/${recordId}`, payload);
     return data;
   } catch {
     return null;
@@ -139,7 +158,7 @@ export const extractV5C = async (file: File): Promise<ExtractedV5C> => {
 };
 
 export const getSaleDocumentsPrintHtml = async (recordId: number): Promise<string> => {
-  const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}/sale-documents/print-view`, {
+  const { data } = await fleetApi.get(`/vehicles/vehicle-record/${recordId}/sale-documents/print-view`, {
     responseType: "text",
   });
   return data as string;
@@ -154,7 +173,7 @@ export interface FleetSaleEmailPreview {
 
 // "Inform Accounts" email — editable preview (default recipient/subject/body).
 export const getSaleAccountsEmailPreview = async (recordId: number): Promise<FleetSaleEmailPreview> => {
-  const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}/sale/accounts-email/preview`);
+  const { data } = await fleetApi.get(`/vehicles/vehicle-record/${recordId}/sale/accounts-email/preview`);
   return data;
 };
 
@@ -168,13 +187,13 @@ export const sendSaleAccountsEmail = async (
   fd.append("subject", args.subject || "");
   fd.append("body", args.body || "");
   (args.files || []).forEach((f) => fd.append("files", f));
-  await fleetApi.post(`/fleet/vehicle-record/${recordId}/sale/accounts-email`, fd, {
+  await fleetApi.post(`/vehicles/vehicle-record/${recordId}/sale/accounts-email`, fd, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
 
 export const downloadSaleDocuments = async (recordId: number): Promise<string> => {
-  const res = await fleetApi.get(`/fleet/vehicle-record/${recordId}/sale-documents/download`, {
+  const res = await fleetApi.get(`/vehicles/vehicle-record/${recordId}/sale-documents/download`, {
     responseType: "blob",
   });
   const filename = filenameFromDisposition(res.headers["content-disposition"]) || "Release of Liability and Receipt.docx";
@@ -242,7 +261,7 @@ export const uploadVehicleDocument = async (
   const form = new FormData();
   form.append("file", file);
   try {
-    const { data } = await fleetApi.post(`/fleet/vehicle-record/${recordId}/documents?doc_type=${docType}`, form, {
+    const { data } = await fleetApi.post(`/vehicles/vehicle-record/${recordId}/documents?doc_type=${docType}`, form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return data;
@@ -256,7 +275,7 @@ export const uploadVehicleDocument = async (
 // uploads in the hire's Documents Library.
 export const listAllVehicleRecordDocuments = async (recordId: number): Promise<VehicleDocument[]> => {
   try {
-    const { data } = await fleetApi.get(`/fleet/vehicle-record/${recordId}/documents`);
+    const { data } = await fleetApi.get(`/vehicles/vehicle-record/${recordId}/documents`);
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
@@ -273,7 +292,7 @@ export const listVehicleDocuments = async (
     const authorityQuery = authorityId ? `&authority_id=${authorityId}` : "";
     const serviceQuery = serviceId ? `&service_id=${serviceId}` : "";
     const { data } = await fleetApi.get(
-      `/fleet/vehicle-record/${recordId}/documents?doc_type=${docType}${authorityQuery}${serviceQuery}`,
+      `/vehicles/vehicle-record/${recordId}/documents?doc_type=${docType}${authorityQuery}${serviceQuery}`,
     );
     return Array.isArray(data) ? data : [];
   } catch {
@@ -284,7 +303,7 @@ export const listVehicleDocuments = async (
 // Removes a single uploaded document (history row) from a vehicle record.
 export const deleteVehicleDocument = async (recordId: number, docId: number): Promise<boolean> => {
   try {
-    await fleetApi.delete(`/fleet/vehicle-record/${recordId}/documents/${docId}`);
+    await fleetApi.delete(`/vehicles/vehicle-record/${recordId}/documents/${docId}`);
     return true;
   } catch {
     return false;
@@ -298,7 +317,7 @@ export const getVehicleDocumentFileUrl = async (
   docId: number,
 ): Promise<string | null> => {
   try {
-    const res = await fleetApi.get(`/fleet/vehicle-record/${recordId}/documents/${docId}/file`, { responseType: "blob" });
+    const res = await fleetApi.get(`/vehicles/vehicle-record/${recordId}/documents/${docId}/file`, { responseType: "blob" });
     return URL.createObjectURL(res.data as Blob);
   } catch {
     return null;

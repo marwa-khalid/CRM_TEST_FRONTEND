@@ -1,4 +1,4 @@
-import fleetApi from "./fleetApi";
+import fleetApi from "../../fleet/services/fleetApi";
 
 // Miles between services — the default the user story specifies.
 export const SERVICE_INTERVAL_MILES = 10000;
@@ -22,7 +22,7 @@ export interface VehicleServiceRecord {
   invoice_url?: string | null;
 }
 
-const base = (recordId: number) => `/fleet/vehicle-record/${recordId}/service`;
+const base = (recordId: number) => `/vehicles/vehicle-record/${recordId}/service`;
 
 export const listVehicleServices = async (recordId: number): Promise<VehicleServiceRecord[]> => {
   try {

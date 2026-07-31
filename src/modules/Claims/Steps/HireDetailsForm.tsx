@@ -37,7 +37,13 @@ import {
   sendCheckoutEmail,
   getCheckoutDetails,
 } from "../../../services/HireVehicleProvided/HireVehicleProvided";
+import CreatableSelect from "react-select/creatable";
 import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import {
+  listVehicleRegister,
+  upsertVehicleRegister,
+  type VehicleRegisterEntry,
+} from "../../../services/VehicleRegister/vehicleRegister";
 import { CustomDatePicker } from "../Components/DatePicker";
 import { parseCalendarDateTimeStamp } from "../../../common/common";
 import { CheckoutModal } from "../Components/CheckoutModal";
@@ -185,6 +191,12 @@ export const HireDetailsForm = ({ formRef, claimId }: any) => {
   const [actualVehicleCategory, setActualVehicleCategory] = useState([]);
   const [clientVehicleCategory, setClientVehicleCategory] = useState([]);
   const [vehicleStatus, setVehicleStatus] = useState([]);
+  // Shared vehicle pool (registered in Vehicle Management) — feeds the reg dropdown
+  // and carries the on-hire (is_active) flag that enforces Claims⇄Skyline exclusivity.
+  const [vehicleRegister, setVehicleRegister] = useState<VehicleRegisterEntry[]>([]);
+  const reloadRegister = () => {
+    listVehicleRegister().then(setVehicleRegister);
+  };
   const [activeVehicleTab, setActiveVehicleTab] = useState(0);
 const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
 
@@ -309,6 +321,20 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
         }));
         formik.setFieldValue("thirdPartyVehicles", updated);
 
+        // Keep the shared register in step: seed any typed reg into the pool (so it
+        // shows in the Skyline dropdown too) and flag it on hire (out, not yet
+        // returned) → is_active, which makes it unavailable to Skyline and vice-versa.
+        for (const v of values.thirdPartyVehicles) {
+          const reg = (v.hire_vehicle_registration || "").trim();
+          if (!reg) continue;
+          const onHire = Boolean(v.hireOutDate && !v.hireBackDate);
+          const payload: any = { registration_number: reg, is_active: onHire };
+          if (v.make) payload.make = v.make;
+          if (v.model) payload.model = v.model;
+          await upsertVehicleRegister(payload);
+        }
+        reloadRegister();
+
         toast.success("Hire details saved successfully");
       } catch (error) {
         toast.error("Error saving hire information");
@@ -344,6 +370,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       );
     };
     fetchLookups();
+    listVehicleRegister().then(setVehicleRegister);
   }, []);
   // Load hire records and existing checkout data from API
   useEffect(() => {
@@ -561,6 +588,34 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
   const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
 
   const currentVehicle = formik.values.thirdPartyVehicles[activeVehicleTab];
+
+  // --- Registered-vehicle reg dropdown (shared pool) ------------------------
+  // The reg number is now chosen from the shared register (vehicles registered in
+  // Vehicle Management). Selecting one auto-fills make/model. A vehicle already on
+  // hire elsewhere (Claims or Skyline) is is_active → shown but not selectable, so
+  // the same car can't be hired twice at once.
+  const normaliseReg = (v: string) =>
+    (v || "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const currentReg = currentVehicle?.hire_vehicle_registration || "";
+  const registrationOptions = vehicleRegister.map((r) => ({
+    value: r.registration_number,
+    label: r.is_active ? `${r.registration_number} — on hire` : r.registration_number,
+    make: r.make,
+    model: r.model,
+    is_active: r.is_active,
+  }));
+  // Keep the current value visible even if it isn't (yet) in the register.
+  if (currentReg && !registrationOptions.some((o) => normaliseReg(o.value) === normaliseReg(currentReg))) {
+    registrationOptions.unshift({ value: currentReg, label: currentReg, make: "", model: "", is_active: false });
+  }
+  const handleRegistrationSelect = (opt: any) => {
+    const reg = opt?.value || "";
+    formik.setFieldValue(`thirdPartyVehicles[${activeVehicleTab}].hire_vehicle_registration`, reg);
+    // Auto-fill make/model from the register (only when the picked reg supplies them).
+    if (opt?.make) formik.setFieldValue(`thirdPartyVehicles[${activeVehicleTab}].make`, opt.make);
+    if (opt?.model) formik.setFieldValue(`thirdPartyVehicles[${activeVehicleTab}].model`, opt.model);
+  };
+
   // Action Handlers
   // Action Handlers for Swap Logic
 
@@ -1530,16 +1585,35 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   )
                 }
               />
-              <InputField
-                label="Registration Number"
-                value={currentVehicle.hire_vehicle_registration}
-                onChange={(e) =>
-                  formik.setFieldValue(
-                    `thirdPartyVehicles[${activeVehicleTab}].hire_vehicle_registration`,
-                    e.target.value,
-                  )
-                }
-              />
+              <div className="flex flex-col gap-2 w-full">
+                <label className="text-slate-700 text-sm font-weight-400">
+                  Registration Number
+                </label>
+                <CreatableSelect
+                  isClearable
+                  placeholder="Select or type a registration"
+                  options={registrationOptions}
+                  value={
+                    currentReg
+                      ? registrationOptions.find(
+                          (o) => normaliseReg(o.value) === normaliseReg(currentReg),
+                        ) || { value: currentReg, label: currentReg }
+                      : null
+                  }
+                  onChange={handleRegistrationSelect}
+                  onCreateOption={(input: string) =>
+                    handleRegistrationSelect({ value: input })
+                  }
+                  isOptionDisabled={(o: any) =>
+                    o.is_active && normaliseReg(o.value) !== normaliseReg(currentReg)
+                  }
+                  styles={customStyles}
+                  components={{
+                    DropdownIndicator: BlueDropdownIndicator,
+                    IndicatorSeparator: () => null,
+                  }}
+                />
+              </div>
               <InputField
                 label="Make"
                 value={currentVehicle.make}

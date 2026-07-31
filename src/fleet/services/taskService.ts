@@ -34,6 +34,7 @@ export interface FleetTaskPayload {
   description?: string | null;
   assigned_user?: string | null;
   department?: string | null;
+  module?: string | null;   // skyline / vehicles — owning app (defaults per caller)
   due_date?: string | null;
   due_time?: string | null;
   priority?: string | null;
@@ -57,6 +58,8 @@ export interface FleetTaskFilters {
   status?: string;
   priority?: string;
   department?: string;
+  module?: string;
+
   due_from?: string;
   due_to?: string;
   page?: number;

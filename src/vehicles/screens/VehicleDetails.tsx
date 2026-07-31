@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { FleetTextInput, FleetSelect, FleetDateField, FleetReadonlyField } from "../../components/fields";
-import FleetUploadModal from "../../components/FleetUploadModal";
-import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
-import FleetConfirmModal from "../../components/FleetConfirmModal";
-import FleetUploadedDocuments from "../../components/FleetUploadedDocuments";
-import UploadFileIcon from "../../assets/icons/UploadFile.svg";
-import Vector6 from "../../assets/icons/Calendar.svg";
+import { FleetTextInput, FleetSelect, FleetDateField, FleetReadonlyField } from "../../fleet/components/fields";
+import FleetUploadModal from "../../fleet/components/FleetUploadModal";
+import FleetSpinnerLoader from "../../fleet/components/FleetSpinnerLoader";
+import FleetConfirmModal from "../../fleet/components/FleetConfirmModal";
+import FleetUploadedDocuments from "../../fleet/components/FleetUploadedDocuments";
+import UploadFileIcon from "../../fleet/assets/icons/UploadFile.svg";
+import Vector6 from "../../fleet/assets/icons/Calendar.svg";
 import {
   extractV5C,
   uploadVehicleDocument,
@@ -14,13 +14,13 @@ import {
   getVehicleDocumentFileUrl,
   deleteVehicleDocument,
   type VehicleDocument,
-} from "../../services/vehicleRecordService";
+} from "../services/vehicleRecordService";
 import {
   CONTRACT_TYPE_OPTIONS,
   DEPOT_BRANCH_OPTIONS,
   OBTAINED_FOR_PURPOSE_OPTIONS,
   VEHICLE_STATUS_OPTIONS,
-} from "../../types/vehicleRecord";
+} from "../types/vehicleRecord";
 import { useVehicle } from "./VehicleContext";
 
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";

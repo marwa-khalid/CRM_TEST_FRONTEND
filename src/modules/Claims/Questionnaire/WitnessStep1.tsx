@@ -62,9 +62,23 @@ const dobPickerRef = useRef<HTMLDivElement>(null);
         <AddressAutocomplete
           address={formData.witnessDetails.address || ""}
           onChange={(v) => handleChange("address", v)}
-          onPlaceSelected={(place) => handleChange("address", place.address)}
+          onPlaceSelected={(place) => {
+            handleChange("address", place.address);
+            if (place.postcode) handleChange("postcode", place.postcode);
+          }}
           placeholder="Enter Address"
           inputClassName="w-full px-5 py-4 h-[52px] bg-white rounded border border-gray-200 text-gray-700 text-base font-light outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300"
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-gray-700 text-sm font-weight-400">Postcode</label>
+        <input
+          type="text"
+          value={formData.witnessDetails.postcode || ""}
+          onChange={(e) => handleChange("postcode", e.target.value)}
+          placeholder="Enter Postcode"
+          className="w-full px-5 py-4 h-[52px] bg-white rounded border border-gray-200 text-gray-700 text-base font-light outline-none focus:border-blue-500 transition-colors placeholder:text-gray-300"
         />
       </div>
 

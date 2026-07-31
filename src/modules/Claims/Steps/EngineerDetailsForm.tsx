@@ -2,6 +2,7 @@ import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion"
 import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
 import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import { useEffect, useRef, useState } from "react";
+import { useCaseReference } from "../../../hooks/useCaseReference";
 import { Plus } from "lucide-react";
 import { toast } from "react-toastify";
 import * as Yup from "yup";
@@ -26,6 +27,8 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
 
   const [engineerId, setEngineerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const caseRef = useCaseReference(claimId);
+  const refDefaultedRef = useRef(false);
   const [lossModal, openModal1] = useState<boolean>(false);
   const [repairModal, openModal2] = useState<boolean>(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -303,6 +306,17 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
 
     fetchData();
   }, [claimId]);
+
+  // Default the Reference to our case reference number once the record has
+  // loaded — only when empty, so a saved reference is never overwritten.
+  useEffect(() => {
+    if (refDefaultedRef.current || loading) return;
+    if (caseRef && !formik.values.reference) {
+      formik.setFieldValue("reference", caseRef);
+      refDefaultedRef.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseRef, loading, formik.values.reference]);
 
   useEffect(() => {
     if (formRef) {

@@ -33,6 +33,7 @@ export const VehicleOwnerForm = ({ formRef, claimId }: any) => {
       mobileTelephone: "",
       email: "",
       vehiclePaymentBeneficiary: "",
+      isBaileeOwner: false,
     },
     validationSchema: Yup.object().shape({}),
     onSubmit: async (values: any) => {
@@ -42,6 +43,7 @@ export const VehicleOwnerForm = ({ formRef, claimId }: any) => {
           first_name: values.clientFirstName,
           surname: values.clientSurname,
           payment_benificiary: values.vehiclePaymentBeneficiary,
+          is_bailee_owner: values.isBaileeOwner,
           claim_id: parseInt(claimId),
           tenant_id: 1,
           address: {
@@ -80,6 +82,7 @@ export const VehicleOwnerForm = ({ formRef, claimId }: any) => {
         homeTelephone: ownerData?.address?.home_tel,
         mobileTelephone: ownerData?.address?.mobile_tel,
         vehiclePaymentBeneficiary: ownerData?.payment_benificiary,
+        isBaileeOwner: ownerData?.is_bailee_owner || false,
         address: ownerData?.address?.address,
         postcode: ownerData?.address?.postcode,
       };
@@ -314,6 +317,23 @@ return (
               className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
             />
           </div>
+        </div>
+
+        {/* Bailee Owner confirmation — same flat checkbox as "Client's Claim in Validation" */}
+        <div
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={() =>
+            formik.setFieldValue("isBaileeOwner", !formik.values.isBaileeOwner)
+          }
+        >
+          <div
+            className={`w-5 h-5 rounded ${
+              formik.values.isBaileeOwner
+                ? "bg-blue-600 border-[6px] border-blue-200"
+                : "bg-neutral-300"
+            }`}
+          />
+          <span className="text-sm">Confirm that client is Bailee Owner</span>
         </div>
 
         {/* Conditional Borough Section */}

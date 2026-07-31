@@ -279,6 +279,10 @@ const questionLabels = [
           answer: witnessDetails.address || "",
         },
         {
+          question: "postcode",
+          answer: witnessDetails.postcode || "",
+        },
+        {
           question: "dob",
           answer: witnessDetails.dob || "",
         },
@@ -612,6 +616,10 @@ console.log("test");
             <PdfField
               label="Address"
               value={formData.witnessDetails?.address}
+            />
+            <PdfField
+              label="Postcode"
+              value={formData.witnessDetails?.postcode}
             />
 
             <div className="grid grid-cols-2 gap-5">

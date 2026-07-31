@@ -25,11 +25,11 @@ export const AccidentDetailsForm = ({ formRef, claimId }: any) => {
   const weatherOptions = [
     { value: 1, label: "Dry" },
     { value: 2, label: "Wet" },
-    { value: 3, label: "Snowy" },
+    { value: 3, label: "Snowing" },
     { value: 4, label: "Icy" },
     { value: 5, label: "Foggy" },
     { value: 6, label: "Sunny" },
-    { value: 7, label: "Rainy" },
+    { value: 7, label: "Raining" },
   ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
   const toISODateTime = (date: Date | null, time: string | null) => {
     if (!date) return null;
@@ -392,27 +392,6 @@ const openLatestWitnessPdf = (w: any) => {
       versionOfEvents: formik.values.versionOfEvents,
       servicesDate: formik.values.servicesDate,
       servicesTime: formik.values.servicesTime,
-      passengers: formik.values.passengers,
-      passengerDetails:
-        formik.values.passengers === "Yes"
-          ? passengersList.length > 0
-            ? "added"
-            : ""
-          : "n/a",
-      hasWitnesses: formik.values.hasWitnesses,
-      witnessDetails:
-        formik.values.hasWitnesses === "Yes"
-          ? witnessesList.length > 0
-            ? "added"
-            : ""
-          : "n/a",
-      policeAttended: formik.values.policeAttended,
-      policeDetails:
-        formik.values.policeAttended === "Yes"
-          ? policeList.length > 0
-            ? "added"
-            : ""
-          : "n/a",
       dashcamFootage: formik.values.dashcamFootage,
     }),
   );
@@ -699,6 +678,8 @@ const timeOptions = generateTimeOptions();
                       // Double check: only update if date is not in the future
                       if (date <= new Date()) {
                         formik.setFieldValue("date", date);
+                        // Services Date defaults to the Incident Date.
+                        formik.setFieldValue("servicesDate", date);
                         setShowPayDatePicker(false);
                       }
                     }}
@@ -720,11 +701,16 @@ const timeOptions = generateTimeOptions();
                     : null
                 }
                 onChange={(option) => {
-                  formik.setFieldValue("time", option?.value || "");
+                  const t = option?.value || "";
+                  formik.setFieldValue("time", t);
+                  // Services Time defaults to the Incident Time.
+                  formik.setFieldValue("servicesTime", t);
                 }}
                 onCreateOption={(inputValue) => {
                   if (isValidTime(inputValue)) {
-                    formik.setFieldValue("time", normalizeTime(inputValue));
+                    const t = normalizeTime(inputValue);
+                    formik.setFieldValue("time", t);
+                    formik.setFieldValue("servicesTime", t);
                   } else {
                     toast.error("Please enter time in HH:mm format");
                   }
@@ -855,6 +841,8 @@ const timeOptions = generateTimeOptions();
                   className="h-[53px] w-full px-5 py-4 bg-white rounded border border-gray-200 text-base font-weight-300 font-light focus:outline-none focus:ring-2 focus:ring-blue-500/20 placeholder:text-gray-300"
                 />
                 </div> */}
+              {/* 15-minute options, but custom times can still be typed.
+                  Defaults to the Incident Time and stays editable. */}
               <CreatableSelect
                 options={timeOptions}
                 value={
@@ -889,507 +877,6 @@ const timeOptions = generateTimeOptions();
             </div>
           </div>
         </div>
-      </div>
-      {/* Section 2:  Contact Information */}
-      <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4 mt-6">
-        <h2 className="text-neutral-900 text-[20px] font-weight-600 leading-5 font-['Stack_Sans_Headline']">
-          Attendees
-        </h2>
-        <div className="h-px bg-gray-100 w-full" />
-        {/* Passengers Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-end ">
-          {/* Radio Group */}
-          <div className="flex flex-col gap-5">
-            <label className="text-black text-sm font-weight-400 font-['Stack_Sans_Headline']">
-              Any Passengers?
-            </label>
-            <div className="flex items-center gap-5">
-              {["Yes", "No"].map((option) => (
-                <label
-                  key={option}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="radio"
-                      name="passengers"
-                      className="sr-only"
-                      checked={formik.values.passengers === option}
-                      onChange={() =>
-                        formik.setFieldValue("passengers", option)
-                      }
-                    />
-
-                    {formik.values.passengers === option ? (
-                      <img src={Yes} />
-                    ) : (
-                      <img src={No} />
-                    )}
-                  </div>
-
-                  <span className="text-black text-sm">{option}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          {/* Counter Input */}
-          {formik.values.passengers === "Yes" && (
-            <div className="flex flex-col gap-2">
-              <label className="text-neutral-700 text-[14px] font-weight-500">
-                Number of Passengers
-              </label>
-              <div className="flex items-center justify-between px-4 py-3 bg-white rounded border border-gray-200">
-                <button
-                  onClick={() =>
-                    formik.setFieldValue(
-                      "numPassengers",
-                      Math.max(0, formik.values.numPassengers - 1),
-                    )
-                  }
-                  className="text-blue-500 hover:bg-blue-50 p-1 rounded transition-colors"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="text-black text-base font-weight-300 font-light">
-                  {formik.values.numPassengers}
-                </span>
-                <button
-                  onClick={() =>
-                    formik.setFieldValue(
-                      "numPassengers",
-                      formik.values.numPassengers + 1,
-                    )
-                  }
-                  className="text-blue-500 hover:bg-blue-50 p-1 rounded transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-        {/* Passenger Details Info Box */}
-        {/* <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-700 text-base font-weight-600">
-              Passenger Details
-            </span>
-            <button
-              className="flex items-center gap-2 px-3 py-1.5 rounded text-blue-500 text-sm font-weight-400 hover:bg-blue-50 transition-colors"
-              onClick={() => setPassengerModalOpen(true)}
-            >
-              <Plus className="w-4 h-4" />
-              Add Passenger Details
-            </button>
-          </div>
-          <p className="text-gray-600 text-sm">
-            Add passengers details by clicking on “Add Passenger Details”.
-          </p>
-        </div> */}
-        {formik.values.passengers === "Yes" && (
-          <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-              <span className="text-gray-700 text-base font-weight-600">
-                Passenger Details
-              </span>
-              <button
-                className="flex items-center gap-2 px-3 py-1.5 rounded text-blue-500 text-sm font-weight-400 hover:bg-blue-50 transition-colors"
-                onClick={handleAddClick}
-              >
-                <Plus className="w-4 h-4" />
-                Add Passenger Details
-              </button>
-            </div>
-
-            {/* Passenger List Rendering */}
-            {formik.values.passengers === "Yes" && passengersList.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                {passengersList.map((p) => (
-                  <div
-                    key={p.id}
-                    className="bg-white p-4 rounded-lg border border-gray-100 flex justify-between items-start shadow-sm"
-                  >
-                    <div className="flex flex-col gap-1">
-                      <h4 className="text-gray-900 font-weight-600 text-sm">
-                        {p.first_name} {p.surname}
-                      </h4>
-                      <div className="flex items-center gap-2 text-gray-500 text-xs">
-                        {p.address?.email && <span>{p.address?.email}</span>}
-                        {p.address?.email && " "}
-                        <span>{p.address?.mobile_tel}</span>
-                      </div>
-                      <p className="text-gray-500 text-xs">
-                        {p.address?.address} {p.address?.address && "-"}{" "}
-                        {p.address?.postcode}
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        className="p-1 hover:bg-gray-100 rounded text-gray-400"
-                        onClick={() => handleEditClick(p)} // Pass the whole passenger object
-                      >
-                        <img src={pencil} className="w-4 h-4" alt="edit" />
-                      </button>
-
-                      <button
-                        className="p-1 hover:bg-red-50 rounded text-red-400"
-                        onClick={() =>
-                          setDeleteConfirm({
-                            open: true,
-                            type: "passenger",
-                            id: p.id,
-                          })
-                        }
-                      >
-                        <img src={trash} className="w-4 h-4" alt="delete" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              /* Placeholder if empty */
-              <p className="text-gray-600 text-sm">
-                Add passengers details by clicking on “Add Passenger Details”.
-              </p>
-            )}
-          </div>
-        )}
-        {/* Your Modal Component */}
-        <div className="h-px bg-gray-100 w-full my-2" />
-        {/* Witnesses Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="flex flex-col gap-5">
-            <label className="text-black text-sm font-weight-400">
-              Any Witnesses?
-            </label>
-            <div className="flex items-center gap-5">
-              {["Yes", "No"].map((option) => (
-                <label
-                  key={option}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="radio"
-                      name="hasWitnesses"
-                      className="sr-only"
-                      checked={formik.values.hasWitnesses === option}
-                      onChange={() =>
-                        formik.setFieldValue("hasWitnesses", option)
-                      }
-                    />
-
-                    {formik.values.hasWitnesses === option ? (
-                      <img src={Yes} />
-                    ) : (
-                      <img src={No} />
-                    )}
-                  </div>
-                  <span className="text-black text-sm">{option}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-          {formik.values.hasWitnesses === "Yes" && (
-            <div className="flex flex-col gap-2">
-              <label className="text-neutral-700 text-[14px] font-weight-500">
-                Number of Witnesses
-              </label>
-
-              <div className="flex items-center justify-between px-4 py-3 bg-white rounded border border-gray-200">
-                <button
-                  type="button"
-                  onClick={() =>
-                    formik.setFieldValue(
-                      "numWitnesses",
-                      Math.max(0, formik.values.numWitnesses - 1),
-                    )
-                  }
-                  className="text-blue-500 hover:bg-blue-50 p-1 rounded transition-colors"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-
-                <span className="text-black text-base font-weight-300 font-light">
-                  {formik.values.numWitnesses}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    formik.setFieldValue(
-                      "numWitnesses",
-                      formik.values.numWitnesses + 1,
-                    )
-                  }
-                  className="text-blue-500 hover:bg-blue-50 p-1 rounded transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-        {/* Witnesses Details Box */}
-        {formik.values.hasWitnesses === "Yes" && (
-          <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-700 text-base font-weight-600">
-                Witnesses Details
-              </span>
-              <button
-                className="flex items-center gap-2 px-3 py-1.5 rounded text-blue-500 text-sm font-weight-400 hover:bg-blue-50"
-                onClick={() => {
-                  setEditingWitness(null);
-                  setIsWitnessModalOpen(true);
-                }}
-              >
-                <Plus className="w-4 h-4" />
-                Add Witness Details
-              </button>
-            </div>
-
-            {formik.values.hasWitnesses === "Yes" &&
-            witnessesList.length > 0 ? (
-              witnessesList.map((w) => (
-                <div
-                  key={w.id}
-                  className="bg-white p-4 rounded-lg border border-gray-100 flex flex-col shadow-sm"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex flex-col gap-1">
-                      <h4 className="text-gray-900  text-sm">
-                        {w.first_name} {w.surname}
-                        {/* <span className="ml-2 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
-                        {w.is_independent ? "Independent" : "Known"}
-                      </span> */}
-                      </h4>
-                      <div className="flex items-center gap-2 text-gray-500 text-xs">
-                        <span>{w.address?.email}</span>
-                        <span>{w.address?.mobile_tel}</span>
-                      </div>
-                      <p className="text-gray-500 text-xs">
-                        {w.address?.address}
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        className="p-1 hover:bg-gray-100 rounded text-gray-400"
-                        onClick={() => handleEditWitness(w)}
-                      >
-                        <img src={pencil} className="w-4 h-4" alt="edit" />
-                      </button>
-                      <button
-                        className="p-1 hover:bg-red-50 rounded text-red-400"
-                        onClick={() =>
-                          setDeleteConfirm({
-                            open: true,
-                            type: "witness",
-                            id: w.id,
-                          })
-                        }
-                      >
-                        <img src={trash} className="w-4 h-4" alt="delete" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="h-px bg-gray-100 w-full my-2" />
-                  <div className="flex justify-between items-center text-gray-700 text-xs font-normal font-['Stack_Sans_Headline']">
-                    <div className="flex flex-col gap-1">
-                      <div>
-                        Questionnaire Link Sent:{" "}
-                        {witnessQuestStatus[w.id]?.sent_at
-                          ? formatWitnessDate(witnessQuestStatus[w.id].sent_at)
-                          : formatWitnessDate(w.created_at)}
-                      </div>
-
-                      {witnessQuestStatus[w.id]?.completed_at && (
-                        <div>
-                          Questionnaire Received:{" "}
-                          {formatWitnessDate(
-                            witnessQuestStatus[w.id].completed_at,
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {witnessQuestStatus[w.id]?.status === "completed" ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setViewerCaseDocumentId(witnessQuestStatus[w.id]?.case_document_id);
-                          setViewerOpen(true);
-                        }}
-                        className="px-3 py-1.5 rounded bg-blue-100 text-blue-600 text-xs font-weight-600 hover:bg-blue-200"
-                      >
-                        Received - View Details
-                      </button>
-                    ) : (
-                      <span className="px-3 py-1.5 rounded bg-neutral-100 text-neutral-600 text-xs font-weight-600">
-                        Sent
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-600 text-sm">
-                Add witnesses details by clicking on “Add Witness Details”.
-              </p>
-            )}
-          </div>
-        )}
-        <div className="h-px bg-gray-100 w-full my-2" />
-        {/* Police Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="flex flex-col gap-5">
-            <label className="text-black text-sm font-weight-400">
-              Did Police Attend?
-            </label>
-            <div className="flex items-center gap-5">
-              {["Yes", "No"].map((option) => (
-                <label
-                  key={option}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="radio"
-                      name="policeAttended"
-                      className="sr-only"
-                      checked={formik.values.policeAttended === option}
-                      onChange={() =>
-                        formik.setFieldValue("policeAttended", option)
-                      }
-                    />
-                    {formik.values.policeAttended === option ? (
-                      <img src={Yes} />
-                    ) : (
-                      <img src={No} />
-                    )}
-                  </div>
-                  <span className="text-black text-sm">{option}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-        {/* Police Details Box */}
-        {formik.values.policeAttended === "Yes" && (
-          <div className="bg-neutral-100 p-4 rounded-lg flex flex-col gap-3">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-700 text-base font-weight-600">
-                Police Details
-              </span>
-              <button
-                onClick={handleAddPolice}
-                className="flex items-center gap-2 px-3 py-1.5 rounded text-blue-500 text-sm font-weight-400 hover:bg-blue-50"
-              >
-                <Plus className="w-4 h-4" />
-                Add Police Details
-              </button>
-            </div>
-            <div className="grid gap-3">
-              {formik.values.policeAttended === "Yes" &&
-              policeList.length > 0 ? (
-                policeList.map((record: any) => (
-                  <div
-                    key={record.id}
-                    className="self-stretch px-4 py-3 bg-white border border-gray-100 rounded-lg inline-flex justify-between items-start transition-shadow hover:shadow-sm"
-                  >
-                    {/* Left Section: Details */}
-                    <div
-                      data-layer="Frame 1171277556"
-                      className="inline-flex flex-col justify-start items-start gap-1"
-                    >
-                      {/* Name and Reference */}
-                      <div
-                        data-layer="Frame 1171277555"
-                        className="inline-flex justify-start items-center gap-2"
-                      >
-                        <div className="text-gray-700 text-sm font-weight-600 font-['Stack_Sans_Headline']">
-                          {record.name}
-                        </div>
-                        <div className="flex justify-center items-center gap-1 text-xs">
-                          <span className="text-gray-700 font-weight-600 font-['Stack_Sans_Headline']">
-                            Ref. no:{" "}
-                          </span>
-                          <span className="text-gray-700 font-normal font-['Stack_Sans_Headline']">
-                            {record.reference_no}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Station Address */}
-                      <div className="text-gray-700 text-xs font-normal font-['Stack_Sans_Headline'] max-w-[500px]">
-                        {record.station_name}
-                        {record.station_address
-                          ? `, ${record.station_address}`
-                          : ""}
-                      </div>
-
-                      {/* Received Date */}
-                      <div className="text-xs">
-                        <span className="text-gray-700 font-weight-600 font-['Stack_Sans_Headline']">
-                          Incident Report Received on:{" "}
-                        </span>
-                        <span className="text-gray-700 font-normal font-['Stack_Sans_Headline']">
-                          {formatWitnessDate(record.report_received_date)}
-                        </span>
-                      </div>
-
-                      {(record.additional_info || record.notes) && (
-                        <div className="max-w-[500px] flex flex-col gap-1">
-                          <span className="text-gray-900 text-xs font-weight-600 font-['Stack_Sans_Headline']">
-                            Notes:
-                          </span>
-                          <span className="text-gray-700 text-xs font-normal font-['Stack_Sans_Headline'] leading-5 whitespace-pre-wrap">
-                            {record.additional_info || record.notes}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Right Section: Actions */}
-                    <div
-                      data-layer="Frame 1171277557"
-                      className="flex justify-start items-center gap-4 pt-1"
-                    >
-                      <button
-                        onClick={() => handleEditPolice(record)}
-                        className="hover:opacity-70 transition-opacity"
-                        title="Edit"
-                      >
-                        <img src={pencil} className="w-4 h-4" alt="edit" />
-                      </button>
-                      <button
-                        onClick={() =>
-                          setDeleteConfirm({
-                            open: true,
-                            type: "police",
-                            id: record.id,
-                          })
-                        }
-                        className="hover:opacity-70 transition-opacity"
-                        title="Delete"
-                      >
-                        <img src={trash} className="w-4 h-4" alt="delete" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-600 text-sm">
-                  Add Police details by clicking on “Add Police Details”.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="h-px bg-gray-100 w-full my-2" />

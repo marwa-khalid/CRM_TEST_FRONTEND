@@ -55,7 +55,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
     total_storage_days: initialData?.total_storage_days || 0,
     charge_per_day: initialData?.charge_per_day
       ? formatTwoDecimals(initialData.charge_per_day)
-      : "25.00",
+      : "40.00",
 
     total_storage_charges: initialData?.total_storage_charges
       ? formatTwoDecimals(initialData.total_storage_charges)

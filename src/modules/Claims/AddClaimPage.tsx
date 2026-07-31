@@ -17,13 +17,16 @@ const SCREEN_KEYS = [
   "referrer",
   "client",
   "accident",
+  "passenger",
+  "witness",
+  "police",
   "vehicle",
+  "vehicle_damage",
   "vehicle_owner",
   "engineer",
   "client_insurer",
   "panel_solicitor",
   "storage_recovery",
-  "vehicle_damage",
   "third_party",
   "hire_vehicle",
   "driver_docs",
@@ -35,6 +38,9 @@ import GeneralDetailsForm from "./Steps/GeneralDetailsForm";
 import { ReferrerDetailsForm } from "./Steps/ReferrerDetailsForm";
 import { ClientDetailsForm } from "./Steps/ClientDetailsForm";
 import { AccidentDetailsForm } from "./Steps/AccidentDetailsForm";
+import { PassengerDetailsForm } from "./Steps/PassengerDetailsForm";
+import { WitnessDetailsForm } from "./Steps/WitnessDetailsForm";
+import { PoliceDetailsForm } from "./Steps/PoliceDetailsForm";
 import { VehicleDetailsForm } from "./Steps/VehicleDetailsForm";
 import { VehicleOwnerForm } from "./Steps/VehicleOwnerForm";
 import { EngineerDetailsForm } from "./Steps/EngineerDetailsForm";
@@ -178,13 +184,16 @@ const AddClaimPage = () => {
     { label: "Referrer Details" },
     { label: "Client Details" },
     { label: "Accident Details" },
+    { label: "Passenger Details" },
+    { label: "Witness Details" },
+    { label: "Police Details" },
     { label: "Vehicle Details" },
+    { label: "Vehicle Damage Details" },
     { label: "Vehicle Owner" },
     { label: "Engineer Details" },
     { label: "Client Insurer & Broker" },
     { label: "Panel Solicitor Details" },
     { label: "Storage & Recovery" },
-    { label: "Vehicle Damage Details" },
     { label: "Third Party & Insurer" },
     { label: "Hire Vehicle Provided" },
     { label: "Driver Document & Agreement" },
@@ -273,17 +282,20 @@ const AddClaimPage = () => {
       case 1:  return <ReferrerDetailsForm formRef={formRef} claimId={claimId} />;
       case 2:  return <ClientDetailsForm formRef={formRef} claimId={claimId} />;
       case 3:  return <AccidentDetailsForm formRef={formRef} claimId={claimId} />;
-      case 4:  return <VehicleDetailsForm formRef={formRef} claimId={claimId} />;
-      case 5:  return <VehicleOwnerForm formRef={formRef} claimId={claimId} />;
-      case 6:  return <EngineerDetailsForm formRef={formRef} claimId={claimId} />;
-      case 7:  return <ClientInsurerBrokerForm formRef={formRef} claimId={claimId} />;
-      case 8:  return <PanelSolicitorForm formRef={formRef} claimId={claimId} />;
-      case 9:  return <StorageRecoveryDetails formRef={formRef} claimId={claimId} />;
-      case 10: return <VehicleDamageAI formRef={formRef} claimId={claimId} />;
-      case 11: return <ThirdPartyInsurer formRef={formRef} claimId={claimId} />;
-      case 12: return <HireDetailsForm formRef={formRef} claimId={claimId} />;
-      case 13: return <DriverDocumentAgreement formRef={formRef} claimId={claimId} />;
-      case 14: return <DriverCheckoutForm formRef={formRef} claimId={claimId} />;
+      case 4:  return <PassengerDetailsForm formRef={formRef} claimId={claimId} />;
+      case 5:  return <WitnessDetailsForm formRef={formRef} claimId={claimId} />;
+      case 6:  return <PoliceDetailsForm formRef={formRef} claimId={claimId} />;
+      case 7:  return <VehicleDetailsForm formRef={formRef} claimId={claimId} />;
+      case 8:  return <VehicleDamageAI formRef={formRef} claimId={claimId} />;
+      case 9:  return <VehicleOwnerForm formRef={formRef} claimId={claimId} />;
+      case 10: return <EngineerDetailsForm formRef={formRef} claimId={claimId} />;
+      case 11: return <ClientInsurerBrokerForm formRef={formRef} claimId={claimId} />;
+      case 12: return <PanelSolicitorForm formRef={formRef} claimId={claimId} />;
+      case 13: return <StorageRecoveryDetails formRef={formRef} claimId={claimId} />;
+      case 14: return <ThirdPartyInsurer formRef={formRef} claimId={claimId} />;
+      case 15: return <HireDetailsForm formRef={formRef} claimId={claimId} />;
+      case 16: return <DriverDocumentAgreement formRef={formRef} claimId={claimId} />;
+      case 17: return <DriverCheckoutForm formRef={formRef} claimId={claimId} />;
       default: return <div>Coming soon…</div>;
     }
   };

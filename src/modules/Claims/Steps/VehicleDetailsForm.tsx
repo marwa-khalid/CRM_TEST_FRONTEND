@@ -20,6 +20,7 @@ import { useFormik } from "formik";
 import { createVehicleDetail, getVehicleDetail, updateVehicle } from "../../../services/Vehicle/vehicle";
 import { cleanPayload } from "./ClientDetailsForm";
 import { getTaxiType } from "../../../services/Lookups/Generaldetails";
+import { getActualVehicleCategory } from "../../../services/HireDetail/HireDetails";
 export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
 
   const fuelOptions = [
@@ -34,11 +35,20 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
     { value: 2, label: "Manual" },
   ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
-  const categoryOptions = [
-    { value: "PCO", label: "PCO" },
-    { value: "Standard", label: "Standard" },
-    { value: "Commercial", label: "Commercial" },
-  ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
+  // ABI vehicle categories (S1, S2, S3, NT4, …) from the actual_vehicle_categories
+  // lookup — same source as Hire Details. Stores the label string on vehicle.category.
+  const [categoryOptions, setCategoryOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+
+  useEffect(() => {
+    getActualVehicleCategory()
+      .then((res: any) => {
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        setCategoryOptions(rows.map((i: any) => ({ value: i.label, label: i.label })));
+      })
+      .catch(() => setCategoryOptions([]));
+  }, []);
   const [taxiTypeOptions, setTaxiTypeOptions] = useState<
     { value: number; label: string }[]
   >([]);
@@ -154,6 +164,9 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showBadgeExpiryPicker, setShowBadgeExpiryPicker] = useState(false);
+  const [showBadgeExpiryPicker2, setShowBadgeExpiryPicker2] = useState(false);
+  // Keyed by field path so borough1 & borough2 each get independent pickers.
+  const [openBoroughPicker, setOpenBoroughPicker] = useState<string | null>(null);
   const badgeExpiryPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -217,6 +230,21 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
       setCurrentVehicle(blankThirdPartyVehicle());
     }
   };
+
+  // Inline third-party editing — edits persist directly to the formik array
+  // (no popup), so third-party details are as visible as the client's vehicle.
+  const updateTPVehicle = (index: number, patch: any) =>
+    formik.setFieldValue(
+      "thirdPartyVehicles",
+      formik.values.thirdPartyVehicles.map((v: any, i: number) =>
+        i === index ? { ...v, ...patch } : v,
+      ),
+    );
+  const addTPVehicleInline = () =>
+    formik.setFieldValue("thirdPartyVehicles", [
+      ...formik.values.thirdPartyVehicles,
+      { ...blankThirdPartyVehicle(), id: Date.now() },
+    ]);
   const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
   const boroughInputStyles =
     "w-full h-[52px] px-5 py-4 bg-white rounded border border-gray-200 text-neutral-900 text-base font-light leading-4 font-['Stack_Sans_Headline'] placeholder:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500";
@@ -281,11 +309,26 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
       borough: {
         name: "",
         taxiType: null,
+        taxiType2: null,
         clientBadgeNumber: "",
+        clientBadgeNumber2: "",
         badgeExpirationDate: "",
+        badgeExpirationDate2: "",
         vehicleBadgeNumber: "",
+        dualBadge: "No",
         otherBorough: "No",
         otherBoroughName: "",
+      },
+      borough2: {
+        name: "",
+        taxiType: null,
+        taxiType2: null,
+        clientBadgeNumber: "",
+        clientBadgeNumber2: "",
+        badgeExpirationDate: "",
+        badgeExpirationDate2: "",
+        vehicleBadgeNumber: "",
+        dualBadge: "No",
       },
       thirdPartyVehicles: [
         
@@ -310,13 +353,33 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
           borough: {
             borough_name: values.borough.name,
             taxi_type_id: values.borough.taxiType,
+            taxi_type_id_2: values.borough.taxiType2,
             client_badge_number: values.borough.clientBadgeNumber,
+            client_badge_number_2: values.borough.clientBadgeNumber2,
             badge_expiration_date: values.borough.badgeExpirationDate,
+            badge_expiration_date_2: values.borough.badgeExpirationDate2,
             vehicle_badge_number: values.borough.vehicleBadgeNumber,
+            dual_badge: values.borough.dualBadge === "Yes" ? true : false,
             any_other_borough:
               values.borough.otherBorough === "Yes"? true:false,
             other_borough_name: values.borough.otherBoroughName || "",
           },
+          // Secondary borough — only sent when "Any Other Borough" is Yes;
+          // null otherwise so the backend drops any previously-saved one.
+          borough2:
+            values.borough.otherBorough === "Yes"
+              ? {
+                  borough_name: values.borough2.name,
+                  taxi_type_id: values.borough2.taxiType,
+                  taxi_type_id_2: values.borough2.taxiType2,
+                  client_badge_number: values.borough2.clientBadgeNumber,
+                  client_badge_number_2: values.borough2.clientBadgeNumber2,
+                  badge_expiration_date: values.borough2.badgeExpirationDate,
+                  badge_expiration_date_2: values.borough2.badgeExpirationDate2,
+                  vehicle_badge_number: values.borough2.vehicleBadgeNumber,
+                  dual_badge: values.borough2.dualBadge === "Yes" ? true : false,
+                }
+              : null,
 
           third_party_vehicles: values.thirdPartyVehicles.map((v: any) => ({
             make: v.make,
@@ -361,11 +424,27 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
           borough: {
             name: res.borough?.borough_name || "",
             taxiType: res.borough?.taxi_type_id || "",
+            taxiType2: res.borough?.taxi_type_id_2 || "",
             clientBadgeNumber: res.borough?.client_badge_number || "",
+            clientBadgeNumber2: res.borough?.client_badge_number_2 || "",
             badgeExpirationDate: res.borough?.badge_expiration_date || "",
+            badgeExpirationDate2: res.borough?.badge_expiration_date_2 || "",
             vehicleBadgeNumber: res.borough?.vehicle_badge_number || "",
-            otherBorough: res.borough?.any_other_borough ? "Yes":"No",
+            dualBadge: res.borough?.dual_badge ? "Yes" : "No",
+            otherBorough:
+              res.borough?.any_other_borough || res.borough2 ? "Yes" : "No",
             otherBoroughName: res.borough?.other_borough_name || "",
+          },
+          borough2: {
+            name: res.borough2?.borough_name || "",
+            taxiType: res.borough2?.taxi_type_id || "",
+            taxiType2: res.borough2?.taxi_type_id_2 || "",
+            clientBadgeNumber: res.borough2?.client_badge_number || "",
+            clientBadgeNumber2: res.borough2?.client_badge_number_2 || "",
+            badgeExpirationDate: res.borough2?.badge_expiration_date || "",
+            badgeExpirationDate2: res.borough2?.badge_expiration_date_2 || "",
+            vehicleBadgeNumber: res.borough2?.vehicle_badge_number || "",
+            dualBadge: res.borough2?.dual_badge ? "Yes" : "No",
           },
           thirdPartyVehicles:
             res.third_party_vehicles
@@ -491,6 +570,151 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
       // setLoading(false);
     }
   };
+
+  // --- Reusable Borough field renderers (used for the single/dual layout) ---
+  const getNestedValue = (path: string) =>
+    path
+      .split(".")
+      .reduce((obj: any, key) => (obj && obj[key] !== undefined ? obj[key] : ""), formik.values);
+  const boroughLabel =
+    "self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']";
+  const renderBadgeInput = (label: string, field: string) => (
+    <div className="w-full flex flex-col justify-start items-start gap-2">
+      <label className={boroughLabel}>{label}</label>
+      <input
+        type="number"
+        value={getNestedValue(field)}
+        onChange={(e) => formik.setFieldValue(field, e.target.value)}
+        placeholder="Enter Number"
+        className={boroughInputStyles}
+      />
+    </div>
+  );
+  const renderTaxiSelect = (label: string, field: string) => (
+    <div className="w-full flex flex-col justify-start items-start gap-2">
+      <label className={boroughLabel}>{label}</label>
+      <Select
+        options={taxiTypeOptions}
+        placeholder="Select Type"
+        isLoading={isTaxiTypeLoading}
+        noOptionsMessage={() => (isTaxiTypeLoading ? "Loading..." : "No taxi types found")}
+        styles={customStyles}
+        value={taxiTypeOptions.find((op) => op.value === getNestedValue(field)) || null}
+        onChange={(e: any) => formik.setFieldValue(field, e?.value || null)}
+        components={{ DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null }}
+      />
+    </div>
+  );
+  const renderExpiryPicker = (label: string, field: string) => {
+    const value = getNestedValue(field);
+    const show = openBoroughPicker === field;
+    return (
+      <div className="w-full flex flex-col justify-start items-start gap-2 relative">
+        <label className={boroughLabel}>{label}</label>
+        <div
+          onClick={() => setOpenBoroughPicker(show ? null : field)}
+          className="w-full h-[52px] px-5 bg-white border border-gray-200 rounded flex items-center justify-between cursor-pointer focus-within:border-blue-500"
+        >
+          <span
+            className={
+              value
+                ? "text-gray-900 text-base font-light font-['Stack_Sans_Headline']"
+                : "text-gray-400 text-base font-light font-['Stack_Sans_Headline']"
+            }
+          >
+            {value || "Date"}
+          </span>
+          <img src={Vector6} className="w-4 h-4" alt="calendar" />
+        </div>
+        {show && (
+          <div className="absolute bottom-[53px] left-0 z-50">
+            <CustomDatePicker
+              selectedDate={value ? new Date(value) : new Date()}
+              onDateSelect={(date: Date) => {
+                formik.setFieldValue(field, date.toLocaleDateString("sv-SE"));
+                setOpenBoroughPicker(null);
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // The whole Borough field set (single/dual layout), reusable for the primary
+  // borough and the repeated "other borough".
+  const renderBoroughFields = (prefix: string) => {
+    const dual = getNestedValue(`${prefix}.dualBadge`) === "Yes";
+    return (
+      <>
+        <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="w-full flex flex-col justify-start items-start gap-2">
+            <label className={boroughLabel}>Borough</label>
+            <input
+              type="text"
+              value={getNestedValue(`${prefix}.name`)}
+              onChange={(e) => formik.setFieldValue(`${prefix}.name`, e.target.value)}
+              placeholder="Enter Name"
+              className={boroughInputStyles}
+            />
+          </div>
+          {renderBadgeInput("Vehicle Badge Number", `${prefix}.vehicleBadgeNumber`)}
+        </div>
+
+        <div className="w-full flex flex-col justify-start items-start gap-5">
+          <label className="text-black text-sm font-weight-500 font-['Stack_Sans_Headline']">
+            Dual Badge?
+          </label>
+          <div className="inline-flex justify-start items-start gap-5">
+            {["Yes", "No"].map((option) => (
+              <label key={option} className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name={`${prefix}-dualBadge`}
+                  className="sr-only"
+                  checked={getNestedValue(`${prefix}.dualBadge`) === option}
+                  onChange={() => formik.setFieldValue(`${prefix}.dualBadge`, option)}
+                />
+                <img src={getNestedValue(`${prefix}.dualBadge`) === option ? Yes : No} alt="" />
+                <span className="text-black text-sm font-weight-400 font-['Stack_Sans_Headline'] leading-4">
+                  {option}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {dual ? (
+          <>
+            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
+              {renderBadgeInput("Client Badge Number 1", `${prefix}.clientBadgeNumber`)}
+              {renderBadgeInput("Client Badge Number 2", `${prefix}.clientBadgeNumber2`)}
+            </div>
+            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
+              {renderTaxiSelect("Taxi Type 1", `${prefix}.taxiType`)}
+              {renderTaxiSelect("Taxi Type 2", `${prefix}.taxiType2`)}
+            </div>
+            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
+              {renderExpiryPicker("Badge Expiry Date 1", `${prefix}.badgeExpirationDate`)}
+              {renderExpiryPicker("Badge Expiry Date 2", `${prefix}.badgeExpirationDate2`)}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
+              {renderBadgeInput("Client Badge Number", `${prefix}.clientBadgeNumber`)}
+              {renderTaxiSelect("Taxi Type", `${prefix}.taxiType`)}
+            </div>
+            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
+              {renderExpiryPicker("Badge Expiry Date", `${prefix}.badgeExpirationDate`)}
+              <div />
+            </div>
+          </>
+        )}
+      </>
+    );
+  };
+
   return (
     <>
       <V5CUploadModal
@@ -917,201 +1141,62 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
             </div>
             <div className="self-stretch h-px bg-gray-100" />
 
-            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="w-full flex flex-col justify-start items-start gap-2">
-                <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
-                  Borough
-                </label>
-                <input
-                  type="text"
-                  value={formik.values.borough.name}
-                  onChange={(e) =>
-                    formik.setFieldValue("borough.name", e.target.value)
-                  }
-                  placeholder="Enter Name"
-                  className={boroughInputStyles}
-                  required
-                />
-              </div>
-
-              <div className="w-full flex flex-col justify-start items-start gap-2">
-                <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
-                  Taxi Type
-                </label>
-                  <Select
-                  options={taxiTypeOptions}
-                  placeholder="Select Type"
-                  isLoading={isTaxiTypeLoading}
-                  noOptionsMessage={() =>
-                    isTaxiTypeLoading ? "Loading..." : "No taxi types found"
-                  }
-                  styles={customStyles}
-                  value={taxiTypeOptions.find(
-                    (op) => op.value === formik.values.borough.taxiType,
-                  )}
-                  onChange={(e) =>
-                    formik.setFieldValue("borough.taxiType", e?.value || null)
-                  }
-                  components={{
-                    DropdownIndicator: BlueDropdownIndicator,
-                    IndicatorSeparator: () => null,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="w-full flex flex-col justify-start items-start gap-2">
-                <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
-                  Client Badge Number
-                </label>
-                <input
-                  value={formik.values.borough.clientBadgeNumber}
-                  onChange={(e) =>
-                    formik.setFieldValue(
-                      "borough.clientBadgeNumber",
-                      e.target.value,
-                    )
-                  }
-                  type="number"
-                  placeholder="Enter Number"
-                  className={boroughInputStyles}
-                />
-              </div>
-
-              <div
-                ref={badgeExpiryPickerRef}
-                className="w-full flex flex-col justify-start items-start gap-2 relative"
-              >
-                <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
-                  Badge Expiry Date
-                </label>
-                <div
-                  onClick={() => setShowBadgeExpiryPicker((open) => !open)}
-                  className="w-full h-[52px] px-5 bg-white border border-gray-200 rounded flex items-center justify-between cursor-pointer focus-within:border-blue-500"
-                >
-                  <span
-                    className={
-                      formik.values.borough.badgeExpirationDate
-                        ? "text-gray-900 text-base font-light font-['Stack_Sans_Headline']"
-                        : "text-gray-400 text-base font-light font-['Stack_Sans_Headline']"
-                    }
-                  >
-                    {formik.values.borough.badgeExpirationDate || "Date"}
-                  </span>
-                  <img src={Vector6} className="w-4 h-4" alt="calendar" />
-                </div>
-
-                {showBadgeExpiryPicker && (
-                  <div className="absolute bottom-[53px] left-0 z-50">
-                  <CustomDatePicker
-                    selectedDate={
-                      formik.values.borough.badgeExpirationDate
-                        ? new Date(formik.values.borough.badgeExpirationDate)
-                        : new Date()
-                    }
-                    onDateSelect={(date) => {
-                      formik.setFieldValue(
-                        "borough.badgeExpirationDate",
-                        date.toLocaleDateString("sv-SE"),
-                      );
-                      setShowBadgeExpiryPicker(false);
-                    }}
-                  />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="w-full flex flex-col justify-start items-start gap-2">
-                <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
-                  Vehicle Badge Number
-                </label>
-                <input
-                  type="number"
-                  value={formik.values.borough.vehicleBadgeNumber}
-                  onChange={(e) =>
-                    formik.setFieldValue(
-                      "borough.vehicleBadgeNumber",
-                      e.target.value,
-                    )
-                  }
-                  placeholder="Enter Number"
-                  className={boroughInputStyles}
-                />
-              </div>
-            </div>
+            {renderBoroughFields("borough")}
 
             <div className="self-stretch h-px bg-gray-100" />
 
-            <div className="self-stretch grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
-              <div className="w-full flex flex-col justify-start items-start gap-5">
-                <label className="text-black text-sm font-weight-500 font-['Stack_Sans_Headline']">
-                  Any Other Borough?
-                </label>
-                <div className="inline-flex justify-start items-start gap-5">
-                  {["Yes", "No"].map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <input
-                        type="radio"
-                        name="otherBorough"
-                        className="sr-only"
-                        checked={formik.values.borough.otherBorough === option}
-                        onChange={() => {
-                          formik.setFieldValue("borough.otherBorough", option);
-                          if (option === "No") {
-                            formik.setFieldValue("borough.otherBoroughName", "");
-                          }
-                        }}
-                      />
-                      {formik.values.borough.otherBorough === option ? (
-                        <img src={Yes} alt="" />
-                      ) : (
-                        <img src={No} alt="" />
-                      )}
-                      <span className="text-black text-sm font-weight-400 font-['Stack_Sans_Headline'] leading-4">
-                        {option}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {formik.values.borough.otherBorough === "Yes" && (
-                <div className="w-full flex flex-col justify-start items-start gap-2">
-                  <label className="self-stretch text-neutral-700 text-sm font-weight-500 font-['Stack_Sans_Headline']">
-                    Borough
+            <div className="self-stretch flex flex-col justify-start items-start gap-5">
+              <label className="text-black text-sm font-weight-500 font-['Stack_Sans_Headline']">
+                Any Other Borough?
+              </label>
+              <div className="inline-flex justify-start items-start gap-5">
+                {["Yes", "No"].map((option) => (
+                  <label key={option} className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="otherBorough"
+                      className="sr-only"
+                      checked={formik.values.borough.otherBorough === option}
+                      onChange={() => formik.setFieldValue("borough.otherBorough", option)}
+                    />
+                    {formik.values.borough.otherBorough === option ? (
+                      <img src={Yes} alt="" />
+                    ) : (
+                      <img src={No} alt="" />
+                    )}
+                    <span className="text-black text-sm font-weight-400 font-['Stack_Sans_Headline'] leading-4">
+                      {option}
+                    </span>
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Enter Name"
-                    value={formik.values.borough.otherBoroughName}
-                    onChange={(e) =>
-                      formik.setFieldValue(
-                        "borough.otherBoroughName",
-                        e.target.value,
-                      )
-                    }
-                    className={boroughInputStyles}
-                  />
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* SECTION: Third Party Vehicles */}
-        <div className="self-stretch p-5 bg-neutral-100 rounded-lg border border-gray-100 flex flex-col gap-4">
+        {claimType === "RTA - NA" &&
+          formik.values.borough.otherBorough === "Yes" && (
+            <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col justify-start items-start gap-4 mt-6 animate-in fade-in duration-500">
+              <div className="self-stretch inline-flex justify-start items-center gap-4">
+                <h2 className="text-black text-xl font-weight-600 font-['Stack_Sans_Headline'] leading-5">
+                  Other Borough Details
+                </h2>
+              </div>
+              <div className="self-stretch h-px bg-gray-100" />
+              {renderBoroughFields("borough2")}
+            </div>
+          )}
+
+
+        {/* SECTION: Third Party Vehicles — inline editable cards (no popup) */}
+        <div className="self-stretch flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h2 className="text-neutral-900 text-[20px] font-weight-600">
               Third Party Vehicles
             </h2>
             <button
-              onClick={openAddThirdPartyVehicleModal}
+              type="button"
+              onClick={addTPVehicleInline}
               className="h-8 px-3 py-2 rounded flex items-center gap-2.5 text-blue-500 hover:bg-blue-100"
             >
               <Plus className="w-4 h-4" /> Add Vehicle
@@ -1123,77 +1208,92 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
               Add Third Party Vehicle details by clicking on “Add Vehicle”
             </p>
           ) : (
-            <div className="flex flex-col gap-3  font-['Stack_Sans_Headline']">
-              {formik.values.thirdPartyVehicles.map((vehicle: any, index: number) => (
-                <div
-                  key={vehicle.id ?? `third-party-vehicle-${index}`}
-                  data-layer="Frame 1171277554"
-                  className="self-stretch px-4 py-3 bg-white border border-gray-100 rounded-lg inline-flex justify-between items-start hover:shadow-sm transition-shadow"
-                >
-                  {/* Left Side: Vehicle Info */}
-                  <div className="inline-flex flex-col justify-start items-start gap-1">
-                    <div className="flex flex-col justify-start items-start gap-1">
-                      {/* Make and Model */}
-                      <div className="text-neutral-900 text-sm font-weight-600 font-['Stack_Sans_Headline']">
-                        {vehicle.make} {vehicle.model}
-                      </div>
+            formik.values.thirdPartyVehicles.map((vehicle: any, index: number) => (
+              <div
+                key={vehicle.id ?? `third-party-vehicle-${index}`}
+                className="self-stretch p-6 bg-white rounded-lg border border-gray-100 flex flex-col gap-6"
+              >
+                <div className="flex justify-between items-center">
+                  <h3 className="text-black text-xl font-weight-600 leading-5">
+                    Third Party Vehicle Details
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => removeTPVehicle(vehicle.id, index)}
+                    className="p-1 hover:bg-red-50 rounded"
+                    title="Remove vehicle"
+                  >
+                    <img src={trash} className="w-4 h-4" alt="remove" />
+                  </button>
+                </div>
 
-                      {/* Attributes Row */}
-                      <div className="inline-flex justify-start items-start gap-3">
-                        {/* Registration */}
-                        <div className="flex justify-center items-center gap-2.5 text-xs text-gray-700">
-                          <span className="font-weight-600">Reg No:</span>
-                          <span className="font-weight-300 font-light">
-                            {vehicle.registration}
-                          </span>
-                        </div>
+                <div className="h-px bg-gray-100 w-full" />
 
-                        {/* Color */}
-                        <div className="flex justify-center items-center gap-2.5 text-xs text-neutral-900 pl-3">
-                          <span className="font-weight-600">Color:</span>
-                          <span className="font-weight-300 font-light">
-                            {vehicle.color}
-                          </span>
-                        </div>
-
-                        {/* Images Status */}
-                        <div className="flex justify-center items-center gap-2.5 text-xs text-neutral-900 pl-3">
-                          <span className="font-weight-600">Images:</span>
-                          <span className="font-weight-300 font-light">
-                            {vehicle.imagesAvailable === "Yes"
-                              ? "Available"
-                              : "Not Available"}
-                          </span>
-                        </div>
-                      </div>
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 gap-5">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-neutral-700 text-[14px] font-weight-500">Make</label>
+                      <input
+                        type="text"
+                        placeholder="Enter Make"
+                        className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+                        value={vehicle.make || ""}
+                        onChange={(e) => updateTPVehicle(index, { make: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-neutral-700 text-[14px] font-weight-500">Model</label>
+                      <input
+                        type="text"
+                        placeholder="Enter Model"
+                        className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+                        value={vehicle.model || ""}
+                        onChange={(e) => updateTPVehicle(index, { model: e.target.value })}
+                      />
                     </div>
                   </div>
 
-                  {/* Right Side: Actions */}
-                  <div
-                    data-layer="Frame 1171277557"
-                    className="flex justify-start items-center gap-4"
-                  >
-                    <button
-                      onClick={() => {
-                        // setCurrentVehicle(vehicle);
-                        // setIsModalOpen(true);
-                        handleEdit(vehicle, index);
-                      }}
-                      className="text-neutral-900 hover:text-blue-500 transition-colors"
-                    >
-                      <img src={pencil} alt="" />
-                    </button>
-                    <button
-                      onClick={() => removeTPVehicle(vehicle.id, index)}
-                      className="text-red-500 hover:text-red-700 transition-colors"
-                    >
-                      <img src={trash} alt="" />
-                    </button>
+                  <div className="grid grid-cols-2 gap-5">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-neutral-700 text-[14px] font-weight-500">Registration</label>
+                      <input
+                        type="text"
+                        placeholder="Enter Registration"
+                        className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+                        value={vehicle.registration || ""}
+                        onChange={(e) => updateTPVehicle(index, { registration: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-neutral-700 text-[14px] font-weight-500">Color</label>
+                      <input
+                        type="text"
+                        placeholder="Enter Color"
+                        className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 text-neutral-700 ${inputStyles}`}
+                        value={vehicle.color || ""}
+                        onChange={(e) => updateTPVehicle(index, { color: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-5">
+                    <label className="text-black text-sm font-medium">Images Available</label>
+                    <div className="flex items-center gap-5">
+                      {["Yes", "No"].map((option) => (
+                        <label key={option} className="flex items-center gap-2 cursor-pointer">
+                          <img
+                            src={vehicle.imagesAvailable === option ? Yes : No}
+                            alt=""
+                            onClick={() => updateTPVehicle(index, { imagesAvailable: option })}
+                          />
+                          <span className="text-black text-sm">{option}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
           )}
         </div>
         {checkModal && (

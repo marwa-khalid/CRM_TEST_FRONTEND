@@ -247,33 +247,6 @@ export const loadClaimStepCompletion = async (
       versionOfEvents: accident.description,
       servicesDate: accident.service_date_time,
       servicesTime: accident.service_date_time,
-      passengers:
-        accident.any_passenger === true || accident.any_passenger === false
-          ? "answered"
-          : "",
-      passengerDetails: accident.any_passenger
-        ? passengerList.length > 0
-          ? "added"
-          : ""
-        : "n/a",
-      hasWitnesses:
-        accident.witness === true || accident.witness === false
-          ? "answered"
-          : "",
-      witnessDetails: accident.witness
-        ? witnessList.length > 0
-          ? "added"
-          : ""
-        : "n/a",
-      policeAttended:
-        accident.police_attend === true || accident.police_attend === false
-          ? "answered"
-          : "",
-      policeDetails: accident.police_attend
-        ? policeList.length > 0
-          ? "added"
-          : ""
-        : "n/a",
       dashcamFootage:
         accident.dash_footage === true || accident.dash_footage === false
           ? "answered"
@@ -281,8 +254,14 @@ export const loadClaimStepCompletion = async (
     });
   }
 
+  // Passenger / Witness / Police are their own optional screens now — complete
+  // when every saved entry has a name (an empty list counts as complete).
+  map[4] = passengerList.every((p: any) => Boolean(p?.first_name));
+  map[5] = witnessList.every((w: any) => Boolean(w?.first_name));
+  map[6] = policeList.every((p: any) => Boolean(p?.name));
+
   if (vehicle) {
-    map[4] = isComplete({
+    map[7] = isComplete({
       vehicle: {
         make: vehicle.make,
         model: vehicle.model,
@@ -322,7 +301,7 @@ export const loadClaimStepCompletion = async (
   }
 
   if (owner?.id) {
-    map[5] = isComplete({
+    map[9] = isComplete({
       clientFirstName: owner.first_name,
       clientSurname: owner.surname,
       address: owner.address?.address,
@@ -335,7 +314,7 @@ export const loadClaimStepCompletion = async (
   }
 
   if (engineer?.id) {
-    map[6] = isComplete({
+    map[10] = isComplete({
       companyName: engineer.company_name,
       vehicle_payment_beneficiary: engineer.vehicle_payment_beneficiary,
       reference: engineer.reference,
@@ -372,7 +351,7 @@ export const loadClaimStepCompletion = async (
   }
 
   if (clientInsurer?.id) {
-    map[7] = isComplete({
+    map[11] = isComplete({
       companyName: clientInsurer.company_name,
       address: clientInsurer.address?.address,
       postcode: clientInsurer.address?.postcode,
@@ -400,7 +379,7 @@ export const loadClaimStepCompletion = async (
   }
 
   if (panelSolicitor?.id) {
-    map[8] = isComplete({
+    map[12] = isComplete({
       company_name: panelSolicitor.company_name,
       reference: panelSolicitor.reference,
       recommendation_sent: panelSolicitor.recommendation_sent,
@@ -418,22 +397,22 @@ export const loadClaimStepCompletion = async (
   }
 
   if (storageRecovery) {
-    map[9] = isComplete({
+    map[13] = isComplete({
       storages: asArray(storageRecovery.storages),
       recoveries: asArray(storageRecovery.recoveries),
     });
   }
 
-  map[10] = hasAny(damageReport);
+  map[8] = hasAny(damageReport);
 
   if (thirdPartyInsurer) {
-    map[11] = hasAny(thirdPartyInsurer) && isComplete(thirdPartyInsurer);
+    map[14] = hasAny(thirdPartyInsurer) && isComplete(thirdPartyInsurer);
   }
 
-  map[12] = hireList.length > 0;
+  map[15] = hireList.length > 0;
 
   if (driverDocs) {
-    map[13] = isComplete(
+    map[16] = isComplete(
       documentFields.reduce((acc: Record<string, any>, [dateField, fileField]) => {
         acc[dateField] = driverDocs[dateField];
         acc[fileField] = driverDocs[fileField];
@@ -442,7 +421,7 @@ export const loadClaimStepCompletion = async (
     );
   }
 
-  map[14] = checkoutList.length > 0;
+  map[17] = checkoutList.length > 0;
 
   return map;
 };

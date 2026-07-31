@@ -63,7 +63,7 @@ const Dashboard: React.FC = () => {
   const { user: authUser } = useCurrentUser();
   const navigate = useNavigate();
 
-  const [activePage, setActivePage] = useState<ActivePage>("dashboard");
+  const [activePage, setActivePage] = useState<ActivePage>("claims");
   const [taskFilter, setTaskFilter] = useState<TaskFilters | undefined>(undefined);
   const [claims, setClaims] = useState<any[]>([]);
   const [claimsLoading, setClaimsLoading] = useState(true);

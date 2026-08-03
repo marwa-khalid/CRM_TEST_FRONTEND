@@ -63,7 +63,7 @@ const FleetShell: React.FC = () => {
   const { name, initials } = currentUser();
 
   const items: NavItem[] = [
-    { label: "Dashboard", icon: HomeIcon, onClick: () => navigate("/dashboard") },
+    { label: "Dashboard", icon: HomeIcon, to: "/fleet/dashboard" },
     { label: "Skyline", icon: FleetIcon, to: "/fleet", end: true },
     { label: "Tasks", icon: TasksIcon, to: "/fleet/tasks" },
     { label: "Calendar", icon: CalendarIcon, to: "/fleet/calendar" },

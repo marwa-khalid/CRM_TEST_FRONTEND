@@ -51,7 +51,7 @@ import { useCurrentUser } from "../../context/AuthContext";
 import type { TaskFilters } from "../../services/Tasks/Tasks";
 
 const Tasks = lazy(() => import("../TaskManagement/Tasks"));
-const TasksDashboard = lazy(() => import("../TaskManagement/TasksDashboard"));
+const ClaimsDashboard = lazy(() => import("./ClaimsDashboard"));
 const TasksCalendar = lazy(() => import("../CalendarExamples/TeamsCalendarExample"));
 
 type ActivePage = "claims" | "settings" | "tasks" | "dashboard" | "calendar";
@@ -851,7 +851,7 @@ const Dashboard: React.FC = () => {
               </section>
             )}
             {activePage === "tasks" && <Tasks initialFilters={taskFilter} />}
-            {activePage === "dashboard" && <TasksDashboard onOpen={goToTasks} />}
+            {activePage === "dashboard" && <ClaimsDashboard onOpen={goToTasks} />}
             {activePage === "calendar" && <TasksCalendar onOpenTasks={() => goToTasks()} />}
           </Suspense>
         )}

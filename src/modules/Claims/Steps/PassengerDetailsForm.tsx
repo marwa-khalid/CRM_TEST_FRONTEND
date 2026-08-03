@@ -149,9 +149,11 @@ export const PassengerDetailsForm = ({ formRef, claimId }: any) => {
     if (formRef) formRef.current = { submitForm };
   });
 
-  // Sidebar green check: complete when every card is either empty or has a name.
+  // Sidebar green check: green only when at least one passenger has been entered
+  // and every entered card has a full name (empty / half-filled ⇒ not green).
   useReportCompletion(
-    passengers.every((p) => !hasData(p) || (p.firstName.trim() && p.surname.trim())),
+    passengers.some(hasData) &&
+      passengers.filter(hasData).every((p) => Boolean(p.firstName.trim() && p.surname.trim())),
   );
 
   return (

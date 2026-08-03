@@ -27,7 +27,7 @@ import { useCurrentUser } from "../../context/AuthContext";
 import NotificationsPanel, {
   type NotifItem,
   buildTaskNotifications,
-} from "./Notifications";
+} from "../TaskManagement/Notifications";
 import { getNotifications, markNotificationRead, markAllNotificationsRead, markAllNotificationsUnread } from "../../services/Notifications/Notifications";
 import {
   getDashboard,
@@ -37,13 +37,13 @@ import {
   getTrendOptions,
 } from "../../services/Dashboard/Dashboard";
 import { CustomDatePicker } from "../Claims/Components/DatePicker";
-import MissingDocumentsSlider from "./MissingDocumentsSlider";
-import StorageRecoverySlider from "./StorageRecoverySlider";
+import MissingDocumentsSlider from "../TaskManagement/MissingDocumentsSlider";
+import StorageRecoverySlider from "../TaskManagement/StorageRecoverySlider";
 import Select from "react-select";
 import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDetailsForm";
-import FleetOperations from "./FleetDummy";
-import PlateExpiry from "./PlateExpiryDummy";
-import MotExpiry from "./MotExpiry";
+import FleetOperations from "../TaskManagement/FleetDummy";
+import PlateExpiry from "../TaskManagement/PlateExpiryDummy";
+import MotExpiry from "../TaskManagement/MotExpiry";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -1094,7 +1094,7 @@ const MiniDropdown: React.FC<{
 
 // ─── main ─────────────────────────────────────────────────────────────────────
 
-const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpen }) => {
+const ClaimsDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpen }) => {
   const { user } = useCurrentUser();
   const me = user?.name || ""; // logged-in user's name (email-before-@)
   const [dash, setDash] = useState<any>(null); // real dashboard aggregates
@@ -2203,4 +2203,4 @@ const TasksDashboard: React.FC<{ onOpen?: (f: TaskFilters) => void }> = ({ onOpe
   );
 };
 
-export default TasksDashboard;
+export default ClaimsDashboard;

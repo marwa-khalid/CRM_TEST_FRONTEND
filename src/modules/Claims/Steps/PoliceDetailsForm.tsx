@@ -122,7 +122,11 @@ export const PoliceDetailsForm = ({ formRef, claimId }: any) => {
     if (formRef) formRef.current = { submitForm };
   });
 
-  useReportCompletion(police.every((p) => !hasData(p) || p.name.trim()));
+  // Green only when at least one police entry has been added and every entered
+  // card has a name (empty / half-filled ⇒ not green).
+  useReportCompletion(
+    police.some(hasData) && police.filter(hasData).every((p) => Boolean(p.name.trim())),
+  );
 
   return (
     <div className="w-full flex flex-col gap-6 font-['Stack_Sans_Headline'] py-1">

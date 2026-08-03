@@ -241,8 +241,11 @@ export const WitnessDetailsForm = ({ formRef, claimId }: any) => {
     if (formRef) formRef.current = { submitForm };
   });
 
+  // Green only when at least one witness has been entered and every entered card
+  // has a full name (empty / half-filled ⇒ not green).
   useReportCompletion(
-    witnesses.every((w) => !hasData(w) || (w.firstName.trim() && w.surname.trim())),
+    witnesses.some(hasData) &&
+      witnesses.filter(hasData).every((w) => Boolean(w.firstName.trim() && w.surname.trim())),
   );
 
   const viewQuestionnaire = () =>

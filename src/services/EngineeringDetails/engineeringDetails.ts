@@ -57,13 +57,31 @@ export const udpateEnginerDetails = async (payload: any, id: any) => {
   return response.data;
 };
 
+const engineerEmailBody = (payload: any) => ({
+  engineer_email: payload.email,
+  engineer_company: payload.company,
+  engineer_address: payload.address,
+  engineer_postcode: payload.postCode,
+  current_location: payload.location,
+});
+
+// Render the instruct-engineer email for the editable preview modal (no send).
+// Returns { to, subject, html, attachments: [{ name }] }.
+export const previewEngineerInstruction = async (payload: any, id: any) => {
+  const res = await axiosInstance.post(
+    `engineer-details/instruction-preview/${id}`,
+    engineerEmailBody(payload),
+  );
+  return res.data;
+};
+
 export const instructEngineer = async (payload: any, id: any) => {
   const res = await axiosInstance.post(`engineer-details/send-instruction/${id}`, {
-    engineer_email: payload.email,
-    engineer_company: payload.company,
-    engineer_address: payload.address,
-    engineer_postcode: payload.postCode,
-    current_location: payload.location
+    ...engineerEmailBody(payload),
+    // Edited copy from the preview modal (optional) — sent verbatim if present.
+    html_override: payload.html ?? null,
+    subject_override: payload.subject ?? null,
+    cc_override: payload.cc || null,
   })
   return res.data
 }

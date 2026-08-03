@@ -17,10 +17,12 @@ import {
   EngineerDetailsApi,
   gettingEnginerDetails,
   instructEngineer,
+  previewEngineerInstruction,
   udpateEnginerDetails,
   getEngineerCompanySuggestions,
 } from "../../../services/EngineeringDetails/engineeringDetails";
 import { V5CEngineerUploadModal } from "../UploadModalPopups/V5CEngineerUploadModal";
+import { ClaimsEmailModal } from "../Components/ClaimsEmailModal";
 import { CustomDatePicker } from "../Components/DatePicker";
 
 export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
@@ -34,6 +36,13 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [instructing, setInstructing] = useState(false);
   const [engineer_report_received, setReportData] = useState<any>();
+  // Editable instruct-engineer email preview.
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailPreview, setEmailPreview] = useState<{
+    to: string; subject: string; html: string;
+    attachments: { name: string; content_b64?: string; content_type?: string }[];
+  } | null>(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Company Name autocomplete (engineer companies master list).
   const [companyOptions, setCompanyOptions] = useState<any[]>([]);
@@ -213,35 +222,65 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
     },
   });
 
+  const engineerEmailPayload = () => ({
+    email: formik.values.engineer_address.email,
+    company: formik.values.companyName,
+    address: formik.values.engineer_address.address,
+    postCode: formik.values.engineer_address.postcode,
+    location: formik.values.vehicle_address.address,
+  });
+
+  // "Instruct Engineer" now opens an editable preview first (instead of sending
+  // straight away); the actual send happens from the modal.
   const handleInstructEngineer = async () => {
     if (!claimId) {
       toast.error("Claim ID not found");
       return;
     }
-
     if (!formik.values.engineer_address.email) {
       toast.error("Engineer email is required");
       return;
     }
 
     setInstructing(true);
-
     try {
-      const payload = {
-        email: formik.values.engineer_address.email,
-        company: formik.values.companyName,
-        address: formik.values.engineer_address.address,
-        postCode: formik.values.engineer_address.postcode,
-        location: formik.values.vehicle_address.address,
-      };
+      const preview = await previewEngineerInstruction(engineerEmailPayload(), Number(claimId));
+      setEmailPreview({
+        to: preview?.to || formik.values.engineer_address.email,
+        subject: preview?.subject || "",
+        html: preview?.html || "",
+        attachments: Array.isArray(preview?.attachments) ? preview.attachments : [],
+      });
+      setEmailModalOpen(true);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.response?.data?.detail || "Unable to build email preview");
+    } finally {
+      setInstructing(false);
+    }
+  };
 
-      await instructEngineer(payload, Number(claimId));
+  const handleSendInstruction = async (editedHtml: string, to: string, subject: string, cc: string) => {
+    if (!claimId) return;
+    setSendingEmail(true);
+    try {
+      await instructEngineer(
+        {
+          ...engineerEmailPayload(),
+          email: to || formik.values.engineer_address.email,
+          html: editedHtml,
+          subject,
+          cc,
+        },
+        Number(claimId),
+      );
       toast.success("Email sent with instructions");
+      setEmailModalOpen(false);
     } catch (e: any) {
       console.error(e);
       toast.error(e?.response?.data?.detail || "Unable to send email");
     } finally {
-      setInstructing(false);
+      setSendingEmail(false);
     }
   };
 
@@ -484,6 +523,18 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
         setReportData={setReportData}
       />
 
+      <ClaimsEmailModal
+        isOpen={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        title="Instruct Engineer"
+        to={emailPreview?.to}
+        subject={emailPreview?.subject}
+        html={emailPreview?.html || ""}
+        attachments={emailPreview?.attachments || []}
+        sending={sendingEmail}
+        onSend={handleSendInstruction}
+      />
+
       {lossModal && (
         <TotalLossView
           isOpen={lossModal}
@@ -535,7 +586,7 @@ export const EngineerDetailsForm = ({ formRef, claimId }: any) => {
               onClick={handleInstructEngineer}
               className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-md text-sm font-weight-400 hover:bg-blue-100 transition-colors disabled:opacity-60"
             >
-              {instructing ? "Sending..." : "Instruct Engineer"}
+              {instructing ? "Preparing..." : "Instruct Engineer"}
             </button>
           </div>
 

@@ -4,6 +4,7 @@ import AddNewHire from "../pages/AddNewHire/AddNewHire";
 import FleetActivityLog from "../pages/FleetActivityLog";
 import FleetDocumentLibrary from "../pages/FleetDocumentLibrary";
 import FleetList from "../pages/FleetList";
+import FleetDashboard from "../pages/FleetDashboard";
 import FleetMap from "../pages/FleetMap";
 import FleetShell from "../components/FleetShell";
 import FleetTasks from "../pages/FleetTasks";
@@ -17,6 +18,7 @@ const FleetRoutes: React.FC = () => (
   <Routes>
     <Route element={<FleetShell />}>
       <Route index element={<FleetList />} />
+      <Route path="dashboard" element={<FleetDashboard />} />
       <Route path="tasks" element={<FleetTasks />} />
       <Route path="calendar" element={<FleetTasksCalendar />} />
       <Route path="map" element={<FleetMap />} />

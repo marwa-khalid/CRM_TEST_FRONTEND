@@ -1,0 +1,332 @@
+/* Fleet Dashboard styles — generated from the approved design mockup.
+   Every rule is scoped under .fleet-dash so the generic class names
+   (.grid, table, .card, …) never leak into the rest of the app. */
+.fleet-dash{
+    /* Claims Hire-Trend filter palette — the project's royal blue (tailwind blue-300/500/200/100) */
+    --tb-active:#286CFF; --tb-text:#0352FD; --tb-outline:#a2cfff; --tb-pill-bg:#d9ebff;
+    --bg:#ffffff; --surface:#ffffff; --surface-2:#f6f8fb; --raise:#ffffff;
+    --ink:#141d2b; --ink-2:#4a586b; --ink-3:#7d8a9c; --line:#e4e9f0; --line-2:#eef1f6;
+    --brand:#2f56d0; --brand-soft:#e7ecfb;
+    --green:#15925a; --green-s:#e0f3ea; --blue:#2f6fed; --blue-s:#e4eefe;
+    --amber:#b9750d; --amber-s:#fbefd8; --red:#d23f3a; --red-s:#fbe5e4;
+    --violet:#6b52c8; --violet-s:#ece7fb; --teal:#0f8f9b; --teal-s:#dbf1f2;
+    --slate:#6b7688; --slate-s:#eceff3;
+    --shadow:0 1px 2px rgba(20,29,43,.04), 0 6px 18px rgba(20,29,43,.05);
+    --shadow-lg:0 12px 40px rgba(20,29,43,.16);
+    --r:12px;
+  }
+/* Committed to a single light theme for the management review deliverable —
+     the dashboard shows light regardless of the viewer's OS/UI theme. */.fleet-dash *{box-sizing:border-box;}
+.fleet-dash{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Stack Sans Headline',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;line-height:1.5;}
+.fleet-dash .num{font-variant-numeric:tabular-nums;}
+/* top bar */.fleet-dash .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--surface) 88%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+    padding:22px clamp(16px,3vw,32px);display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.fleet-dash .brand{display:flex;align-items:center;gap:12px;}
+.fleet-dash .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--brand),#5b78e6);
+    display:grid;place-items:center;color:#fff;box-shadow:var(--shadow);}
+.fleet-dash .brand h1{font-size:24px;line-height:2rem;margin:0;font-weight:600;color:#171717;}
+.fleet-dash .brand p{margin:0;font-size:11.5px;color:var(--ink-3);letter-spacing:.02em;}
+.fleet-dash .tb-right{display:flex;align-items:center;gap:14px;color:var(--ink-2);font-size:13px;}
+.fleet-dash .tb-right .date{color:var(--ink-3);}
+.fleet-dash .avatar{width:32px;height:32px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600;}
+.fleet-dash .bell{position:relative;width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);display:grid;place-items:center;cursor:pointer;}
+.fleet-dash .bell:hover{background:var(--surface-2);color:var(--ink);}
+.fleet-dash .bell svg{width:20px;height:20px;}
+.fleet-dash .bell-dot{position:absolute;top:8px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid var(--surface);}
+.fleet-dash .page{padding:clamp(16px,3vw,28px);max-width:1440px;margin:0 auto;}
+.fleet-dash .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;}
+@media(max-width:1080px){.fleet-dash .grid{grid-template-columns:repeat(8,1fr);}
+}
+@media(max-width:720px){.fleet-dash .grid{grid-template-columns:repeat(2,1fr);}
+}
+.fleet-dash .card{background:var(--surface);border:1px solid #e5e5e5;border-radius:var(--r);box-shadow:none;
+    padding:18px;display:flex;flex-direction:column;min-width:0;}
+.fleet-dash .card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
+.fleet-dash .card-h h3{margin:0;font-size:20px;line-height:1.25;font-weight:600;color:#171717;}
+.fleet-dash .card-h .sub{font-size:11.5px;color:var(--ink-3);}
+.fleet-dash .ttl{display:flex;align-items:center;gap:10px;min-width:0;}
+.fleet-dash .wi{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex-shrink:0;}
+.fleet-dash .wi svg{width:16px;height:16px;}
+.fleet-dash .link{font-size:12px;color:var(--brand);font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;}
+.fleet-dash .link:hover{text-decoration:underline;}
+/* spans */.fleet-dash .s3{grid-column:span 3;}
+.fleet-dash .s4{grid-column:span 4;}
+.fleet-dash .s5{grid-column:span 5;}
+.fleet-dash .s6{grid-column:span 6;}
+.fleet-dash .s7{grid-column:span 7;}
+.fleet-dash .s8{grid-column:span 8;}
+.fleet-dash .s12{grid-column:span 12;}
+@media(max-width:1080px){.fleet-dash .s3{grid-column:span 4;}
+.fleet-dash .s4{grid-column:span 4;}
+.fleet-dash .s5{grid-column:span 4;}
+.fleet-dash .s7{grid-column:span 8;}
+.fleet-dash .s8{grid-column:span 8;}
+.fleet-dash .s6{grid-column:span 4;}
+}
+@media(max-width:720px){.fleet-dash [class*="s"]{grid-column:span 2;}
+}
+/* KPI cards — match the Claims dashboard stat cards (layout + Tailwind colours) */.fleet-dash .kpi{gap:12px;border:1px solid #e5e5e5;border-radius:10px;padding:16px;box-shadow:none;}
+.fleet-dash .kpi .top{display:flex;align-items:center;justify-content:space-between;}
+.fleet-dash .kpi .ic{width:36px;height:36px;border-radius:7px;display:grid;place-items:center;}
+.fleet-dash .kpi .ic svg{width:19px;height:19px;}
+.fleet-dash .kpi .arw{width:22px;height:14px;flex-shrink:0;}
+.fleet-dash .kpi .val{font-size:24px;font-weight:600;color:#171717;line-height:1.15;letter-spacing:-.01em;}
+.fleet-dash .kpi .val small{font-size:14px;font-weight:600;color:#a3a3a3;}
+.fleet-dash .kpi .lbl{font-size:12px;color:#737373;}
+.fleet-dash .kpi .hr{height:1px;width:100%;background:#e5e5e5;}
+.fleet-dash .kpi .foot{display:flex;align-items:center;gap:8px;}
+.fleet-dash .kpi .badge{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:3px 8px;font-size:13px;font-weight:600;}
+.fleet-dash .kpi .badge.up{background:#dcfce7;color:#22c55e;}
+.fleet-dash .kpi .badge.down{background:#fee2e2;color:#ef4444;}
+.fleet-dash .kpi .badge svg{width:13px;height:13px;}
+.fleet-dash .kpi .vs{font-size:12px;color:#737373;font-weight:500;}
+/* chips */.fleet-dash .chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;}
+.fleet-dash .chip.green{color:var(--green);background:var(--green-s);}
+.fleet-dash .chip.blue{color:var(--blue);background:var(--blue-s);}
+.fleet-dash .chip.amber{color:var(--amber);background:var(--amber-s);}
+.fleet-dash .chip.red{color:var(--red);background:var(--red-s);}
+.fleet-dash .chip.violet{color:var(--violet);background:var(--violet-s);}
+.fleet-dash .chip.slate{color:var(--slate);background:var(--slate-s);}
+.fleet-dash .chip.teal{color:var(--teal);background:var(--teal-s);}
+.fleet-dash .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+/* tabs (segmented counts) */.fleet-dash .tabs{display:flex;gap:6px;background:var(--surface-2);border-radius:10px;padding:4px;flex-wrap:wrap;}
+.fleet-dash .tab{flex:1;min-width:0;border:0;background:transparent;border-radius:7px;padding:7px 8px;cursor:pointer;text-align:center;color:var(--ink-2);font-family:inherit;}
+.fleet-dash .tab .t-n{display:block;font-size:18px;font-weight:750;line-height:1;letter-spacing:-.01em;}
+.fleet-dash .tab .t-l{display:block;font-size:10.5px;color:var(--ink-3);margin-top:3px;letter-spacing:.01em;}
+.fleet-dash .tab[aria-selected="true"]{background:var(--surface);box-shadow:var(--shadow);color:var(--ink);}
+.fleet-dash .tab[aria-selected="true"] .t-n{color:var(--brand);}
+/* tables */.fleet-dash table{width:100%;border-collapse:collapse;}
+.fleet-dash thead th{text-align:left;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);
+    font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);}
+.fleet-dash tbody td{padding:10px;border-bottom:1px solid var(--line-2);font-size:13px;}
+.fleet-dash tbody tr:last-child td{border-bottom:0;}
+.fleet-dash tbody tr[data-pop]{cursor:pointer;}
+.fleet-dash tbody tr[data-pop]:hover{background:var(--surface-2);}
+.fleet-dash .reg{font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:.02em;}
+.fleet-dash td.r{text-align:right;font-variant-numeric:tabular-nums;}
+.fleet-dash .owe{color:var(--red);font-weight:600;}
+/* list rows (alerts / compliance) */.fleet-dash .rows{display:flex;flex-direction:column;}
+.fleet-dash .row{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line-2);cursor:pointer;}
+.fleet-dash .row:last-child{border-bottom:0;}
+.fleet-dash .row:hover{background:var(--surface-2);border-radius:8px;}
+.fleet-dash .row .lead{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;}
+.fleet-dash .row .body{min-width:0;flex:1;}
+.fleet-dash .row .t{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fleet-dash .row .m{font-size:11.5px;color:var(--ink-3);}
+.fleet-dash .row .end{text-align:right;flex-shrink:0;}
+/* compliance band accent */.fleet-dash .comp{border-top:3px solid var(--acc,var(--brand));}
+.fleet-dash .mini-rows{display:flex;flex-direction:column;gap:2px;margin-top:12px;}
+.fleet-dash .mini{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 2px;border-top:1px solid var(--line-2);cursor:pointer;font-size:12.5px;}
+.fleet-dash .mini:hover{color:var(--brand);}
+.fleet-dash .mini .l{display:flex;align-items:center;gap:8px;min-width:0;}
+.fleet-dash .segbar{display:flex;height:8px;border-radius:6px;overflow:hidden;margin:2px 0 12px;background:var(--surface-2);}
+.fleet-dash .segbar span{height:100%;}
+/* donut */.fleet-dash .donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.fleet-dash .donut{width:172px;height:172px;flex-shrink:0;}
+.fleet-dash .donut text.n{font-size:24px;font-weight:700;fill:#171717;}
+.fleet-dash .donut text.l{font-size:11px;fill:#737373;}
+.fleet-dash .legend{display:flex;flex-direction:column;gap:7px;flex:1;min-width:140px;}
+.fleet-dash .legend .li{display:flex;align-items:center;gap:8px;font-size:12.5px;}
+.fleet-dash .legend .li .v{margin-left:auto;font-weight:650;font-variant-numeric:tabular-nums;}
+/* Collection-Performance-style body (Vehicle Status Distribution) */.fleet-dash .coll-body{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;}
+.fleet-dash .coll-left{display:flex;flex-direction:column;gap:20px;min-width:180px;flex:1;}
+.fleet-dash .coll-head .rate{font-size:24px;font-weight:600;color:#111;line-height:1.1;}
+.fleet-dash .coll-head .rate-l{font-size:13px;color:#71717a;font-weight:500;margin-top:2px;}
+/* ===== Image-matched sections (pixel target) ===== */.fleet-dash .tp-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.fleet-dash .tp{display:inline-flex;align-items:center;gap:7px;border:1px solid;border-radius:8px;padding:6px 12px;font-size:13px;background:#fff;cursor:pointer;line-height:1.2;}
+.fleet-dash .tp .c{font-weight:600;}
+.fleet-dash .tp.blue{border-color:#cfe0fd;color:#2563eb;background:#f2f7ff;}
+.fleet-dash .tp.gray{border-color:#e5e7eb;color:#6b7280;}
+.fleet-dash .tp.red{border-color:#f6cccc;color:#dc2626;}
+.fleet-dash .tp.orange{border-color:#fadcbf;color:#ea580c;}
+.fleet-dash .tp.green{border-color:#c3ecce;color:#16a34a;}
+.fleet-dash .dtable{width:100%;border-collapse:collapse;}
+.fleet-dash .dtable th{text-align:left;font-size:12px;font-weight:500;color:#9ca3af;padding:4px 8px 10px;border-bottom:1px solid #eef0f2;white-space:nowrap;}
+.fleet-dash .dtable td{font-size:13px;color:#4b5563;padding:12px 8px;border-bottom:1px solid #f4f5f6;white-space:nowrap;}
+.fleet-dash .dtable tbody tr:last-child td{border-bottom:0;}
+.fleet-dash .dtable .reg{font-weight:600;color:#111827;}
+.fleet-dash .st-blue{color:#2563eb;font-weight:500;}
+.fleet-dash .st-orange{color:#ea580c;font-weight:500;}
+.fleet-dash .st-red{color:#dc2626;font-weight:600;}
+.fleet-dash .st-green{color:#16a34a;font-weight:500;}
+.fleet-dash .st-gray{color:#9ca3af;}
+.fleet-dash .valink{color:#2563eb;font-size:13px;font-weight:500;text-decoration:none;white-space:nowrap;cursor:pointer;}
+/* Vehicle Status Distribution (image) */.fleet-dash .vsd{display:flex;align-items:center;gap:34px;flex-wrap:wrap;justify-content:center;padding:6px 0;}
+.fleet-dash .vsd .donut2{width:220px;height:220px;flex-shrink:0;}
+.fleet-dash .vsd .donut2 text.big{font-size:30px;font-weight:700;fill:#111827;}
+.fleet-dash .vsd .donut2 text.sm{font-size:14px;fill:#6b7280;}
+.fleet-dash .vsleg{display:flex;flex-direction:column;gap:15px;}
+.fleet-dash .vsleg .li{display:flex;align-items:center;gap:11px;font-size:14px;color:#374151;}
+.fleet-dash .vsleg .li .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+.fleet-dash .vsleg .li .v{margin-left:10px;font-weight:600;color:#111827;font-variant-numeric:tabular-nums;}
+/* Compliance Summary (image): 4 Overdue cards */.fleet-dash .cs-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+@media(max-width:960px){.fleet-dash .cs-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:560px){.fleet-dash .cs-grid{grid-template-columns:1fr;}
+}
+.fleet-dash .cscard{border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:15px;}
+.fleet-dash .cscard .top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.fleet-dash .cscard .top h4{margin:0;font-size:15px;font-weight:600;color:#111827;}
+.fleet-dash .cscard .cico{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex-shrink:0;}
+.fleet-dash .cscard .cico svg{width:17px;height:17px;}
+.fleet-dash .cscard .ov{display:flex;align-items:baseline;gap:8px;}
+.fleet-dash .cscard .ov .n{font-size:30px;font-weight:700;color:#f26d6d;line-height:1;}
+.fleet-dash .cscard .ov .l{font-size:13px;color:#9ca3af;}
+.fleet-dash .csbar{height:8px;border-radius:5px;background:#dcfce7;overflow:hidden;display:flex;}
+.fleet-dash .csbar .red{background:#f6a8a8;height:100%;}
+.fleet-dash .cscard .due{display:flex;gap:28px;}
+.fleet-dash .cscard .due .d .n{font-size:20px;font-weight:700;line-height:1;}
+.fleet-dash .cscard .due .d .l{font-size:12px;color:#9ca3af;margin-top:4px;}
+/* Compliance Summary — 4 horizontal two-arc donuts (Collection Performance donut) */.fleet-dash .cdonuts{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+@media(max-width:900px){.fleet-dash .cdonuts{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:520px){.fleet-dash .cdonuts{grid-template-columns:1fr;}
+}
+.fleet-dash .cdonut{display:flex;flex-direction:column;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:18px 12px;}
+.fleet-dash .cdonut h4{margin:0;font-size:13px;font-weight:600;color:#171717;}
+.fleet-dash .cdonut .ring{width:132px;height:132px;}
+.fleet-dash .cdonut .ring text.pct{font-size:22px;font-weight:700;fill:#171717;}
+.fleet-dash .cdonut .ring text.sub{font-size:11px;fill:#737373;}
+.fleet-dash .cdonut .cap{font-size:12px;font-weight:500;}
+/* compliance summary radial grid */.fleet-dash .summ{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fleet-dash .gauge{background:var(--surface-2);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;}
+.fleet-dash .gauge svg{width:56px;height:56px;flex-shrink:0;}
+.fleet-dash .gauge .g-n{font-size:20px;font-weight:750;line-height:1;}
+.fleet-dash .gauge .g-l{font-size:11px;color:var(--ink-3);margin-top:2px;}
+.fleet-dash .gauge .g-sub{font-size:10.5px;color:var(--ink-3);margin-top:1px;}
+/* fleet ops mini stats */.fleet-dash .ops{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+.fleet-dash .op{background:var(--surface-2);border-radius:11px;padding:12px 14px;}
+.fleet-dash .op .n{font-size:22px;font-weight:750;letter-spacing:-.01em;}
+.fleet-dash .op .l{font-size:11px;color:var(--ink-3);margin-top:2px;}
+.fleet-dash .op .n small{font-size:12px;color:var(--ink-3);font-weight:600;}
+/* Fleet Operations — "Skyline Operations" design (from FleetDummy.tsx) */.fleet-dash .skyops-head{display:flex;flex-wrap:wrap;gap:20px 26px;align-items:flex-start;justify-content:space-between;margin-bottom:18px;}
+.fleet-dash .skyops-left{display:flex;flex-wrap:wrap;align-items:center;gap:24px;}
+.fleet-dash .skyops-total .n{font-size:24px;font-weight:600;color:#111;line-height:1.1;}
+.fleet-dash .skyops-total .l{font-size:13px;color:#71717a;font-weight:500;margin-top:2px;}
+.fleet-dash .skyops-filters{display:flex;gap:12px;}
+.fleet-dash .skyops-sum{display:flex;flex-wrap:wrap;gap:8px;}
+.fleet-dash .sumchip{border-radius:8px;padding:9px 13px;font-size:13px;white-space:nowrap;}
+.fleet-dash .sumchip.green{background:#dcfce7;color:#15803d;}
+.fleet-dash .sumchip.blue{background:#d9ebff;color:#0352FD;}
+.fleet-dash .sumchip.gray{background:#e5e7eb;color:#71717a;}
+.fleet-dash .veh-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+@media(max-width:1080px){.fleet-dash .veh-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:600px){.fleet-dash .veh-grid{grid-template-columns:1fr;}
+}
+.fleet-dash .vcard{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-height:118px;border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0;}
+.fleet-dash .vcard .vbody{display:flex;flex-direction:column;gap:14px;min-width:0;}
+.fleet-dash .vcard .reg{font-size:14px;font-weight:500;color:#000;}
+.fleet-dash .vcard .model{font-size:12px;color:#404040;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fleet-dash .vcard .hinfo{font-size:12px;color:#404040;}
+.fleet-dash .vcard .cust{font-size:12px;color:#737373;margin-top:2px;}
+.fleet-dash .sbadge{flex-shrink:0;border-radius:6px;padding:4px 9px;font-size:12px;white-space:nowrap;}
+.fleet-dash .sbadge.available{background:#dcfce7;color:#15803d;}
+.fleet-dash .sbadge.hire{background:#e2e8f0;color:#2563eb;}
+.fleet-dash .sbadge.off{background:#e5e5e5;color:#525252;}
+.fleet-dash .sbadge.repair{background:#ffedd5;color:#f97316;}
+.fleet-dash .viewall-wrap{display:flex;justify-content:center;padding-top:16px;}
+.fleet-dash .viewall{display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer;background:#d9ebff;color:#0352FD;border-radius:7px;padding:9px 15px;font-family:inherit;font-size:13px;transition:background .12s;}
+.fleet-dash .viewall:hover{background:#bfe0ff;}
+/* task board — matches the Claims dashboard 4-column task layout */.fleet-dash .tboard{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+@media(max-width:1080px){.fleet-dash .tboard{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:600px){.fleet-dash .tboard{grid-template-columns:1fr;}
+}
+/* Each column is its own outlined section (matches Claims task board). */.fleet-dash .tboard>div{border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;min-width:0;overflow:hidden;}
+.fleet-dash .tcol-h{display:flex;align-items:center;gap:11px;margin-bottom:14px;}
+.fleet-dash .tcol-ic{width:40px;height:40px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;}
+.fleet-dash .tcol-ic svg{width:19px;height:19px;}
+.fleet-dash .tcol-meta{display:flex;flex-direction:column;min-width:0;}
+.fleet-dash .tcol-meta .c{font-size:20px;font-weight:600;color:#171717;line-height:1.15;font-variant-numeric:tabular-nums;}
+.fleet-dash .tcol-meta .t{font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fleet-dash .tcards{display:flex;flex-direction:column;gap:8px;min-width:0;}
+.fleet-dash .tcard{background:#fff;border:1px solid;border-radius:8px;padding:11px 12px;display:flex;flex-direction:column;gap:5px;cursor:pointer;transition:box-shadow .15s;min-width:0;}
+.fleet-dash .tcard:hover{box-shadow:var(--shadow);}
+.fleet-dash .tcard .ti{font-size:13px;font-weight:500;color:#171717;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fleet-dash .tcard .due{font-size:11.5px;}
+.fleet-dash .tcard .due.od{color:#ef4444;}
+.fleet-dash .tcard .due.ok{color:#9ca3af;}
+/* hire trend — bar chart, matches the Claims dashboard BarChart (blue-500 bars,
+     blue-200 comparison, dashed gridlines) */.fleet-dash .chart-legend{display:flex;gap:18px;font-size:12px;color:var(--ink-2);margin:2px 0 12px;}
+.fleet-dash .chart-legend b{color:var(--ink);}
+.fleet-dash .lgb{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:3px;}
+.fleet-dash .bar{display:flex;}
+.fleet-dash .bar-y{position:relative;width:32px;flex-shrink:0;height:220px;}
+.fleet-dash .bar-y span{position:absolute;right:6px;transform:translateY(-50%);font-size:10px;color:#9ca3af;font-variant-numeric:tabular-nums;}
+.fleet-dash .bar-plot{position:relative;flex:1;height:220px;}
+.fleet-dash .bar-plot .gl{position:absolute;left:0;right:0;border-top:1px dashed #e5e7eb;}
+.fleet-dash .bar-cols{position:absolute;inset:0;display:flex;align-items:flex-end;gap:12px;padding:0 8px;}
+.fleet-dash .bar-col{flex:1;height:100%;display:flex;align-items:flex-end;justify-content:center;position:relative;}
+.fleet-dash .bar-pair{height:100%;display:flex;align-items:flex-end;gap:3px;}
+.fleet-dash .bar-cur, .fleet-dash .bar-cmp{width:14px;border-radius:4px 4px 0 0;min-height:1px;transition:background .15s;}
+.fleet-dash .bar-cur{background:#0352FD;}
+.fleet-dash .bar-col:hover .bar-cur{background:#0246d8;}
+.fleet-dash .bar-cmp{background:#a2cfff;}
+/* YoY / MoM two-point comparison → wide centred bars */.fleet-dash .bar-cols.two{gap:60px;justify-content:center;}
+.fleet-dash .bar-cols.two .bar-cur, .fleet-dash .bar-cols.two .bar-cmp{width:84px;border-radius:7px 7px 0 0;}
+/* hover value tooltip (like the Claims chart) */.fleet-dash .btip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:11px;color:var(--ink);white-space:nowrap;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .12s;z-index:3;}
+.fleet-dash .bar-col:hover .btip{opacity:1;}
+.fleet-dash .bar-x{display:flex;gap:12px;padding:0 8px;margin:8px 0 0 32px;}
+.fleet-dash .bar-x span{flex:1;text-align:center;font-size:10px;color:#9ca3af;}
+.fleet-dash .bar-x.two{justify-content:center;gap:60px;}
+.fleet-dash .bar-x.two span{flex:0 0 84px;}
+/* Hire-trend filter row (WTD/MTD/YTD · Custom · YoY/MoM · Referrer/Status · total pill) */.fleet-dash .trend-filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.fleet-dash .seg{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--tb-outline);border-radius:8px;padding:2px;}
+.fleet-dash .seg button{border:0;background:transparent;font-family:inherit;font-size:13px;color:var(--tb-text);padding:7px 15px;border-radius:6px;cursor:pointer;line-height:1;transition:background .12s,color .12s;}
+.fleet-dash .seg button.on{background:var(--tb-active);color:#fff;}
+.fleet-dash .pillbtn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--tb-outline);background:transparent;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;color:var(--tb-text);cursor:pointer;line-height:1;transition:background .12s,color .12s;}
+.fleet-dash .pillbtn.on{background:var(--tb-active);color:#fff;}
+.fleet-dash .pillbtn svg{width:14px;height:14px;}
+.fleet-dash .drop{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;font-family:inherit;font-size:13px;color:var(--tb-text);cursor:pointer;padding:7px 4px;}
+.fleet-dash .drop svg{width:13px;height:13px;}
+.fleet-dash .ht-right{margin-left:auto;}
+.fleet-dash .hires-pill{display:inline-flex;align-items:center;gap:7px;background:var(--tb-pill-bg);color:var(--tb-text);border-radius:999px;padding:8px 16px;font-size:13px;white-space:nowrap;}
+.fleet-dash .hires-pill b{color:var(--tb-active);font-weight:700;font-variant-numeric:tabular-nums;}
+.fleet-dash .hires-pill .chg{font-weight:700;}
+.fleet-dash .hires-pill .chg.up{color:#15925a;}
+.fleet-dash .hires-pill .chg.down{color:#d23f3a;}
+.fleet-dash .trend-cap{text-align:center;font-size:11px;color:var(--ink-3);margin-top:8px;font-variant-numeric:tabular-nums;}
+/* popup */.fleet-dash .scrim{position:fixed;inset:0;background:rgba(10,15,22,.45);backdrop-filter:blur(2px);display:none;place-items:center;z-index:50;padding:16px;}
+.fleet-dash .scrim.on{display:grid;}
+.fleet-dash .pop{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-lg);
+    width:380px;max-width:100%;overflow:hidden;animation:pin .16s ease;}
+@keyframes pin{from{transform:translateY(8px) scale(.98);opacity:0;}
+to{transform:none;opacity:1;}
+}
+@media(prefers-reduced-motion:reduce){.fleet-dash .pop{animation:none;}
+}
+.fleet-dash .pop-h{padding:16px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);}
+.fleet-dash .pop-h .reg{font-size:17px;}
+.fleet-dash .pop-x{border:0;background:transparent;color:var(--ink-3);font-size:20px;cursor:pointer;line-height:1;}
+.fleet-dash .pop-b{padding:8px 18px 18px;}
+.fleet-dash .kv{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--line-2);font-size:13px;}
+.fleet-dash .kv:last-child{border-bottom:0;}
+.fleet-dash .kv .k{color:var(--ink-3);}
+.fleet-dash .kv .v{font-weight:600;text-align:right;font-variant-numeric:tabular-nums;}
+.fleet-dash .footnote{color:var(--ink-3);font-size:11.5px;text-align:center;margin:26px 0 4px;}
+.fleet-dash :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px;}
+
+
+/* Hover detail popover on Attention Required rows */
+.fleet-dash .row{position:relative;}
+.fleet-dash .rowpop{position:absolute;z-index:40;top:50%;left:calc(100% + 14px);transform:translateY(-50%);
+  width:250px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);
+  padding:12px 14px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s;}
+.fleet-dash .row:hover .rowpop{opacity:1;visibility:visible;}
+.fleet-dash .rowpop .rp-h{font-weight:650;font-size:14px;margin-bottom:8px;letter-spacing:.02em;font-variant-numeric:tabular-nums;}
+.fleet-dash .rowpop .kv{display:flex;justify-content:space-between;gap:16px;padding:6px 0;border-bottom:1px solid var(--line-2);font-size:12.5px;}
+.fleet-dash .rowpop .kv:last-child{border-bottom:0;}
+.fleet-dash .rowpop .kv .k{color:var(--ink-3);}
+.fleet-dash .rowpop .kv .v{font-weight:600;text-align:right;}
+/* On narrow screens the empty grid space to the right disappears — flip it above */
+@media(max-width:1080px){.fleet-dash .rowpop{left:auto;right:0;top:auto;bottom:calc(100% + 8px);transform:none;}}
+
+/* Top stat cards: 4 across, filling the full row (own class so the scoped
+   .grid 12-col layout doesn't override Tailwind's grid-cols). */
+.fleet-dash .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;}
+@media(max-width:900px){.fleet-dash .kpi-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.fleet-dash .kpi-grid{grid-template-columns:1fr;}}

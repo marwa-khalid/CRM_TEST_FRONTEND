@@ -842,6 +842,7 @@ const WeeklyPayment: React.FC = () => {
   // (click again to clear). Falls back to placeholders if the backend is unreachable.
   const [live, setLive] = useState<WeeklyPayments | null>(null);
   const [active, setActive] = useState<WPBucket | null>(null);
+  const [showAllRows, setShowAllRows] = useState(false); // show 5, expand on View All
   useEffect(() => {
     let cancelled = false;
     getWeeklyPayments().then((r) => {
@@ -857,19 +858,19 @@ const WeeklyPayment: React.FC = () => {
       ? live.rows[active]
       : [...live.rows.overdue, ...live.rows.due_today, ...live.rows.due_this_week]
     : WP_FALLBACK_ROWS;
+  const displayRows = showAllRows ? rows : rows.slice(0, 5);
   return (
     <Card span="col-span-12 lg:col-span-7">
       <CardHead
         icon={<SkyIconBox><img src={PaymentsIcon} alt="" className="size-4" /></SkyIconBox>}
         title="Weekly Payment Schedule"
-        right={<button type="button" onClick={() => setActive(null)} className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200 whitespace-nowrap">View All</button>}
       />
       <div className="flex flex-wrap gap-1.5 mb-3.5">
         {WP_TABS.map(({ key, tone, label }) => (
           <button
             key={key}
             type="button"
-            onClick={() => setActive((a) => (a === key ? null : key))}
+            onClick={() => { setActive((a) => (a === key ? null : key)); setShowAllRows(false); }}
             className={`rounded px-2 py-1.5 text-xs font-weight-400 font-normal leading-4 transition ${TP[tone]} ${active === key ? "ring-2 ring-offset-1 ring-neutral-400" : active ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
           >
             {label} {counts[key]}
@@ -879,11 +880,16 @@ const WeeklyPayment: React.FC = () => {
       <div className="overflow-x-auto">
         <DataTable
           head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]}
-          rows={rows}
+          rows={displayRows}
           headText="text-neutral-900"
           cellText="text-neutral-500"
         />
       </div>
+      {rows.length > 5 && (
+        <div className="flex justify-center pt-3">
+          <button type="button" onClick={() => setShowAllRows((s) => !s)} className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200 whitespace-nowrap">{showAllRows ? "Show Less" : `View All (${rows.length})`}</button>
+        </div>
+      )}
     </Card>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { Bell } from "lucide-react";
 import TrendingUp from "../../assets/Dashboard/TrendingUp.svg";
 import TrendingDown from "../../assets/Dashboard/TrendingDown.svg";
@@ -17,6 +17,13 @@ import PaymentsIcon from "../assets/dashboard/Payments.svg";
 import PlateIcon from "../assets/dashboard/Plate.svg";
 import ComplianceIcon from "../assets/dashboard/Compliance.svg";
 import FleetMultiSelectFilter from "../components/FleetMultiSelectFilter";
+import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
+import FleetMissingDocumentsSlider from "../components/FleetMissingDocumentsSlider";
+import {
+  getHireTrend, getStats, getVehicleStatus, getWeeklyPayments, getCompliance, getExpiries, getAttention,
+  type WeeklyPayments, type Attention, type Compliance, type Expiries,
+} from "../services/dashboardService";
+import { listFleetTasks, type FleetTask } from "../services/taskService";
 
 // Fleet Dashboard — pure inline Tailwind (same convention as the Claims dashboard).
 // Sample data is hard-coded for now; wire to fleet services when the APIs land.
@@ -46,7 +53,6 @@ const CardHead: React.FC<{ icon?: React.ReactNode; title: string; sub?: string; 
   </div>
 );
 
-const ViewAll: React.FC = () => <button type="button" className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200 whitespace-nowrap">View All</button>;
 
 // Same chip design as the Skyline Operations summary boxes (solid tint, no border).
 const TP: Record<string, string> = {
@@ -64,17 +70,22 @@ const TabPills: React.FC<{ tabs: [string, string, string][] }> = ({ tabs }) => (
 );
 
 // Data table (Weekly Payment + expiry cards). Cell text matches the task-card title style.
-const DataTable: React.FC<{ head: string[]; rows: (string | [string, string])[][] }> = ({ head, rows }) => (
+const DataTable: React.FC<{
+  head: string[];
+  rows: (string | [string, string])[][];
+  headText?: string;
+  cellText?: string;
+}> = ({ head, rows, headText = "text-neutral-500", cellText = "text-neutral-900" }) => (
   <table className="w-full border-collapse">
     <thead>
-      <tr>{head.map((h) => <th key={h} className="text-left text-xs text-neutral-500 pb-2.5 pt-1 px-2 border-b border-neutral-100">{h}</th>)}</tr>
+      <tr>{head.map((h) => <th key={h} className={`text-left text-sm ${headText} pb-2.5 pt-1 px-2 border-b border-neutral-100`}>{h}</th>)}</tr>
     </thead>
     <tbody>
       {rows.map((r, i) => (
         <tr key={i}>
           {r.map((cell, j) => (
             <td key={j} className="py-3 px-2 border-b border-neutral-100 align-top">
-              <span className="text-neutral-900 text-sm font-weight-500 line-clamp-1">{Array.isArray(cell) ? cell[0] : cell}</span>
+              <span className={`${cellText} text-xs font-weight-500 line-clamp-1`}>{Array.isArray(cell) ? cell[0] : cell}</span>
             </td>
           ))}
         </tr>
@@ -104,40 +115,54 @@ const chevron = <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5"><pa
 const HireTrend: React.FC = () => {
   const [period, setPeriod] = useState("WTD");
   const [mode, setMode] = useState("");
-  const v = HT_VIEWS[mode || period];
+  // Live vehicle-hire counts from the Fleet backend. Falls back to HT_VIEWS
+  // placeholders until data lands (or if the backend isn't reachable).
+  const [live, setLive] = useState<TrendView | null>(null);
+  useEffect(() => {
+    setLive(null); // show the placeholder for the new period until live data lands
+    let cancelled = false;
+    getHireTrend(period, mode).then((r) => {
+      if (cancelled || !r || !r.values?.length) return;
+      setLive({ labels: r.labels, vals: r.values, cap: r.caption, cmp: r.comparison_note || undefined });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [period, mode]);
+  const v = live ?? HT_VIEWS[mode || period];
   const two = v.vals.length <= 2;
   const ax = niceAxis(Math.max(...v.vals), 4);
   const Y = (x: number) => 100 - (x / ax.max) * 100;
   const total = v.vals.reduce((a, b) => a + b, 0);
   const pct = v.vals[0] ? ((v.vals[1] - v.vals[0]) / v.vals[0]) * 100 : 0;
   const up = pct >= 0;
-  const segBtn = (active: boolean) => `px-4 py-1.5 rounded-md text-[13px] leading-none ${active ? "bg-blue-300 text-white" : "text-blue-600"}`;
+  const segBtn = (active: boolean) => `px-4 py-1.5 rounded-md text-[13px] leading-none ${active ? "bg-neutral-900 text-white" : "text-zinc-500"}`;
 
   return (
     <Card span="col-span-12">
       <h3 className="text-xl font-weight-600 text-neutral-900 mb-3.5">Hire Trend</h3>
       <div className="flex items-center gap-2.5 flex-wrap mb-4">
-        <div className="inline-flex items-center gap-0.5 border border-blue-200 rounded-lg p-0.5">
+        <div className="inline-flex items-center gap-0.5 border border-neutral-200 rounded-lg p-0.5">
           {["WTD", "MTD", "YTD"].map((p) => (
             <button key={p} type="button" onClick={() => { setPeriod(p); setMode(""); }} className={segBtn(!mode && period === p)}>{p}</button>
           ))}
         </div>
         <button type="button" onClick={() => { setPeriod("Custom"); setMode(""); }}
-          className={`inline-flex items-center gap-1.5 border border-blue-200 rounded-lg px-3 py-1.5 text-[13px] leading-none ${!mode && period === "Custom" ? "bg-blue-300 text-white" : "text-blue-600"}`}>
+          className={`inline-flex items-center gap-1.5 border border-neutral-200 rounded-lg px-3 py-1.5 text-[13px] leading-none ${!mode && period === "Custom" ? "bg-neutral-900 text-white" : "text-zinc-500"}`}>
           <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.7" /><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
           Custom
         </button>
-        <div className="inline-flex items-center gap-0.5 border border-blue-200 rounded-lg p-0.5">
+        <div className="inline-flex items-center gap-0.5 border border-neutral-200 rounded-lg p-0.5">
           {["YoY", "MoM"].map((m) => (
             <button key={m} type="button" onClick={() => setMode(mode === m ? "" : m)} className={segBtn(mode === m)}>{m}</button>
           ))}
         </div>
-        <button type="button" className="inline-flex items-center gap-1.5 text-[13px] text-blue-600 px-1 py-1.5">Referrer {chevron}</button>
-        <button type="button" className="inline-flex items-center gap-1.5 text-[13px] text-blue-600 px-1 py-1.5">Status {chevron}</button>
-        <span className="ml-auto inline-flex items-center gap-1.5 bg-blue-100 text-blue-600 rounded-full px-4 py-2 text-[13px] whitespace-nowrap">
+        <button type="button" className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 px-1 py-1.5">Referrer {chevron}</button>
+        <button type="button" className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 px-1 py-1.5">Status {chevron}</button>
+        <span className="ml-auto inline-flex items-center gap-1.5 bg-neutral-100 text-neutral-700 rounded-full px-4 py-2 text-[13px] whitespace-nowrap">
           {mode
             ? (<><span className={`font-weight-700 ${up ? "text-green-600" : "text-red-500"}`}>{(up ? "▲ " : "▼ ") + Math.abs(pct).toFixed(1) + "%"}</span> {v.cmp}</>)
-            : (<><b className="text-blue-500 font-weight-700 tabular-nums">{total}</b> Hires</>)}
+            : (<><b className="text-neutral-900 font-weight-700 tabular-nums">{total}</b> Hires</>)}
         </span>
       </div>
       <div className="flex">
@@ -152,8 +177,9 @@ const HireTrend: React.FC = () => {
               const isCmp = two && i === 0;
               return (
                 <div key={i} className={`h-full flex items-end justify-center relative group ${two ? "flex-none" : "flex-1"}`}>
-                  <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{v.labels[i] + " · " + val + " hires"}</div>
-                  <div className={`rounded-t ${two ? "w-[84px]" : "w-3.5"} ${isCmp ? "bg-blue-200" : "bg-blue-500 group-hover:bg-blue-600"}`} style={{ height: h.toFixed(1) + "%" }} />
+                  <div className={`relative rounded-t ${two ? "w-[84px]" : "w-3.5"} ${isCmp ? "bg-neutral-300" : "bg-neutral-800 group-hover:bg-neutral-900"}`} style={{ height: h.toFixed(1) + "%" }}>
+                    <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{v.labels[i] + " · " + val + " hires"}</div>
+                  </div>
                 </div>
               );
             })}
@@ -174,11 +200,34 @@ const VEH_SEG = [
   { l: "In Repair", v: 12, c: "#fed7aa" }, { l: "Off Fleet", v: 8, c: "#fecaca" },
   { l: "Awaiting Plating", v: 9, c: "#7ba7ea" }, { l: "Awaiting De-fleet", v: 7, c: "#a1a1aa" },
 ];
+// Colour per status label — presentation stays here; counts come live from the API.
+const VEH_COLORS: Record<string, string> = {
+  Available: "#bbf7d0", "On Hire": "#a2cfff", "In Repair": "#fed7aa",
+  "Off Fleet": "#fecaca", "Awaiting Plating": "#7ba7ea", "Awaiting De-fleet": "#a1a1aa",
+};
+const VEH_FALLBACK_COLORS = ["#c7d2fe", "#fde68a", "#99f6e4", "#fecaca", "#a1a1aa"];
 const VehicleDonut: React.FC = () => {
-  const total = VEH_SEG.reduce((s, x) => s + x.v, 0);
+  // Live vehicle-status distribution; falls back to VEH_SEG placeholders.
+  const [seg, setSeg] = useState<{ l: string; v: number; c: string }[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getVehicleStatus().then((r) => {
+      if (cancelled) return;
+      setSeg(
+        r && r.segments?.length
+          ? r.segments.map((s, i) => ({ l: s.label, v: s.value, c: VEH_COLORS[s.label] ?? VEH_FALLBACK_COLORS[i % VEH_FALLBACK_COLORS.length] }))
+          : null,
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const data = seg ?? VEH_SEG;
+  const total = data.reduce((s, x) => s + x.v, 0) || 1;
   const r = 56, C = 2 * Math.PI * r;
   let off = 0;
-  const arcs = VEH_SEG.map((x, i) => {
+  const arcs = data.map((x, i) => {
     const len = (x.v / total) * C;
     const el = <circle key={i} cx="80" cy="80" r={r} fill="none" stroke={x.c} strokeWidth="22" strokeDasharray={`${len.toFixed(2)} ${(C - len).toFixed(2)}`} strokeDashoffset={(-off).toFixed(2)} transform="rotate(-90 80 80)" />;
     off += len;
@@ -197,7 +246,7 @@ const VehicleDonut: React.FC = () => {
           <text x="80" y="100" textAnchor="middle" fontSize="14" fill="#6b7280">Total</text>
         </svg>
         <div className="flex-1 min-w-[160px] flex flex-col gap-3">
-          {VEH_SEG.map((x, i) => (
+          {data.map((x, i) => (
             <div key={i} className="flex items-center gap-2.5 text-sm">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: x.c }} />
               <span className="flex-1 text-neutral-700 truncate">{x.l}</span>
@@ -216,35 +265,58 @@ const ATTENTION = [
   { value: 4, label: "Missing Documents", note: "Vehicles missing required documents", tint: "bg-yellow-100 border-yellow-100", icon: CriticalIcon },
   { value: 3, label: "Overdue Payments", note: "Hire payments past their due date", tint: "bg-red-100 border-red-100", icon: OverdueIcon },
 ] as const;
-const AttentionRequired: React.FC = () => (
-  <div className="col-span-12">
-    <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-3">Attention Required</h2>
-    <div className="flex items-stretch gap-4">
-      {ATTENTION.map((a) => (
-        <div key={a.label} className={`flex-1 rounded-lg border ${a.tint} p-4 flex flex-col gap-2`}>
-          <div className="flex items-center gap-4">
-            <img src={a.icon} alt="" />
-            <div className="flex flex-col">
-              <span className="text-neutral-900 text-[24px] font-weight-600">{a.value}</span>
-              <span className="text-neutral-700 text-[14px] font-weight-500">{a.label}</span>
+const ATTENTION_KEY: Record<string, keyof Attention> = {
+  "Overdue Returns": "overdue_returns",
+  "Missing Documents": "missing_documents",
+  "Overdue Payments": "overdue_payments",
+};
+const AttentionRequired: React.FC = () => {
+  const [live, setLive] = useState<Attention | null>(null);
+  const [missingOpen, setMissingOpen] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    getAttention().then((r) => {
+      if (!cancelled) setLive(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return (
+    <div className="col-span-12">
+      <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-3">Attention Required</h2>
+      <div className="flex items-stretch gap-4">
+        {ATTENTION.map((a) => {
+          const clickable = a.label === "Missing Documents";
+          return (
+            <div
+              key={a.label}
+              onClick={clickable ? () => setMissingOpen(true) : undefined}
+              className={`flex-1 rounded-lg border ${a.tint} p-4 flex flex-col gap-2 ${clickable ? "cursor-pointer hover:shadow-sm transition" : ""}`}
+            >
+              <div className="flex items-center gap-4">
+                <img src={a.icon} alt="" />
+                <div className="flex flex-col">
+                  <span className="text-neutral-900 text-[24px] font-weight-600">{live ? live[ATTENTION_KEY[a.label]] : a.value}</span>
+                  <span className="text-neutral-700 text-[14px] font-weight-500">{a.label}</span>
+                </div>
+              </div>
+              <div className="my-2 h-px w-full bg-neutral-200" />
+              <p className="text-neutral-500 text-[14px]">{a.note}</p>
             </div>
-          </div>
-          <div className="my-2 h-px w-full bg-neutral-200" />
-          <p className="text-neutral-500 text-[14px]">{a.note}</p>
-        </div>
-      ))}
+          );
+        })}
+      </div>
+      {missingOpen && <FleetMissingDocumentsSlider onClose={() => setMissingOpen(false)} />}
     </div>
-  </div>
-);
+  );
+};
 
 // ── Task Management (ditto the Claims dashboard "Tasks Details") ──────────────
 type Task = { t: string; due: string; od?: boolean };
 type TaskCol = { count: number; label: string; icon: string; iconBg: string; border: string; tasks: Task[] };
 const TASK_COLS: TaskCol[] = [
-  { count: 8, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-blue-100", border: "border-blue-200", tasks: [
-    { t: "Collect vehicle from repair - LR21 XVT", due: "Due: 05/08/2026" }, { t: "Upload insurance cert - MA19 KLP", due: "Due: 06/08/2026" },
-    { t: "Arrange plate transfer - GF20 TRN", due: "Due: 08/08/2026" }, { t: "Chase MOT booking - MA19 KLP", due: "Due: 31/07/2026 · Overdue 3 Days", od: true },
-    { t: "Confirm service booking - LR21 XVT", due: "Due: 11/08/2026" }] },
+  { count: 8, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-blue-100", border: "border-blue-200", tasks: [] },
   { count: 2, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: [
     { t: "Chase MOT booking - MA19 KLP", due: "Due: 31/07/2026 · Overdue 3 Days", od: true }, { t: "Recover overdue payment - HK18 ZDC", due: "Due: 28/07/2026 · Overdue 6 Days", od: true }] },
   { count: 3, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: [
@@ -253,11 +325,60 @@ const TASK_COLS: TaskCol[] = [
     { t: "Follow up deposit refund - GF20 TRN", due: "Due: 12/08/2026" }, { t: "Confirm service booking - LR21 XVT", due: "Due: 11/08/2026" },
     { t: "Renew road fund licence - WV23 MLK", due: "Due: 13/08/2026" }, { t: "Schedule vehicle swap - BK75 OYN", due: "Due: 14/08/2026" }] },
 ];
-const TaskManagement: React.FC = () => (
-  <div className="col-span-12">
-    <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-4">Task Management</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-      {TASK_COLS.map((col) => (
+// Map a live task to the card's { t, due, od } shape (matches the dummy format).
+const fmtTask = (t: FleetTask): Task => {
+  const reg = t.vehicle_registration ? ` - ${t.vehicle_registration}` : "";
+  let due = "";
+  if (t.due_date) {
+    const [y, m, d] = t.due_date.split("-");
+    due = `Due: ${d}/${m}/${y}`;
+    if (t.is_overdue) {
+      const days = Math.max(1, Math.round((Date.now() - new Date(`${t.due_date}T00:00:00`).getTime()) / 86400000));
+      due += ` · Overdue ${days} Day${days === 1 ? "" : "s"}`;
+    }
+  }
+  return { t: `${t.title}${reg}`, due, od: t.is_overdue };
+};
+// Derive the four dashboard columns from the live task list. A task can appear in
+// several columns (an overdue Pending task shows under All, Overdue and Pending).
+const buildTaskCols = (tasks: FleetTask[]): TaskCol[] => {
+  const pick = (list: FleetTask[]) => list.slice(0, 6).map(fmtTask);
+  const active = tasks.filter((t) => !["Completed", "Rejected"].includes(t.status || ""));
+  // Mutually exclusive: an overdue task shows only under Overdue, so nothing is
+  // listed in two columns. Pending Followups = pending tasks not yet overdue.
+  const overdue = tasks.filter((t) => t.is_overdue);
+  const awaiting = tasks.filter((t) => (t.status || "") === "Awaiting Response" && !t.is_overdue);
+  const pending = tasks.filter((t) => (t.status || "") === "Pending" && !t.is_overdue);
+  // All Tasks lists only what has no column of its own (e.g. In Progress); the
+  // Overdue / Awaiting / Pending tasks live under their own headings.
+  const uncovered = active.filter((t) => !t.is_overdue && (t.status || "") !== "Awaiting Response" && (t.status || "") !== "Pending");
+  return [
+    { count: active.length, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-blue-100", border: "border-blue-200", tasks: pick(uncovered) },
+    { count: overdue.length, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: pick(overdue) },
+    { count: awaiting.length, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: pick(awaiting) },
+    { count: pending.length, label: "Pending Followups", icon: PendingFollowupsIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(pending) },
+  ];
+};
+const TaskManagement: React.FC = () => {
+  // Live tasks (all users in the tenant, Skyline module); falls back to the
+  // TASK_COLS placeholders if the backend returns nothing / is unreachable.
+  const [cols, setCols] = useState<TaskCol[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    listFleetTasks({ module: "skyline", all_users: true }).then((tasks) => {
+      if (cancelled) return;
+      setCols(tasks && tasks.length ? buildTaskCols(tasks) : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const data = cols ?? TASK_COLS;
+  return (
+    <div className="col-span-12">
+      <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-4">Task Management</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+        {data.map((col) => (
         <div key={col.label} className="rounded-xl border border-neutral-200 p-4 flex flex-col gap-4 min-w-0">
           <button type="button" className="flex items-center gap-3 text-left">
             <span className={`w-10 h-10 rounded ${col.iconBg} flex items-center justify-center shrink-0`}>
@@ -280,7 +401,8 @@ const TaskManagement: React.FC = () => (
       ))}
     </div>
   </div>
-);
+  );
+};
 
 // ── Top stat cards (icons + backgrounds taken from the Claims dashboard) ───────
 type Kpi = { value: React.ReactNode; label: string; pct: string; up: boolean; iconBg: string; icon: React.ReactNode };
@@ -290,17 +412,53 @@ const KPI_DATA: Kpi[] = [
   { value: "71%", label: "Fleet Availability", pct: "1.4", up: true, iconBg: "bg-blue-100", icon: <img src={Cars} alt="" /> },
   { value: "7", label: "Urgent Alerts", pct: "2.0", up: false, iconBg: "bg-red-100", icon: <img src={Urgent} alt="" /> },
 ];
+// Presentation (icon + tint) per backend stat key — the numbers come live, the icons stay here.
+const KPI_ICONS: Record<string, { iconBg: string; icon: React.ReactNode }> = {
+  vehicles_on_hire: { iconBg: "bg-blue-100", icon: <img src={Cars} alt="" /> },
+  net_income: { iconBg: "bg-neutral-100", icon: <img src={Pound} alt="" /> },
+  fleet_availability: { iconBg: "bg-blue-100", icon: <img src={Cars} alt="" /> },
+  urgent_alerts: { iconBg: "bg-red-100", icon: <img src={Urgent} alt="" /> },
+};
 const StatCards: React.FC = () => {
-  const [period, setPeriod] = useState("WTD");
+  const [period, setPeriod] = useState("MTD");
+  // Live stat cards from the Fleet backend; falls back to KPI_DATA placeholders
+  // if the backend isn't reachable so the row never renders empty.
+  const [cards, setCards] = useState<Kpi[] | null>(null);
+  const [compare, setCompare] = useState("vs last month");
+  useEffect(() => {
+    let cancelled = false;
+    getStats(period).then((r) => {
+      if (cancelled) return;
+      if (!r) {
+        setCards(null);
+        return;
+      }
+      setCompare(r.compare_label);
+      setCards(
+        r.cards.map((c) => ({
+          value: c.value,
+          label: c.label,
+          pct: c.pct,
+          up: c.up,
+          iconBg: KPI_ICONS[c.key]?.iconBg ?? "bg-neutral-100",
+          icon: KPI_ICONS[c.key]?.icon ?? null,
+        })),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [period]);
+  const data = cards ?? KPI_DATA;
   return (
     <div className="col-span-12 flex flex-col gap-6">
-      <div className="rounded outline outline-1 outline-offset-[-1px] outline-blue-200 inline-flex items-center gap-1 w-fit">
+      <div className="rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 inline-flex items-center gap-1 w-fit">
         {["WTD", "MTD", "YTD"].map((p) => (
-          <button key={p} type="button" onClick={() => setPeriod(p)} className={`px-4 py-2 rounded text-sm leading-4 ${period === p ? "bg-blue-300 text-white" : "text-blue-500"}`}>{p}</button>
+          <button key={p} type="button" onClick={() => setPeriod(p)} className={`px-4 py-2 rounded text-sm leading-4 ${period === p ? "bg-neutral-900 text-white" : "text-zinc-500"}`}>{p}</button>
         ))}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {KPI_DATA.map((c) => (
+        {data.map((c) => (
           <div key={c.label} className="rounded-lg border border-neutral-200 p-4 flex flex-col gap-3">
             <div className="flex items-center gap-4">
               <span className={`w-9 h-9 rounded ${c.iconBg} flex items-center justify-center`}>{c.icon}</span>
@@ -313,7 +471,7 @@ const StatCards: React.FC = () => {
               <span className={`flex items-center gap-1 shrink-0 whitespace-nowrap rounded px-2 py-1 text-sm font-weight-600 ${c.up ? "bg-green-100 text-green-500" : "bg-red-100 text-red-500"}`}>
                 <img src={c.up ? TrendingUp : TrendingDown} alt="" className="w-3.5 h-3.5 shrink-0" />{c.pct}%
               </span>
-              <span className="text-xs font-weight-500 text-neutral-500 leading-tight">vs last month</span>
+              <span className="text-xs font-weight-500 text-neutral-500 leading-tight">{compare}</span>
             </div>
           </div>
         ))}
@@ -338,6 +496,16 @@ const SKY_VEHICLES: SkyVehicle[] = [
   { registration: "WV23 MLK", model: "Peugeot Boxer", statusKey: "repair", statusLabel: "In Repair" },
   { registration: "DA22 KLM", model: "Renault Trafic", statusKey: "available", statusLabel: "Available" },
   { registration: "SN71 PQR", model: "Citroën Relay", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 3 Days", customer: "Priya Nair" },
+  { registration: "YT19 BND", model: "Ford Transit Custom", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 8 Days", customer: "David Bennett" },
+  { registration: "KP68 RSV", model: "Mercedes Vito", statusKey: "available", statusLabel: "Available" },
+  { registration: "LC22 WFN", model: "VW Crafter", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 16 Days", customer: "Grace Adeyemi" },
+  { registration: "RG20 TFD", model: "Vauxhall Movano", statusKey: "repair", statusLabel: "In Repair" },
+  { registration: "BX71 JLM", model: "Peugeot Expert", statusKey: "off", statusLabel: "Off Hire" },
+  { registration: "MH19 QAZ", model: "Renault Master", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 2 Days", customer: "Thomas Reed" },
+  { registration: "ND23 CPL", model: "Citroën Dispatch", statusKey: "available", statusLabel: "Available" },
+  { registration: "PV18 KRT", model: "Toyota Proace", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 27 Days", customer: "Lucy Zhang" },
+  { registration: "SW72 HGB", model: "Nissan Primastar", statusKey: "off", statusLabel: "Off Hire" },
+  { registration: "TN21 DWF", model: "Ford Transit", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 11 Days", customer: "Omar Haddad" },
 ];
 const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
   <div className="flex min-h-32 flex-1 items-start justify-between rounded-lg border border-neutral-200 p-4">
@@ -360,6 +528,7 @@ const SkylineOperations: React.FC = () => {
   const [regSel, setRegSel] = useState<string[]>([]);
   const [statusSel, setStatusSel] = useState<string[]>([]);
   const [dateSel, setDateSel] = useState<string[]>([]);
+  const [showAll, setShowAll] = useState(false); // show 8 by default, expand in place
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
     setter((s) => (s.includes(val) ? s.filter((x) => x !== val) : [...s, val]));
   const regOptions = SKY_VEHICLES.map((v) => ({ label: v.registration, value: v.registration }));
@@ -371,6 +540,7 @@ const SkylineOperations: React.FC = () => {
     { label: "Off Hire", value: 5, className: "bg-gray-200 text-zinc-500" },
   ];
   const filtered = SKY_VEHICLES.filter((v) => (!regSel.length || regSel.includes(v.registration)) && (!statusSel.length || statusSel.includes(v.statusKey)));
+  const visible = showAll ? filtered : filtered.slice(0, 8);
   return (
     <section className="col-span-12 w-full rounded-lg border border-neutral-200 px-4 py-6 min-w-0">
       <div className="flex flex-col gap-10">
@@ -398,12 +568,14 @@ const SkylineOperations: React.FC = () => {
             <div className="py-12 text-center text-sm text-neutral-400">No fleet vehicles match.</div>
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {filtered.map((v, i) => <SkyVehicleCard key={`${v.registration}-${i}`} v={v} />)}
+              {visible.map((v, i) => <SkyVehicleCard key={`${v.registration}-${i}`} v={v} />)}
             </div>
           )}
-          <div className="flex justify-center pt-4">
-            <button type="button" className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200">View All Vehicles</button>
-          </div>
+          {filtered.length > 8 && (
+            <div className="flex justify-center pt-4">
+              <button type="button" onClick={() => setShowAll((s) => !s)} className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200">{showAll ? "Show Less" : `View All Vehicles (${filtered.length})`}</button>
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -417,11 +589,29 @@ const motIcon = <img src={MOTIcon} alt="" className="size-4" />;
 const roadIcon = <img src={RoadTaxIcon} alt="" className="size-4" />;
 const serviceIcon = <img src={ServiceIcon} alt="" className="size-4" />;
 
-type Expiry = { span: string; icon: React.ReactNode; title: string; tabs: [string, string, string][]; head: string[]; rows: (string | [string, string])[][] };
+type Expiry = { span: string; icon: React.ReactNode; title: string; tabs: [string, string, string][]; head: string[]; rows: (string | [string, string])[][]; buckets?: Record<string, (string | [string, string])[][]>; bucketKeys?: string[] };
+// Tab order → bucket key for the live expiry cards (parallel to buildExpiryCard's tabs).
+const EXPIRY_BUCKETS = ["expired", "today", "d7", "d30"];
+// Servicing Due is a mileage placeholder; give it bucketed rows so its tabs filter too.
+const SERVICING_BUCKETS: Record<string, (string | [string, string])[][]> = {
+  overdue: [
+    ["DX20 UHG", "124,560 mi", ["1,250 mi", "red"]],
+    ["NL69 FZY", "98,765 mi", ["320 mi", "red"]],
+    ["RJ19 KPL", "142,300 mi", ["890 mi", "red"]],
+  ],
+  weekly: [
+    ["PF22 RVB", "76,450 mi", "—"],
+    ["KM72 LZP", "54,210 mi", "—"],
+    ["TL21 WSA", "61,020 mi", "—"],
+  ],
+  monthly: [
+    ["GU23 YWR", "33,890 mi", "—"],
+    ["HP20 FTN", "45,600 mi", "—"],
+    ["VC19 LDR", "72,310 mi", "—"],
+  ],
+};
 const EXPIRY: Expiry[] = [
-  { span: "col-span-12 lg:col-span-6", icon: serviceIcon, title: "Servicing Due", tabs: [["red", "Overdue", "3"], ["orange", "Weekly", "7"], ["gray", "Monthly", "14"]], head: ["Vehicle", "Current Mileage", "Overdue"], rows: [
-    ["DX20 UHG", "124,560 mi", ["1,250 mi", "red"]], ["NL69 FZY", "98,765 mi", ["320 mi", "red"]],
-    ["PF22 RVB", "76,450 mi", "—"], ["KM72 LZP", "54,210 mi", "—"], ["GU23 YWR", "33,890 mi", "—"]] },
+  { span: "col-span-12 lg:col-span-6", icon: serviceIcon, title: "Servicing Due", tabs: [["red", "Overdue", "3"], ["orange", "Weekly", "7"], ["gray", "Monthly", "14"]], bucketKeys: ["overdue", "weekly", "monthly"], head: ["Vehicle", "Current Mileage", "Overdue"], buckets: SERVICING_BUCKETS, rows: [...SERVICING_BUCKETS.overdue, ...SERVICING_BUCKETS.weekly, ...SERVICING_BUCKETS.monthly] },
   { span: "col-span-12 md:col-span-6 xl:col-span-4", icon: motIcon, title: "MOT Expiry", tabs: [["red", "Expired", "2"], ["blue", "Today", "1"], ["orange", "7 Days", "5"], ["gray", "30 Days", "13"]], head: ["Vehicle", "Expiry Date", "Remaining Days"], rows: [
     ["BX68 YZO", "12 May 2025", ["Expired", "red"]], ["VU18 KXL", "10 May 2025", ["Expired", "red"]], ["YL24 HBG", "13 May 2025", ["Today", "orange"]], ["FP21 KJU", "17 May 2025", ["4 days", "orange"]], ["MJ23 XTD", "18 May 2025", ["5 days", "orange"]]] },
   { span: "col-span-12 md:col-span-6 xl:col-span-4", icon: plate, title: "Plate Expiry", tabs: [["red", "Expired", "1"], ["orange", "7 Days", "3"], ["gray", "30 Days", "9"]], head: ["Vehicle", "Expiry Date", "Remaining Days"], rows: [
@@ -429,26 +619,95 @@ const EXPIRY: Expiry[] = [
   { span: "col-span-12 md:col-span-6 xl:col-span-4", icon: roadIcon, title: "Road Fund Licence", tabs: [["red", "Expired", "1"], ["orange", "7 Days", "4"], ["gray", "30 Days", "10"]], head: ["Vehicle", "Expiry Date", "Remaining Days"], rows: [
     ["YC67 BMO", "11 May 2025", ["Expired", "red"]], ["GU24 VPL", "16 May 2025", ["3 days", "orange"]], ["FN22 TYG", "17 May 2025", ["4 days", "orange"]], ["PL73 HNZ", "19 May 2025", ["6 days", "orange"]], ["WA72 FFE", "25 May 2025", ["12 days", "green"]]] },
 ];
-// Expiries carousel — always flows one direction. The cards are duplicated so
-// when it passes the first set it wraps back by exactly one set-width (invisible,
-// since the content is identical there), so the motion never reverses.
+// Build one live expiry card from the API shape (MOT / Plate / Road Fund).
+const buildExpiryCard = (title: string, icon: React.ReactNode, span: string, card: Expiries["mot"]): Expiry => ({
+  span, icon, title,
+  tabs: [
+    ["red", "Expired", String(card.tabs.expired)],
+    ["blue", "Today", String(card.tabs.today)],
+    ["orange", "7 Days", String(card.tabs.d7)],
+    ["gray", "30 Days", String(card.tabs.d30)],
+  ],
+  head: ["Vehicle", "Expiry Date", "Remaining Days"],
+  rows: [...card.rows.expired, ...card.rows.today, ...card.rows.d7, ...card.rows.d30],
+  buckets: card.rows,
+  bucketKeys: EXPIRY_BUCKETS,
+});
+// Expiries carousel — always flows one direction (cards are triplicated so the
+// motion never reverses). Servicing Due stays a mileage placeholder; the other
+// three are live.
 const CAROUSEL = [EXPIRY[0], EXPIRY[1], EXPIRY[2], EXPIRY[3]];
 const ExpiryCarousel: React.FC = () => {
-  const ref = useRef<HTMLDivElement>(null);
-  const advance = useCallback((delta: number) => {
-    const el = ref.current;
-    if (!el) return;
-    const first = el.firstElementChild as HTMLElement | null;
-    const stepW = first ? first.offsetWidth + 16 : el.clientWidth;
-    const wrapDist = CAROUSEL.length * stepW;
-    if (delta > 0 && el.scrollLeft >= wrapDist - 1) el.scrollLeft -= wrapDist;
-    if (delta < 0 && el.scrollLeft <= 1) el.scrollLeft += wrapDist;
-    el.scrollBy({ left: delta * stepW, behavior: "smooth" });
-  }, []);
+  const [expiries, setExpiries] = useState<Expiries | null>(null);
+  // Active bucket filter per card (keyed by title so all copies in the loop sync).
+  const [filters, setFilters] = useState<Record<string, string | null>>({});
+  const anyFilter = Object.values(filters).some(Boolean);
   useEffect(() => {
+    let cancelled = false;
+    getExpiries().then((r) => {
+      if (!cancelled) setExpiries(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const cards: Expiry[] = expiries
+    ? [
+        EXPIRY[0],
+        buildExpiryCard("MOT Expiry", motIcon, EXPIRY[1].span, expiries.mot),
+        buildExpiryCard("Plate Expiry", plate, EXPIRY[2].span, expiries.plate),
+        buildExpiryCard("Road Fund Licence", roadIcon, EXPIRY[3].span, expiries.road_fund),
+      ]
+    : CAROUSEL;
+  const track = [...cards, ...cards, ...cards];
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [index, setIndex] = useState(cards.length); // start in the middle set
+  const [stepW, setStepW] = useState(0);
+  const [animate, setAnimate] = useState(false);
+
+  // Measure one card + gap so a step moves exactly one card (before first paint).
+  useLayoutEffect(() => {
+    const measure = () => {
+      const first = trackRef.current?.firstElementChild as HTMLElement | null;
+      if (first) setStepW(first.offsetWidth + 16);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  // Re-enable the transition the frame after any non-animated (snap) reposition,
+  // including the initial jump into the middle set.
+  useEffect(() => {
+    if (!animate) {
+      const r = requestAnimationFrame(() => setAnimate(true));
+      return () => cancelAnimationFrame(r);
+    }
+  }, [animate]);
+
+  const advance = useCallback((delta: number) => {
+    setAnimate(true);
+    setIndex((i) => i + delta);
+  }, []);
+
+  useEffect(() => {
+    if (anyFilter) return; // pause autoplay while a card is filtered
     const id = setInterval(() => advance(1), 7000);
     return () => clearInterval(id);
-  }, [advance]);
+  }, [advance, anyFilter]);
+
+  // When a slide finishes on an edge copy, jump back into the middle set with no
+  // animation so the motion always continues in one seamless direction.
+  const onSettled = () => {
+    if (index >= cards.length * 2) {
+      setAnimate(false);
+      setIndex((i) => i - cards.length);
+    } else if (index < cards.length) {
+      setAnimate(false);
+      setIndex((i) => i + cards.length);
+    }
+  };
+
   const arrow = (dir: "l" | "r") => (
     <button type="button" aria-label={dir === "l" ? "Previous" : "Next"} onClick={() => advance(dir === "l" ? -1 : 1)}
       className={`absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white border border-neutral-100 shadow-md grid place-items-center text-[#9A9EB2] hover:text-neutral-600 transition-colors ${dir === "l" ? "left-0 -translate-x-full" : "right-0 translate-x-full"}`}>
@@ -466,16 +725,46 @@ const ExpiryCarousel: React.FC = () => {
     <div className="col-span-12">
       <div className="relative">
         {arrow("l")}
-        <div ref={ref} className="flex items-stretch gap-4 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[...CAROUSEL, ...CAROUSEL].map((e, i) => (
-            <div key={i} className="shrink-0 min-w-0 basis-full sm:basis-[calc((100%_-_1rem)/2)] lg:basis-[calc((100%_-_2rem)/3)]">
-              <div className="rounded-xl border border-neutral-200 p-5 flex flex-col min-w-0 h-full">
-                <CardHead icon={<SkyIconBox>{e.icon}</SkyIconBox>} title={e.title} right={<ViewAll />} />
-                <TabPills tabs={e.tabs} />
-                <div className="overflow-x-auto"><DataTable head={e.head} rows={e.rows} /></div>
-              </div>
-            </div>
-          ))}
+        <div className="overflow-hidden">
+          <div ref={trackRef} onTransitionEnd={onSettled}
+            className="flex items-stretch gap-4"
+            style={{ transform: `translateX(-${index * stepW}px)`, transition: animate ? "transform 0.45s ease" : "none" }}>
+            {track.map((e, i) => {
+              const active = filters[e.title] ?? null;
+              const rows = e.buckets && active ? e.buckets[active] : e.rows;
+              return (
+                <div key={i} className="shrink-0 min-w-0 basis-full sm:basis-[calc((100%_-_1rem)/2)] lg:basis-[calc((100%_-_2rem)/3)]">
+                  <div className="rounded-xl border border-neutral-200 p-5 flex flex-col min-w-0 h-full">
+                    <CardHead
+                      icon={<SkyIconBox>{e.icon}</SkyIconBox>}
+                      title={e.title}
+                      right={<button type="button" onClick={() => setFilters((f) => ({ ...f, [e.title]: null }))} className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200 whitespace-nowrap">View All</button>}
+                    />
+                    {e.buckets ? (
+                      <div className="flex flex-wrap gap-1.5 mb-3.5">
+                        {e.tabs.map(([tone, label, count], ti) => {
+                          const bkey = e.bucketKeys?.[ti] ?? "";
+                          return (
+                            <button
+                              key={label}
+                              type="button"
+                              onClick={() => setFilters((f) => ({ ...f, [e.title]: f[e.title] === bkey ? null : bkey }))}
+                              className={`rounded px-2 py-1.5 text-xs font-weight-400 font-normal leading-4 transition ${TP[tone]} ${active === bkey ? "ring-2 ring-offset-1 ring-neutral-400" : active ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
+                            >
+                              {label} {count}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <TabPills tabs={e.tabs} />
+                    )}
+                    <div className="overflow-x-auto"><DataTable head={e.head} rows={rows} headText="text-neutral-900" cellText="text-neutral-500" /></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
         {arrow("r")}
       </div>
@@ -490,13 +779,30 @@ const COMPLIANCE: Comp[] = [
   { title: "Road Fund Licence", icon: roadIcon, overdue: 1, bar: 8, d7: 4, d30: 10 },
   { title: "Service", icon: serviceIcon, overdue: 3, bar: 16, d7: 7, d30: 14 },
 ];
-const ComplianceSummary: React.FC = () => (
-  <Card span="col-span-12">
-    <CardHead
-      icon={<SkyIconBox>{complianceIcon}</SkyIconBox>} title="Compliance Summary"
-    />
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {COMPLIANCE.map((c) => (
+const ComplianceSummary: React.FC = () => {
+  // Live per-category compliance (matched by title); keeps the icons defined here.
+  const [live, setLive] = useState<Compliance | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getCompliance().then((r) => {
+      if (!cancelled) setLive(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const byTitle = new Map((live?.categories ?? []).map((c) => [c.title, c]));
+  const data = COMPLIANCE.map((c) => {
+    const l = byTitle.get(c.title);
+    return l ? { ...c, overdue: l.overdue, bar: l.bar, d7: l.d7, d30: l.d30 } : c;
+  });
+  return (
+    <Card span="col-span-12">
+      <CardHead
+        icon={<SkyIconBox>{complianceIcon}</SkyIconBox>} title="Compliance Summary"
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {data.map((c) => (
         <div key={c.title} className="border border-neutral-200 rounded-xl p-[18px] flex flex-col gap-4">
           <div className="flex items-start justify-between gap-2">
             <h4 className="text-[15px] font-weight-600 text-neutral-900">{c.title}</h4>
@@ -509,38 +815,100 @@ const ComplianceSummary: React.FC = () => (
             <div><div className="text-xl font-weight-700 leading-none text-neutral-700">{c.d30}</div><div className="text-xs text-neutral-400 mt-1">Due in 30 days</div></div>
           </div>
         </div>
-      ))}
-    </div>
-  </Card>
-);
+        ))}
+      </div>
+    </Card>
+  );
+};
 
 // ── Weekly Payment Schedule ───────────────────────────────────────────────────
-const WeeklyPayment: React.FC = () => (
-  <Card span="col-span-12 lg:col-span-7">
-    <CardHead
-      icon={<SkyIconBox><img src={PaymentsIcon} alt="" className="size-4" /></SkyIconBox>}
-      title="Weekly Payment Schedule" right={<ViewAll />}
-    />
-    <TabPills tabs={[["blue", "Due Today", "6"], ["gray", "Due This Week", "18"], ["red", "Overdue", "4"], ["green", "Received Today", "11"]]} />
-    <div className="overflow-x-auto">
-      <DataTable
-        head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]}
-        rows={[
-          ["GU72 OPN", "Alpha Haulage Ltd", "£525.00", "£525.00", "13 May 2025", ["Due Today", "blue"]],
-          ["FL21 XZM", "Northline Logistics", "£650.00", "£650.00", "13 May 2025", ["Due Today", "blue"]],
-          ["WA22 KHG", "Swift Couriers", "£475.00", "£475.00", "13 May 2025", ["Due Today", "blue"]],
-          ["BV71 YXT", "Pinnacle Transport", "£575.00", "£575.00", "14 May 2025", ["This Week", "orange"]],
-          ["NJ23 LFP", "Urban Freight Co", "£525.00", "£525.00", "15 May 2025", ["This Week", "orange"]],
-        ]}
+type WPBucket = keyof WeeklyPayments["rows"];
+const WP_TABS: { key: WPBucket; tone: string; label: string }[] = [
+  { key: "due_today", tone: "blue", label: "Due Today" },
+  { key: "due_this_week", tone: "gray", label: "Due This Week" },
+  { key: "overdue", tone: "red", label: "Overdue" },
+  { key: "received_today", tone: "green", label: "Received Today" },
+];
+const WP_FALLBACK_ROWS: (string | [string, string])[][] = [
+  ["GU72 OPN", "Alpha Haulage Ltd", "£525.00", "£525.00", "13 May 2025", ["Due Today", "blue"]],
+  ["FL21 XZM", "Northline Logistics", "£650.00", "£650.00", "13 May 2025", ["Due Today", "blue"]],
+  ["WA22 KHG", "Swift Couriers", "£475.00", "£475.00", "13 May 2025", ["Due Today", "blue"]],
+  ["BV71 YXT", "Pinnacle Transport", "£575.00", "£575.00", "14 May 2025", ["This Week", "orange"]],
+  ["NJ23 LFP", "Urban Freight Co", "£525.00", "£525.00", "15 May 2025", ["This Week", "orange"]],
+];
+const WP_FALLBACK_COUNTS: WeeklyPayments["tabs"] = { due_today: 6, due_this_week: 18, overdue: 4, received_today: 11 };
+const WeeklyPayment: React.FC = () => {
+  // Live cross-hire schedule; the four tabs filter the table to a single bucket
+  // (click again to clear). Falls back to placeholders if the backend is unreachable.
+  const [live, setLive] = useState<WeeklyPayments | null>(null);
+  const [active, setActive] = useState<WPBucket | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getWeeklyPayments().then((r) => {
+      if (!cancelled) setLive(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const counts = live?.tabs ?? WP_FALLBACK_COUNTS;
+  const rows: (string | [string, string])[][] = live
+    ? active
+      ? live.rows[active]
+      : [...live.rows.overdue, ...live.rows.due_today, ...live.rows.due_this_week]
+    : WP_FALLBACK_ROWS;
+  return (
+    <Card span="col-span-12 lg:col-span-7">
+      <CardHead
+        icon={<SkyIconBox><img src={PaymentsIcon} alt="" className="size-4" /></SkyIconBox>}
+        title="Weekly Payment Schedule"
+        right={<button type="button" onClick={() => setActive(null)} className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200 whitespace-nowrap">View All</button>}
       />
-    </div>
-  </Card>
-);
+      <div className="flex flex-wrap gap-1.5 mb-3.5">
+        {WP_TABS.map(({ key, tone, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setActive((a) => (a === key ? null : key))}
+            className={`rounded px-2 py-1.5 text-xs font-weight-400 font-normal leading-4 transition ${TP[tone]} ${active === key ? "ring-2 ring-offset-1 ring-neutral-400" : active ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
+          >
+            {label} {counts[key]}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-x-auto">
+        <DataTable
+          head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]}
+          rows={rows}
+          headText="text-neutral-900"
+          cellText="text-neutral-500"
+        />
+      </div>
+    </Card>
+  );
+};
 
 // ── page ──────────────────────────────────────────────────────────────────────
-const FleetDashboard: React.FC = () => (
-  <div className="min-h-screen bg-white text-neutral-900 font-['Stack_Sans_Headline']">
-    <div className="sticky top-0 z-20 h-20 px-10 py-4 border-b border-neutral-100 bg-white flex items-center justify-between">
+const FleetDashboard: React.FC = () => {
+  // Full-screen loader while the dashboard's data loads (same as the other screens).
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled([
+      getStats("MTD"), getVehicleStatus(), getWeeklyPayments(), getExpiries(),
+      getCompliance(), getAttention(), getHireTrend("WTD", ""),
+      listFleetTasks({ module: "skyline", all_users: true }),
+    ]).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return (
+    <div className="min-h-screen bg-white text-neutral-900 font-['Stack_Sans_Headline']">
+      {loading && <FleetSpinnerLoader />}
+      <div className="sticky top-0 z-20 h-20 px-10 py-4 border-b border-neutral-100 bg-white flex items-center justify-between">
       <h1 className="text-neutral-900 text-2xl font-weight-600">Fleet Dashboard</h1>
       <button type="button" aria-label="Notifications" className="relative text-neutral-500 hover:text-neutral-700">
         <Bell size={20} />
@@ -561,7 +929,8 @@ const FleetDashboard: React.FC = () => (
         <ComplianceSummary />
       </div>
     </div>
-  </div>
-);
+    </div>
+  );
+};
 
 export default FleetDashboard;

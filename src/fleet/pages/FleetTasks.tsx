@@ -32,7 +32,7 @@ const priorityOptions: Option[] = [ALL, ...TASK_PRIORITIES.map((p) => ({ label: 
 const statusBadge = (value?: string | null): string => {
   const s = (value || "").toLowerCase();
   if (s === "completed") return "bg-green-100 text-green-600";
-  if (s === "in progress") return "bg-neutral-900 text-white";
+  if (s === "in progress") return "bg-yellow-100 text-yellow-700";
   if (s === "awaiting response") return "bg-yellow-100 text-yellow-700";
   if (s === "overdue") return "bg-red-100 text-red-600";
   return "bg-neutral-100 text-neutral-600"; // pending / default

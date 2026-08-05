@@ -41,7 +41,7 @@ import MissingDocumentsSlider from "../TaskManagement/MissingDocumentsSlider";
 import StorageRecoverySlider from "../TaskManagement/StorageRecoverySlider";
 import Select from "react-select";
 import { customStyles, BlueDropdownIndicator } from "../Claims/Steps/GeneralDetailsForm";
-import FleetOperations from "../TaskManagement/FleetDummy";
+import FleetOperations from "../TaskManagement/FleetOperations";
 import PlateExpiry from "../TaskManagement/PlateExpiryDummy";
 import MotExpiry from "../TaskManagement/MotExpiry";
 

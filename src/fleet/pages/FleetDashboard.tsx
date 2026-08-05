@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
-import { Bell } from "lucide-react";
+import FleetNotificationBell from "../components/FleetNotificationBell";
 import TrendingUp from "../../assets/Dashboard/TrendingUp.svg";
 import TrendingDown from "../../assets/Dashboard/TrendingDown.svg";
 import Cars from "../../assets/Dashboard/Cars.svg";
@@ -75,7 +75,8 @@ const DataTable: React.FC<{
   rows: (string | [string, string])[][];
   headText?: string;
   cellText?: string;
-}> = ({ head, rows, headText = "text-neutral-500", cellText = "text-neutral-900" }) => (
+  rowClass?: string;
+}> = ({ head, rows, headText = "text-neutral-500", cellText = "text-neutral-900", rowClass = "py-3" }) => (
   <table className="w-full border-collapse">
     <thead>
       <tr>{head.map((h) => <th key={h} className={`text-left text-sm ${headText} pb-2.5 pt-1 px-2 border-b border-neutral-100`}>{h}</th>)}</tr>
@@ -84,7 +85,7 @@ const DataTable: React.FC<{
       {rows.map((r, i) => (
         <tr key={i}>
           {r.map((cell, j) => (
-            <td key={j} className="py-3 px-2 border-b border-neutral-100 align-top">
+            <td key={j} className={`${rowClass} px-2 border-b border-neutral-100 align-top`}>
               <span className={`${cellText} text-xs font-weight-500 line-clamp-1`}>{Array.isArray(cell) ? cell[0] : cell}</span>
             </td>
           ))}
@@ -112,53 +113,75 @@ function niceAxis(rawMax: number, steps: number) {
 }
 const chevron = <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5"><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
+const HT_STATUS_OPTS = [{ label: "All Statuses", value: "" }, { label: "On Hire", value: "on_hire" }, { label: "Off Hire", value: "off_hire" }];
 const HireTrend: React.FC = () => {
   const [period, setPeriod] = useState("WTD");
   const [mode, setMode] = useState("");
+  const [status, setStatus] = useState("");
+  const [statusOpen, setStatusOpen] = useState(false);
+  const statusRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (statusRef.current && !statusRef.current.contains(e.target as Node)) setStatusOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
   // Live vehicle-hire counts from the Fleet backend. Falls back to HT_VIEWS
   // placeholders until data lands (or if the backend isn't reachable).
   const [live, setLive] = useState<TrendView | null>(null);
   useEffect(() => {
     setLive(null); // show the placeholder for the new period until live data lands
     let cancelled = false;
-    getHireTrend(period, mode).then((r) => {
+    getHireTrend(period, mode, status).then((r) => {
       if (cancelled || !r || !r.values?.length) return;
       setLive({ labels: r.labels, vals: r.values, cap: r.caption, cmp: r.comparison_note || undefined });
     });
     return () => {
       cancelled = true;
     };
-  }, [period, mode]);
+  }, [period, mode, status]);
   const v = live ?? HT_VIEWS[mode || period];
   const two = v.vals.length <= 2;
+  const barW = two ? 84 : Math.round(Math.min(64, Math.max(36, 360 / v.vals.length))); // wider when fewer bars
   const ax = niceAxis(Math.max(...v.vals), 4);
   const Y = (x: number) => 100 - (x / ax.max) * 100;
   const total = v.vals.reduce((a, b) => a + b, 0);
   const pct = v.vals[0] ? ((v.vals[1] - v.vals[0]) / v.vals[0]) * 100 : 0;
   const up = pct >= 0;
-  const segBtn = (active: boolean) => `px-4 py-1.5 rounded-md text-[13px] leading-none ${active ? "bg-neutral-900 text-white" : "text-zinc-500"}`;
+  const segBtn = (active: boolean) => `px-4 py-1.5 rounded text-[13px] leading-none ${active ? "bg-neutral-900 text-white" : "text-zinc-500"}`;
 
   return (
     <Card span="col-span-12">
       <h3 className="text-xl font-weight-600 text-neutral-900 mb-3.5">Hire Trend</h3>
       <div className="flex items-center gap-2.5 flex-wrap mb-4">
-        <div className="inline-flex items-center gap-0.5 border border-neutral-200 rounded-lg p-0.5">
+        <div className="inline-flex items-center gap-0.5 border border-neutral-200 rounded p-0.5">
           {["WTD", "MTD", "YTD"].map((p) => (
             <button key={p} type="button" onClick={() => { setPeriod(p); setMode(""); }} className={segBtn(!mode && period === p)}>{p}</button>
           ))}
         </div>
         <button type="button" onClick={() => { setPeriod("Custom"); setMode(""); }}
-          className={`inline-flex items-center gap-1.5 border border-neutral-200 rounded-lg px-3 py-1.5 text-[13px] leading-none ${!mode && period === "Custom" ? "bg-neutral-900 text-white" : "text-zinc-500"}`}>
+          className={`inline-flex items-center gap-1.5 border border-neutral-200 rounded px-3 py-1.5 text-[13px] leading-none ${!mode && period === "Custom" ? "bg-neutral-900 text-white" : "text-zinc-500"}`}>
           <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.7" /><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
           Custom
         </button>
-        <div className="inline-flex items-center gap-0.5 border border-neutral-200 rounded-lg p-0.5">
+        <div className="inline-flex items-center gap-0.5 border border-neutral-200 rounded p-0.5">
           {["YoY", "MoM"].map((m) => (
             <button key={m} type="button" onClick={() => setMode(mode === m ? "" : m)} className={segBtn(mode === m)}>{m}</button>
           ))}
         </div>
-        <button type="button" className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 px-1 py-1.5">Referrer {chevron}</button>
-        <button type="button" className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 px-1 py-1.5">Status {chevron}</button>
+        <div className="relative" ref={statusRef}>
+          <button type="button" onClick={() => setStatusOpen((o) => !o)} className={`inline-flex items-center gap-1.5 text-[13px] px-1 py-1.5 ${status ? "text-neutral-900 font-weight-500" : "text-zinc-500"}`}>
+            {status ? HT_STATUS_OPTS.find((o) => o.value === status)?.label : "Status"} {chevron}
+          </button>
+          {statusOpen && (
+            <div className="absolute left-0 top-full mt-1 z-20 min-w-[140px] rounded border border-neutral-200 bg-white shadow-md py-1">
+              {HT_STATUS_OPTS.map((o) => (
+                <button key={o.value} type="button" onClick={() => { setStatus(o.value); setStatusOpen(false); }} className={`w-full text-left px-3 py-1.5 text-[13px] hover:bg-neutral-100 ${status === o.value ? "text-neutral-900 font-weight-600" : "text-neutral-600"}`}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <span className="ml-auto inline-flex items-center gap-1.5 bg-neutral-100 text-neutral-700 rounded-full px-4 py-2 text-[13px] whitespace-nowrap">
           {mode
             ? (<><span className={`font-weight-700 ${up ? "text-green-600" : "text-red-500"}`}>{(up ? "▲ " : "▼ ") + Math.abs(pct).toFixed(1) + "%"}</span> {v.cmp}</>)
@@ -177,7 +200,7 @@ const HireTrend: React.FC = () => {
               const isCmp = two && i === 0;
               return (
                 <div key={i} className={`h-full flex items-end justify-center relative group ${two ? "flex-none" : "flex-1"}`}>
-                  <div className={`relative rounded-t ${two ? "w-[84px]" : "w-3.5"} ${isCmp ? "bg-neutral-300" : "bg-neutral-800 group-hover:bg-neutral-900"}`} style={{ height: h.toFixed(1) + "%" }}>
+                  <div className={`relative rounded-t ${isCmp ? "bg-neutral-300" : "bg-neutral-800 group-hover:bg-neutral-900"}`} style={{ height: h.toFixed(1) + "%", width: `${barW}px` }}>
                     <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{v.labels[i] + " · " + val + " hires"}</div>
                   </div>
                 </div>
@@ -524,23 +547,54 @@ const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
     <span className={`inline-flex h-fit w-fit shrink-0 items-center justify-center rounded px-2 py-1 text-xs font-weight-400 font-normal leading-4 ${SKY_STATUS_STYLE[v.statusKey]}`}>{v.statusLabel}</span>
   </div>
 );
+// Right-side drawer showing every vehicle card (opened by "View All Vehicles").
+const SkylineVehiclesSlider: React.FC<{
+  vehicles: SkyVehicle[];
+  summary: { label: string; value: number; className: string }[];
+  onClose: () => void;
+}> = ({ vehicles, summary, onClose }) => (
+  <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
+    <div className="flex-1 bg-black/30" onClick={onClose} />
+    <div className="w-[1120px] max-w-full bg-white h-full flex flex-col p-10 gap-6">
+      <div className="flex justify-between items-start">
+        <h2 className="text-black text-2xl font-weight-600 leading-6">Skyline Vehicles</h2>
+        <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
+      </div>
+      <div className="h-px bg-neutral-100 w-full" />
+      <div className="flex flex-wrap justify-between items-center gap-4">
+        <div className="flex flex-col gap-1">
+          <p className="text-2xl font-weight-600 leading-6 text-black">{vehicles.length} Vehicles</p>
+          <p className="text-sm font-weight-500 text-zinc-500">Total Fleet</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {summary.map((item) => (
+            <div key={item.label} className={`rounded p-3 text-sm font-weight-400 font-normal leading-4 ${item.className}`}>{item.label} {item.value}</div>
+          ))}
+        </div>
+      </div>
+      <div className="flex-1 overflow-auto grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 auto-rows-min">
+        {vehicles.map((v, i) => <SkyVehicleCard key={`${v.registration}-${i}`} v={v} />)}
+      </div>
+    </div>
+  </div>
+);
 const SkylineOperations: React.FC = () => {
   const [regSel, setRegSel] = useState<string[]>([]);
   const [statusSel, setStatusSel] = useState<string[]>([]);
   const [dateSel, setDateSel] = useState<string[]>([]);
-  const [showAll, setShowAll] = useState(false); // show 8 by default, expand in place
+  const [sliderOpen, setSliderOpen] = useState(false); // "View All" opens a right-side drawer
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
     setter((s) => (s.includes(val) ? s.filter((x) => x !== val) : [...s, val]));
   const regOptions = SKY_VEHICLES.map((v) => ({ label: v.registration, value: v.registration }));
   const statusOptions = [{ label: "Available", value: "available" }, { label: "On Hire", value: "hire" }, { label: "Off Hire", value: "off" }];
   const dateOptions = [{ label: "Today", value: "today" }, { label: "1 Week", value: "1w" }, { label: "1 Month", value: "1m" }];
   const summaryItems = [
-    { label: "Available", value: 12, className: "bg-green-100 text-green-700" },
-    { label: "On Hire", value: 25, className: "bg-blue-100 text-blue-600" },
-    { label: "Off Hire", value: 5, className: "bg-gray-200 text-zinc-500" },
+    { label: "Available", value: 12, statusKey: "available", className: "bg-green-100 text-green-700" },
+    { label: "On Hire", value: 25, statusKey: "hire", className: "bg-blue-100 text-blue-600" },
+    { label: "Off Hire", value: 5, statusKey: "off", className: "bg-gray-200 text-zinc-500" },
   ];
   const filtered = SKY_VEHICLES.filter((v) => (!regSel.length || regSel.includes(v.registration)) && (!statusSel.length || statusSel.includes(v.statusKey)));
-  const visible = showAll ? filtered : filtered.slice(0, 8);
+  const visible = filtered.slice(0, 8);
   return (
     <section className="col-span-12 w-full rounded-lg border border-neutral-200 px-4 py-6 min-w-0">
       <div className="flex flex-col gap-10">
@@ -560,7 +614,14 @@ const SkylineOperations: React.FC = () => {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {summaryItems.map((item) => (
-                <div key={item.label} className={`rounded p-3 text-sm font-weight-400 font-normal leading-4 ${item.className}`}>{item.label} {item.value}</div>
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => toggle(setStatusSel, item.statusKey)}
+                  className={`rounded p-3 text-sm font-weight-400 font-normal leading-4 transition ${item.className} ${statusSel.includes(item.statusKey) ? "ring-2 ring-offset-1 ring-neutral-400" : statusSel.length ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
+                >
+                  {item.label} {item.value}
+                </button>
               ))}
             </div>
           </div>
@@ -573,11 +634,12 @@ const SkylineOperations: React.FC = () => {
           )}
           {filtered.length > 8 && (
             <div className="flex justify-center pt-4">
-              <button type="button" onClick={() => setShowAll((s) => !s)} className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200">{showAll ? "Show Less" : `View All Vehicles (${filtered.length})`}</button>
+              <button type="button" onClick={() => setSliderOpen(true)} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black">View All Vehicles</button>
             </div>
           )}
         </div>
       </div>
+      {sliderOpen && <SkylineVehiclesSlider vehicles={filtered} summary={summaryItems} onClose={() => setSliderOpen(false)} />}
     </section>
   );
 };
@@ -637,11 +699,35 @@ const buildExpiryCard = (title: string, icon: React.ReactNode, span: string, car
 // motion never reverses). Servicing Due stays a mileage placeholder; the other
 // three are live.
 const CAROUSEL = [EXPIRY[0], EXPIRY[1], EXPIRY[2], EXPIRY[3]];
+// Right-side drawer showing the full record set for one expiry card.
+const RecordsSlider: React.FC<{
+  title: string;
+  head: string[];
+  rows: (string | [string, string])[][];
+  onClose: () => void;
+}> = ({ title, head, rows, onClose }) => (
+  <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
+    <div className="flex-1 bg-black/30" onClick={onClose} />
+    <div className="w-[720px] max-w-full bg-white h-full flex flex-col p-10 gap-5">
+      <div className="flex justify-between items-start">
+        <h2 className="text-black text-2xl font-weight-600 leading-6">{title}</h2>
+        <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
+      </div>
+      <div className="h-px bg-neutral-100 w-full" />
+      <div className="text-black text-xl font-weight-600 leading-5">{rows.length} Records</div>
+      <div className="flex-1 overflow-auto">
+        <DataTable head={head} rows={rows} headText="text-neutral-600 font-weight-400" cellText="text-neutral-700" />
+      </div>
+    </div>
+  </div>
+);
 const ExpiryCarousel: React.FC = () => {
   const [expiries, setExpiries] = useState<Expiries | null>(null);
   // Active bucket filter per card (keyed by title so all copies in the loop sync).
   const [filters, setFilters] = useState<Record<string, string | null>>({});
-  const anyFilter = Object.values(filters).some(Boolean);
+  // "View All" opens a right-side slider with the full record set for that card.
+  const [sliderData, setSliderData] = useState<{ title: string; head: string[]; rows: (string | [string, string])[][] } | null>(null);
+  const paused = Object.values(filters).some(Boolean) || sliderData !== null;
   useEffect(() => {
     let cancelled = false;
     getExpiries().then((r) => {
@@ -691,10 +777,10 @@ const ExpiryCarousel: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (anyFilter) return; // pause autoplay while a card is filtered
+    if (paused) return; // pause autoplay while a card is filtered or the slider is open
     const id = setInterval(() => advance(1), 7000);
     return () => clearInterval(id);
-  }, [advance, anyFilter]);
+  }, [advance, paused]);
 
   // When a slide finishes on an edge copy, jump back into the middle set with no
   // animation so the motion always continues in one seamless direction.
@@ -732,13 +818,14 @@ const ExpiryCarousel: React.FC = () => {
             {track.map((e, i) => {
               const active = filters[e.title] ?? null;
               const rows = e.buckets && active ? e.buckets[active] : e.rows;
+              const displayRows = rows.slice(0, 5);
               return (
                 <div key={i} className="shrink-0 min-w-0 basis-full sm:basis-[calc((100%_-_1rem)/2)] lg:basis-[calc((100%_-_2rem)/3)]">
-                  <div className="rounded-xl border border-neutral-200 p-5 flex flex-col min-w-0 h-full">
+                  <div className="rounded-xl border border-neutral-200 p-6 flex flex-col min-w-0 h-full gap-1">
                     <CardHead
                       icon={<SkyIconBox>{e.icon}</SkyIconBox>}
                       title={e.title}
-                      right={<button type="button" onClick={() => setFilters((f) => ({ ...f, [e.title]: null }))} className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200 whitespace-nowrap">View All</button>}
+                      right={<button type="button" onClick={() => setSliderData({ title: e.title, head: e.head, rows })} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black whitespace-nowrap">View All</button>}
                     />
                     {e.buckets ? (
                       <div className="flex flex-wrap gap-1.5 mb-3.5">
@@ -759,7 +846,7 @@ const ExpiryCarousel: React.FC = () => {
                     ) : (
                       <TabPills tabs={e.tabs} />
                     )}
-                    <div className="overflow-x-auto"><DataTable head={e.head} rows={rows} headText="text-neutral-900" cellText="text-neutral-500" /></div>
+                    <div className="overflow-x-auto"><DataTable head={e.head} rows={displayRows} headText="text-neutral-600 font-weight-400" cellText="text-neutral-500" rowClass="py-4" /></div>
                   </div>
                 </div>
               );
@@ -768,6 +855,7 @@ const ExpiryCarousel: React.FC = () => {
         </div>
         {arrow("r")}
       </div>
+      {sliderData && <RecordsSlider title={sliderData.title} head={sliderData.head} rows={sliderData.rows} onClose={() => setSliderData(null)} />}
     </div>
   );
 };
@@ -842,7 +930,7 @@ const WeeklyPayment: React.FC = () => {
   // (click again to clear). Falls back to placeholders if the backend is unreachable.
   const [live, setLive] = useState<WeeklyPayments | null>(null);
   const [active, setActive] = useState<WPBucket | null>(null);
-  const [showAllRows, setShowAllRows] = useState(false); // show 5, expand on View All
+  const [sliderOpen, setSliderOpen] = useState(false); // "View All" opens a right-side slider
   useEffect(() => {
     let cancelled = false;
     getWeeklyPayments().then((r) => {
@@ -858,7 +946,7 @@ const WeeklyPayment: React.FC = () => {
       ? live.rows[active]
       : [...live.rows.overdue, ...live.rows.due_today, ...live.rows.due_this_week]
     : WP_FALLBACK_ROWS;
-  const displayRows = showAllRows ? rows : rows.slice(0, 5);
+  const displayRows = rows.slice(0, 5);
   return (
     <Card span="col-span-12 lg:col-span-7">
       <CardHead
@@ -887,9 +975,10 @@ const WeeklyPayment: React.FC = () => {
       </div>
       {rows.length > 5 && (
         <div className="flex justify-center pt-3">
-          <button type="button" onClick={() => setShowAllRows((s) => !s)} className="inline-flex h-8 items-center justify-center rounded bg-blue-100 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-blue-600 transition hover:bg-blue-200 whitespace-nowrap">{showAllRows ? "Show Less" : `View All (${rows.length})`}</button>
+          <button type="button" onClick={() => setSliderOpen(true)} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black whitespace-nowrap">View All ({rows.length})</button>
         </div>
       )}
+      {sliderOpen && <RecordsSlider title="Weekly Payment Schedule" head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]} rows={rows} onClose={() => setSliderOpen(false)} />}
     </Card>
   );
 };
@@ -916,10 +1005,7 @@ const FleetDashboard: React.FC = () => {
       {loading && <FleetSpinnerLoader />}
       <div className="sticky top-0 z-20 h-20 px-10 py-4 border-b border-neutral-100 bg-white flex items-center justify-between">
       <h1 className="text-neutral-900 text-2xl font-weight-600">Fleet Dashboard</h1>
-      <button type="button" aria-label="Notifications" className="relative text-neutral-500 hover:text-neutral-700">
-        <Bell size={20} />
-        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
-      </button>
+      <FleetNotificationBell />
     </div>
 
     <div className="px-10 py-6">

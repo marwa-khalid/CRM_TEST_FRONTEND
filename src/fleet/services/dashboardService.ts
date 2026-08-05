@@ -13,10 +13,10 @@ export interface HireTrend {
 
 // Hire Trend graph. `period` is WTD | MTD | YTD | Custom; `mode` is "" | YoY | MoM
 // (both uppercased for the API). Returns null on any failure.
-export const getHireTrend = async (period: string, mode: string): Promise<HireTrend | null> => {
+export const getHireTrend = async (period: string, mode: string, status = ""): Promise<HireTrend | null> => {
   try {
     const { data } = await fleetApi.get("/fleet/dashboard/hire-trend", {
-      params: { period: period.toUpperCase(), mode: mode.toUpperCase() },
+      params: { period: period.toUpperCase(), mode: mode.toUpperCase(), status: status || undefined },
     });
     return data as HireTrend;
   } catch {

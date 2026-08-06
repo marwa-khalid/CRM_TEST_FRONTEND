@@ -695,6 +695,8 @@ const CaseActivityStream = () => {
     const meta = {
       ...rawMeta,
       ...(parsedDetailText || {}),
+      // Carry the row's claim so notes/replies can resolve it in the all-cases view.
+      claim_id: row?.claim_id ?? rawMeta?.claim_id ?? parsedDetailText?.claim_id,
       ...(isUploadLike
         ? {
             ...uploadInfo.meta,

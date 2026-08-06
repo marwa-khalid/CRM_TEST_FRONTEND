@@ -46,7 +46,15 @@ const STATUS_OPTIONS = [
 ];
 
 const GRID =
-  "grid-cols-[minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(110px,0.9fr)_36px]";
+  "grid-cols-[minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(110px,0.9fr)_minmax(120px,0.9fr)_36px]";
+
+// "Date Added" — the record's created date (Postgres timestamps may lack a Z).
+const fmtDateAdded = (s?: string | null) => {
+  if (!s) return "—";
+  const iso = /[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : s.replace(" ", "T") + "Z";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
 
 // ── Stat card (same design as the Skyline listing) ──────────────────────────
 interface StatConfig {
@@ -193,13 +201,14 @@ const VehicleManagementList: React.FC = () => {
 
   const exportCsv = () => {
     const rows = [
-      ["Registration", "Make", "Model", "Transmission", "Status"],
+      ["Registration", "Make", "Model", "Transmission", "Status", "Date Added"],
       ...filtered.map((v) => [
         v.registration_number || "",
         v.make || "",
         v.model || "",
         v.transmission || "",
         STATUS_LABEL[statusOf(v)],
+        fmtDateAdded(v.created_at),
       ]),
     ];
     const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -302,6 +311,7 @@ const VehicleManagementList: React.FC = () => {
                 <span>MODEL</span>
                 <span>TRANSMISSION</span>
                 <span>STATUS</span>
+                <span>DATE ADDED</span>
                 <span />
               </div>
 
@@ -326,6 +336,7 @@ const VehicleManagementList: React.FC = () => {
                           {STATUS_LABEL[st]}
                         </span>
                       </span>
+                      <span className="text-neutral-700 truncate">{fmtDateAdded(v.created_at)}</span>
                       <div className="flex justify-end">
                         <button
                           type="button"

@@ -55,6 +55,7 @@ export interface VehicleRecord {
   // Read-only, derived server-side from the Skyline client-side hire screens.
   latest_mileage_obtained?: string | null;
   mileage_obtained_on?: string | null;
+  created_at?: string | null; // when the record was added to the system ("Date Added")
 }
 
 // The vehicle record is the Customer Side of a hire file — one per hire, created

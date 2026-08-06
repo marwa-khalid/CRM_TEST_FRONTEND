@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import { createPassenger, updatePassenger } from "../../../services/Accidents/Cards/cards";
 import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
 import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 
 export const PassengerDetailsModal = ({ onClose, claimId, initialData ,addNew}) => {
   // Initialize state with initialData if it exists
@@ -131,7 +131,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   ) || null
                 }
                 placeholder="Select Title"
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,

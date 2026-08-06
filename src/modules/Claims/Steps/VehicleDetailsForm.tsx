@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import Select from "react-select";
 import { Minus, Plus, Upload } from "lucide-react";
 import { VehicleCheckModal } from "./VehicleCheckModal";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 import { CustomDatePicker } from "../Components/DatePicker";
 import pencil from "../../../assets/AutoClaim_icon/pencil.svg";
 import trash from "../../../assets/AutoClaim_icon/trash.svg";
@@ -598,7 +598,7 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
         placeholder="Select Type"
         isLoading={isTaxiTypeLoading}
         noOptionsMessage={() => (isTaxiTypeLoading ? "Loading..." : "No taxi types found")}
-        styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="auto"
+        styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
         value={taxiTypeOptions.find((op) => op.value === getNestedValue(field)) || null}
         onChange={(e: any) => formik.setFieldValue(field, e?.value || null)}
         components={{ DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null }}
@@ -947,7 +947,7 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
               <Select
                 options={fuelOptions}
                 placeholder="Select Type"
-                styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="auto"
+                styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
@@ -1015,7 +1015,7 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
               <Select
                 options={transmissionOptions}
                 placeholder="Select Type"
-                styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="auto"
+                styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
@@ -1085,7 +1085,7 @@ export const VehicleDetailsForm = ({ formRef, claimId }: any) => {
               <Select
                 options={categoryOptions}
                 placeholder="Select Category"
-                styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="auto"
+                styles={customStyles} menuPortalTarget={document.body} menuPosition="fixed" menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 value={categoryOptions.find(
                   (op) => op.value === formik.values.vehicle.category,
                 )}

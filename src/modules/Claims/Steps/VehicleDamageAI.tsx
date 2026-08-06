@@ -26,7 +26,7 @@ import AIImageUploadProgressModal, {
   type AIUploadProgressItem,
 } from "../Components/AIImageUploadProgressModal";
 import Select from "react-select";
-import { customStyles, BlueDropdownIndicator } from "./GeneralDetailsForm";
+import { customStyles, BlueDropdownIndicator, scrollSelectIntoView } from "./GeneralDetailsForm";
 
 // Keep in sync with the report slider's VEHICLE_STATUS_OPTIONS so a status set
 // there (saved via manual adjustments) prefills this dropdown correctly.
@@ -1205,7 +1205,7 @@ useEffect(() => {
                     }
                     onChange={(opt: any) => setVehicleStatus(opt?.value || "")}
                     placeholder="Value"
-                    styles={customStyles}
+                    styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                     components={{
                       DropdownIndicator: BlueDropdownIndicator,
                       IndicatorSeparator: () => null,

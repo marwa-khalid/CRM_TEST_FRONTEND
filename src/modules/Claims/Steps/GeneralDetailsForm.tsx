@@ -44,6 +44,18 @@ export const BlueDropdownIndicator = (props: DropdownIndicatorProps<any, false>)
   );
 };
 
+// Shared react-select `onMenuOpen` handler for the Claims forms: once a dropdown
+// opens (always downward via menuPlacement="bottom"), scroll the just-focused
+// control to the middle of the viewport so the menu is never cut off below the
+// fold. Used everywhere a claim-side <Select> is rendered.
+export const scrollSelectIntoView = () => {
+  // Defer to the next frame so react-select has mounted the menu first.
+  setTimeout(() => {
+    const el = document.activeElement as HTMLElement | null;
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 60);
+};
+
 // Common custom styles for react-select
 export const customStyles: StylesConfig<any, false> = {
   control: (base, state) => ({
@@ -471,7 +483,7 @@ useEffect(() => {
                 value={claimTypeOptions.find(
                   (option) => option.value === formik.values.claim_type_id,
                 )} // Controlled from step1Data
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 onChange={(val) =>
                   formik.setFieldValue("claim_type_id", val.value)
                 }
@@ -503,7 +515,7 @@ useEffect(() => {
                   { value: 2, label: "Non-Target" },
                 ].sort((a, b) => String(a.label).localeCompare(String(b.label)))}
                 placeholder="Select Target Debt"
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 value={[
                   { value: 1, label: "Target" },
                   { value: 2, label: "Non-Target" },
@@ -532,7 +544,7 @@ useEffect(() => {
                 )} // Controlled from step1Data
                 placeholder="Select Source"
                 onChange={(val) => formik.setFieldValue("source_id", val.value)}
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
@@ -547,7 +559,7 @@ useEffect(() => {
                 </label>
                 <Select
                   placeholder="Select Staff Member..."
-                  styles={customStyles}
+                  styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                   options={handlerOptions}
                   value={handlerOptions.find(
                     (option) =>
@@ -585,7 +597,7 @@ useEffect(() => {
                   }
                 }}
                 placeholder="Select Status"
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
@@ -688,7 +700,7 @@ useEffect(() => {
               </label>
               <Select
                 options={commonStatusOptions}
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 value={commonStatusOptions.find(
                   (option) => option.value === formik.values.non_fault_accident,
                 )} // Controlled from step1Data
@@ -709,7 +721,7 @@ useEffect(() => {
               </label>
               <Select
                 options={commonStatusOptions}
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 value={commonStatusOptions.find(
                   (option) => option.value === formik.values.any_passengers,
                 )} // Controlled from step1Data
@@ -730,7 +742,7 @@ useEffect(() => {
               </label>
               <Select
                 options={commonStatusOptions}
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 value={commonStatusOptions.find(
                   (option) => option.value === formik.values.client_injured,
                 )} // Controlled from step1Data
@@ -764,7 +776,7 @@ useEffect(() => {
                   formik.setFieldValue("prospects_id", val.value)
                 }
                 placeholder="Select Prospect"
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
@@ -844,7 +856,7 @@ useEffect(() => {
               </label>
               <Select
                 options={positionOptions}
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 value={positionOptions.find(
                   (option) =>
                     option.value === formik.values.present_position_id,

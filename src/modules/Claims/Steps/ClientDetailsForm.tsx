@@ -12,7 +12,7 @@ import * as Yup from "yup"
 import { notifyManager, invalidateCaseReference } from "../../../services/Claims/Claims";
 import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
 import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 import CreditCard from "../../../assets/AutoClaim_icon/MID.svg";
@@ -540,7 +540,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 <Select
                   options={handlerOptions}
                   placeholder="Select Occupation"
-                  styles={customStyles}
+                  styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                   value={handlerOptions.find(
                     (option) => option.value === formik.values.occupation,
                   )}
@@ -879,7 +879,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 <Select
                   options={languageOptions}
                   placeholder="Select Language"
-                  styles={customStyles}
+                  styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                   components={{
                     DropdownIndicator: BlueDropdownIndicator,
                     IndicatorSeparator: () => null,

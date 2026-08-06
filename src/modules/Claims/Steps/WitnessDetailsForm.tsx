@@ -7,7 +7,7 @@ import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
 import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 import { useCaseReference } from "../../../hooks/useCaseReference";
 import { API_BASE_URL } from "../../../services/axiosConfig";
 import {
@@ -286,7 +286,7 @@ export const WitnessDetailsForm = ({ formRef, claimId }: any) => {
                   options={titleOptions}
                   value={titleOptions.find((o) => o.value === w.title?.value) || null}
                   placeholder="Select Title"
-                  styles={customStyles}
+                  styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                   components={{ DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null }}
                   onChange={(opt) => update(idx, { title: opt as TitleOption })}
                 />

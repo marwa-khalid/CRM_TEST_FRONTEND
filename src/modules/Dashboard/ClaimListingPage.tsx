@@ -27,6 +27,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import Logo from "../../assets/AutoClaim_icon/logo.svg";
 import logout from "../../assets/AutoClaim_icon/logout.svg";
+import CollapseIcon from "../../fleet/assets/listingpage/GoBack.svg";
 import Vector4 from "../../assets/AutoClaim_icon/Vector-4.svg";
 import FileIcon from '../../assets/case_activity/file.svg'
 import StatFile from "../../assets/Dashboard/File.svg";
@@ -466,12 +467,27 @@ const Dashboard: React.FC = () => {
     setActivePage("tasks");
   };
 
+  // Collapsed = icon-only rail so the dashboard goes near-full-width. Persisted so
+  // it survives navigation + reloads.
+  const [collapsed, setCollapsed] = useState<boolean>(() => localStorage.getItem("claimsSidebarCollapsed") === "1");
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("claimsSidebarCollapsed", next ? "1" : "0");
+      return next;
+    });
+
   return (
     <div className="flex min-h-screen bg-white font-['Stack_Sans_Headline']">
-      <aside className="w-60 border-r border-neutral-100 flex flex-col shrink-0 bg-white">
-        <div className="h-16 px-5 py-6 flex justify-between items-center border-b border-neutral-100">
-          <img src={Logo} alt="Logo" className="w-8 h-8 object-contain" />
-          <img src={logout} alt="" />
+      <aside className={`${collapsed ? "w-[76px]" : "w-60"} border-r border-neutral-100 flex flex-col shrink-0 bg-white transition-[width] duration-200`}>
+        <div className={`h-16 px-5 py-6 flex items-center border-b border-neutral-100 ${collapsed ? "justify-center" : "justify-between"}`}>
+          {!collapsed && <img src={Logo} alt="Logo" className="w-8 h-8 object-contain" />}
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={toggleCollapsed} className="text-neutral-500 hover:text-neutral-700" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+              <img src={CollapseIcon} alt="" className={`w-4 h-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
+            </button>
+            {!collapsed && <img src={logout} alt="" />}
+          </div>
         </div>
 
         <nav className="flex-1 py-6">
@@ -487,56 +503,63 @@ const Dashboard: React.FC = () => {
                 key={item.name}
                 type="button"
                 onClick={() => handleSidebarClick(item.name)}
-                className={`w-full px-5 py-3 flex items-center gap-3 text-sm transition-colors ${
+                title={collapsed ? item.name : undefined}
+                className={`w-full py-3 flex items-center gap-3 text-sm transition-colors ${collapsed ? "justify-center px-0" : "px-5"} ${
                   isSelected
                     ? "bg-blue-100 border-l-4 border-blue-300 text-blue-700"
                     : "border-l-4 border-transparent text-neutral-700 hover:bg-neutral-50"
                 }`}
               >
                 <item.icon size={20} />
-                <span className="font-weight-400">{item.name}</span>
+                {!collapsed && <span className="font-weight-400">{item.name}</span>}
               </button>
             );
           })}
 
-          <div className="px-4 pt-4 pb-1">
-            <span className="text-neutral-500 text-xs font-weight-600">
-              PLATFORM
-            </span>
-          </div>
+          {!collapsed && (
+            <div className="px-4 pt-4 pb-1">
+              <span className="text-neutral-500 text-xs font-weight-600">
+                PLATFORM
+              </span>
+            </div>
+          )}
 
           <button
             type="button"
             onClick={() => setActivePage("settings")}
-            className={`w-full px-5 py-3 flex items-center gap-3 text-sm transition-colors ${
+            title={collapsed ? "Settings" : undefined}
+            className={`w-full py-3 flex items-center gap-3 text-sm transition-colors ${collapsed ? "justify-center px-0" : "px-5"} ${
               activePage === "settings"
                 ? "bg-blue-100 border-l-4 border-blue-300 text-blue-700"
                 : "border-l-4 border-transparent text-neutral-700 hover:bg-neutral-50"
             }`}
           >
             <Settings size={20} />
-            <span className="font-weight-400">Settings</span>
+            {!collapsed && <span className="font-weight-400">Settings</span>}
           </button>
 
           <button
             type="button"
-            className="w-full px-5 py-3 flex items-center gap-3 text-sm border-l-4 border-transparent text-neutral-700 hover:bg-neutral-50"
+            title={collapsed ? "Help" : undefined}
+            className={`w-full py-3 flex items-center gap-3 text-sm border-l-4 border-transparent text-neutral-700 hover:bg-neutral-50 ${collapsed ? "justify-center px-0" : "px-5"}`}
           >
             <HelpCircle size={20} />
-            <span className="font-weight-400">Help</span>
+            {!collapsed && <span className="font-weight-400">Help</span>}
           </button>
         </nav>
 
-        <div className="border-t border-neutral-100 p-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-weight-600">
+        <div className={`border-t border-neutral-100 flex items-center ${collapsed ? "p-4 justify-center" : "p-6 justify-between"}`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-10 h-10 shrink-0 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-weight-600">
               {(authUser?.name || "?").charAt(0).toUpperCase()}
             </div>
-            <span className="text-black text-base font-weight-500">
-              {authUser?.name || "User"}
-            </span>
+            {!collapsed && (
+              <span className="text-black text-base font-weight-500 truncate">
+                {authUser?.name || "User"}
+              </span>
+            )}
           </div>
-          <div className="text-neutral-300 text-sm">↕</div>
+          {!collapsed && <div className="text-neutral-300 text-sm">↕</div>}
         </div>
       </aside>
 

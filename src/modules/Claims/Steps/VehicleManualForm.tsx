@@ -22,7 +22,7 @@ import RedNearsideRear from "../../../assets/Red/Group-5.svg";
 import RedOffsideFront from "../../../assets/Red/Group-6.svg";
 import RedOffsideMiddle from "../../../assets/Red/Group-7.svg";
 import RedOffsideRear from "../../../assets/Red/Group-8.svg";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 import { saveDamageDetails, updateVehicleDamage } from "../../../services/VehicleDamage/VehicleDamage";
 import { getVehicleDetail } from "../../../services/Vehicle/vehicle";
 import { toast } from "react-toastify";
@@ -331,7 +331,7 @@ const renderRightPanel = (
 
           <Select
             options={statusOptions}
-            styles={customStyles}
+            styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
             components={{
               DropdownIndicator: BlueDropdownIndicator,
               IndicatorSeparator: () => null,

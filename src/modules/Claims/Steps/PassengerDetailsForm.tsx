@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import trash from "../../../assets/AutoClaim_icon/trash.svg";
 import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 import {
   createPassenger,
   updatePassenger,
@@ -197,7 +197,7 @@ export const PassengerDetailsForm = ({ formRef, claimId }: any) => {
                   titleOptions.find((o) => o.value === p.title?.value) || null
                 }
                 placeholder="Select Title"
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,

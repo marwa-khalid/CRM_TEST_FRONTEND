@@ -38,7 +38,7 @@ import {
   getCheckoutDetails,
 } from "../../../services/HireVehicleProvided/HireVehicleProvided";
 import CreatableSelect from "react-select/creatable";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 import {
   listVehicleRegister,
   upsertVehicleRegister,
@@ -1607,7 +1607,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   isOptionDisabled={(o: any) =>
                     o.is_active && normaliseReg(o.value) !== normaliseReg(currentReg)
                   }
-                  styles={customStyles}
+                  styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                   components={{
                     DropdownIndicator: BlueDropdownIndicator,
                     IndicatorSeparator: () => null,
@@ -2120,7 +2120,7 @@ const InputField: React.FC<{
 const Dropdown: React.FC<{ label: string; options: any; value: any; onChange: any }> = ({ label, options, value, onChange }) => (
   <div className="flex flex-col gap-2 w-full">
     <label className="text-neutral-700 text-[14px] font-weight-500">{label}</label>
-    <Select options={options} value={options.find((o: any) => o.value === value)} onChange={onChange} styles={customStyles} components={{ DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null }} />
+    <Select options={options} value={options.find((o: any) => o.value === value)} onChange={onChange} styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView} components={{ DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null }} />
   </div>
 );
 

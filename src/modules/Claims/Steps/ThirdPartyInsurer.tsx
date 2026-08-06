@@ -23,7 +23,7 @@ import {
   getThirdPartyInsurer,
   updateThirdPartyInsurer,
 } from "../../../services/ThirdPartyInsurer/ThirdPartyInsurer";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 import { getCompanySuggestions } from "../../../services/Referrer/Referrer";
 import { getLocalTimeZone } from "@internationalized/date";
 
@@ -406,7 +406,7 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
           <label className="text-neutral-700 text-sm font-light">Title</label>
           <Select
             options={[{ value: "mr", label: "Mr" }, { value: "mrs", label: "Mrs" }].sort((a, b) => String(a.label).localeCompare(String(b.label)))}
-            styles={customStyles}
+            styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
             value={[{ value: "mr", label: "Mr" }, { value: "mrs", label: "Mrs" }].find((o) => o.value === formik.values.third_party.gender)}
             onChange={(o: any) => formik.setFieldValue("third_party.gender", o.value)}
             components={{ DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null }}
@@ -584,7 +584,7 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
             <label className="text-neutral-700 text-sm font-light">Conducting The New MID?</label>
             <Select
               options={lookups.handlers.map((h: any) => ({ value: h.id, label: h.label }))}
-              styles={customStyles}
+              styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
               placeholder="Select Handler"
               value={lookups.handlers.find((o: any) => o.id === formik.values.handler_id)
                 ? { value: formik.values.handler_id, label: lookups.handlers.find((o: any) => o.id === formik.values.handler_id)?.label }
@@ -607,7 +607,7 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
             <label className="text-neutral-700 text-sm font-light">Reason for New MID</label>
             <Select
               options={lookups.reasons.map((r: any) => ({ value: r.id, label: r.label }))}
-              styles={customStyles}
+              styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
               placeholder="Select Reason"
               value={lookups.reasons.find((o: any) => o.id === formik.values.reason_new_mid_id)
                 ? { value: formik.values.reason_new_mid_id, label: lookups.reasons.find((o: any) => o.id === formik.values.reason_new_mid_id)?.label }
@@ -682,7 +682,7 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
             <label className="text-neutral-700 text-sm font-light">Current Liability Stance</label>
             <Select
               options={lookups.stances.map((s: any) => ({ value: s.id, label: s.label }))}
-              styles={customStyles}
+              styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
               placeholder="Select Stance"
               value={lookups.stances.find((o: any) => o.id === formik.values.liability_stance_id)
                 ? { value: formik.values.liability_stance_id, label: lookups.stances.find((o: any) => o.id === formik.values.liability_stance_id)?.label }
@@ -708,7 +708,7 @@ const ThirdPartyInsurer = ({ formRef, claimId: claimIdProp }: any) => {
           <label className="text-neutral-700 text-sm font-light">Settlement Status</label>
           <Select
             options={lookups.statuses.map((s: any) => ({ value: s.id, label: s.label }))}
-            styles={customStyles}
+            styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
             menuPlacement="top"
             placeholder="Select Settlement Status"
             value={lookups.statuses.find((o: any) => o.id === formik.values.settlement_status_id)

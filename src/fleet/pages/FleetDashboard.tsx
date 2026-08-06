@@ -448,8 +448,12 @@ const PERIOD_SUB: Record<string, string> = { WTD: "Week to date", MTD: "Month to
 const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
   const [live, setLive] = useState<FPCard[] | null>(null);
   const [compare, setCompare] = useState("vs last month");
+  // Loader while a period switch (WTD/MTD/YTD) refetches, so the delay reads as
+  // "working", not "nothing happened".
+  const [loading, setLoading] = useState(false);
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     getStats(period).then((r) => {
       if (cancelled || !r) return;
       setCompare(r.compare_label);
@@ -458,6 +462,8 @@ const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
           key: c.key, label: c.label.replace(/\s*\(.*\)$/, ""), value: c.value, pct: c.pct, up: c.up, sub: c.sub, progress: c.progress,
         })),
       );
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
     });
     return () => {
       cancelled = true;
@@ -465,7 +471,12 @@ const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
   }, [period]);
   const data = live ?? FP_FALLBACK;
   return (
-    <div className="col-span-12 bg-white rounded-xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.05)] border border-neutral-200 overflow-hidden">
+    <div className="col-span-12 relative bg-white rounded-xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.05)] border border-neutral-200 overflow-hidden">
+      {loading && (
+        <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
+        </div>
+      )}
       <div className="px-5 py-4 border-b border-neutral-100 flex items-baseline gap-2.5">
         <h3 className="text-xl font-weight-600 text-neutral-900 leading-tight">Fleet Performance</h3>
         <span className="text-neutral-400 text-xs">{PERIOD_SUB[period] ?? "Month to date"}</span>
@@ -480,7 +491,7 @@ const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
               </span>
             </div>
             <div className="mt-5 text-neutral-900 text-4xl font-weight-600 leading-9 tabular-nums">{c.value}</div>
-            <div className="mt-1.5 text-neutral-700 text-xs font-weight-600 leading-5">{c.label}</div>
+            <div className="mt-1.5 text-neutral-700 text-sm font-weight-600 leading-5">{c.label}</div>
             <div className="mt-[3px] text-neutral-400 text-xs leading-4">{c.sub}</div>
             <div className="mt-5 flex items-center gap-2.5">
               <div className="flex-1 h-[5px] bg-neutral-100 rounded overflow-hidden"><div className={`h-full rounded ${FP_META[c.key]?.bar ?? "bg-blue-500"}`} style={{ width: `${c.progress}%` }} /></div>
@@ -808,7 +819,7 @@ const ExpiryCarousel: React.FC = () => {
 
   const arrow = (dir: "l" | "r") => (
     <button type="button" aria-label={dir === "l" ? "Previous" : "Next"} onClick={() => advance(dir === "l" ? -1 : 1)}
-      className={`absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white border border-neutral-100 shadow-md grid place-items-center text-[#9A9EB2] hover:text-neutral-600 transition-colors ${dir === "l" ? "left-0" : "right-0"}`}>
+      className={`absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white border border-neutral-100 shadow-md grid place-items-center text-[#9A9EB2] hover:text-neutral-600 transition-colors ${dir === "l" ? "left-0 -translate-x-1/2" : "right-0 translate-x-1/2"}`}>
       <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6">
         <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         {dir === "l" ? (
@@ -821,7 +832,7 @@ const ExpiryCarousel: React.FC = () => {
   );
   return (
     <div className="col-span-12">
-      <div className="relative px-8">
+      <div className="relative">
         {arrow("l")}
         <div className="overflow-hidden">
           <div ref={trackRef} onTransitionEnd={onSettled}
@@ -832,7 +843,7 @@ const ExpiryCarousel: React.FC = () => {
               const rows = e.buckets && active ? e.buckets[active] : e.rows;
               const displayRows = rows.slice(0, 5);
               return (
-                <div key={i} className="shrink-0 min-w-0 basis-full sm:basis-[calc((100%_-_1.5rem)/2_-_1px)] lg:basis-[calc((100%_-_3rem)/3_-_1px)]">
+                <div key={i} className="shrink-0 min-w-0 basis-full sm:basis-[calc((100%_-_1.5rem)/2)] lg:basis-[calc((100%_-_3rem)/3)]">
                   <div className="rounded-xl border border-neutral-200 p-6 flex flex-col min-w-0 h-full gap-1">
                     <CardHead
                       icon={<SkyIconBox>{e.icon}</SkyIconBox>}

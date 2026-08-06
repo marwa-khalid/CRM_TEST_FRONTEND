@@ -1,16 +1,19 @@
 import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Select from "react-select";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { toast } from "react-toastify";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 import { PostcodeLookup } from "../../../claims/common/PostcodeLookup";
 import { AddressAutocomplete } from "../../../claims/common/AddressAutocomplete";
 import {
   getClientInsurer,
   updateClientInsurer,
   createClientInsurer,
+  getInsurerCompanySuggestions,
+  addInsurerCompany,
+  extractInsurerCertificate,
 } from "../../../services/ClientInsurer/ClientInsurer";
 import {
   getVehicleOwner,
@@ -24,6 +27,40 @@ import No from "../../../assets/AutoClaim_icon/No.svg";
 
 export const ClientInsurerBrokerForm = ({ formRef, claimId }: any) => {
   const [insurerId, setInsurerId] = useState<string | null>(null);
+  // Company Name autocomplete (type-ahead against the insurer company master).
+  const [companyOptions, setCompanyOptions] = useState<any[]>([]);
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const companyBoxRef = useRef<HTMLDivElement>(null);
+  // Certificate OCR upload.
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const certFileRef = useRef<HTMLInputElement>(null);
+
+  // Read a Certificate of Motor Insurance and pre-fill the form. Fields the OCR
+  // can't read are left as-is for manual entry.
+  const handleCertificateUpload = async (file: File) => {
+    setOcrLoading(true);
+    try {
+      const d = await extractInsurerCertificate(file);
+      if (d.company_name) formik.setFieldValue("companyName", d.company_name);
+      if (d.policy_holder) formik.setFieldValue("policy_holder", d.policy_holder);
+      if (d.policy_number) formik.setFieldValue("policy_number", d.policy_number);
+      if (d.reference) formik.setFieldValue("reference", d.reference);
+      if (d.address) formik.setFieldValue("address", d.address);
+      if (d.postcode) formik.setFieldValue("postcode", d.postcode);
+      if (d.policy_cover_level) {
+        formik.setFieldValue("policy_cover_level", d.policy_cover_level.toLowerCase().includes("comprehensive") ? 1 : 2);
+      }
+      if (typeof d.sdp === "boolean") formik.setFieldValue("sdp", d.sdp);
+      if (typeof d.private_hire === "boolean") formik.setFieldValue("private_hire", d.private_hire);
+      const filled = [d.company_name, d.policy_holder, d.policy_number, d.reference, d.address, d.postcode, d.policy_cover_level].filter(Boolean).length;
+      if (filled) toast.success("Certificate read. Please check the details before saving.");
+      else toast.warn("Couldn't read the certificate. Please enter the details manually.");
+    } catch {
+      toast.error("Failed to read the certificate.");
+    } finally {
+      setOcrLoading(false);
+    }
+  };
   const formik = useFormik({
     initialValues: {
       companyName: "",
@@ -153,6 +190,68 @@ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   }, [formik]);
 
   useReportCompletion(isAllFilled(formik.values));
+
+  // Fetch type-ahead suggestions as the company name is typed.
+  useEffect(() => {
+    const term = (formik.values.companyName || "").trim();
+    if (!term) {
+      setCompanyOptions([]);
+      return;
+    }
+    let cancelled = false;
+    getInsurerCompanySuggestions(term)
+      .then((res) => {
+        if (!cancelled) setCompanyOptions(res.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setCompanyOptions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [formik.values.companyName]);
+
+  // Close the dropdown when clicking outside the field.
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (companyBoxRef.current && !companyBoxRef.current.contains(event.target as Node)) {
+        setShowCompanyDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleCompanySelect = (opt: any) => {
+    formik.setFieldValue("companyName", opt.company_name || "");
+    if (opt.address) formik.setFieldValue("address", opt.address);
+    if (opt.postcode) formik.setFieldValue("postcode", opt.postcode);
+    setShowCompanyDropdown(false);
+  };
+
+  // Persist a brand-new insurer company to the master list right away, so it's
+  // available for other claims. Best-effort — the form save also upserts it.
+  const handleAddCompany = async () => {
+    const name = (formik.values.companyName || "").trim();
+    if (!name) return;
+    setShowCompanyDropdown(false);
+    try {
+      await addInsurerCompany({
+        company_name: name,
+        address: formik.values.address || undefined,
+        postcode: formik.values.postcode || undefined,
+      });
+    } catch {
+      // ignore — the typed name stays in the form and is saved regardless
+    }
+  };
+
+  const trimmedCompany = (formik.values.companyName || "").trim();
+  const hasExactCompanyMatch = companyOptions.some(
+    (c) => (c.company_name || "").trim().toLowerCase() === trimmedCompany.toLowerCase(),
+  );
+  const canAddCompany = trimmedCompany.length > 0 && !hasExactCompanyMatch;
+
 const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors`;
 
   return (
@@ -164,21 +263,84 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
       {/* 1. Client Insurers Section [cite: 7] */}
       <div className="self-stretch p-5 rounded-lg border border-gray-100 flex flex-col gap-4">
-        <h2 className="text-neutral-900 text-[20px] font-weight-600">
-          Client Insurer Details
-        </h2>
+        <div className="flex justify-between items-center gap-4">
+          <h2 className="text-neutral-900 text-[20px] font-weight-600">
+            Client Insurer Details
+          </h2>
+          <button
+            type="button"
+            onClick={() => certFileRef.current?.click()}
+            disabled={ocrLoading}
+            className="h-9 shrink-0 px-3.5 inline-flex items-center justify-center gap-2 rounded bg-blue-600 text-white text-sm font-weight-500 hover:bg-blue-700 disabled:opacity-70 transition-colors"
+          >
+            {ocrLoading ? "Reading…" : "Upload Certificate"}
+          </button>
+          <input
+            ref={certFileRef}
+            type="file"
+            accept="image/*,.pdf"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleCertificateUpload(f);
+              e.target.value = "";
+            }}
+          />
+        </div>
         <div className="h-px bg-gray-100 w-full" />
 
-        <div className="flex flex-col gap-2 relative">
+        <div className="flex flex-col gap-2 relative" ref={companyBoxRef}>
           <label className="text-gray-700 text-sm font-weight-400 h-[20px] flex items-center">
             Company Name
           </label>
           <input
             className={`w-full h-[52px] px-5 bg-white rounded border border-gray-200 outline-none text-neutral-700 font-light text-neutral-700 ${inputStyles}`}
             value={formik.values.companyName}
-            onChange={(e) => formik.setFieldValue("companyName", e.target.value)}
+            onChange={(e) => {
+              formik.setFieldValue("companyName", e.target.value);
+              setShowCompanyDropdown(true);
+            }}
+            onFocus={() => setShowCompanyDropdown(true)}
             placeholder="Enter Company Name"
           />
+
+          {showCompanyDropdown && trimmedCompany && (
+            <div className="absolute top-[80px] left-0 w-full bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+              {canAddCompany && (
+                <div
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    handleAddCompany();
+                  }}
+                  className="px-5 py-3 hover:bg-blue-50 cursor-pointer text-sm text-blue-700 border-b border-gray-50 font-medium"
+                >
+                  Add "{trimmedCompany}"
+                </div>
+              )}
+
+              {companyOptions.length > 0 ? (
+                companyOptions.map((c, i) => (
+                  <div
+                    key={i}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      handleCompanySelect(c);
+                    }}
+                    className="px-5 py-3 hover:bg-blue-50/60 cursor-pointer border-b border-gray-50 last:border-none"
+                  >
+                    <div className="text-sm text-gray-700">{c.company_name}</div>
+                    {(c.address || c.postcode) && (
+                      <div className="text-xs text-gray-400 mt-0.5 truncate">
+                        {[c.address, c.postcode].filter(Boolean).join(", ")}
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : !canAddCompany ? (
+                <div className="px-5 py-3 text-sm text-gray-400">No company found</div>
+              ) : null}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -312,7 +474,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 { value: 2, label: "TBC" },
                 { value: 3, label: "Trade" },
               ].sort((a, b) => String(a.label).localeCompare(String(b.label)))}
-              styles={customStyles}
+              styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
               onChange={(opt: any) =>
                 formik.setFieldValue("type_of_policy", opt.value)
               }
@@ -336,7 +498,7 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                 { value: 1, label: "Comprehensive" },
                 { value: 2, label: "Third Party" },
               ].sort((a, b) => String(a.label).localeCompare(String(b.label)))}
-              styles={customStyles}
+              styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
               onChange={(opt: any) =>
                 formik.setFieldValue("policy_cover_level", opt.value)
               }

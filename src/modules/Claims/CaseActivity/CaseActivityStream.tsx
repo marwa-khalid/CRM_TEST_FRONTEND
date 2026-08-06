@@ -235,8 +235,9 @@ const CaseActivityStream = () => {
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
-      const notes = await getActivityNotes(ref);
-      setActivityNotes((prev) => ({ ...prev, [String(ref)]: notes || [] }));
+      // The thread now exists on the server — register it in the UI first, then
+      // refresh its notes best-effort so a refresh hiccup can't make a successful
+      // creation look like a failure.
       const claimRef =
         (isAllCasesView
           ? claimOptions.find((c) => c.id === String(targetClaimId))?.ref
@@ -245,6 +246,12 @@ const CaseActivityStream = () => {
         ...prev,
         [String(ref)]: { claimId: String(targetClaimId), claimRef },
       }));
+      try {
+        const notes = await getActivityNotes(ref);
+        setActivityNotes((prev) => ({ ...prev, [String(ref)]: notes || [] }));
+      } catch {
+        setActivityNotes((prev) => ({ ...prev, [String(ref)]: [] }));
+      }
       toast.success("Note thread created");
       setNewNoteOpen(false);
       setNewNoteText("");
@@ -252,9 +259,11 @@ const CaseActivityStream = () => {
       setNewNoteClaimId("");
       setMention({ open: false, query: "" });
       if (filter !== "All" && filter !== "Note") setFilter("Note");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error("Failed to create note thread");
+      // Surface the real server error so a genuine failure is diagnosable rather
+      // than hidden behind a generic message.
+      toast.error(error?.response?.data?.detail || "Failed to create note thread");
     } finally {
       setNewNoteSaving(false);
     }

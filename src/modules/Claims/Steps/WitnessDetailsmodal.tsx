@@ -19,7 +19,7 @@ import pdf from "../../../assets/AutoClaim_icon/pdf.svg";
 import download from "../../../assets/AutoClaim_icon/download.svg";
 import Yes from "../../../assets/AutoClaim_icon/Yes.svg";
 import No from "../../../assets/AutoClaim_icon/No.svg";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 
 export const WitnessDetailsModal = ({
   onClose,
@@ -381,7 +381,7 @@ export const WitnessDetailsModal = ({
                     (opt) => opt.value === witness.title?.value,
                   )}
                   placeholder="Select Title"
-                  styles={customStyles}
+                  styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                   components={{
                     DropdownIndicator: BlueDropdownIndicator,
                     IndicatorSeparator: () => null,

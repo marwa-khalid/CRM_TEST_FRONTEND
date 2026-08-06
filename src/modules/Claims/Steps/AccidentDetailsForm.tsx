@@ -17,7 +17,7 @@ import { useFormik } from "formik";
 import * as Yup from 'yup'
 import LeafletAutocompleteMap from "../../../claims/GoogleMapAutoComplete/GoogleMapAutoComplete";
 import { deletePassenger, deletePoliceDetail, deleteWitness, getLatestWitnessQuestionnaire, getPassengerById, getPoliceDetails, getQuestionnaireStatus, getWitnesses } from "../../../services/Accidents/Cards/cards";
-import { BlueDropdownIndicator, customStyles } from "./GeneralDetailsForm";
+import { BlueDropdownIndicator, customStyles, scrollSelectIntoView } from "./GeneralDetailsForm";
 import { PoliceDetailsModal } from "./PoliceDetailsModal";
 import CreatableSelect from "react-select/creatable";
 import WitnessQuestionnaireViewer from "../Components/WitnessQuestionnaireViewer";
@@ -716,7 +716,7 @@ const timeOptions = generateTimeOptions();
                   }
                 }}
                 placeholder="Select or type time"
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
@@ -746,7 +746,7 @@ const timeOptions = generateTimeOptions();
                 )}
                 onChange={(e) => formik.setFieldValue("weather", e.value)}
                 placeholder="Select Weather"
-                styles={customStyles} // Using your predefined styles
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView} // Using your predefined styles
                 components={{
                   DropdownIndicator: BlueDropdownIndicator, // Using your custom blue arrow
                   IndicatorSeparator: () => null, // Removes the vertical line for a cleaner look
@@ -867,7 +867,7 @@ const timeOptions = generateTimeOptions();
                   }
                 }}
                 placeholder="Select or type time"
-                styles={customStyles}
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,

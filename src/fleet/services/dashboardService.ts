@@ -32,6 +32,8 @@ export interface StatCard {
   value: string;
   pct: string;
   up: boolean;
+  sub: string;
+  progress: number;
 }
 export interface StatsResponse {
   period: string;
@@ -68,10 +70,19 @@ export const getVehicleStatus = async (): Promise<VehicleStatus | null> => {
 // Weekly payment schedule (Due Today / This Week / Overdue / Received Today +
 // the actionable rows). Rows come pre-shaped for the dashboard's DataTable.
 type PaymentRows = (string | [string, string])[][];
+export interface PaymentSummary {
+  total: string;
+  overdue: string;
+  due_today: string;
+  received: string;
+  by_day: { day: string; amount: number }[];
+}
 export interface WeeklyPayments {
   tabs: { due_today: number; due_this_week: number; overdue: number; received_today: number };
   // Rows grouped by bucket so the dashboard tabs can filter to one bucket.
   rows: { due_today: PaymentRows; due_this_week: PaymentRows; overdue: PaymentRows; received_today: PaymentRows };
+  // Left-panel roll-up: money by bucket + received-so-far this week + per-weekday chart.
+  summary?: PaymentSummary;
 }
 export const getWeeklyPayments = async (): Promise<WeeklyPayments | null> => {
   try {
@@ -84,7 +95,7 @@ export const getWeeklyPayments = async (): Promise<WeeklyPayments | null> => {
 
 // Compliance summary — per-category overdue / % bar / due-in-7 / due-in-30.
 export interface Compliance {
-  categories: { key: string; title: string; overdue: number; bar: number; d7: number; d30: number }[];
+  categories: { key: string; title: string; overdue: number; bar: number; d7: number; d30: number; total: number; compliant: number; amber: number }[];
 }
 export const getCompliance = async (): Promise<Compliance | null> => {
   try {

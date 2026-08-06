@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import LogoIcon from "../assets/listingpage/Logo.svg";
 import CollapseIcon from "../assets/listingpage/GoBack.svg";
@@ -61,6 +61,15 @@ interface NavItem {
 const FleetShell: React.FC = () => {
   const navigate = useNavigate();
   const { name, initials } = currentUser();
+  // Collapsed = icon-only rail so the page area goes near-full-width. Persisted so
+  // it survives navigation between Fleet screens (and reloads).
+  const [collapsed, setCollapsed] = useState<boolean>(() => localStorage.getItem("fleetSidebarCollapsed") === "1");
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("fleetSidebarCollapsed", next ? "1" : "0");
+      return next;
+    });
 
   const items: NavItem[] = [
     { label: "Dashboard", icon: HomeIcon, to: "/fleet/dashboard" },
@@ -71,16 +80,16 @@ const FleetShell: React.FC = () => {
     { label: "Skyline Map", icon: MapIcon, to: "/fleet/map" },
   ];
 
-  const rowBase = "w-full flex items-center gap-3 px-5 py-3 text-[15px] leading-none transition-colors";
+  const rowBase = `w-full flex items-center gap-3 py-3 text-[15px] leading-none transition-colors ${collapsed ? "justify-center px-0" : "px-5"}`;
 
   return (
     <div className="min-h-screen bg-white font-sans-headline flex">
-      <aside className="hidden lg:flex w-[242px] shrink-0 h-screen sticky top-0 bg-white border-r border-[#eee] flex-col">
+      <aside className={`hidden lg:flex ${collapsed ? "w-[76px]" : "w-[242px]"} shrink-0 h-screen sticky top-0 bg-white border-r border-[#eee] flex-col transition-[width] duration-200`}>
         {/* Logo + collapse */}
-        <div className="flex items-center justify-between px-5 py-6">
-          <img src={LogoIcon} alt="Logo" className="h-[31px] w-auto object-contain" />
-          <button type="button" className="text-neutral-500" aria-label="Collapse sidebar">
-            <img src={CollapseIcon} alt="" className="w-4 h-4" />
+        <div className={`flex items-center px-5 py-6 ${collapsed ? "justify-center" : "justify-between"}`}>
+          {!collapsed && <img src={LogoIcon} alt="Logo" className="h-[31px] w-auto object-contain" />}
+          <button type="button" onClick={toggleCollapsed} className="text-neutral-500 hover:text-neutral-700" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+            <img src={CollapseIcon} alt="" className={`w-4 h-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
           </button>
         </div>
         <div className="border-t border-[#eee]" />
@@ -93,40 +102,42 @@ const FleetShell: React.FC = () => {
                 key={item.label}
                 to={item.to}
                 end={item.end}
+                title={collapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   `${rowBase} ${
                     isActive
-                      ? "bg-[#eee] border-l-4 border-black pl-4 text-black font-medium"
+                      ? "bg-[#eee] border-l-4 border-black text-black font-medium"
                       : "border-l-4 border-transparent text-[#444] hover:bg-neutral-50"
                   }`
                 }
               >
-                <img src={item.icon} alt="" className="w-5 h-5" />
-                <span>{item.label}</span>
+                <img src={item.icon} alt="" className="w-5 h-5 shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
               </NavLink>
             ) : (
               <button
                 key={item.label}
                 type="button"
                 onClick={item.onClick}
+                title={collapsed ? item.label : undefined}
                 className={`${rowBase} border-l-4 border-transparent text-[#444] hover:bg-neutral-50 text-left`}
               >
-                <img src={item.icon} alt="" className="w-5 h-5" />
-                <span>{item.label}</span>
+                <img src={item.icon} alt="" className="w-5 h-5 shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
               </button>
             ),
           )}
         </nav>
 
         {/* User profile */}
-        <div className="border-t border-[#eee] p-6 flex items-center justify-between gap-3">
+        <div className={`border-t border-[#eee] flex items-center gap-3 ${collapsed ? "p-4 justify-center" : "p-6 justify-between"}`}>
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-10 h-10 shrink-0 rounded-full bg-black text-white text-sm font-semibold flex items-center justify-center">
               {initials}
             </span>
-            <span className="text-black text-base font-medium truncate">{name}</span>
+            {!collapsed && <span className="text-black text-base font-medium truncate">{name}</span>}
           </div>
-          <img src={AccountArrows} alt="" className="w-5 h-5 shrink-0" />
+          {!collapsed && <img src={AccountArrows} alt="" className="w-5 h-5 shrink-0" />}
         </div>
       </aside>
 

@@ -2,9 +2,6 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from
 import FleetNotificationBell from "../components/FleetNotificationBell";
 import TrendingUp from "../../assets/Dashboard/TrendingUp.svg";
 import TrendingDown from "../../assets/Dashboard/TrendingDown.svg";
-import Cars from "../../assets/Dashboard/Cars.svg";
-import Pound from "../../assets/Dashboard/Pound.svg";
-import Urgent from "../../assets/Dashboard/Urgent.svg";
 import AllTasksIcon from "../../assets/Dashboard/AllTasks.svg";
 import OverdueIcon from "../../assets/Dashboard/Overdue.svg";
 import CriticalIcon from "../../assets/Dashboard/Critical.svg";
@@ -15,13 +12,20 @@ import ServiceIcon from "../assets/dashboard/Service.svg";
 import VehicleStatusIcon from "../assets/dashboard/Vehiclestatus.svg";
 import PaymentsIcon from "../assets/dashboard/Payments.svg";
 import PlateIcon from "../assets/dashboard/Plate.svg";
-import ComplianceIcon from "../assets/dashboard/Compliance.svg";
+import ComplianceRedIcon from "../assets/dashboard/ComplianceRed.svg";
+import MOTGrayIcon from "../assets/dashboard/MOTGray.svg";
+import PlateGrayIcon from "../assets/dashboard/PlateGray.svg";
+import RoadFundGrayIcon from "../assets/dashboard/RoadFundGray.svg";
+import ServiceGrayIcon from "../assets/dashboard/ServiceGray.svg";
+import VehiclesOnHireIcon from "../assets/dashboard/VehiclesOnHire.svg";
+import NetIncomeIcon from "../assets/dashboard/NetIncome.svg";
+import FleetAvailabilityIcon from "../assets/dashboard/FleetAvailability.svg";
 import FleetMultiSelectFilter from "../components/FleetMultiSelectFilter";
 import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
 import FleetMissingDocumentsSlider from "../components/FleetMissingDocumentsSlider";
 import {
   getHireTrend, getStats, getVehicleStatus, getWeeklyPayments, getCompliance, getExpiries, getAttention,
-  type WeeklyPayments, type Attention, type Compliance, type Expiries,
+  type WeeklyPayments, type PaymentSummary, type Attention, type Compliance, type Expiries,
 } from "../services/dashboardService";
 import { listFleetTasks, type FleetTask } from "../services/taskService";
 
@@ -200,7 +204,7 @@ const HireTrend: React.FC = () => {
               const isCmp = two && i === 0;
               return (
                 <div key={i} className={`h-full flex items-end justify-center relative group ${two ? "flex-none" : "flex-1"}`}>
-                  <div className={`relative rounded-t ${isCmp ? "bg-neutral-300" : "bg-neutral-800 group-hover:bg-neutral-900"}`} style={{ height: h.toFixed(1) + "%", width: `${barW}px` }}>
+                  <div className={`relative rounded-t ${isCmp ? "bg-neutral-300" : "bg-neutral-600 group-hover:bg-neutral-700"}`} style={{ height: h.toFixed(1) + "%", width: `${barW}px` }}>
                     <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{v.labels[i] + " · " + val + " hires"}</div>
                   </div>
                 </div>
@@ -428,43 +432,30 @@ const TaskManagement: React.FC = () => {
 };
 
 // ── Top stat cards (icons + backgrounds taken from the Claims dashboard) ───────
-type Kpi = { value: React.ReactNode; label: string; pct: string; up: boolean; iconBg: string; icon: React.ReactNode };
-const KPI_DATA: Kpi[] = [
-  { value: "30", label: "Vehicles on Hire", pct: "6.4", up: true, iconBg: "bg-blue-100", icon: <img src={Cars} alt="" /> },
-  { value: "£38,420", label: "Net Income (MTD)", pct: "11.2", up: true, iconBg: "bg-neutral-100", icon: <img src={Pound} alt="" /> },
-  { value: "71%", label: "Fleet Availability", pct: "1.4", up: true, iconBg: "bg-blue-100", icon: <img src={Cars} alt="" /> },
-  { value: "7", label: "Urgent Alerts", pct: "2.0", up: false, iconBg: "bg-red-100", icon: <img src={Urgent} alt="" /> },
-];
-// Presentation (icon + tint) per backend stat key — the numbers come live, the icons stay here.
-const KPI_ICONS: Record<string, { iconBg: string; icon: React.ReactNode }> = {
-  vehicles_on_hire: { iconBg: "bg-blue-100", icon: <img src={Cars} alt="" /> },
-  net_income: { iconBg: "bg-neutral-100", icon: <img src={Pound} alt="" /> },
-  fleet_availability: { iconBg: "bg-blue-100", icon: <img src={Cars} alt="" /> },
-  urgent_alerts: { iconBg: "bg-red-100", icon: <img src={Urgent} alt="" /> },
+// ── Fleet Performance (3 headline metrics, live from /dashboard/stats) ─────────
+const FP_META: Record<string, { icon: React.ReactNode; bar: string }> = {
+  vehicles_on_hire: { icon: <img src={VehiclesOnHireIcon} alt="" className="w-4 h-4" />, bar: "bg-blue-500" },
+  net_income: { icon: <img src={NetIncomeIcon} alt="" className="w-4 h-4" />, bar: "bg-emerald-500" },
+  fleet_availability: { icon: <img src={FleetAvailabilityIcon} alt="" className="w-4 h-4" />, bar: "bg-indigo-500" },
 };
-const StatCards: React.FC = () => {
-  const [period, setPeriod] = useState("MTD");
-  // Live stat cards from the Fleet backend; falls back to KPI_DATA placeholders
-  // if the backend isn't reachable so the row never renders empty.
-  const [cards, setCards] = useState<Kpi[] | null>(null);
+type FPCard = { key: string; label: string; value: string; pct: string; up: boolean; sub: string; progress: number };
+const FP_FALLBACK: FPCard[] = [
+  { key: "vehicles_on_hire", label: "Vehicles on Hire", value: "12", pct: "6.4", up: true, sub: "of 42 active units", progress: 29 },
+  { key: "net_income", label: "Net Income", value: "£84,290", pct: "12.4", up: true, sub: "Month to date", progress: 74 },
+  { key: "fleet_availability", label: "Fleet Availability", value: "70.3%", pct: "2.1", up: false, sub: "43 units available now", progress: 70 },
+];
+const PERIOD_SUB: Record<string, string> = { WTD: "Week to date", MTD: "Month to date", YTD: "Year to date" };
+const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
+  const [live, setLive] = useState<FPCard[] | null>(null);
   const [compare, setCompare] = useState("vs last month");
   useEffect(() => {
     let cancelled = false;
     getStats(period).then((r) => {
-      if (cancelled) return;
-      if (!r) {
-        setCards(null);
-        return;
-      }
+      if (cancelled || !r) return;
       setCompare(r.compare_label);
-      setCards(
-        r.cards.map((c) => ({
-          value: c.value,
-          label: c.label,
-          pct: c.pct,
-          up: c.up,
-          iconBg: KPI_ICONS[c.key]?.iconBg ?? "bg-neutral-100",
-          icon: KPI_ICONS[c.key]?.icon ?? null,
+      setLive(
+        r.cards.filter((c) => c.key !== "urgent_alerts").slice(0, 3).map((c) => ({
+          key: c.key, label: c.label.replace(/\s*\(.*\)$/, ""), value: c.value, pct: c.pct, up: c.up, sub: c.sub, progress: c.progress,
         })),
       );
     });
@@ -472,30 +463,30 @@ const StatCards: React.FC = () => {
       cancelled = true;
     };
   }, [period]);
-  const data = cards ?? KPI_DATA;
+  const data = live ?? FP_FALLBACK;
   return (
-    <div className="col-span-12 flex flex-col gap-6">
-      <div className="rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 inline-flex items-center gap-1 w-fit">
-        {["WTD", "MTD", "YTD"].map((p) => (
-          <button key={p} type="button" onClick={() => setPeriod(p)} className={`px-4 py-2 rounded text-sm leading-4 ${period === p ? "bg-neutral-900 text-white" : "text-zinc-500"}`}>{p}</button>
-        ))}
+    <div className="col-span-12 bg-white rounded-xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.05)] border border-neutral-200 overflow-hidden">
+      <div className="px-5 py-4 border-b border-neutral-100 flex items-baseline gap-2.5">
+        <h3 className="text-xl font-weight-600 text-neutral-900 leading-tight">Fleet Performance</h3>
+        <span className="text-neutral-400 text-xs">{PERIOD_SUB[period] ?? "Month to date"}</span>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {data.map((c) => (
-          <div key={c.label} className="rounded-lg border border-neutral-200 p-4 flex flex-col gap-3">
-            <div className="flex items-center gap-4">
-              <span className={`w-9 h-9 rounded ${c.iconBg} flex items-center justify-center`}>{c.icon}</span>
-              <img src={c.up ? TrendingUp : TrendingDown} alt="" />
-            </div>
-            <div className="text-neutral-900 text-2xl font-weight-600 leading-7">{c.value}</div>
-            <div className="text-neutral-500 text-xs">{c.label}</div>
-            <div className="mt-2 h-px w-full bg-neutral-200" />
-            <div className="mt-2 flex items-center gap-2">
-              <span className={`flex items-center gap-1 shrink-0 whitespace-nowrap rounded px-2 py-1 text-sm font-weight-600 ${c.up ? "bg-green-100 text-green-500" : "bg-red-100 text-red-500"}`}>
-                <img src={c.up ? TrendingUp : TrendingDown} alt="" className="w-3.5 h-3.5 shrink-0" />{c.pct}%
+      <div className="grid grid-cols-1 md:grid-cols-3">
+        {data.map((c, i) => (
+          <div key={c.key} className={`px-7 py-6 flex flex-col ${i < data.length - 1 ? "md:border-r border-neutral-100" : ""}`}>
+            <div className="flex items-start justify-between">
+              <span className="w-9 h-9 bg-neutral-100 rounded-[10px] inline-flex items-center justify-center">{FP_META[c.key]?.icon}</span>
+              <span className={`px-2 py-[3px] rounded-full inline-flex items-center gap-1 text-xs font-weight-700 leading-4 ${c.up ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
+                <img src={c.up ? TrendingUp : TrendingDown} alt="" className="w-3 h-3" />{c.pct}%
               </span>
-              <span className="text-xs font-weight-500 text-neutral-500 leading-tight">{compare}</span>
             </div>
+            <div className="mt-5 text-neutral-900 text-4xl font-weight-600 leading-9 tabular-nums">{c.value}</div>
+            <div className="mt-1.5 text-neutral-700 text-xs font-weight-600 leading-5">{c.label}</div>
+            <div className="mt-[3px] text-neutral-400 text-xs leading-4">{c.sub}</div>
+            <div className="mt-5 flex items-center gap-2.5">
+              <div className="flex-1 h-[5px] bg-neutral-100 rounded overflow-hidden"><div className={`h-full rounded ${FP_META[c.key]?.bar ?? "bg-blue-500"}`} style={{ width: `${c.progress}%` }} /></div>
+              <span className="text-neutral-400 text-xs tabular-nums">{c.progress}%</span>
+            </div>
+            <div className="mt-1.5 text-neutral-300 text-xs leading-4">{compare}</div>
           </div>
         ))}
       </div>
@@ -531,7 +522,7 @@ const SKY_VEHICLES: SkyVehicle[] = [
   { registration: "TN21 DWF", model: "Ford Transit", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 11 Days", customer: "Omar Haddad" },
 ];
 const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
-  <div className="flex min-h-32 flex-1 items-start justify-between rounded-lg border border-neutral-200 p-4">
+  <div className="flex min-h-32 flex-1 items-start justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-4">
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h3 className="text-sm font-weight-500 text-black">{v.registration}</h3>
@@ -645,7 +636,6 @@ const SkylineOperations: React.FC = () => {
 };
 
 // ── Expiry cards + Compliance Summary ─────────────────────────────────────────
-const complianceIcon = <img src={ComplianceIcon} alt="" className="size-4" />;
 const plate = <img src={PlateIcon} alt="" className="size-4" />;
 const motIcon = <img src={MOTIcon} alt="" className="size-4" />;
 const roadIcon = <img src={RoadTaxIcon} alt="" className="size-4" />;
@@ -751,15 +741,32 @@ const ExpiryCarousel: React.FC = () => {
   const [stepW, setStepW] = useState(0);
   const [animate, setAnimate] = useState(false);
 
-  // Measure one card + gap so a step moves exactly one card (before first paint).
+  // Measure the exact card pitch (card width + gap) from the laid-out geometry so a
+  // step lands precisely on a card boundary — otherwise a card gets shaved at the
+  // start/end. offsetLeft is unaffected by the transform, so the delta between two
+  // adjacent cards is the true pitch (sub-pixel-accurate, no rounding drift), and a
+  // ResizeObserver keeps it correct when the container width shifts after mount
+  // (e.g. a scrollbar appearing once the dashboard data loads).
   useLayoutEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
     const measure = () => {
-      const first = trackRef.current?.firstElementChild as HTMLElement | null;
-      if (first) setStepW(first.offsetWidth + 16);
+      const kids = el.children;
+      if (kids.length >= 2) {
+        const pitch = (kids[1] as HTMLElement).offsetLeft - (kids[0] as HTMLElement).offsetLeft;
+        if (pitch > 0) setStepW(pitch);
+      } else if (kids.length === 1) {
+        setStepW((kids[0] as HTMLElement).offsetWidth);
+      }
     };
     measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
   }, []);
 
   // Re-enable the transition the frame after any non-animated (snap) reposition,
@@ -783,8 +790,13 @@ const ExpiryCarousel: React.FC = () => {
   }, [advance, paused]);
 
   // When a slide finishes on an edge copy, jump back into the middle set with no
-  // animation so the motion always continues in one seamless direction.
-  const onSettled = () => {
+  // animation so the motion always continues in one seamless direction. Guard
+  // against transitions that bubble up from child elements (card hovers, tooltip
+  // fades) — only the track's own transform slide may trigger the snap, otherwise
+  // stray events decrement index repeatedly and translate the track off-screen
+  // (the "completely white" flash).
+  const onSettled = (e: React.TransitionEvent) => {
+    if (e.target !== trackRef.current || e.propertyName !== "transform") return;
     if (index >= cards.length * 2) {
       setAnimate(false);
       setIndex((i) => i - cards.length);
@@ -796,7 +808,7 @@ const ExpiryCarousel: React.FC = () => {
 
   const arrow = (dir: "l" | "r") => (
     <button type="button" aria-label={dir === "l" ? "Previous" : "Next"} onClick={() => advance(dir === "l" ? -1 : 1)}
-      className={`absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white border border-neutral-100 shadow-md grid place-items-center text-[#9A9EB2] hover:text-neutral-600 transition-colors ${dir === "l" ? "left-0 -translate-x-full" : "right-0 translate-x-full"}`}>
+      className={`absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white border border-neutral-100 shadow-md grid place-items-center text-[#9A9EB2] hover:text-neutral-600 transition-colors ${dir === "l" ? "left-0" : "right-0"}`}>
       <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6">
         <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         {dir === "l" ? (
@@ -809,18 +821,18 @@ const ExpiryCarousel: React.FC = () => {
   );
   return (
     <div className="col-span-12">
-      <div className="relative">
+      <div className="relative px-8">
         {arrow("l")}
         <div className="overflow-hidden">
           <div ref={trackRef} onTransitionEnd={onSettled}
-            className="flex items-stretch gap-4"
+            className="flex items-stretch gap-6"
             style={{ transform: `translateX(-${index * stepW}px)`, transition: animate ? "transform 0.45s ease" : "none" }}>
             {track.map((e, i) => {
               const active = filters[e.title] ?? null;
               const rows = e.buckets && active ? e.buckets[active] : e.rows;
               const displayRows = rows.slice(0, 5);
               return (
-                <div key={i} className="shrink-0 min-w-0 basis-full sm:basis-[calc((100%_-_1rem)/2)] lg:basis-[calc((100%_-_2rem)/3)]">
+                <div key={i} className="shrink-0 min-w-0 basis-full sm:basis-[calc((100%_-_1.5rem)/2_-_1px)] lg:basis-[calc((100%_-_3rem)/3_-_1px)]">
                   <div className="rounded-xl border border-neutral-200 p-6 flex flex-col min-w-0 h-full gap-1">
                     <CardHead
                       icon={<SkyIconBox>{e.icon}</SkyIconBox>}
@@ -846,7 +858,7 @@ const ExpiryCarousel: React.FC = () => {
                     ) : (
                       <TabPills tabs={e.tabs} />
                     )}
-                    <div className="overflow-x-auto"><DataTable head={e.head} rows={displayRows} headText="text-neutral-600 font-weight-400" cellText="text-neutral-500" rowClass="py-4" /></div>
+                    <div className="overflow-x-auto"><DataTable head={e.head} rows={displayRows} headText="text-neutral-700 font-normal" cellText="text-neutral-500" rowClass="py-4" /></div>
                   </div>
                 </div>
               );
@@ -862,10 +874,10 @@ const ExpiryCarousel: React.FC = () => {
 
 type Comp = { title: string; icon: React.ReactNode; overdue: number; bar: number; d7: number; d30: number };
 const COMPLIANCE: Comp[] = [
-  { title: "MOT", icon: motIcon, overdue: 2, bar: 10, d7: 1, d30: 13 },
-  { title: "Plate", icon: plate, overdue: 9, bar: 26, d7: 5, d30: 18 },
-  { title: "Road Fund Licence", icon: roadIcon, overdue: 1, bar: 8, d7: 4, d30: 10 },
-  { title: "Service", icon: serviceIcon, overdue: 3, bar: 16, d7: 7, d30: 14 },
+  { title: "MOT", icon: <img src={MOTGrayIcon} alt="" className="size-4" />, overdue: 2, bar: 10, d7: 1, d30: 13 },
+  { title: "Plate", icon: <img src={PlateGrayIcon} alt="" className="size-4" />, overdue: 9, bar: 26, d7: 5, d30: 18 },
+  { title: "Road Fund Licence", icon: <img src={RoadFundGrayIcon} alt="" className="size-4" />, overdue: 1, bar: 8, d7: 4, d30: 10 },
+  { title: "Service", icon: <img src={ServiceGrayIcon} alt="" className="size-4" />, overdue: 3, bar: 16, d7: 7, d30: 14 },
 ];
 const ComplianceSummary: React.FC = () => {
   // Live per-category compliance (matched by title); keeps the icons defined here.
@@ -882,30 +894,63 @@ const ComplianceSummary: React.FC = () => {
   const byTitle = new Map((live?.categories ?? []).map((c) => [c.title, c]));
   const data = COMPLIANCE.map((c) => {
     const l = byTitle.get(c.title);
-    return l ? { ...c, overdue: l.overdue, bar: l.bar, d7: l.d7, d30: l.d30 } : c;
+    return l
+      ? { ...c, overdue: l.overdue, bar: l.bar, d7: l.d7, d30: l.d30, total: l.total, compliant: l.compliant, amber: l.amber }
+      : { ...c, total: 42, compliant: 95, amber: 6 };
   });
+  const totalOverdue = data.reduce((s, c) => s + c.overdue, 0);
   return (
-    <Card span="col-span-12">
-      <CardHead
-        icon={<SkyIconBox>{complianceIcon}</SkyIconBox>} title="Compliance Summary"
-      />
+    <div className="col-span-12">
+      {/* Section header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
+        <div className="flex items-center gap-2.5">
+          <span className="size-8 bg-red-50 rounded-lg inline-flex items-center justify-center"><img src={ComplianceRedIcon} alt="" className="size-4" /></span>
+          <h2 className="text-neutral-900 text-xl font-weight-600">Compliance Summary</h2>
+          <span className="px-2.5 py-[3px] bg-red-50 rounded-full outline outline-1 outline-offset-[-1px] outline-red-200 inline-flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-red-500" />
+            <span className="text-red-600 text-xs font-weight-700 leading-4">{totalOverdue} Total Overdue</span>
+          </span>
+        </div>
+        <button type="button" className="px-3.5 py-[5px] bg-neutral-900 rounded-md text-white text-xs font-weight-500 leading-4 hover:bg-black transition">Manage All</button>
+      </div>
+      {/* Category cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {data.map((c) => (
-        <div key={c.title} className="border border-neutral-200 rounded-xl p-[18px] flex flex-col gap-4">
-          <div className="flex items-start justify-between gap-2">
-            <h4 className="text-[15px] font-weight-600 text-neutral-900">{c.title}</h4>
-            <SkyIconBox>{c.icon}</SkyIconBox>
+          <div key={c.title} className="bg-white rounded-xl shadow-[0px_1px_4px_0px_rgba(0,0,0,0.05)] border border-neutral-200 px-5 pt-5 pb-4 flex flex-col">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="size-8 bg-neutral-100 rounded-lg inline-flex items-center justify-center shrink-0 text-neutral-500">{c.icon}</span>
+                <h4 className="text-neutral-900 text-sm font-weight-600 leading-5 truncate">{c.title}</h4>
+              </div>
+              <span className="px-2 py-0.5 bg-neutral-100 rounded-full text-neutral-500 text-xs font-weight-600 leading-4 shrink-0">{c.total} total</span>
+            </div>
+            <div className="mt-4 h-1.5 bg-neutral-100 rounded flex gap-px overflow-hidden">
+              <span className="bg-red-500 h-full" style={{ width: `${c.bar}%` }} />
+              <span className="bg-amber-400 h-full" style={{ width: `${c.amber}%` }} />
+              <span className="bg-emerald-100 h-full flex-1" />
+            </div>
+            <div className="mt-3.5 grid grid-cols-3 gap-2">
+              <div className="bg-red-50 rounded-lg outline outline-1 outline-offset-[-1px] outline-red-200 px-2 py-2.5 flex flex-col items-center">
+                <span className="text-red-600 text-xl font-weight-600 leading-5 tabular-nums">{c.overdue}</span>
+                <span className="text-red-600 text-[10px] font-weight-500 uppercase tracking-tight mt-1">Overdue</span>
+              </div>
+              <div className="bg-amber-50 rounded-lg outline outline-1 outline-offset-[-1px] outline-amber-200 px-2 py-2.5 flex flex-col items-center">
+                <span className="text-amber-800 text-xl font-weight-600 leading-5 tabular-nums">{c.d7}</span>
+                <span className="text-amber-600 text-[10px] font-weight-500 uppercase tracking-tight mt-1">7 Days</span>
+              </div>
+              <div className="bg-neutral-50 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 px-2 py-2.5 flex flex-col items-center">
+                <span className="text-neutral-700 text-xl font-weight-600 leading-5 tabular-nums">{c.d30}</span>
+                <span className="text-neutral-400 text-[10px] font-weight-500 uppercase tracking-tight mt-1">30 Days</span>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-between">
+              <span className="text-neutral-400 text-xs">Compliant</span>
+              <span className="text-green-600 text-xs font-weight-600 tabular-nums">{c.compliant}%</span>
+            </div>
           </div>
-          <div className="flex items-baseline gap-2"><span className="text-3xl font-weight-700 text-[#f26d6d] leading-none">{c.overdue}</span><span className="text-[13px] text-neutral-400">Overdue</span></div>
-          <div className="h-2 rounded-md bg-green-300 overflow-hidden flex"><span className="h-full bg-[#e97070]" style={{ width: `${c.bar}%` }} /></div>
-          <div className="flex gap-7">
-            <div><div className="text-xl font-weight-700 leading-none text-orange-600">{c.d7}</div><div className="text-xs text-neutral-400 mt-1">Due in 7 days</div></div>
-            <div><div className="text-xl font-weight-700 leading-none text-neutral-700">{c.d30}</div><div className="text-xs text-neutral-400 mt-1">Due in 30 days</div></div>
-          </div>
-        </div>
         ))}
       </div>
-    </Card>
+    </div>
   );
 };
 
@@ -925,6 +970,52 @@ const WP_FALLBACK_ROWS: (string | [string, string])[][] = [
   ["NJ23 LFP", "Urban Freight Co", "£525.00", "£525.00", "15 May 2025", ["This Week", "orange"]],
 ];
 const WP_FALLBACK_COUNTS: WeeklyPayments["tabs"] = { due_today: 6, due_this_week: 18, overdue: 4, received_today: 11 };
+const WP_FALLBACK_SUMMARY: PaymentSummary = {
+  total: "£30,490", overdue: "£4,140", due_today: "£1,340", received: "£24,600",
+  by_day: [
+    { day: "Mon", amount: 3200 }, { day: "Tue", amount: 2400 }, { day: "Wed", amount: 5100 },
+    { day: "Thu", amount: 6800 }, { day: "Fri", amount: 5200 }, { day: "Sat", amount: 1600 }, { day: "Sun", amount: 300 },
+  ],
+};
+
+// Left-hand roll-up panel: total this week + owed/received breakdown + a per-weekday
+// mini chart. Grey-toned to match the Fleet theme; uses the app's own fonts.
+const WPSummary: React.FC<{ s: PaymentSummary }> = ({ s }) => {
+  const max = Math.max(1, ...s.by_day.map((d) => d.amount));
+  const rows: [string, string, string][] = [
+    ["Overdue", s.overdue, "text-red-600"],
+    ["Due Today", s.due_today, "text-amber-600"],
+    ["Received", s.received, "text-green-600"],
+  ];
+  return (
+    <aside className="shrink-0 w-40 bg-neutral-50 border border-neutral-100 rounded-lg p-4 flex flex-col gap-4">
+      <div>
+        <div className="text-2xl font-weight-600 text-neutral-900 tabular-nums leading-tight">{s.total}</div>
+        <div className="text-xs text-neutral-400 mt-1">Total this week</div>
+      </div>
+      <div className="flex flex-col gap-2">
+        {rows.map(([label, value, tone]) => (
+          <div key={label} className="flex items-center justify-between">
+            <span className="text-xs text-neutral-400">{label}</span>
+            <span className={`text-xs font-weight-500 tabular-nums ${tone}`}>{value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-auto">
+        <div className="flex items-end gap-1 h-20">
+          {s.by_day.map((d) => (
+            <div key={d.day} title={`${d.day}: £${d.amount.toLocaleString()}`}
+              className={`flex-1 rounded-sm ${d.amount === max ? "bg-neutral-400" : "bg-neutral-200"}`}
+              style={{ height: `${Math.max(4, (d.amount / max) * 100)}%` }} />
+          ))}
+        </div>
+        <div className="flex mt-1.5">
+          {s.by_day.map((d) => <span key={d.day} className="flex-1 text-center text-[9px] text-neutral-400">{d.day[0]}</span>)}
+        </div>
+      </div>
+    </aside>
+  );
+};
 const WeeklyPayment: React.FC = () => {
   // Live cross-hire schedule; the four tabs filter the table to a single bucket
   // (click again to clear). Falls back to placeholders if the backend is unreachable.
@@ -941,6 +1032,7 @@ const WeeklyPayment: React.FC = () => {
     };
   }, []);
   const counts = live?.tabs ?? WP_FALLBACK_COUNTS;
+  const summary = live?.summary ?? WP_FALLBACK_SUMMARY;
   const rows: (string | [string, string])[][] = live
     ? active
       ? live.rows[active]
@@ -953,31 +1045,36 @@ const WeeklyPayment: React.FC = () => {
         icon={<SkyIconBox><img src={PaymentsIcon} alt="" className="size-4" /></SkyIconBox>}
         title="Weekly Payment Schedule"
       />
-      <div className="flex flex-wrap gap-1.5 mb-3.5">
-        {WP_TABS.map(({ key, tone, label }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => { setActive((a) => (a === key ? null : key)); setShowAllRows(false); }}
-            className={`rounded px-2 py-1.5 text-xs font-weight-400 font-normal leading-4 transition ${TP[tone]} ${active === key ? "ring-2 ring-offset-1 ring-neutral-400" : active ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
-          >
-            {label} {counts[key]}
-          </button>
-        ))}
-      </div>
-      <div className="overflow-x-auto">
-        <DataTable
-          head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]}
-          rows={displayRows}
-          headText="text-neutral-900"
-          cellText="text-neutral-500"
-        />
-      </div>
-      {rows.length > 5 && (
-        <div className="flex justify-center pt-3">
-          <button type="button" onClick={() => setSliderOpen(true)} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black whitespace-nowrap">View All ({rows.length})</button>
+      <div className="flex gap-4 min-w-0">
+        <WPSummary s={summary} />
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex flex-wrap gap-1.5 mb-3.5">
+            {WP_TABS.map(({ key, tone, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => { setActive((a) => (a === key ? null : key)); setSliderOpen(false); }}
+                className={`rounded px-2 py-1.5 text-xs font-weight-400 font-normal leading-4 transition ${TP[tone]} ${active === key ? "ring-2 ring-offset-1 ring-neutral-400" : active ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
+              >
+                {label} {counts[key]}
+              </button>
+            ))}
+          </div>
+          <div className="overflow-x-auto">
+            <DataTable
+              head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]}
+              rows={displayRows}
+              headText="text-neutral-800 font-normal"
+              cellText="text-neutral-500"
+            />
+          </div>
+          {rows.length > 5 && (
+            <div className="flex justify-center pt-3">
+              <button type="button" onClick={() => setSliderOpen(true)} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black whitespace-nowrap">View All ({rows.length})</button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
       {sliderOpen && <RecordsSlider title="Weekly Payment Schedule" head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]} rows={rows} onClose={() => setSliderOpen(false)} />}
     </Card>
   );
@@ -987,11 +1084,14 @@ const WeeklyPayment: React.FC = () => {
 const FleetDashboard: React.FC = () => {
   // Full-screen loader while the dashboard's data loads (same as the other screens).
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState("MTD"); // global period (drives Fleet Performance)
+  const [overdueTotal, setOverdueTotal] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
     Promise.allSettled([
       getStats("MTD"), getVehicleStatus(), getWeeklyPayments(), getExpiries(),
-      getCompliance(), getAttention(), getHireTrend("WTD", ""),
+      getCompliance().then((r) => { if (r && !cancelled) setOverdueTotal(r.categories.reduce((s, c) => s + c.overdue, 0)); }),
+      getAttention(), getHireTrend("WTD", ""),
       listFleetTasks({ module: "skyline", all_users: true }),
     ]).finally(() => {
       if (!cancelled) setLoading(false);
@@ -1000,27 +1100,53 @@ const FleetDashboard: React.FC = () => {
       cancelled = true;
     };
   }, []);
+  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   return (
     <div className="min-h-screen bg-white text-neutral-900 font-['Stack_Sans_Headline']">
       {loading && <FleetSpinnerLoader />}
-      <div className="sticky top-0 z-20 h-20 px-10 py-4 border-b border-neutral-100 bg-white flex items-center justify-between">
-      <h1 className="text-neutral-900 text-2xl font-weight-600">Fleet Dashboard</h1>
-      <FleetNotificationBell />
-    </div>
-
-    <div className="px-10 py-6">
-      <div className="grid grid-cols-12 gap-x-4 gap-y-12">
-        <StatCards />
-        <AttentionRequired />
-        <HireTrend />
-        <WeeklyPayment />
-        <VehicleDonut />
-        <TaskManagement />
-        <ExpiryCarousel />
-        <SkylineOperations />
-        <ComplianceSummary />
+      {/* Top bar */}
+      <div className="sticky top-0 z-20 h-[80px] px-7 border-b border-[#eee] bg-white flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="size-7 bg-neutral-900 rounded-lg inline-flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5"><path d="M3 13l2-5h9l3 5M4 13h15v4H4z" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </span>
+          <div className="flex flex-col">
+            <span className="text-neutral-900 text-base font-weight-700 leading-tight">Fleet Dashboard</span>
+            <span className="text-neutral-500 text-xs leading-tight mt-0.5">{today}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className="px-3 py-[5px] bg-red-50 rounded-full outline outline-1 outline-offset-[-1px] outline-red-200 inline-flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-red-500" />
+            <span className="text-red-600 text-xs font-weight-600 leading-4">{overdueTotal ?? 10} Total Overdue</span>
+          </span>
+          <FleetNotificationBell />
+        </div>
       </div>
-    </div>
+
+      {/* Content */}
+      <div className="flex flex-col items-center">
+        <div className="w-full max-w-[1440px] px-7 pt-6 pb-14">
+          <div className="flex items-center mb-4">
+            <div className="p-[3px] bg-neutral-100 rounded-lg inline-flex items-center gap-1">
+              {["WTD", "MTD", "YTD"].map((p) => (
+                <button key={p} type="button" onClick={() => setPeriod(p)} className={`px-4 py-[5px] rounded-md text-xs font-weight-600 leading-5 transition ${period === p ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}>{p}</button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-12 gap-x-4 gap-y-8">
+            <ComplianceSummary />
+            <FleetPerformance period={period} />
+            <AttentionRequired />
+            <HireTrend />
+            <WeeklyPayment />
+            <VehicleDonut />
+            <TaskManagement />
+            <ExpiryCarousel />
+            <SkylineOperations />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

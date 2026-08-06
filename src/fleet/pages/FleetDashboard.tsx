@@ -6,20 +6,15 @@ import AllTasksIcon from "../../assets/Dashboard/AllTasks.svg";
 import OverdueIcon from "../../assets/Dashboard/Overdue.svg";
 import CriticalIcon from "../../assets/Dashboard/Critical.svg";
 import PendingFollowupsIcon from "../../assets/Dashboard/PendingFollowups.svg";
-import MOTIcon from "../assets/dashboard/MOT.svg";
-import RoadTaxIcon from "../assets/dashboard/Road tax.svg";
-import ServiceIcon from "../assets/dashboard/Service.svg";
+import MOTIcon from "../assets/dashboard/MOT-Icon-Black.svg";
+import RoadTaxIcon from "../assets/dashboard/Road-Fund-Licence-Icon-Black.svg";
+import ServiceIcon from "../assets/dashboard/Service-Icon-Black.svg";
 import VehicleStatusIcon from "../assets/dashboard/Vehiclestatus.svg";
-import PaymentsIcon from "../assets/dashboard/Payments.svg";
-import PlateIcon from "../assets/dashboard/Plate.svg";
-import ComplianceRedIcon from "../assets/dashboard/ComplianceRed.svg";
-import MOTGrayIcon from "../assets/dashboard/MOTGray.svg";
-import PlateGrayIcon from "../assets/dashboard/PlateGray.svg";
-import RoadFundGrayIcon from "../assets/dashboard/RoadFundGray.svg";
-import ServiceGrayIcon from "../assets/dashboard/ServiceGray.svg";
-import VehiclesOnHireIcon from "../assets/dashboard/VehiclesOnHire.svg";
-import NetIncomeIcon from "../assets/dashboard/NetIncome.svg";
-import FleetAvailabilityIcon from "../assets/dashboard/FleetAvailability.svg";
+import WeeklyPaymentIcon from "../assets/dashboard/WeeklyPayment.svg";
+import PlateIcon from "../assets/dashboard/Plate-Icon-Black.svg";
+import FileStatIcon from "../../assets/Dashboard/File.svg";
+import PoundStatIcon from "../../assets/Dashboard/Pound.svg";
+import CarsStatIcon from "../../assets/Dashboard/Cars.svg";
 import FleetMultiSelectFilter from "../components/FleetMultiSelectFilter";
 import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
 import FleetMissingDocumentsSlider from "../components/FleetMissingDocumentsSlider";
@@ -38,8 +33,9 @@ const Card: React.FC<{ span: string; className?: string; children: React.ReactNo
 );
 
 // Sky-tinted, outlined icon box for the compliance / expiry / section-header icons.
-const SkyIconBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="size-8 bg-sky-100 rounded-lg outline outline-1 outline-offset-[-1px] outline-sky-200 inline-flex justify-center items-center overflow-hidden shrink-0 text-sky-600">
+// Grey icon box (same neutral background as the Fleet Performance metric icons).
+const GreyIconBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span className="size-8 bg-neutral-100 rounded-lg inline-flex justify-center items-center overflow-hidden shrink-0">
     {children}
   </span>
 );
@@ -263,7 +259,7 @@ const VehicleDonut: React.FC = () => {
   return (
     <Card span="col-span-12 lg:col-span-5">
       <CardHead
-        icon={<SkyIconBox><img src={VehicleStatusIcon} alt="" className="size-4" /></SkyIconBox>}
+        icon={<GreyIconBox><img src={VehicleStatusIcon} alt="" className="size-6" /></GreyIconBox>}
         title="Vehicle Status Distribution"
       />
       <div className="flex-1 flex items-center content-center gap-6 flex-wrap py-1.5">
@@ -433,10 +429,12 @@ const TaskManagement: React.FC = () => {
 
 // ── Top stat cards (icons + backgrounds taken from the Claims dashboard) ───────
 // ── Fleet Performance (3 headline metrics, live from /dashboard/stats) ─────────
+// Claim-side stat-card icons, recoloured to a dark black-grey (they ship blue).
+const FP_ICON_FILTER = { filter: "brightness(0) invert(0.2)" } as const;
 const FP_META: Record<string, { icon: React.ReactNode; bar: string }> = {
-  vehicles_on_hire: { icon: <img src={VehiclesOnHireIcon} alt="" className="w-4 h-4" />, bar: "bg-blue-500" },
-  net_income: { icon: <img src={NetIncomeIcon} alt="" className="w-4 h-4" />, bar: "bg-emerald-500" },
-  fleet_availability: { icon: <img src={FleetAvailabilityIcon} alt="" className="w-4 h-4" />, bar: "bg-indigo-500" },
+  vehicles_on_hire: { icon: <img src={FileStatIcon} alt="" className="w-4 h-4" style={FP_ICON_FILTER} />, bar: "bg-blue-500" },
+  net_income: { icon: <img src={PoundStatIcon} alt="" className="w-4 h-4" style={FP_ICON_FILTER} />, bar: "bg-emerald-500" },
+  fleet_availability: { icon: <img src={CarsStatIcon} alt="" className="w-4 h-4" style={FP_ICON_FILTER} />, bar: "bg-indigo-500" },
 };
 type FPCard = { key: string; label: string; value: string; pct: string; up: boolean; sub: string; progress: number };
 const FP_FALLBACK: FPCard[] = [
@@ -444,7 +442,6 @@ const FP_FALLBACK: FPCard[] = [
   { key: "net_income", label: "Net Income", value: "£84,290", pct: "12.4", up: true, sub: "Month to date", progress: 74 },
   { key: "fleet_availability", label: "Fleet Availability", value: "70.3%", pct: "2.1", up: false, sub: "43 units available now", progress: 70 },
 ];
-const PERIOD_SUB: Record<string, string> = { WTD: "Week to date", MTD: "Month to date", YTD: "Year to date" };
 const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
   const [live, setLive] = useState<FPCard[] | null>(null);
   const [compare, setCompare] = useState("vs last month");
@@ -471,33 +468,27 @@ const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
   }, [period]);
   const data = live ?? FP_FALLBACK;
   return (
-    <div className="col-span-12 relative bg-white rounded-xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.05)] border border-neutral-200 overflow-hidden">
-      {loading && (
-        <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
-          <div className="w-6 h-6 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
-        </div>
-      )}
-      <div className="px-5 py-4 border-b border-neutral-100 flex items-baseline gap-2.5">
+    <div className="col-span-12 bg-white rounded-xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.05)] border border-neutral-200 overflow-hidden">
+      {loading && <FleetSpinnerLoader />}
+      <div className="px-5 py-4 border-b border-neutral-100">
         <h3 className="text-xl font-weight-600 text-neutral-900 leading-tight">Fleet Performance</h3>
-        <span className="text-neutral-400 text-xs">{PERIOD_SUB[period] ?? "Month to date"}</span>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3">
-        {data.map((c, i) => (
-          <div key={c.key} className={`px-7 py-6 flex flex-col ${i < data.length - 1 ? "md:border-r border-neutral-100" : ""}`}>
-            <div className="flex items-start justify-between">
-              <span className="w-9 h-9 bg-neutral-100 rounded-[10px] inline-flex items-center justify-center">{FP_META[c.key]?.icon}</span>
-              <span className={`px-2 py-[3px] rounded-full inline-flex items-center gap-1 text-xs font-weight-700 leading-4 ${c.up ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
-                <img src={c.up ? TrendingUp : TrendingDown} alt="" className="w-3 h-3" />{c.pct}%
+      <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {data.map((c) => (
+          <div key={c.key} className="rounded-lg border border-neutral-200 p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="w-9 h-9 bg-neutral-100 rounded-lg inline-flex items-center justify-center">{FP_META[c.key]?.icon}</span>
+              <img src={c.up ? TrendingUp : TrendingDown} alt="" className="w-11 h-11" />
+            </div>
+            <div className="text-neutral-900 text-2xl font-weight-600 leading-7 tabular-nums">{c.value}</div>
+            <div className="text-neutral-500 text-xs">{c.label}</div>
+            <div className="h-px w-full bg-neutral-200" />
+            <div className="flex items-center gap-2">
+              <span className={`flex items-center gap-1 shrink-0 whitespace-nowrap rounded px-2 py-1 text-sm font-weight-600 ${c.up ? "bg-green-100 text-green-500" : "bg-red-100 text-red-500"}`}>
+                <img src={c.up ? TrendingUp : TrendingDown} alt="" className="w-3.5 h-3.5 shrink-0" />{c.pct}%
               </span>
+              <span className="text-xs font-weight-500 text-neutral-500 leading-tight">{compare}</span>
             </div>
-            <div className="mt-5 text-neutral-900 text-4xl font-weight-600 leading-9 tabular-nums">{c.value}</div>
-            <div className="mt-1.5 text-neutral-700 text-sm font-weight-600 leading-5">{c.label}</div>
-            <div className="mt-[3px] text-neutral-400 text-xs leading-4">{c.sub}</div>
-            <div className="mt-5 flex items-center gap-2.5">
-              <div className="flex-1 h-[5px] bg-neutral-100 rounded overflow-hidden"><div className={`h-full rounded ${FP_META[c.key]?.bar ?? "bg-blue-500"}`} style={{ width: `${c.progress}%` }} /></div>
-              <span className="text-neutral-400 text-xs tabular-nums">{c.progress}%</span>
-            </div>
-            <div className="mt-1.5 text-neutral-300 text-xs leading-4">{compare}</div>
           </div>
         ))}
       </div>
@@ -647,10 +638,12 @@ const SkylineOperations: React.FC = () => {
 };
 
 // ── Expiry cards + Compliance Summary ─────────────────────────────────────────
-const plate = <img src={PlateIcon} alt="" className="size-4" />;
-const motIcon = <img src={MOTIcon} alt="" className="size-4" />;
-const roadIcon = <img src={RoadTaxIcon} alt="" className="size-4" />;
-const serviceIcon = <img src={ServiceIcon} alt="" className="size-4" />;
+// These icons are 28×28 and include their own rounded background box, so they
+// render directly (no SkyIconBox wrapper) in the carousel cards.
+const plate = <img src={PlateIcon} alt="" className="size-8" />;
+const motIcon = <img src={MOTIcon} alt="" className="size-8" />;
+const roadIcon = <img src={RoadTaxIcon} alt="" className="size-8" />;
+const serviceIcon = <img src={ServiceIcon} alt="" className="size-8" />;
 
 type Expiry = { span: string; icon: React.ReactNode; title: string; tabs: [string, string, string][]; head: string[]; rows: (string | [string, string])[][]; buckets?: Record<string, (string | [string, string])[][]>; bucketKeys?: string[] };
 // Tab order → bucket key for the live expiry cards (parallel to buildExpiryCard's tabs).
@@ -706,7 +699,8 @@ const RecordsSlider: React.FC<{
   head: string[];
   rows: (string | [string, string])[][];
   onClose: () => void;
-}> = ({ title, head, rows, onClose }) => (
+  variant?: "table" | "cards";
+}> = ({ title, head, rows, onClose, variant = "table" }) => (
   <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
     <div className="flex-1 bg-black/30" onClick={onClose} />
     <div className="w-[720px] max-w-full bg-white h-full flex flex-col p-10 gap-5">
@@ -717,11 +711,36 @@ const RecordsSlider: React.FC<{
       <div className="h-px bg-neutral-100 w-full" />
       <div className="text-black text-xl font-weight-600 leading-5">{rows.length} Records</div>
       <div className="flex-1 overflow-auto">
-        <DataTable head={head} rows={rows} headText="text-neutral-600 font-weight-400" cellText="text-neutral-700" />
+        {variant === "cards" ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {rows.map((r, i) => {
+              const status = r.find((c) => Array.isArray(c)) as [string, string] | undefined;
+              return (
+                <div key={i} className="rounded-lg border border-neutral-200 p-4 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-neutral-900 text-sm font-weight-600 truncate">{typeof r[0] === "string" ? r[0] : r[0]?.[0]}</span>
+                    {status && <span className={`shrink-0 rounded px-2 py-1 text-xs font-weight-500 ${TP[status[1]] ?? "bg-neutral-100 text-neutral-600"}`}>{status[0]}</span>}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {r.slice(1).map((c, j) => Array.isArray(c) ? null : (
+                      <div key={j} className="flex items-center justify-between text-xs">
+                        <span className="text-neutral-400">{head[j + 1]}</span>
+                        <span className="text-neutral-700 font-weight-500 text-right">{c}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <DataTable head={head} rows={rows} headText="text-neutral-600 font-weight-400" cellText="text-neutral-700" />
+        )}
       </div>
     </div>
   </div>
 );
+const CAROUSEL_GAP = 24; // matches the track's gap-6
 const ExpiryCarousel: React.FC = () => {
   const [expiries, setExpiries] = useState<Expiries | null>(null);
   // Active bucket filter per card (keyed by title so all copies in the loop sync).
@@ -747,28 +766,26 @@ const ExpiryCarousel: React.FC = () => {
       ]
     : CAROUSEL;
   const track = [...cards, ...cards, ...cards];
+  const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(cards.length); // start in the middle set
-  const [stepW, setStepW] = useState(0);
+  const [cardW, setCardW] = useState(0);
   const [animate, setAnimate] = useState(false);
+  const stepW = cardW + CAROUSEL_GAP;
 
-  // Measure the exact card pitch (card width + gap) from the laid-out geometry so a
-  // step lands precisely on a card boundary — otherwise a card gets shaved at the
-  // start/end. offsetLeft is unaffected by the transform, so the delta between two
-  // adjacent cards is the true pitch (sub-pixel-accurate, no rounding drift), and a
-  // ResizeObserver keeps it correct when the container width shifts after mount
-  // (e.g. a scrollbar appearing once the dashboard data loads).
+  // Fit exactly `per` cards to the viewport with an INTEGER pixel width, so every
+  // card edge and every slide step lands on a whole pixel — no sub-pixel rounding
+  // that shaves the edge card (the old calc((100% - …)/3) basis did). Re-measured
+  // on any width change via ResizeObserver.
   useLayoutEffect(() => {
-    const el = trackRef.current;
+    const el = viewportRef.current;
     if (!el) return;
     const measure = () => {
-      const kids = el.children;
-      if (kids.length >= 2) {
-        const pitch = (kids[1] as HTMLElement).offsetLeft - (kids[0] as HTMLElement).offsetLeft;
-        if (pitch > 0) setStepW(pitch);
-      } else if (kids.length === 1) {
-        setStepW((kids[0] as HTMLElement).offsetWidth);
-      }
+      const w = el.clientWidth;
+      if (w <= 0) return;
+      const per = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
+      const cw = Math.floor((w - (per - 1) * CAROUSEL_GAP) / per);
+      if (cw > 0) setCardW(cw);
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -819,7 +836,7 @@ const ExpiryCarousel: React.FC = () => {
 
   const arrow = (dir: "l" | "r") => (
     <button type="button" aria-label={dir === "l" ? "Previous" : "Next"} onClick={() => advance(dir === "l" ? -1 : 1)}
-      className={`absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white border border-neutral-100 shadow-md grid place-items-center text-[#9A9EB2] hover:text-neutral-600 transition-colors ${dir === "l" ? "left-0 -translate-x-1/2" : "right-0 translate-x-1/2"}`}>
+      className={`absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white border border-neutral-100 shadow-md grid place-items-center text-[#9A9EB2] hover:text-neutral-600 transition-colors ${dir === "l" ? "left-2" : "right-2"}`}>
       <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6">
         <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         {dir === "l" ? (
@@ -834,7 +851,7 @@ const ExpiryCarousel: React.FC = () => {
     <div className="col-span-12">
       <div className="relative">
         {arrow("l")}
-        <div className="overflow-hidden">
+        <div ref={viewportRef} className="overflow-hidden">
           <div ref={trackRef} onTransitionEnd={onSettled}
             className="flex items-stretch gap-6"
             style={{ transform: `translateX(-${index * stepW}px)`, transition: animate ? "transform 0.45s ease" : "none" }}>
@@ -843,10 +860,10 @@ const ExpiryCarousel: React.FC = () => {
               const rows = e.buckets && active ? e.buckets[active] : e.rows;
               const displayRows = rows.slice(0, 5);
               return (
-                <div key={i} className="shrink-0 min-w-0 basis-full sm:basis-[calc((100%_-_1.5rem)/2)] lg:basis-[calc((100%_-_3rem)/3)]">
+                <div key={i} className="shrink-0 min-w-0" style={{ width: cardW }}>
                   <div className="rounded-xl border border-neutral-200 p-6 flex flex-col min-w-0 h-full gap-1">
                     <CardHead
-                      icon={<SkyIconBox>{e.icon}</SkyIconBox>}
+                      icon={e.icon}
                       title={e.title}
                       right={<button type="button" onClick={() => setSliderData({ title: e.title, head: e.head, rows })} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black whitespace-nowrap">View All</button>}
                     />
@@ -878,17 +895,17 @@ const ExpiryCarousel: React.FC = () => {
         </div>
         {arrow("r")}
       </div>
-      {sliderData && <RecordsSlider title={sliderData.title} head={sliderData.head} rows={sliderData.rows} onClose={() => setSliderData(null)} />}
+      {sliderData && <RecordsSlider title={sliderData.title} head={sliderData.head} rows={sliderData.rows} variant="cards" onClose={() => setSliderData(null)} />}
     </div>
   );
 };
 
 type Comp = { title: string; icon: React.ReactNode; overdue: number; bar: number; d7: number; d30: number };
 const COMPLIANCE: Comp[] = [
-  { title: "MOT", icon: <img src={MOTGrayIcon} alt="" className="size-4" />, overdue: 2, bar: 10, d7: 1, d30: 13 },
-  { title: "Plate", icon: <img src={PlateGrayIcon} alt="" className="size-4" />, overdue: 9, bar: 26, d7: 5, d30: 18 },
-  { title: "Road Fund Licence", icon: <img src={RoadFundGrayIcon} alt="" className="size-4" />, overdue: 1, bar: 8, d7: 4, d30: 10 },
-  { title: "Service", icon: <img src={ServiceGrayIcon} alt="" className="size-4" />, overdue: 3, bar: 16, d7: 7, d30: 14 },
+  { title: "MOT", icon: <img src={MOTIcon} alt="" className="size-8" />, overdue: 2, bar: 10, d7: 1, d30: 13 },
+  { title: "Plate", icon: <img src={PlateIcon} alt="" className="size-8" />, overdue: 9, bar: 26, d7: 5, d30: 18 },
+  { title: "Road Fund Licence", icon: <img src={RoadTaxIcon} alt="" className="size-8" />, overdue: 1, bar: 8, d7: 4, d30: 10 },
+  { title: "Service", icon: <img src={ServiceIcon} alt="" className="size-8" />, overdue: 3, bar: 16, d7: 7, d30: 14 },
 ];
 const ComplianceSummary: React.FC = () => {
   // Live per-category compliance (matched by title); keeps the icons defined here.
@@ -909,28 +926,15 @@ const ComplianceSummary: React.FC = () => {
       ? { ...c, overdue: l.overdue, bar: l.bar, d7: l.d7, d30: l.d30, total: l.total, compliant: l.compliant, amber: l.amber }
       : { ...c, total: 42, compliant: 95, amber: 6 };
   });
-  const totalOverdue = data.reduce((s, c) => s + c.overdue, 0);
   return (
     <div className="col-span-12">
-      {/* Section header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5">
-        <div className="flex items-center gap-2.5">
-          <span className="size-8 bg-red-50 rounded-lg inline-flex items-center justify-center"><img src={ComplianceRedIcon} alt="" className="size-4" /></span>
-          <h2 className="text-neutral-900 text-xl font-weight-600">Compliance Summary</h2>
-          <span className="px-2.5 py-[3px] bg-red-50 rounded-full outline outline-1 outline-offset-[-1px] outline-red-200 inline-flex items-center gap-1.5">
-            <span className="size-1.5 rounded-full bg-red-500" />
-            <span className="text-red-600 text-xs font-weight-700 leading-4">{totalOverdue} Total Overdue</span>
-          </span>
-        </div>
-        <button type="button" className="px-3.5 py-[5px] bg-neutral-900 rounded-md text-white text-xs font-weight-500 leading-4 hover:bg-black transition">Manage All</button>
-      </div>
       {/* Category cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {data.map((c) => (
           <div key={c.title} className="bg-white rounded-xl shadow-[0px_1px_4px_0px_rgba(0,0,0,0.05)] border border-neutral-200 px-5 pt-5 pb-4 flex flex-col">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="size-8 bg-neutral-100 rounded-lg inline-flex items-center justify-center shrink-0 text-neutral-500">{c.icon}</span>
+                {c.icon}
                 <h4 className="text-neutral-900 text-sm font-weight-600 leading-5 truncate">{c.title}</h4>
               </div>
               <span className="px-2 py-0.5 bg-neutral-100 rounded-full text-neutral-500 text-xs font-weight-600 leading-4 shrink-0">{c.total} total</span>
@@ -953,10 +957,6 @@ const ComplianceSummary: React.FC = () => {
                 <span className="text-neutral-700 text-xl font-weight-600 leading-5 tabular-nums">{c.d30}</span>
                 <span className="text-neutral-400 text-[10px] font-weight-500 uppercase tracking-tight mt-1">30 Days</span>
               </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-neutral-400 text-xs">Compliant</span>
-              <span className="text-green-600 text-xs font-weight-600 tabular-nums">{c.compliant}%</span>
             </div>
           </div>
         ))}
@@ -1015,9 +1015,16 @@ const WPSummary: React.FC<{ s: PaymentSummary }> = ({ s }) => {
       <div className="mt-auto">
         <div className="flex items-end gap-1 h-20">
           {s.by_day.map((d) => (
-            <div key={d.day} title={`${d.day}: £${d.amount.toLocaleString()}`}
-              className={`flex-1 rounded-sm ${d.amount === max ? "bg-neutral-400" : "bg-neutral-200"}`}
-              style={{ height: `${Math.max(4, (d.amount / max) * 100)}%` }} />
+            // Full-height hover target so even short/empty bars show their amount.
+            <div key={d.day} className="group relative flex-1 h-full flex items-end justify-center">
+              <div
+                className={`w-full rounded-sm transition-colors ${d.amount === max ? "bg-neutral-400" : "bg-neutral-200"} group-hover:bg-neutral-500`}
+                style={{ height: `${Math.max(4, (d.amount / max) * 100)}%` }}
+              />
+              <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-10 whitespace-nowrap rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] text-white shadow opacity-0 transition group-hover:opacity-100">
+                {d.day}: £{d.amount.toLocaleString()}
+              </div>
+            </div>
           ))}
         </div>
         <div className="flex mt-1.5">
@@ -1053,7 +1060,7 @@ const WeeklyPayment: React.FC = () => {
   return (
     <Card span="col-span-12 lg:col-span-7">
       <CardHead
-        icon={<SkyIconBox><img src={PaymentsIcon} alt="" className="size-4" /></SkyIconBox>}
+        icon={<GreyIconBox><img src={WeeklyPaymentIcon} alt="" className="size-4" /></GreyIconBox>}
         title="Weekly Payment Schedule"
       />
       <div className="flex gap-4 min-w-0">
@@ -1096,13 +1103,11 @@ const FleetDashboard: React.FC = () => {
   // Full-screen loader while the dashboard's data loads (same as the other screens).
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("MTD"); // global period (drives Fleet Performance)
-  const [overdueTotal, setOverdueTotal] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
     Promise.allSettled([
       getStats("MTD"), getVehicleStatus(), getWeeklyPayments(), getExpiries(),
-      getCompliance().then((r) => { if (r && !cancelled) setOverdueTotal(r.categories.reduce((s, c) => s + c.overdue, 0)); }),
-      getAttention(), getHireTrend("WTD", ""),
+      getCompliance(), getAttention(), getHireTrend("WTD", ""),
       listFleetTasks({ module: "skyline", all_users: true }),
     ]).finally(() => {
       if (!cancelled) setLoading(false);
@@ -1111,43 +1116,31 @@ const FleetDashboard: React.FC = () => {
       cancelled = true;
     };
   }, []);
-  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   return (
     <div className="min-h-screen bg-white text-neutral-900 font-['Stack_Sans_Headline']">
       {loading && <FleetSpinnerLoader />}
       {/* Top bar */}
       <div className="sticky top-0 z-20 h-[80px] px-7 border-b border-[#eee] bg-white flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className="size-7 bg-neutral-900 rounded-lg inline-flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5"><path d="M3 13l2-5h9l3 5M4 13h15v4H4z" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </span>
-          <div className="flex flex-col">
-            <span className="text-neutral-900 text-base font-weight-700 leading-tight">Fleet Dashboard</span>
-            <span className="text-neutral-500 text-xs leading-tight mt-0.5">{today}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <span className="px-3 py-[5px] bg-red-50 rounded-full outline outline-1 outline-offset-[-1px] outline-red-200 inline-flex items-center gap-1.5">
-            <span className="size-1.5 rounded-full bg-red-500" />
-            <span className="text-red-600 text-xs font-weight-600 leading-4">{overdueTotal ?? 10} Total Overdue</span>
-          </span>
-          <FleetNotificationBell />
-        </div>
+        <span className="text-neutral-900 text-2xl font-weight-600 leading-6">Dashboard</span>
+        <FleetNotificationBell />
       </div>
 
       {/* Content */}
       <div className="flex flex-col items-center">
         <div className="w-full max-w-[1440px] px-7 pt-6 pb-14">
-          <div className="flex items-center mb-4">
-            <div className="p-[3px] bg-neutral-100 rounded-lg inline-flex items-center gap-1">
-              {["WTD", "MTD", "YTD"].map((p) => (
-                <button key={p} type="button" onClick={() => setPeriod(p)} className={`px-4 py-[5px] rounded-md text-xs font-weight-600 leading-5 transition ${period === p ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}>{p}</button>
-              ))}
-            </div>
-          </div>
           <div className="grid grid-cols-12 gap-x-4 gap-y-8">
             <ComplianceSummary />
-            <FleetPerformance period={period} />
+            {/* Period toggle sits with Fleet Performance — it drives that card. */}
+            <div className="col-span-12 flex flex-col gap-3">
+              <div className="flex items-center">
+                <div className="p-[3px] bg-neutral-100 rounded-lg inline-flex items-center gap-1">
+                  {["WTD", "MTD", "YTD"].map((p) => (
+                    <button key={p} type="button" onClick={() => setPeriod(p)} className={`px-4 py-[5px] rounded-md text-xs font-weight-600 leading-5 transition ${period === p ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}>{p}</button>
+                  ))}
+                </div>
+              </div>
+              <FleetPerformance period={period} />
+            </div>
             <AttentionRequired />
             <HireTrend />
             <WeeklyPayment />

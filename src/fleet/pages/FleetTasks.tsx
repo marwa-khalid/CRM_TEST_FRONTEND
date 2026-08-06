@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { LayoutGrid, List as ListIcon, MoreVertical, Paperclip, X } from "lucide-react";
+import { Check, ChevronDown, LayoutGrid, List as ListIcon, MoreVertical, Paperclip, X } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetConfirmModal from "../components/FleetConfirmModal";
 import FleetTaskModal from "../components/FleetTaskModal";
@@ -143,6 +143,9 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
   const [deleteTarget, setDeleteTarget] = useState<FleetTask | null>(null);
   const [view, setView] = useState<"card" | "list">("card"); // card is the default
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false); // bulk-delete confirmation
+  const [bulkMenu, setBulkMenu] = useState<null | "status">(null);
+  const bulkMenuRef = useOutside(() => setBulkMenu(null));
   // Row-actions menu: id + fixed viewport coords so it escapes any overflow clip.
   const [menu, setMenu] = useState<{ id: number; top: number; right: number } | null>(null);
   // Detail slider (4 tabs — Task Details / Attachments / Notes / Task History).
@@ -264,6 +267,39 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
     }
   };
 
+  const confirmBulkDelete = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkConfirm(false);
+    setTasks((rs) => rs.filter((r) => !selected.has(r.id))); // optimistic
+    setSelected(new Set());
+    const results = await Promise.allSettled(ids.map((id) => deleteFleetTask(id)));
+    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && r.value === false)).length;
+    if (failed) {
+      toast.error(`Couldn't delete ${failed} task${failed === 1 ? "" : "s"}.`);
+      load();
+    } else {
+      toast.success(`${ids.length} task${ids.length === 1 ? "" : "s"} deleted.`);
+    }
+  };
+
+  // Bulk status / reassign update for the selected tasks.
+  const bulkUpdate = async (patch: Parameters<typeof updateFleetTask>[1]) => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkMenu(null);
+    setTasks((rs) => rs.map((r) => (selected.has(r.id) ? { ...r, ...(patch as Partial<FleetTask>) } : r))); // optimistic
+    setSelected(new Set());
+    const results = await Promise.allSettled(ids.map((id) => updateFleetTask(id, patch)));
+    const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && r.value === null)).length;
+    if (failed) {
+      toast.error(`Couldn't update ${failed} task${failed === 1 ? "" : "s"}.`);
+      load();
+    } else {
+      toast.success(`${ids.length} task${ids.length === 1 ? "" : "s"} updated.`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white font-sans-headline">
       {loading && <FleetSpinnerLoader />}
@@ -347,6 +383,38 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
             </div>
           )}
 
+          {/* Bulk action bar — appears when any task is selected (either view). */}
+          {selected.size > 0 && (
+            <div className="flex items-center justify-between px-4 py-3 bg-[#eee] text-black rounded">
+              <span className="text-sm font-medium">{selected.size} Selected</span>
+              <div ref={bulkMenuRef} className="flex items-center gap-6 text-sm">
+                <button type="button" onClick={() => setSelected(new Set())} className="hover:opacity-80">
+                  Clear
+                </button>
+                <button type="button" onClick={() => bulkUpdate({ status: "Completed" })} className="flex items-center gap-1.5 hover:text-green-600">
+                  <Check size={15} /> Mark as Complete
+                </button>
+                <div className="relative">
+                  <button type="button" onClick={() => setBulkMenu((m) => (m === "status" ? null : "status"))} className="flex items-center gap-1.5">
+                    Change Status <ChevronDown size={14} />
+                  </button>
+                  {bulkMenu === "status" && (
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-neutral-200 rounded shadow-lg z-30">
+                      {TASK_STATUSES.map((s) => (
+                        <div key={s} onClick={() => bulkUpdate({ status: s })} className="px-4 py-2 text-neutral-700 hover:bg-neutral-50 cursor-pointer">
+                          {s}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button type="button" onClick={() => setBulkConfirm(true)} className="flex items-center gap-1.5 hover:text-red-600">
+                  <img src={TrashIcon} alt="" className="w-4 h-4" /> Delete
+                </button>
+              </div>
+            </div>
+          )}
+
           {loading ? null : visible.length === 0 ? (
             <div className="h-48 flex flex-col items-center justify-center text-center gap-1">
               <p className="text-neutral-900 text-base font-semibold">No tasks</p>
@@ -386,7 +454,8 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
                       onChange={() =>
                         setSelected((prev) => {
                           const next = new Set(prev);
-                          next.has(task.id) ? next.delete(task.id) : next.add(task.id);
+                          if (next.has(task.id)) next.delete(task.id);
+                          else next.add(task.id);
                           return next;
                         })
                       }
@@ -433,50 +502,67 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
                 return (
                   <div
                     key={task.id}
-                    className="rounded-lg border border-neutral-200 p-5 flex flex-col gap-3 hover:shadow-sm transition"
+                    className="rounded-lg border border-neutral-200 p-5 flex gap-2.5 hover:shadow-sm transition"
                   >
-                    {/* title + description + kebab */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => openDetail(task)}
-                          className="text-left text-neutral-900 text-base font-semibold hover:underline line-clamp-2"
-                        >
-                          {task.title}
-                        </button>
-                        {task.description && (
-                          <div className="text-neutral-500 text-sm mt-1 line-clamp-2">{task.description}</div>
-                        )}
-                      </div>
-                      <div className="shrink-0 flex items-center gap-2">
-                        {task.attachment_path && <Paperclip size={14} className="text-neutral-400" aria-label="Has attachment" />}
-                        <button type="button" aria-label="Task actions" onClick={(e) => openMenu(e, task.id)} className="p-1 text-neutral-400 hover:text-neutral-700 rounded">
-                          <MoreVertical size={16} />
-                        </button>
-                      </div>
+                    <div className="self-start">
+                      <TaskCheckbox
+                        checked={selected.has(task.id)}
+                        onChange={() =>
+                          setSelected((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(task.id)) next.delete(task.id);
+                            else next.add(task.id);
+                            return next;
+                          })
+                        }
+                        label={`Select ${task.title}`}
+                      />
                     </div>
-
-                    {task.vehicle_registration && (
-                      <div className="text-sm text-neutral-600">{task.vehicle_registration}</div>
-                    )}
-                    <div className="text-sm text-neutral-700">
-                      Assigned to: <span className="font-semibold">{task.assigned_user || "—"}</span>
-                    </div>
-
-                    {/* footer pinned to the bottom */}
-                    <div className="mt-auto">
-                      <div className="h-px bg-neutral-100 w-full" />
-                      <div className="flex items-center justify-between pt-3 gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${statusBadge(overdue ? "Overdue" : task.status)}`}>
-                            {overdue ? "Overdue" : task.status || "Pending"}
-                          </span>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${priorityBadge(task.priority)}`}>{task.priority || "—"}</span>
+                    {/* All card data sits in a column aligned next to the checkbox. */}
+                    <div className="flex-1 min-w-0 flex flex-col gap-3">
+                      {/* title + description + kebab */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => openDetail(task)}
+                            className="text-left text-neutral-900 text-base font-semibold hover:underline line-clamp-2"
+                          >
+                            {task.title}
+                          </button>
+                          {task.description && (
+                            <div className="text-neutral-500 text-sm mt-1 line-clamp-2">{task.description}</div>
+                          )}
                         </div>
-                        <span className="text-neutral-600 text-xs">
-                          Due: <span className={`font-semibold ${overdue ? "text-red-600" : ""}`}>{fmtDue(task.due_date, task.due_time)}</span>
-                        </span>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {task.attachment_path && <Paperclip size={14} className="text-neutral-400" aria-label="Has attachment" />}
+                          <button type="button" aria-label="Task actions" onClick={(e) => openMenu(e, task.id)} className="p-1 text-neutral-400 hover:text-neutral-700 rounded">
+                            <MoreVertical size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {task.vehicle_registration && (
+                        <div className="text-sm text-neutral-600">{task.vehicle_registration}</div>
+                      )}
+                      <div className="text-sm text-neutral-700">
+                        Assigned to: <span className="font-semibold">{task.assigned_user || "—"}</span>
+                      </div>
+
+                      {/* footer pinned to the bottom */}
+                      <div className="mt-auto">
+                        <div className="h-px bg-neutral-100 w-full" />
+                        <div className="flex items-center justify-between pt-3 gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${statusBadge(overdue ? "Overdue" : task.status)}`}>
+                              {overdue ? "Overdue" : task.status || "Pending"}
+                            </span>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${priorityBadge(task.priority)}`}>{task.priority || "—"}</span>
+                          </div>
+                          <span className="text-neutral-600 text-xs">
+                            Due: <span className={`font-semibold ${overdue ? "text-red-600" : ""}`}>{fmtDue(task.due_date, task.due_time)}</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -545,6 +631,16 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
           confirmLabel="Delete"
           onConfirm={confirmDelete}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {bulkConfirm && (
+        <FleetConfirmModal
+          title="Delete Tasks"
+          message={`Are you sure you want to delete ${selected.size} task${selected.size === 1 ? "" : "s"}? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={confirmBulkDelete}
+          onCancel={() => setBulkConfirm(false)}
         />
       )}
     </div>

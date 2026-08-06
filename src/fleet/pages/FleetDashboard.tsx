@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from
 import FleetNotificationBell from "../components/FleetNotificationBell";
 import TrendingUp from "../../assets/Dashboard/TrendingUp.svg";
 import TrendingDown from "../../assets/Dashboard/TrendingDown.svg";
-import AllTasksIcon from "../../assets/Dashboard/AllTasks.svg";
+import AllTasksIcon from "../assets/dashboard//AllTasks.svg";
 import OverdueIcon from "../../assets/Dashboard/Overdue.svg";
 import CriticalIcon from "../../assets/Dashboard/Critical.svg";
 import PendingFollowupsIcon from "../../assets/Dashboard/PendingFollowups.svg";
@@ -79,7 +79,7 @@ const DataTable: React.FC<{
 }> = ({ head, rows, headText = "text-neutral-500", cellText = "text-neutral-900", rowClass = "py-3" }) => (
   <table className="w-full border-collapse">
     <thead>
-      <tr>{head.map((h) => <th key={h} className={`text-left text-sm ${headText} pb-2.5 pt-1 px-2 border-b border-neutral-100`}>{h}</th>)}</tr>
+      <tr>{head.map((h) => <th key={h} className={`text-left text-sm whitespace-nowrap ${headText} pb-2.5 pt-1 px-2 border-b border-neutral-100`}>{h}</th>)}</tr>
     </thead>
     <tbody>
       {rows.map((r, i) => (
@@ -339,7 +339,7 @@ const AttentionRequired: React.FC = () => {
 type Task = { t: string; due: string; od?: boolean };
 type TaskCol = { count: number; label: string; icon: string; iconBg: string; border: string; tasks: Task[] };
 const TASK_COLS: TaskCol[] = [
-  { count: 8, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-blue-100", border: "border-blue-200", tasks: [] },
+  { count: 8, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [] },
   { count: 2, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: [
     { t: "Chase MOT booking - MA19 KLP", due: "Due: 31/07/2026 · Overdue 3 Days", od: true }, { t: "Recover overdue payment - HK18 ZDC", due: "Due: 28/07/2026 · Overdue 6 Days", od: true }] },
   { count: 3, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: [
@@ -376,7 +376,7 @@ const buildTaskCols = (tasks: FleetTask[]): TaskCol[] => {
   // Overdue / Awaiting / Pending tasks live under their own headings.
   const uncovered = active.filter((t) => !t.is_overdue && (t.status || "") !== "Awaiting Response" && (t.status || "") !== "Pending");
   return [
-    { count: active.length, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-blue-100", border: "border-blue-200", tasks: pick(uncovered) },
+    { count: active.length, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(uncovered) },
     { count: overdue.length, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: pick(overdue) },
     { count: awaiting.length, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: pick(awaiting) },
     { count: pending.length, label: "Pending Followups", icon: PendingFollowupsIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(pending) },
@@ -734,7 +734,7 @@ const RecordsSlider: React.FC<{
             })}
           </div>
         ) : (
-          <DataTable head={head} rows={rows} headText="text-neutral-600 font-weight-400" cellText="text-neutral-700" />
+          <DataTable head={head} rows={rows} headText="text-neutral-900 font-weight-400" cellText="text-neutral-500" />
         )}
       </div>
     </div>
@@ -1093,7 +1093,7 @@ const WeeklyPayment: React.FC = () => {
           )}
         </div>
       </div>
-      {sliderOpen && <RecordsSlider title="Weekly Payment Schedule" head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]} rows={rows} onClose={() => setSliderOpen(false)} />}
+      {sliderOpen && <RecordsSlider title="Weekly Payment Schedule" head={["#", "Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]} rows={rows.map((r, i) => [String(i + 1), ...r])} onClose={() => setSliderOpen(false)} />}
     </Card>
   );
 };

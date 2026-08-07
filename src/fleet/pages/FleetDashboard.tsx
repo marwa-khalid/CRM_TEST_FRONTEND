@@ -548,15 +548,13 @@ const AttentionRequired: React.FC<{ side: "skyline" | "vehicles" }> = ({ side })
 // ── Task Management (ditto the Claims dashboard "Tasks Details") ──────────────
 type Task = { t: string; due: string; od?: boolean };
 type TaskCol = { count: number; label: string; icon: string; iconBg: string; border: string; tasks: Task[] };
+// Empty skeleton shown before live tasks load / when there are none — the four
+// columns at 0, no demo tasks (real counts come from buildTaskCols on the API data).
 const TASK_COLS: TaskCol[] = [
-  { count: 8, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [] },
-  { count: 2, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: [
-    { t: "Chase MOT booking - MA19 KLP", due: "Due: 31/07/2026 · Overdue 3 Days", od: true }, { t: "Recover overdue payment - HK18 ZDC", due: "Due: 28/07/2026 · Overdue 6 Days", od: true }] },
-  { count: 3, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: [
-    { t: "Await V5C from DVLA - WV23 MLK", due: "Due: 09/08/2026" }, { t: "Engineer inspection reply - BK75 OYN", due: "Due: 07/08/2026" }, { t: "Insurer claim update - HK18 ZDC", due: "Due: 10/08/2026" }] },
-  { count: 4, label: "Pending Followups", icon: PendingFollowupsIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [
-    { t: "Follow up deposit refund - GF20 TRN", due: "Due: 12/08/2026" }, { t: "Confirm service booking - LR21 XVT", due: "Due: 11/08/2026" },
-    { t: "Renew road fund licence - WV23 MLK", due: "Due: 13/08/2026" }, { t: "Schedule vehicle swap - BK75 OYN", due: "Due: 14/08/2026" }] },
+  { count: 0, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [] },
+  { count: 0, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: [] },
+  { count: 0, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: [] },
+  { count: 0, label: "Pending Followups", icon: PendingFollowupsIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [] },
 ];
 // Map a live task to the card's { t, due, od } shape (matches the dummy format).
 const fmtTask = (t: FleetTask): Task => {

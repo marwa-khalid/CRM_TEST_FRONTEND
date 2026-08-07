@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { listHires, deleteHire, getDueReminders, type HireRecord, type FleetDueReminder } from "../services/hireService";
@@ -16,7 +16,7 @@ import { fleetReference } from "../utils/reference";
 import SearchIcon from "../assets/listingpage/search.svg";
 import VehiclesIcon from "../assets/listingpage/vehicles.svg";
 import CheckIcon from "../assets/listingpage/check.svg";
-import BlockIcon from "../assets/listingpage/block.svg";
+import OffHireIcon from "../assets/listingpage/offhire.svg";
 import ProgressIcon from "../assets/listingpage/progress.svg";
 import CheckCircleIcon from "../assets/listingpage/checkcircle.svg";
 import RiseIcon from "../assets/listingpage/rise.svg";
@@ -43,8 +43,8 @@ const STATUS_LABEL: Record<string, string> = {
   on_hire: "On Hire", off_hire: "Off Hire", in_repair: "In Repair", available: "Available",
 };
 const STATUS_BADGE: Record<string, string> = {
-  on_hire: "bg-[#d9ffd9] text-[#159215]",
-  off_hire: "bg-neutral-100 text-neutral-600",
+  on_hire: "bg-neutral-100 text-neutral-700",
+  off_hire: "bg-purple-100 text-purple-600",
   in_repair: "bg-[#ffe9d8] text-[#ff7402]",
   available: "bg-[#d9ffd9] text-[#159215]",
 };
@@ -120,15 +120,35 @@ interface StatConfig {
   icon: string;
   tile: string;
   trendPct: number;
+  darkIcon?: boolean; // force a coloured icon SVG to black (neutral tiles)
+  tint?: string; // recolour the icon to this exact colour (masked), e.g. purple Off Hire
 }
-const StatCard: React.FC<StatConfig> = ({ title, value, icon, tile, trendPct }) => {
+const StatCard: React.FC<StatConfig> = ({ title, value, icon, tile, trendPct, darkIcon, tint }) => {
   const positive = trendPct >= 0;
   const badge = trendPct > 0 ? "bg-[#d9ffd9] text-[#159215]" : trendPct < 0 ? "bg-[#ffe3e4] text-[#e5484d]" : "bg-neutral-100 text-neutral-500";
   return (
     <div className="flex-1 min-w-0 p-4 rounded-lg border border-[#ccc] bg-white flex flex-col gap-3">
       <div className="flex items-center gap-4">
         <div className={`p-3 rounded-sm flex items-center justify-center ${tile}`}>
-          <img src={icon} alt="" className="w-5 h-5" />
+          {tint ? (
+            <span
+              aria-hidden
+              className="w-5 h-5 inline-block"
+              style={{
+                backgroundColor: tint,
+                WebkitMaskImage: `url(${icon})`,
+                maskImage: `url(${icon})`,
+                WebkitMaskRepeat: "no-repeat",
+                maskRepeat: "no-repeat",
+                WebkitMaskSize: "contain",
+                maskSize: "contain",
+                WebkitMaskPosition: "center",
+                maskPosition: "center",
+              }}
+            />
+          ) : (
+            <img src={icon} alt="" className="w-5 h-5" style={darkIcon ? { filter: "brightness(0)" } : undefined} />
+          )}
         </div>
         <img src={positive ? RiseIcon : FallIcon} alt="" className="w-12 h-12 object-contain" />
       </div>
@@ -183,8 +203,10 @@ const FleetList: React.FC = () => {
   }, []);
 
   // Reminders popup — shown on every visit to the listing (temporary, for now).
+  // Skyline (hire) list only surfaces driver-doc reminders; vehicle docs (MOT /
+  // Plate / Road Fund) belong to the Vehicle Management list, not here.
   useEffect(() => {
-    getDueReminders().then((due) => {
+    getDueReminders("skyline").then((due) => {
       setReminders(due);
       if (due.length) setShowReminders(true);
     });
@@ -229,9 +251,9 @@ const FleetList: React.FC = () => {
     // Available = vehicles in the fleet register still free for hire (not on hire).
     const availableCars = register.filter((v) => !v.is_active).length;
     return [
-      { title: "Total Hires", value: records.length, icon: VehiclesIcon, tile: "bg-[#d9ecff]", trendPct: trendFor(records) },
-      { title: "On Hire", value: by("on_hire").length, icon: CheckIcon, tile: "bg-[#d9ecff]", trendPct: trendFor(by("on_hire")) },
-      { title: "Off Hire", value: by("off_hire").length, icon: BlockIcon, tile: "bg-[#eee]", trendPct: trendFor(by("off_hire")) },
+      { title: "Total Hires", value: records.length, icon: VehiclesIcon, tile: "bg-[#eee]", trendPct: trendFor(records), darkIcon: true },
+      { title: "On Hire", value: by("on_hire").length, icon: CheckIcon, tile: "bg-[#eee]", trendPct: trendFor(by("on_hire")), darkIcon: true },
+      { title: "Off Hire", value: by("off_hire").length, icon: OffHireIcon, tile: "bg-purple-100", trendPct: trendFor(by("off_hire")) },
       // Linked to the Vehicle Details "In Repair" status (per vehicle record), not hires.
       { title: "In Repair", value: vehicleRecords.filter((v) => (v.vehicle_status || "").toLowerCase().includes("repair")).length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: 0 },
       { title: "Available", value: availableCars, icon: CheckCircleIcon, tile: "bg-[#d9ffd9]", trendPct: 0 },
@@ -286,7 +308,8 @@ const FleetList: React.FC = () => {
   const toggleOne = (id: number) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
 
@@ -421,7 +444,7 @@ const FleetList: React.FC = () => {
               onToggle={(v) => setStatusSel((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))}
               onClear={() => setStatusSel([])}
             />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 md:ml-auto">
               <span className="text-sm text-[#444] shrink-0">Date Range</span>
               <DateField value={fromDate} onChange={setFromDate} placeholder="From" />
               <DateField value={toDate} onChange={setToDate} placeholder="To" />

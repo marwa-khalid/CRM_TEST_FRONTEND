@@ -16,6 +16,7 @@ import {
 import UploadFileIcon from "../assets/icons/UploadFile.svg";
 import RemoveIcon from "../assets/icons/Remove.svg";
 import { fileTypeIcon } from "../utils/fileIcon";
+import { getCurrentUserName } from "../utils/currentUser";
 import type { Option } from "../types/hire";
 
 const toOptions = (values: readonly string[]): Option[] => values.map((v) => ({ label: v, value: v }));
@@ -33,7 +34,8 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved, 
     title: task?.title || "",
     description: task?.description || "",
     department: task?.department || "Fleet",
-    assigned_user: task?.assigned_user || "",
+    // New tasks default to the logged-in user (still changeable); edits keep the task's own.
+    assigned_user: task ? (task.assigned_user || "") : getCurrentUserName(),
     due_date: task?.due_date || defaultDate || "",
     due_time: task?.due_time || "",
     priority: task?.priority || "Medium",

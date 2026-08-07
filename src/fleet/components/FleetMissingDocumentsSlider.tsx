@@ -2,20 +2,25 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMissingDocuments, type MissingDoc } from "../services/dashboardService";
 
-// Right-side drawer listing vehicles missing a required document — mirrors the
+// Right-side drawer listing entities missing a required document — mirrors the
 // Claims "Missing Documents" slider, adapted to Fleet (links through to the hire).
-const FleetMissingDocumentsSlider: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+// `side`: "vehicles" → vehicle docs keyed by reg; "skyline" → driver docs keyed by
+// driver name (driving licence / taxi badge).
+const FleetMissingDocumentsSlider: React.FC<{ side?: "skyline" | "vehicles"; items?: MissingDoc[]; onClose: () => void }> = ({ side = "vehicles", items: preloaded, onClose }) => {
   const navigate = useNavigate();
-  const [items, setItems] = useState<MissingDoc[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<MissingDoc[]>(preloaded ?? []);
+  const [loading, setLoading] = useState(!preloaded);
   const [query, setQuery] = useState("");
+  const isDriver = side === "skyline";
+  const subjectLabel = isDriver ? "Driver" : "Vehicle";
 
   useEffect(() => {
+    if (preloaded) return; // parent already fetched (shows the full-screen loader first)
     setLoading(true);
-    getMissingDocuments()
+    getMissingDocuments(side)
       .then(setItems)
       .finally(() => setLoading(false));
-  }, []);
+  }, [side, preloaded]);
 
   const shown = query.trim()
     ? items.filter((i) => (i.registration || "").toLowerCase().includes(query.trim().toLowerCase()))
@@ -52,7 +57,7 @@ const FleetMissingDocumentsSlider: React.FC<{ onClose: () => void }> = ({ onClos
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Enter Vehicle Reg"
+            placeholder={isDriver ? "Enter Driver Name" : "Enter Vehicle Reg"}
             className="w-72 px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 text-neutral-700 text-base font-light placeholder:text-neutral-300 focus:outline-neutral-500"
           />
         </div>
@@ -72,7 +77,7 @@ const FleetMissingDocumentsSlider: React.FC<{ onClose: () => void }> = ({ onClos
               >
                 <div className="text-neutral-700 text-sm font-weight-500">{it.label}</div>
                 <div className="text-sm shrink-0">
-                  <span className="text-neutral-700">Vehicle: </span>
+                  <span className="text-neutral-700">{subjectLabel}: </span>
                   {it.hire_id ? (
                     <button
                       type="button"

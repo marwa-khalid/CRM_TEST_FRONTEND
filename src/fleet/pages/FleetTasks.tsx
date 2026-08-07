@@ -107,8 +107,9 @@ interface TaskStat {
   icon: string;
   bg: string;
   trend: number;
+  darkIcon?: boolean; // force the icon to black (used by the neutral "Total Tasks" card)
 }
-const StatCard: React.FC<TaskStat> = ({ title, value, icon, bg, trend }) => (
+const StatCard: React.FC<TaskStat> = ({ title, value, icon, bg, trend, darkIcon }) => (
   <div className={`flex-1 min-w-0 p-4 rounded-lg ${bg} flex flex-col gap-4`}>
     <div className="flex items-start justify-between gap-3">
       <div className="flex flex-col gap-1">
@@ -116,7 +117,7 @@ const StatCard: React.FC<TaskStat> = ({ title, value, icon, bg, trend }) => (
         <div className="text-neutral-700 text-sm font-medium">{title}</div>
       </div>
       <span className="p-3 rounded-sm shrink-0">
-        <img src={icon} alt="" className="w-5 h-5" />
+        <img src={icon} alt="" className="w-5 h-5" style={darkIcon ? { filter: "brightness(0)" } : undefined} />
       </span>
     </div>
     <div className="flex items-center gap-2">
@@ -182,7 +183,7 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
     const byStatus = (label: string) => tasks.filter((t) => (t.status || "").toLowerCase() === label.toLowerCase());
     const overdue = tasks.filter((t) => t.is_overdue);
     return [
-      { title: "Total Tasks", value: tasks.length, icon: TotalTasksIcon, bg: "bg-[#d9ecff]", trend: trendFor(tasks) },
+      { title: "Total Tasks", value: tasks.length, icon: TotalTasksIcon, bg: "bg-neutral-100", trend: trendFor(tasks), darkIcon: true },
       { title: "Pending", value: byStatus("Pending").length, icon: PendingIcon, bg: "bg-[#ffe3e4]", trend: trendFor(byStatus("Pending")) },
       { title: "In Progress", value: byStatus("In Progress").length, icon: ProgressIcon, bg: "bg-[#fff1d7]", trend: trendFor(byStatus("In Progress")) },
       { title: "Overdue", value: overdue.length, icon: AlertIcon, bg: "bg-[#ffe3e4]", trend: trendFor(overdue) },
@@ -519,7 +520,7 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
                       />
                     </div>
                     {/* All card data sits in a column aligned next to the checkbox. */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-3">
+                    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                       {/* title + description + kebab */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">

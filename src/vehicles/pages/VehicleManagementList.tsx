@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { X } from "lucide-react";
+import { X, Trash2 } from "lucide-react";
 import {
   listVehicleRecords,
   deleteVehicleRecord,
   type VehicleRecord,
 } from "../services/vehicleRecordService";
 import { listVehicleRegister, type FleetVehicleRegister } from "../services/vehicleService";
+import { getDueReminders, type FleetDueReminder } from "../../fleet/services/hireService";
+import FleetReminderPanel from "../../fleet/components/FleetReminderPanel";
 import FleetNotificationBell from "../../fleet/components/FleetNotificationBell";
 import FleetSpinnerLoader from "../../fleet/components/FleetSpinnerLoader";
 import FleetConfirmModal from "../../fleet/components/FleetConfirmModal";
@@ -35,7 +37,7 @@ const STATUS_LABEL: Record<VStatus, string> = {
   available: "Available",
 };
 const STATUS_BADGE: Record<VStatus, string> = {
-  on_hire: "bg-[#d9ecff] text-[#0352fd]",
+  on_hire: "bg-neutral-100 text-neutral-700",
   in_repair: "bg-[#ffe9d8] text-[#ff7402]",
   available: "bg-[#d9ffd9] text-[#159215]",
 };
@@ -46,7 +48,14 @@ const STATUS_OPTIONS = [
 ];
 
 const GRID =
-  "grid-cols-[minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(110px,0.9fr)_minmax(120px,0.9fr)_36px]";
+  "grid-cols-[32px_minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(110px,0.9fr)_minmax(120px,0.9fr)_36px]";
+
+// Square checkbox — matches the Skyline listing / Task Management checkbox.
+const Checkbox: React.FC<{ checked: boolean; onChange: () => void; label?: string }> = ({ checked, onChange, label }) => (
+  <button type="button" role="checkbox" aria-checked={checked} aria-label={label} onClick={onChange} className="shrink-0 p-0.5">
+    <span className={`block w-5 h-5 rounded ${checked ? "bg-neutral-900 border-[6px] border-neutral-300" : "bg-neutral-300"}`} />
+  </button>
+);
 
 // "Date Added" — the record's created date (Postgres timestamps may lack a Z).
 const fmtDateAdded = (s?: string | null) => {
@@ -56,6 +65,15 @@ const fmtDateAdded = (s?: string | null) => {
   return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+// Month bucket used for the stat cards' "vs last month" trend.
+const monthKey = (d: Date) => d.getFullYear() * 12 + d.getMonth();
+const createdMonthKey = (s?: string | null): number | null => {
+  if (!s) return null;
+  const iso = /[zZ]|[+-]\d\d:?\d\d$/.test(s) ? s : s.replace(" ", "T") + "Z";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : monthKey(d);
+};
+
 // ── Stat card (same design as the Skyline listing) ──────────────────────────
 interface StatConfig {
   title: string;
@@ -63,8 +81,9 @@ interface StatConfig {
   icon: string;
   tile: string;
   trendPct: number;
+  darkIcon?: boolean; // force a coloured icon SVG to black (neutral tiles)
 }
-const StatCard: React.FC<StatConfig> = ({ title, value, icon, tile, trendPct }) => {
+const StatCard: React.FC<StatConfig> = ({ title, value, icon, tile, trendPct, darkIcon }) => {
   const positive = trendPct >= 0;
   const badge =
     trendPct > 0
@@ -76,7 +95,7 @@ const StatCard: React.FC<StatConfig> = ({ title, value, icon, tile, trendPct }) 
     <div className="flex-1 min-w-0 p-4 rounded-lg border border-[#ccc] bg-white flex flex-col gap-3">
       <div className="flex items-center gap-4">
         <div className={`p-3 rounded-sm flex items-center justify-center ${tile}`}>
-          <img src={icon} alt="" className="w-5 h-5" />
+          <img src={icon} alt="" className="w-5 h-5" style={darkIcon ? { filter: "brightness(0)" } : undefined} />
         </div>
         <img src={positive ? RiseIcon : FallIcon} alt="" className="w-12 h-12 object-contain" />
       </div>
@@ -106,6 +125,11 @@ const VehicleManagementList: React.FC = () => {
 
   const [query, setQuery] = useState("");
   const [statusSel, setStatusSel] = useState<string[]>([]);
+  const [transmissionSel, setTransmissionSel] = useState<string[]>([]);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [reminders, setReminders] = useState<FleetDueReminder[]>([]);
+  const [showReminders, setShowReminders] = useState(false);
   const [page, setPage] = useState(1);
   const [menu, setMenu] = useState<{ id: number; top: number; right: number } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<VehicleRecord | null>(null);
@@ -115,10 +139,20 @@ const VehicleManagementList: React.FC = () => {
     const [recs, reg] = await Promise.all([listVehicleRecords(), listVehicleRegister()]);
     setVehicles(recs);
     setRegister(reg);
+    setSelected(new Set());
     setLoading(false);
   };
   useEffect(() => {
     load();
+  }, []);
+
+  // Reminders popup on each visit — Vehicle Management owns the vehicle-document
+  // reminders (MOT / Plate / Road Fund).
+  useEffect(() => {
+    getDueReminders("vehicles").then((due) => {
+      setReminders(due);
+      if (due.length) setShowReminders(true);
+    });
   }, []);
 
   // On-hire lookup by normalised registration (the shared exclusivity flag).
@@ -137,15 +171,41 @@ const VehicleManagementList: React.FC = () => {
   };
 
   const stats = useMemo<StatConfig[]>(() => {
-    const count = (s: VStatus) => vehicles.filter((v) => statusOf(v) === s).length;
+    const bySt = (s: VStatus) => vehicles.filter((v) => statusOf(v) === s);
+    // "vs last month" = vehicles added this month vs last month (by created_at),
+    // same basis as the Skyline hire list. 100% when there was nothing last month.
+    const thisKey = monthKey(new Date());
+    const lastKey = thisKey - 1;
+    const trendFor = (subset: VehicleRecord[]) => {
+      let t = 0, l = 0;
+      subset.forEach((v) => {
+        const k = createdMonthKey(v.created_at);
+        if (k === thisKey) t += 1;
+        else if (k === lastKey) l += 1;
+      });
+      return l === 0 ? (t > 0 ? 100 : 0) : Math.round(((t - l) / l) * 100);
+    };
+    const onHire = bySt("on_hire");
+    const inRepair = bySt("in_repair");
+    const available = bySt("available");
     return [
-      { title: "Total Vehicles", value: vehicles.length, icon: VehiclesIcon, tile: "bg-[#d9ecff]", trendPct: 0 },
-      { title: "On Hire", value: count("on_hire"), icon: CheckIcon, tile: "bg-[#d9ecff]", trendPct: 0 },
-      { title: "In Repair", value: count("in_repair"), icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: 0 },
-      { title: "Available", value: count("available"), icon: CheckCircleIcon, tile: "bg-[#d9ffd9]", trendPct: 0 },
+      { title: "Total Vehicles", value: vehicles.length, icon: VehiclesIcon, tile: "bg-[#eee]", trendPct: trendFor(vehicles), darkIcon: true },
+      { title: "On Hire", value: onHire.length, icon: CheckIcon, tile: "bg-[#eee]", trendPct: trendFor(onHire), darkIcon: true },
+      { title: "In Repair", value: inRepair.length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: trendFor(inRepair) },
+      { title: "Available", value: available.length, icon: CheckCircleIcon, tile: "bg-[#d9ffd9]", trendPct: trendFor(available) },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicles, activeRegs]);
+
+  // Distinct transmission values present in the data, for the Transmission filter.
+  const transmissionOptions = useMemo(() => {
+    const set = new Set<string>();
+    vehicles.forEach((v) => {
+      const t = (v.transmission || "").trim();
+      if (t) set.add(t);
+    });
+    return Array.from(set).sort().map((t) => ({ label: t, value: t }));
+  }, [vehicles]);
 
   const filtered = useMemo(() => {
     return vehicles.filter((v) => {
@@ -157,14 +217,15 @@ const VehicleManagementList: React.FC = () => {
         if (!hay.includes(query.trim().toLowerCase())) return false;
       }
       if (statusSel.length && !statusSel.includes(statusOf(v))) return false;
+      if (transmissionSel.length && !transmissionSel.includes((v.transmission || "").trim())) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicles, query, statusSel, activeRegs]);
+  }, [vehicles, query, statusSel, transmissionSel, activeRegs]);
 
   useEffect(() => {
     setPage(1);
-  }, [query, statusSel]);
+  }, [query, statusSel, transmissionSel]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -197,6 +258,34 @@ const VehicleManagementList: React.FC = () => {
     } else {
       toast.error("Could not delete the vehicle.");
     }
+  };
+
+  // Multi-select (checkboxes + bulk action bar), scoped to the current page.
+  const allOnPageSelected = pageItems.length > 0 && pageItems.every((v) => selected.has(v.id));
+  const toggleAll = () =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) pageItems.forEach((v) => next.delete(v.id));
+      else pageItems.forEach((v) => next.add(v.id));
+      return next;
+    });
+  const toggleOne = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const confirmBulkDelete = async () => {
+    const ids = [...selected];
+    setBulkConfirm(false);
+    if (!ids.length) return;
+    const results = await Promise.allSettled(ids.map((id) => deleteVehicleRecord(id)));
+    const failed = results.filter((r) => r.status === "rejected" || r.value === false).length;
+    setSelected(new Set());
+    if (failed) toast.error(`${failed} vehicle(s) couldn't be deleted.`);
+    else toast.success(`${ids.length} vehicle(s) deleted.`);
+    load();
   };
 
   const exportCsv = () => {
@@ -278,10 +367,17 @@ const VehicleManagementList: React.FC = () => {
               onToggle={(v) => setStatusSel((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))}
               onClear={() => setStatusSel([])}
             />
+            <FleetMultiSelectFilter
+              label="Transmission"
+              options={transmissionOptions}
+              selected={transmissionSel}
+              onToggle={(v) => setTransmissionSel((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))}
+              onClear={() => setTransmissionSel([])}
+            />
           </div>
 
           {/* Active filter pills */}
-          {statusSel.length > 0 && (
+          {(statusSel.length > 0 || transmissionSel.length > 0) && (
             <div className="flex items-center gap-2 flex-wrap">
               {statusSel.map((v) => (
                 <span key={`st-${v}`} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white rounded-full border border-neutral-200 text-sm text-neutral-700">
@@ -296,16 +392,45 @@ const VehicleManagementList: React.FC = () => {
                   </button>
                 </span>
               ))}
-              <button type="button" onClick={() => setStatusSel([])} className="ml-1 text-sm text-neutral-600 hover:underline">
+              {transmissionSel.map((v) => (
+                <span key={`tr-${v}`} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white rounded-full border border-neutral-200 text-sm text-neutral-700">
+                  {v}
+                  <button
+                    type="button"
+                    onClick={() => setTransmissionSel((s) => s.filter((x) => x !== v))}
+                    className="text-neutral-400 hover:text-neutral-700"
+                    aria-label={`Remove ${v} filter`}
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              ))}
+              <button type="button" onClick={() => { setStatusSel([]); setTransmissionSel([]); }} className="ml-1 text-sm text-neutral-600 hover:underline">
                 Clear all
               </button>
             </div>
           )}
 
+          {/* Bulk action bar — appears when any vehicle is selected. */}
+          {selected.size > 0 && (
+            <div className="flex items-center justify-between px-4 py-3 bg-[#eee] text-black rounded">
+              <span className="text-sm font-medium">{selected.size} Selected</span>
+              <div className="flex items-center gap-6 text-sm">
+                <button type="button" onClick={() => setSelected(new Set())} className="hover:opacity-80">
+                  Clear
+                </button>
+                <button type="button" onClick={() => setBulkConfirm(true)} className="flex items-center gap-1.5 hover:text-red-600">
+                  <Trash2 size={16} /> Delete
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Table */}
           <div className="border border-[#eee] rounded-lg overflow-x-auto">
-            <div className="min-w-[720px]">
+            <div className="min-w-[760px]">
               <div className={`grid ${GRID} gap-2 bg-[#eee] px-4 h-[52px] items-center text-sm font-semibold text-black`}>
+                <Checkbox checked={allOnPageSelected} onChange={toggleAll} label="Select all" />
                 <span>REGISTRATION</span>
                 <span>MAKE</span>
                 <span>MODEL</span>
@@ -325,6 +450,7 @@ const VehicleManagementList: React.FC = () => {
                   const st = statusOf(v);
                   return (
                     <div key={v.id} className={`grid ${GRID} gap-2 px-4 py-3 items-center text-sm border-t border-[#eee] hover:bg-neutral-50`}>
+                      <Checkbox checked={selected.has(v.id)} onChange={() => toggleOne(v.id)} label={`Select ${v.registration_number || "vehicle"}`} />
                       <button type="button" onClick={() => navigate(`/vehicle-management/${v.id}`)} className="text-left text-neutral-900 font-medium hover:underline truncate">
                         {v.registration_number || "—"}
                       </button>
@@ -413,6 +539,21 @@ const VehicleManagementList: React.FC = () => {
           onConfirm={confirmDelete}
           onCancel={() => setDeleteTarget(null)}
         />
+      )}
+
+      {bulkConfirm && (
+        <FleetConfirmModal
+          title="Delete Vehicles"
+          message={`Are you sure you want to delete ${selected.size} vehicle${selected.size === 1 ? "" : "s"}? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={confirmBulkDelete}
+          onCancel={() => setBulkConfirm(false)}
+        />
+      )}
+
+      {/* Reminders panel (shown on each visit) — vehicle documents (MOT / Plate / Road Fund). */}
+      {showReminders && reminders.length > 0 && (
+        <FleetReminderPanel reminders={reminders} onClose={() => setShowReminders(false)} />
       )}
     </div>
   );

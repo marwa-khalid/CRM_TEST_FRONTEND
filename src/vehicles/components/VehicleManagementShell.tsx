@@ -55,6 +55,7 @@ interface NavItem {
   to?: string;
   end?: boolean;
   onClick?: () => void;
+  dark?: boolean; // force a coloured icon SVG to black (nav icons are otherwise dark)
 }
 
 const VehicleManagementShell: React.FC = () => {
@@ -71,8 +72,8 @@ const VehicleManagementShell: React.FC = () => {
     });
 
   const items: NavItem[] = [
-    { label: "Dashboard", icon: HomeIcon, onClick: () => navigate("/dashboard") },
-    { label: "Vehicles", icon: VehiclesIcon, to: "/vehicle-management", end: true },
+    { label: "Dashboard", icon: HomeIcon, to: "/vehicle-management/dashboard" },
+    { label: "Vehicles", icon: VehiclesIcon, to: "/vehicle-management", end: true, dark: true },
     { label: "Tasks", icon: TasksIcon, to: "/vehicle-management/tasks" },
     { label: "Calendar", icon: CalendarIcon, to: "/vehicle-management/calendar" },
     { label: "Reports", icon: ReportsIcon, onClick: () => navigate("/dashboard") },
@@ -109,7 +110,7 @@ const VehicleManagementShell: React.FC = () => {
                   }`
                 }
               >
-                <img src={item.icon} alt="" className="w-5 h-5 shrink-0" />
+                <img src={item.icon} alt="" className="w-5 h-5 shrink-0" style={item.dark ? { filter: "brightness(0)" } : undefined} />
                 {!collapsed && <span>{item.label}</span>}
               </NavLink>
             ) : (
@@ -120,7 +121,7 @@ const VehicleManagementShell: React.FC = () => {
                 title={collapsed ? item.label : undefined}
                 className={`${rowBase} border-l-4 border-transparent text-[#444] hover:bg-neutral-50 text-left`}
               >
-                <img src={item.icon} alt="" className="w-5 h-5 shrink-0" />
+                <img src={item.icon} alt="" className="w-5 h-5 shrink-0" style={item.dark ? { filter: "brightness(0)" } : undefined} />
                 {!collapsed && <span>{item.label}</span>}
               </button>
             ),

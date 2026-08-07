@@ -13,10 +13,25 @@ export interface HireTrend {
 
 // Hire Trend graph. `period` is WTD | MTD | YTD | Custom; `mode` is "" | YoY | MoM
 // (both uppercased for the API). Returns null on any failure.
-export const getHireTrend = async (period: string, mode: string, status = ""): Promise<HireTrend | null> => {
+export const getHireTrend = async (
+  period: string,
+  mode: string,
+  status = "",
+  cmpType = "",
+  a = "",
+  b = "",
+): Promise<HireTrend | null> => {
   try {
     const { data } = await fleetApi.get("/fleet/dashboard/hire-trend", {
-      params: { period: period.toUpperCase(), mode: mode.toUpperCase(), status: status || undefined },
+      params: {
+        period: period.toUpperCase(),
+        mode: mode.toUpperCase(),
+        status: status || undefined,
+        // Custom year/month comparison: cmp_type (year|month) + the two periods.
+        cmp_type: cmpType || undefined,
+        a: a || undefined,
+        b: b || undefined,
+      },
     });
     return data as HireTrend;
   } catch {
@@ -132,9 +147,11 @@ export interface Attention {
   missing_documents: number;
   overdue_payments: number;
 }
-export const getAttention = async (): Promise<Attention | null> => {
+// `side` (skyline | vehicles) scopes the Missing Documents count to driver docs
+// vs vehicle docs.
+export const getAttention = async (side = "vehicles"): Promise<Attention | null> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/attention");
+    const { data } = await fleetApi.get("/fleet/dashboard/attention", { params: { side } });
     return data as Attention;
   } catch {
     return null;
@@ -147,9 +164,45 @@ export interface MissingDoc {
   registration: string;
   hire_id: number | null;
 }
-export const getMissingDocuments = async (): Promise<MissingDoc[]> => {
+export const getMissingDocuments = async (side = "vehicles"): Promise<MissingDoc[]> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/missing-documents");
+    const { data } = await fleetApi.get("/fleet/dashboard/missing-documents", { params: { side } });
+    return Array.isArray(data?.items) ? data.items : [];
+  } catch {
+    return [];
+  }
+};
+
+// Vehicles out past their expected return date (Attention "Overdue Returns" slider).
+export interface OverdueReturn {
+  registration: string;
+  model: string;
+  driver: string;
+  due_date: string;
+  days_overdue: number;
+  hire_id: number | null;
+}
+export const getOverdueReturns = async (): Promise<OverdueReturn[]> => {
+  try {
+    const { data } = await fleetApi.get("/fleet/dashboard/overdue-returns");
+    return Array.isArray(data?.items) ? data.items : [];
+  } catch {
+    return [];
+  }
+};
+
+// Owed weekly payments past their due date (Attention "Overdue Payments" slider).
+export interface OverduePayment {
+  registration: string;
+  driver: string;
+  amount: string;
+  due_date: string;
+  days_overdue: number;
+  hire_id: number | null;
+}
+export const getOverduePayments = async (): Promise<OverduePayment[]> => {
+  try {
+    const { data } = await fleetApi.get("/fleet/dashboard/overdue-payments");
     return Array.isArray(data?.items) ? data.items : [];
   } catch {
     return [];

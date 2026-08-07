@@ -355,9 +355,11 @@ export interface FleetDueReminder {
   hire_id?: number | null;
 }
 
-export const getDueReminders = async (): Promise<FleetDueReminder[]> => {
+// `side`: "vehicles" → vehicle docs (Road Fund / Plate / MOT); "skyline" → driver
+// docs (Driving Licence / Taxi Badge). Vehicle docs don't belong to the hire list.
+export const getDueReminders = async (side = "vehicles"): Promise<FleetDueReminder[]> => {
   try {
-    const { data } = await fleetApi.get("/fleet/reminders/due");
+    const { data } = await fleetApi.get("/fleet/reminders/due", { params: { side } });
     return Array.isArray(data) ? data : [];
   } catch {
     return [];

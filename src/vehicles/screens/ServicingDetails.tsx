@@ -29,7 +29,7 @@ import { useHire } from "../../fleet/pages/AddNewHire/HireContext";
 const SECTION = "self-stretch p-5 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col gap-4";
 const H3 = "text-black text-xl font-semibold leading-5";
 const BTN_DARK = "h-8 px-3 py-2 bg-neutral-900 rounded text-white text-sm inline-flex items-center justify-center gap-2 hover:bg-black disabled:opacity-70";
-const LOG_GRID = "grid grid-cols-[2.4fr_1fr_1.2fr] gap-3";
+const LOG_GRID = "grid grid-cols-[minmax(110px,1.8fr)_minmax(90px,1fr)_minmax(160px,1.2fr)_minmax(160px,1.2fr)] gap-3";
 const LOW_CONFIDENCE_MSG = "Low Confidence OCR Result - Please Verify";
 
 const digitsOnly = (value: string) => value.replace(/[^0-9]/g, "");
@@ -497,10 +497,11 @@ const ServicingDetails: React.FC = () => {
             <section className={SECTION}>
               <h3 className={H3}>Service Summary Log</h3>
               <div className="self-stretch rounded-lg outline outline-1 -outline-offset-1 outline-neutral-100 flex flex-col">
-                <div className={`${LOG_GRID} px-4 h-12 items-center text-neutral-900 text-sm font-semibold`}>
+                <div className={`${LOG_GRID} px-4 h-12 items-center text-neutral-900 text-sm font-semibold whitespace-nowrap`}>
                   <span>SERVICED BY</span>
                   <span>SERVICED ON</span>
                   <span>SERVICED AT MILEAGE</span>
+                  <span>NEXT SERVICE DUE AT</span>
                 </div>
                 <div className="h-px bg-neutral-100" />
                 {/* Capped + scrollable so the log never grows unbounded. */}
@@ -518,6 +519,7 @@ const ServicingDetails: React.FC = () => {
                         <span className="pr-2 break-words">{service.garage_name || "—"}</span>
                         <span>{displayDate(service.serviced_on) || "—"}</span>
                         <span>{service.serviced_at_mileage || "—"}</span>
+                        <span>{service.next_service_due_at || "—"}</span>
                       </div>
                       <div className="h-px bg-neutral-100" />
                     </React.Fragment>

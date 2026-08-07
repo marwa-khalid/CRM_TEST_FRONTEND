@@ -3,10 +3,11 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import VehicleManagementShell from "./components/VehicleManagementShell";
 import VehicleManagementList from "./pages/VehicleManagementList";
 import VehicleManagementRecord from "./pages/VehicleManagementRecord";
-// Tasks & Calendar reuse the Skyline components (imported one-way from Fleet),
-// scoped to module="vehicles" so they show an independent list/calendar/feed.
+// Tasks, Calendar & Dashboard reuse the Skyline components (imported one-way from
+// Fleet), scoped to side/module="vehicles" so they show independent data.
 import FleetTasks from "../fleet/pages/FleetTasks";
 import FleetTasksCalendar from "../fleet/pages/FleetTasksCalendar";
+import FleetDashboard from "../fleet/pages/FleetDashboard";
 
 // Standalone Vehicle Management module — the shared vehicle pool. Mounted at
 // /vehicle-management/* from App.tsx. Self-contained (src/vehicles); it imports
@@ -17,6 +18,7 @@ const VehicleManagementRoutes: React.FC = () => (
   <Routes>
     <Route element={<VehicleManagementShell />}>
       <Route index element={<VehicleManagementList />} />
+      <Route path="dashboard" element={<FleetDashboard side="vehicles" />} />
       <Route path="tasks" element={<FleetTasks module="vehicles" />} />
       <Route path="calendar" element={<FleetTasksCalendar module="vehicles" />} />
     </Route>

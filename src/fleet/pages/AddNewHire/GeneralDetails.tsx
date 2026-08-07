@@ -7,6 +7,7 @@ import FleetDepositRefundModal from "../../components/FleetDepositRefundModal";
 import FleetPayHirerEmailModal from "../../components/FleetPayHirerEmailModal";
 import { getDepositRefundPreview, getPayHirerPreview, type DepositRefundDraft } from "../../services/emailService";
 import CloseFileIcon from "../../assets/icons/CloseFile.svg";
+import OpenFileIcon from "../../assets/icons/OpenFile.svg";
 import {
   INSURANCE_TYPE_OPTIONS,
   CURRENT_POSITION_OPTIONS,
@@ -20,7 +21,6 @@ const REFUND_RECIPIENTS = "marwanationwideassist@outlook.com";
 const PAY_HIRER_RECIPIENTS = "marwanationwideassist@outlook.com";
 
 const now = () => new Date();
-const fmtDate = (d: Date) => d.toLocaleDateString("en-GB"); // dd/mm/yyyy
 const fmtTime = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
 // Local yyyy-mm-dd for the date pickers (sv-SE avoids the BST off-by-one).
 const localISO = (d: Date) => d.toLocaleDateString("sv-SE");
@@ -67,6 +67,7 @@ const GeneralDetails: React.FC = () => {
   const [refundPreview, setRefundPreview] = useState("");
   const [refundDraft, setRefundDraft] = useState<DepositRefundDraft>({});
   const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const { hire, hireId, save } = useHire();
   const refundableAmount = refundDraft.refund_amount_raw && Number(refundDraft.refund_amount_raw) > 0
     ? refundDraft.refund_amount_raw
@@ -107,6 +108,16 @@ const GeneralDetails: React.FC = () => {
     setForm((f) => ({ ...f, fileClosedOn: localISO(d), isClosed: true }));
     save({ file_closed_at: d.toISOString() });
     toast.success("File closed successfully.");
+  };
+  const requestOpenFile = () => {
+    if (!form.isClosed) return;
+    setConfirmOpen(true);
+  };
+  const confirmOpenFile = () => {
+    setConfirmOpen(false);
+    setForm((f) => ({ ...f, fileClosedOn: "", isClosed: false }));
+    save({ file_closed_at: null });
+    toast.success("File reopened successfully.");
   };
 
   const handlePaySubmit = async ({ amount, reason }: { amount: string; reason: string }) => {
@@ -175,12 +186,11 @@ const GeneralDetails: React.FC = () => {
           <h3 className="text-black text-xl font-semibold leading-5">File Status</h3>
           <button
             type="button"
-            onClick={requestCloseFile}
-            disabled={disabled}
-            className="h-8 px-3 py-2 bg-neutral-900 rounded flex items-center gap-2 text-white text-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={form.isClosed ? requestOpenFile : requestCloseFile}
+            className="h-8 px-3 py-2 bg-neutral-900 rounded flex items-center gap-2 text-white text-sm hover:bg-black"
           >
-            <img src={CloseFileIcon} alt="" className="w-4 h-4" />
-            {disabled ? "File Closed" : "Close File"}
+            <img src={form.isClosed ? OpenFileIcon : CloseFileIcon} alt="" className="w-4 h-4" />
+            {form.isClosed ? "Open File" : "Close File"}
           </button>
         </div>
         <div className="h-px bg-neutral-100" />
@@ -373,6 +383,17 @@ const GeneralDetails: React.FC = () => {
           destructive={false}
           onConfirm={confirmCloseFile}
           onCancel={() => setConfirmClose(false)}
+        />
+      )}
+
+      {confirmOpen && (
+        <FleetConfirmModal
+          title="Open File"
+          message="Are you sure you want to reopen this record?"
+          confirmLabel="Open File"
+          destructive={false}
+          onConfirm={confirmOpenFile}
+          onCancel={() => setConfirmOpen(false)}
         />
       )}
     </div>

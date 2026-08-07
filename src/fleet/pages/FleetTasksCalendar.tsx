@@ -643,14 +643,6 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
               })}
             </div>
           )}
-
-          {/* Legend */}
-          <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-500">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-neutral-900" /> Events</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" /> Tasks &amp; Expiries</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> Completed</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" /> Overdue</span>
-          </div>
         </section>
       </main>
 

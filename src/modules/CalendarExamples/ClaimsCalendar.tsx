@@ -178,7 +178,7 @@ const Chevron = ({ d = "down" }: { d?: "down" | "left" | "right" }) => (
   </svg>
 );
 
-const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTasks }) => {
+const ClaimsCalendar: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTasks }) => {
   const today = new Date();
   const [view, setView] = useState<View>("month");
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
@@ -811,4 +811,4 @@ const TeamsCalendarExample: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTa
   );
 };
 
-export default TeamsCalendarExample;
+export default ClaimsCalendar;

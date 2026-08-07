@@ -9,7 +9,7 @@ import { ToastContainer } from 'react-toastify';
 import ReminderWatcher from "./claims/Reminders/ReminderWatcher";
 import OTPPage from './modules/Login/OTPPage';
 import AccountSettings from "./modules/Claims/AccountSettings/AccountSettingsPage";
-import TeamsCalendarExample from "./modules/CalendarExamples/TeamsCalendarExample";
+import ClaimsCalendar from "./modules/CalendarExamples/ClaimsCalendar";
 import ForgotPassword from './modules/Login/ForgotPassword';
 import AccountLocked from './modules/Login/AccountLocked';
 import ForgotPassword2 from './modules/Login/ForgotPassword2';
@@ -86,7 +86,7 @@ const AppInner: React.FC = () => {
         <Route path="/case-activity" element={<CaseActivityStream />} />
         <Route path="/document-library" element={<DocumentLibrary />} />
         <Route path="/settings" element={<AccountSettings />} />
-        <Route path="/example1" element={<TeamsCalendarExample />} />
+        <Route path="/example1" element={<ClaimsCalendar />} />
 
         {/* Fleet module — fully self-contained under /fleet/* (src/fleet). */}
         <Route path="/fleet/*" element={<FleetRoutes />} />

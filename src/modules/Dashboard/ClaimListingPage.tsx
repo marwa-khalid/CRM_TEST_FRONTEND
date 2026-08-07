@@ -53,7 +53,7 @@ import type { TaskFilters } from "../../services/Tasks/Tasks";
 
 const Tasks = lazy(() => import("../TaskManagement/Tasks"));
 const ClaimsDashboard = lazy(() => import("./ClaimsDashboard"));
-const TasksCalendar = lazy(() => import("../CalendarExamples/TeamsCalendarExample"));
+const TasksCalendar = lazy(() => import("../CalendarExamples/ClaimsCalendar"));
 
 type ActivePage = "claims" | "settings" | "tasks" | "dashboard" | "calendar";
 

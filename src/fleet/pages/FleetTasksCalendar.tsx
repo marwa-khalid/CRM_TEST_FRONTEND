@@ -3,6 +3,8 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, Filter, Paperclip, Plus,
 import { toast } from "react-toastify";
 import FleetTaskModal from "../components/FleetTaskModal";
 import FleetEventModal from "../components/FleetEventModal";
+import FleetTaskDetailSlider from "../components/FleetTaskDetailSlider";
+import FleetEventDetailSlider from "../components/FleetEventDetailSlider";
 import FleetPageHeader from "../components/FleetPageHeader";
 import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
 import { FleetCalendar } from "../components/FleetCalendar";
@@ -168,6 +170,10 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
   const [editingEvent, setEditingEvent] = useState<FleetEvent | null>(null);
   const [eventDate, setEventDate] = useState<string | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
+  // Clicking an existing entry opens a read-first details slider (with an Edit
+  // button), not the edit modal directly — mirrors the Claims calendar.
+  const [detailEvent, setDetailEvent] = useState<FleetEvent | null>(null);
+  const [detailTask, setDetailTask] = useState<FleetTask | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -270,8 +276,8 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
   const openEditTask = (task: FleetTask) => { setEditingTask(task); setShowTaskModal(true); };
   // Expiries are read-only (auto-derived from vehicle records), so no modal.
   const openEntry = (entry: Entry) => {
-    if (entry.kind === "event") return openEditEvent(entry.event);
-    if (entry.kind === "task") return openEditTask(entry.task);
+    if (entry.kind === "event") return setDetailEvent(entry.event);
+    if (entry.kind === "task") return setDetailTask(entry.task);
   };
 
   // Agenda is all-time (like the Teams calendar) — the From/To filters narrow it.
@@ -670,6 +676,25 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
             toast.success("Task updated.");
             load();
           }}
+        />
+      )}
+
+      {/* Read-first detail sliders (Edit button opens the modal) — clicking an
+          existing event / task on the calendar opens these, not the edit modal. */}
+      {detailEvent && (
+        <FleetEventDetailSlider
+          event={detailEvent}
+          onClose={() => setDetailEvent(null)}
+          onEdit={() => { openEditEvent(detailEvent); setDetailEvent(null); }}
+          onRefresh={load}
+        />
+      )}
+      {detailTask && (
+        <FleetTaskDetailSlider
+          task={detailTask}
+          onClose={() => setDetailTask(null)}
+          onEdit={() => { openEditTask(detailTask); setDetailTask(null); }}
+          onRefresh={load}
         />
       )}
     </div>

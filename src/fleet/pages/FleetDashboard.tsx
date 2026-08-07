@@ -22,7 +22,7 @@ import FleetMissingDocumentsSlider from "../components/FleetMissingDocumentsSlid
 import FleetAttentionSlider, { type AttentionCard } from "../components/FleetAttentionSlider";
 import {
   getHireTrend, getStats, getVehicleStatus, getWeeklyPayments, getCompliance, getExpiries, getAttention,
-  getMissingDocuments, getOverdueReturns, getOverduePayments,
+  getMissingDocuments, getOverdueReturns, getOverduePayments, getFleetVehicles,
   type WeeklyPayments, type PaymentSummary, type Attention, type Compliance, type Expiries, type MissingDoc,
 } from "../services/dashboardService";
 import { listFleetTasks, type FleetTask } from "../services/taskService";
@@ -394,8 +394,11 @@ const VehicleDonut: React.FC = () => {
     let cancelled = false;
     getVehicleStatus().then((r) => {
       if (cancelled) return;
+      // Use the live result whenever the backend responds — even an empty list
+      // (no vehicles) is real data. Only fall back to the placeholder when the
+      // call fails (r === null), not when the fleet legitimately has 0 vehicles.
       setSeg(
-        r && r.segments?.length
+        r
           ? r.segments.map((s, i) => ({ l: s.label, v: s.value, c: VEH_COLORS[s.label] ?? VEH_FALLBACK_COLORS[i % VEH_FALLBACK_COLORS.length] }))
           : null,
       );
@@ -405,7 +408,8 @@ const VehicleDonut: React.FC = () => {
     };
   }, []);
   const data = seg ?? VEH_SEG;
-  const total = data.reduce((s, x) => s + x.v, 0) || 1;
+  const actualTotal = data.reduce((s, x) => s + x.v, 0);
+  const total = actualTotal || 1; // avoid divide-by-zero in the arc proportions
   const r = 56, C = 2 * Math.PI * r;
   let off = 0;
   const arcs = data.map((x, i) => {
@@ -422,18 +426,23 @@ const VehicleDonut: React.FC = () => {
       />
       <div className="flex-1 flex items-center content-center gap-6 flex-wrap py-1.5">
         <svg viewBox="0 0 160 160" className="w-[220px] h-[220px] shrink-0">
+          <circle cx="80" cy="80" r={r} fill="none" stroke="#f1f1f1" strokeWidth="22" />
           {arcs}
-          <text x="80" y="80" textAnchor="middle" fontSize="30" fontWeight="700" fill="#111827">{total}</text>
+          <text x="80" y="80" textAnchor="middle" fontSize="30" fontWeight="700" fill="#111827">{actualTotal}</text>
           <text x="80" y="100" textAnchor="middle" fontSize="14" fill="#6b7280">Total</text>
         </svg>
         <div className="flex-1 min-w-[160px] flex flex-col gap-3">
-          {data.map((x, i) => (
-            <div key={i} className="flex items-center gap-2.5 text-sm">
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: x.c }} />
-              <span className="flex-1 text-neutral-700 truncate">{x.l}</span>
-              <span className="font-weight-600 text-neutral-900 tabular-nums pl-3 pr-2">{x.v}</span>
-            </div>
-          ))}
+          {data.length === 0 ? (
+            <div className="text-neutral-400 text-sm">No vehicles in the fleet yet.</div>
+          ) : (
+            data.map((x, i) => (
+              <div key={i} className="flex items-center gap-2.5 text-sm">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: x.c }} />
+                <span className="flex-1 text-neutral-700 truncate">{x.l}</span>
+                <span className="font-weight-600 text-neutral-900 tabular-nums pl-3 pr-2">{x.v}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </Card>
@@ -710,26 +719,6 @@ const SKY_STATUS_STYLE: Record<SkyKey, string> = {
   available: "bg-green-100 text-green-700", hire: "bg-neutral-100 text-neutral-800",
   off: "bg-purple-100 text-purple-600", repair: "bg-orange-100 text-orange-500",
 };
-const SKY_VEHICLES: SkyVehicle[] = [
-  { registration: "BK75 OYN", model: "Ford Transit Custom", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 12 Days", customer: "Sarah M. Morgan" },
-  { registration: "LR21 XVT", model: "Mercedes Sprinter", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 5 Days", customer: "James Okafor" },
-  { registration: "MA19 KLP", model: "VW Transporter", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 21 Days", customer: "Aisha Khan" },
-  { registration: "GF20 TRN", model: "Vauxhall Vivaro", statusKey: "available", statusLabel: "Available" },
-  { registration: "HK18 ZDC", model: "Ford Transit", statusKey: "off", statusLabel: "Off Hire" },
-  { registration: "WV23 MLK", model: "Peugeot Boxer", statusKey: "repair", statusLabel: "In Repair" },
-  { registration: "DA22 KLM", model: "Renault Trafic", statusKey: "available", statusLabel: "Available" },
-  { registration: "SN71 PQR", model: "Citroën Relay", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 3 Days", customer: "Priya Nair" },
-  { registration: "YT19 BND", model: "Ford Transit Custom", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 8 Days", customer: "David Bennett" },
-  { registration: "KP68 RSV", model: "Mercedes Vito", statusKey: "available", statusLabel: "Available" },
-  { registration: "LC22 WFN", model: "VW Crafter", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 16 Days", customer: "Grace Adeyemi" },
-  { registration: "RG20 TFD", model: "Vauxhall Movano", statusKey: "repair", statusLabel: "In Repair" },
-  { registration: "BX71 JLM", model: "Peugeot Expert", statusKey: "off", statusLabel: "Off Hire" },
-  { registration: "MH19 QAZ", model: "Renault Master", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 2 Days", customer: "Thomas Reed" },
-  { registration: "ND23 CPL", model: "Citroën Dispatch", statusKey: "available", statusLabel: "Available" },
-  { registration: "PV18 KRT", model: "Toyota Proace", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 27 Days", customer: "Lucy Zhang" },
-  { registration: "SW72 HGB", model: "Nissan Primastar", statusKey: "off", statusLabel: "Off Hire" },
-  { registration: "TN21 DWF", model: "Ford Transit", statusKey: "hire", statusLabel: "On Hire", hireInfo: "On Hire for 11 Days", customer: "Omar Haddad" },
-];
 const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
   <div className="flex min-h-32 flex-1 items-start justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-4">
     <div className="flex flex-col gap-4">
@@ -783,21 +772,34 @@ const SkylineOperations: React.FC = () => {
   const [statusSel, setStatusSel] = useState<string[]>([]);
   const [dateSel, setDateSel] = useState<string[]>([]);
   const [sliderOpen, setSliderOpen] = useState(false); // "View All" opens a right-side drawer
+  // Live vehicle list (empty when the fleet has no vehicles). No demo fallback —
+  // the section reflects reality, so deleting vehicles clears it.
+  const [vehicles, setVehicles] = useState<SkyVehicle[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getFleetVehicles().then((r) => {
+      if (!cancelled) setVehicles(r as SkyVehicle[] | null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const data = vehicles ?? [];
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
     setter((s) => (s.includes(val) ? s.filter((x) => x !== val) : [...s, val]));
-  const regOptions = SKY_VEHICLES.map((v) => ({ label: v.registration, value: v.registration }));
+  const regOptions = data.map((v) => ({ label: v.registration, value: v.registration }));
   const statusOptions = [{ label: "Available", value: "available" }, { label: "On Hire", value: "hire" }, { label: "Off Hire", value: "off" }, { label: "In Repair", value: "repair" }];
   const dateOptions = [{ label: "Today", value: "today" }, { label: "1 Week", value: "1w" }, { label: "1 Month", value: "1m" }];
   // Counts derived from the actual vehicle list so the total, the status chips and
-  // the "View All" slider always reconcile (they used to be hardcoded and didn't).
-  const countBy = (k: SkyKey) => SKY_VEHICLES.filter((v) => v.statusKey === k).length;
+  // the "View All" slider always reconcile.
+  const countBy = (k: SkyKey) => data.filter((v) => v.statusKey === k).length;
   const summaryItems = [
     { label: "Available", value: countBy("available"), statusKey: "available", className: "bg-green-100 text-green-700" },
     { label: "On Hire", value: countBy("hire"), statusKey: "hire", className: "bg-neutral-100 text-neutral-800" },
     { label: "Off Hire", value: countBy("off"), statusKey: "off", className: "bg-purple-100 text-purple-600" },
     { label: "In Repair", value: countBy("repair"), statusKey: "repair", className: "bg-orange-100 text-orange-500" },
   ];
-  const filtered = SKY_VEHICLES.filter((v) => (!regSel.length || regSel.includes(v.registration)) && (!statusSel.length || statusSel.includes(v.statusKey)));
+  const filtered = data.filter((v) => (!regSel.length || regSel.includes(v.registration)) && (!statusSel.length || statusSel.includes(v.statusKey)));
   const visible = filtered.slice(0, 8);
   return (
     <section className="col-span-12 w-full rounded-lg border border-neutral-200 px-4 py-6 min-w-0">
@@ -807,7 +809,7 @@ const SkylineOperations: React.FC = () => {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
               <div className="flex flex-col gap-1">
-                <p className="text-2xl font-weight-600 leading-6 text-black">{SKY_VEHICLES.length} Vehicles</p>
+                <p className="text-2xl font-weight-600 leading-6 text-black">{data.length} Vehicles</p>
                 <p className="text-sm font-weight-500 text-zinc-500">Total Fleet</p>
               </div>
               <div className="flex items-center gap-5">
@@ -830,7 +832,7 @@ const SkylineOperations: React.FC = () => {
             </div>
           </div>
           {filtered.length === 0 ? (
-            <div className="py-12 text-center text-sm text-neutral-400">No fleet vehicles match.</div>
+            <div className="py-12 text-center text-sm text-neutral-400">{data.length === 0 ? "No vehicles in the fleet yet." : "No fleet vehicles match."}</div>
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
               {visible.map((v, i) => <SkyVehicleCard key={`${v.registration}-${i}`} v={v} />)}
@@ -860,25 +862,14 @@ type Expiry = { span: string; icon: React.ReactNode; title: string; tabs: [strin
 // Tab order → bucket key for the live expiry cards (parallel to buildExpiryCard's tabs).
 const EXPIRY_BUCKETS = ["expired", "today", "d7", "d30"];
 // Servicing Due is a mileage placeholder; give it bucketed rows so its tabs filter too.
+// Cleared for now — Servicing Due shows no rows until it's wired to live data.
 const SERVICING_BUCKETS: Record<string, (string | [string, string])[][]> = {
-  overdue: [
-    ["DX20 UHG", "124,560 mi", ["1,250 mi", "red"], "James Okafor"],
-    ["NL69 FZY", "98,765 mi", ["320 mi", "red"], "Lucy Zhang"],
-    ["RJ19 KPL", "142,300 mi", ["890 mi", "red"], "Daniel Foster"],
-  ],
-  weekly: [
-    ["PF22 RVB", "76,450 mi", "—", "Sarah Morgan"],
-    ["KM72 LZP", "54,210 mi", "—", "Michael O'Brien"],
-    ["TL21 WSA", "61,020 mi", "—", "Aisha Khan"],
-  ],
-  monthly: [
-    ["GU23 YWR", "33,890 mi", "—", "Tom Baker"],
-    ["HP20 FTN", "45,600 mi", "—", "Nina Patel"],
-    ["VC19 LDR", "72,310 mi", "—", "Chris Lathey"],
-  ],
+  overdue: [],
+  weekly: [],
+  monthly: [],
 };
 const EXPIRY: Expiry[] = [
-  { span: "col-span-12 lg:col-span-6", icon: serviceIcon, title: "Servicing Due", tabs: [["red", "Overdue", "3"], ["orange", "Weekly", "7"], ["violet", "Monthly", "14"]], bucketKeys: ["overdue", "weekly", "monthly"], head: ["Vehicle", "Current Mileage", "Overdue", "Driver"], buckets: SERVICING_BUCKETS, rows: [...SERVICING_BUCKETS.overdue, ...SERVICING_BUCKETS.weekly, ...SERVICING_BUCKETS.monthly] },
+  { span: "col-span-12 lg:col-span-6", icon: serviceIcon, title: "Servicing Due", tabs: [["red", "Overdue", "0"], ["orange", "Weekly", "0"], ["violet", "Monthly", "0"]], bucketKeys: ["overdue", "weekly", "monthly"], head: ["Vehicle", "Current Mileage", "Overdue", "Driver"], buckets: SERVICING_BUCKETS, rows: [...SERVICING_BUCKETS.overdue, ...SERVICING_BUCKETS.weekly, ...SERVICING_BUCKETS.monthly] },
   { span: "col-span-12 md:col-span-6 xl:col-span-4", icon: motIcon, title: "MOT Expiry", tabs: [["red", "Expired", "2"], ["gray", "Today", "1"], ["orange", "7 Days", "5"], ["violet", "30 Days", "13"]], head: ["Vehicle", "Expiry Date", "Remaining Days"], rows: [
     ["BX68 YZO", "12 May 2025", ["Expired", "red"]], ["VU18 KXL", "10 May 2025", ["Expired", "red"]], ["YL24 HBG", "13 May 2025", ["Today", "orange"]], ["FP21 KJU", "17 May 2025", ["4 days", "orange"]], ["MJ23 XTD", "18 May 2025", ["5 days", "orange"]]] },
   { span: "col-span-12 md:col-span-6 xl:col-span-4", icon: plate, title: "Plate Expiry", tabs: [["red", "Expired", "1"], ["orange", "7 Days", "3"], ["violet", "30 Days", "9"]], head: ["Vehicle", "Expiry Date", "Remaining Days"], rows: [

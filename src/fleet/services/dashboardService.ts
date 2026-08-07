@@ -82,6 +82,25 @@ export const getVehicleStatus = async (): Promise<VehicleStatus | null> => {
   }
 };
 
+// Live vehicle list for the "Skyline Vehicles" section. Returns null on failure
+// (so the UI can tell "no vehicles" apart from "backend unreachable").
+export interface FleetVehicleRow {
+  registration: string;
+  model: string;
+  statusKey: "available" | "hire" | "off" | "repair";
+  statusLabel: string;
+  hireInfo?: string;
+  customer?: string;
+}
+export const getFleetVehicles = async (): Promise<FleetVehicleRow[] | null> => {
+  try {
+    const { data } = await fleetApi.get("/fleet/dashboard/vehicles");
+    return Array.isArray(data?.items) ? data.items : [];
+  } catch {
+    return null;
+  }
+};
+
 // Weekly payment schedule (Due Today / This Week / Overdue / Received Today +
 // the actionable rows). Rows come pre-shaped for the dashboard's DataTable.
 type PaymentRows = (string | [string, string])[][];

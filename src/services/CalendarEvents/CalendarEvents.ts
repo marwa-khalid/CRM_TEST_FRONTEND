@@ -25,6 +25,7 @@ export interface CalendarEvent {
   source?: string | null;
   source_type?: string | null;
   source_ref_id?: number | null;
+  module?: string | null; // owning app: claims | skyline | vehicles
   created_at?: string | null;
   updated_at?: string | null;
   claimant_name?: string | null;

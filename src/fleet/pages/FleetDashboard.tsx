@@ -383,9 +383,15 @@ const VEH_SEG = [
 ];
 // Colour per status label — presentation stays here; counts come live from the API.
 const VEH_COLORS: Record<string, string> = {
-  Available: "#bbf7d0", "On Hire": "#6b7280", "In Repair": "#fed7aa",
+  Available: "#bbf7d0", "On Hire": "#6b7280", "Off Hire": "#9333ea", "In Repair": "#fed7aa",
   "Off Fleet": "#fecaca", "Awaiting Plating": "#c4b5fd", "Awaiting De-fleet": "#d4d4d8",
 };
+// Always surfaced in the donut legend (with a 0 count if absent) so On Hire / Off
+// Hire are visible even when no vehicle is currently on/off hire.
+const VEH_ALWAYS_LEGEND: { l: string; c: string }[] = [
+  { l: "On Hire", c: VEH_COLORS["On Hire"] },
+  { l: "Off Hire", c: VEH_COLORS["Off Hire"] },
+];
 const VEH_FALLBACK_COLORS = ["#c7d2fe", "#fde68a", "#99f6e4", "#fecaca", "#a1a1aa"];
 const VehicleDonut: React.FC = () => {
   // Live vehicle-status distribution; falls back to VEH_SEG placeholders.
@@ -408,6 +414,12 @@ const VehicleDonut: React.FC = () => {
     };
   }, []);
   const data = seg ?? VEH_SEG;
+  // Legend always includes On Hire / Off Hire, even at 0 (the arcs still come from
+  // `data`, so a 0 entry just adds a legend row, no visible slice).
+  const legendData = [...data];
+  VEH_ALWAYS_LEGEND.forEach(({ l, c }) => {
+    if (!legendData.some((x) => x.l === l)) legendData.push({ l, v: 0, c });
+  });
   const actualTotal = data.reduce((s, x) => s + x.v, 0);
   const total = actualTotal || 1; // avoid divide-by-zero in the arc proportions
   const r = 56, C = 2 * Math.PI * r;
@@ -435,7 +447,7 @@ const VehicleDonut: React.FC = () => {
           {data.length === 0 ? (
             <div className="text-neutral-400 text-sm">No vehicles in the fleet yet.</div>
           ) : (
-            data.map((x, i) => (
+            legendData.map((x, i) => (
               <div key={i} className="flex items-center gap-2.5 text-sm">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: x.c }} />
                 <span className="flex-1 text-neutral-700 truncate">{x.l}</span>

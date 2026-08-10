@@ -683,10 +683,12 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
           existing event / task on the calendar opens these, not the edit modal. */}
       {detailEvent && (
         <FleetEventDetailSlider
-          event={detailEvent}
+          eventId={detailEvent.id}
+          occurrenceDate={detailEvent.start_date}
+          occurrenceStatus={detailEvent.status}
           onClose={() => setDetailEvent(null)}
-          onEdit={() => { openEditEvent(detailEvent); setDetailEvent(null); }}
-          onRefresh={load}
+          onEdit={(ev) => { openEditEvent(ev); setDetailEvent(null); }}
+          onChanged={load}
         />
       )}
       {detailTask && (

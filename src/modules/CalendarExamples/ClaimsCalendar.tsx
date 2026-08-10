@@ -29,8 +29,6 @@ const PURPLE_DARK = "#2e6bee";
 const GRID = "#E1DFDD";
 const GRID_SOFT = "#EDEBE9";
 const WEEKEND = "#FAF9F8";
-const CHIP_BG = "#E8EBFA";
-const CHIP_TEXT = "#33344A";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
@@ -284,7 +282,8 @@ const ClaimsCalendar: React.FC<{ onOpenTasks?: () => void }> = ({ onOpenTasks })
       vehicle_registration: fVehicle || undefined, search: search || undefined,
     };
     listCalendarEvents(params)
-      .then(({ data }) => setEvents(Array.isArray(data) ? data : []))
+      // Claims calendar shows Claims events only — never Fleet (skyline / vehicles) ones.
+      .then(({ data }) => setEvents(Array.isArray(data) ? data.filter((e) => e.module !== "skyline" && e.module !== "vehicles") : []))
       .catch(() => setEvents(SAMPLE))
       .finally(() => setLoading(false));
   }, [range.start, range.end, fType, fUser, fDept, fClaim, fVehicle, search, reloadKey]);

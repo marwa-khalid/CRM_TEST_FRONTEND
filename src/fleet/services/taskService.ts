@@ -124,6 +124,24 @@ export const updateFleetTask = async (
   }
 };
 
+export interface FleetReassignPayload {
+  new_assignee: string;
+  reason?: string;
+  notify_new?: boolean;
+  notify_previous?: boolean;
+}
+// Reassign a task to a new user (with optional reason + notify flags) — shared
+// /tasks/{id}/reassign backend (same one Claims uses).
+export const reassignFleetTask = async (id: number, payload: FleetReassignPayload): Promise<boolean> => {
+  try {
+    await fleetApi.post(`/tasks/${id}/reassign`, payload);
+    return true;
+  } catch (error) {
+    console.warn("Unable to reassign task.", error);
+    return false;
+  }
+};
+
 export const deleteFleetTask = async (id: number): Promise<boolean> => {
   try {
     await fleetApi.delete(`/tasks/${id}`);

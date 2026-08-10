@@ -17,6 +17,8 @@ import {
   type FleetTask,
 } from "../services/taskService";
 import FleetTaskDetailSlider, { type FleetTaskDetailTab } from "../components/FleetTaskDetailSlider";
+import FleetReassignModal from "../components/FleetReassignModal";
+import { useFleetAssignees } from "../hooks/useFleetAssignees";
 import type { Option } from "../types/hire";
 import TrashIcon from "../assets/icons/Remove.svg";
 import TotalTasksIcon from "../assets/listingpage/totaltasks.svg";
@@ -142,10 +144,12 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
   const [editing, setEditing] = useState<FleetTask | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<FleetTask | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<FleetTask | null>(null);
+  const assignees = useFleetAssignees();
   const [view, setView] = useState<"card" | "list">("card"); // card is the default
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState(false); // bulk-delete confirmation
-  const [bulkMenu, setBulkMenu] = useState<null | "status">(null);
+  const [bulkMenu, setBulkMenu] = useState<null | "status" | "reassign">(null);
   const bulkMenuRef = useOutside(() => setBulkMenu(null));
   // Row-actions menu: id + fixed viewport coords so it escapes any overflow clip.
   const [menu, setMenu] = useState<{ id: number; top: number; right: number } | null>(null);
@@ -409,6 +413,20 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
                     </div>
                   )}
                 </div>
+                <div className="relative">
+                  <button type="button" onClick={() => setBulkMenu((m) => (m === "reassign" ? null : "reassign"))} className="flex items-center gap-1.5">
+                    Reassign <ChevronDown size={14} />
+                  </button>
+                  {bulkMenu === "reassign" && (
+                    <div className="absolute right-0 top-full mt-1 w-44 max-h-56 overflow-auto bg-white border border-neutral-200 rounded shadow-lg z-30">
+                      {assignees.map((u) => (
+                        <div key={u} onClick={() => bulkUpdate({ assigned_user: u })} className="px-4 py-2 text-neutral-700 hover:bg-neutral-50 cursor-pointer">
+                          {u}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button type="button" onClick={() => setBulkConfirm(true)} className="flex items-center gap-1.5 hover:text-red-600">
                   <img src={TrashIcon} alt="" className="w-4 h-4" /> Delete
                 </button>
@@ -590,6 +608,9 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
                   Mark as Complete
                 </button>
               )}
+              <button type="button" onClick={() => { setMenu(null); setReassignTarget(task); }} className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
+                Reassign
+              </button>
               <button type="button" onClick={() => { setMenu(null); openEdit(task); }} className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
                 Edit
               </button>
@@ -642,6 +663,14 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
           confirmLabel="Delete"
           onConfirm={confirmBulkDelete}
           onCancel={() => setBulkConfirm(false)}
+        />
+      )}
+
+      {reassignTarget && (
+        <FleetReassignModal
+          task={reassignTarget}
+          onClose={() => setReassignTarget(null)}
+          onDone={() => { setReassignTarget(null); load(); }}
         />
       )}
     </div>

@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
   // Railway backend so `npm run dev` works out of the box; set VITE_DEV_API_TARGET
   // to http://localhost:8080 in .env.development if you run the backend locally.
   const devApiTarget =
-    env.VITE_DEV_API_TARGET || 'https://crm-test-backend-production.up.railway.app';
+    env.VITE_DEV_API_TARGET || 'https://crm-test-backend-production-db94.up.railway.app';
 
   return {
     plugins: [react()],

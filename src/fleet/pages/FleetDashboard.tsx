@@ -736,35 +736,52 @@ const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
 );
 // Right-side drawer showing every vehicle card (opened by "View All Vehicles").
 const SkylineVehiclesSlider: React.FC<{
-  vehicles: SkyVehicle[];
-  summary: { label: string; value: number; className: string }[];
+  vehicles: SkyVehicle[]; // full list; the slider filters it by the status chips
+  summary: { label: string; value: number; statusKey: string; className: string }[];
+  statusSel: string[];
+  onToggleStatus: (key: string) => void;
   onClose: () => void;
-}> = ({ vehicles, summary, onClose }) => (
-  <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
-    <div className="flex-1 bg-black/30" onClick={onClose} />
-    <div className="w-[920px] max-w-full bg-white h-full flex flex-col p-10 gap-6">
-      <div className="flex justify-between items-start">
-        <h2 className="text-black text-2xl font-weight-600 leading-6">Skyline Vehicles</h2>
-        <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
-      </div>
-      <div className="h-px bg-neutral-100 w-full" />
-      <div className="flex flex-wrap justify-between items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <p className="text-2xl font-weight-600 leading-6 text-black">{vehicles.length} Vehicles</p>
-          <p className="text-sm font-weight-500 text-zinc-500">Total Fleet</p>
+}> = ({ vehicles, summary, statusSel, onToggleStatus, onClose }) => {
+  const shown = vehicles.filter((v) => !statusSel.length || statusSel.includes(v.statusKey));
+  return (
+    <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
+      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="w-[920px] max-w-full bg-white h-full flex flex-col p-10 gap-6">
+        <div className="flex justify-between items-start">
+          <h2 className="text-black text-2xl font-weight-600 leading-6">Skyline Vehicles</h2>
+          <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {summary.map((item) => (
-            <div key={item.label} className={`rounded p-3 text-sm font-weight-400 font-normal leading-4 ${item.className}`}>{item.label} {item.value}</div>
-          ))}
+        <div className="h-px bg-neutral-100 w-full" />
+        <div className="flex flex-wrap justify-between items-center gap-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-2xl font-weight-600 leading-6 text-black">{vehicles.length} Vehicles</p>
+            <p className="text-sm font-weight-500 text-zinc-500">Total Fleet</p>
+          </div>
+          {/* Status chips double as filters — click to narrow the list (same as the main card). */}
+          <div className="flex flex-wrap items-center gap-2">
+            {summary.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => onToggleStatus(item.statusKey)}
+                className={`rounded p-3 text-sm font-weight-400 font-normal leading-4 transition ${item.className} ${statusSel.includes(item.statusKey) ? "ring-2 ring-offset-1 ring-neutral-400" : statusSel.length ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
+              >
+                {item.label} {item.value}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="flex-1 overflow-auto grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 auto-rows-min">
-        {vehicles.map((v, i) => <SkyVehicleCard key={`${v.registration}-${i}`} v={v} />)}
+        {shown.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-sm text-neutral-400">No vehicles match.</div>
+        ) : (
+          <div className="flex-1 overflow-auto grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 auto-rows-min">
+            {shown.map((v, i) => <SkyVehicleCard key={`${v.registration}-${i}`} v={v} />)}
+          </div>
+        )}
       </div>
     </div>
-  </div>
-);
+  );
+};
 const SkylineOperations: React.FC = () => {
   const [regSel, setRegSel] = useState<string[]>([]);
   const [statusSel, setStatusSel] = useState<string[]>([]);
@@ -843,7 +860,7 @@ const SkylineOperations: React.FC = () => {
           )}
         </div>
       </div>
-      {sliderOpen && <SkylineVehiclesSlider vehicles={filtered} summary={summaryItems} onClose={() => setSliderOpen(false)} />}
+      {sliderOpen && <SkylineVehiclesSlider vehicles={data} summary={summaryItems} statusSel={statusSel} onToggleStatus={(k) => toggle(setStatusSel, k)} onClose={() => setSliderOpen(false)} />}
     </section>
   );
 };

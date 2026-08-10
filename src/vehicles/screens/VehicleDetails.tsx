@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetSelect, FleetDateField, FleetReadonlyField } from "../../fleet/components/fields";
 import FleetUploadModal from "../../fleet/components/FleetUploadModal";
@@ -163,7 +163,13 @@ const VehicleDetails: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!vehicle?.id) return; // still resolving — recordLoading covers this
+      // New record (deferred creation on /new): no vehicle yet and recordLoading
+      // is false, so there's nothing to fetch — show the empty form immediately
+      // instead of spinning forever.
+      if (!vehicle?.id) {
+        if (!recordLoading) setPageReady(true);
+        return;
+      }
       setPageReady(false);
       setDocuments(await listVehicleDocuments(vehicle.id, "v5c"));
       if (!cancelled) setPageReady(true);
@@ -171,7 +177,7 @@ const VehicleDetails: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [vehicle?.id]);
+  }, [vehicle?.id, recordLoading]);
 
   const openDocument = async (docId: number) => {
     if (!vehicle?.id) return;

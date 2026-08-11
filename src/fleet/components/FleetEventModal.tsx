@@ -16,7 +16,8 @@ import {
   type FleetEventPayload,
 } from "../services/eventService";
 import { useFleetAssignees } from "../hooks/useFleetAssignees";
-import { listVehicleRegister } from "../../vehicles/services/vehicleService";
+import { listVehicleRecords } from "../../vehicles/services/vehicleRecordService";
+import { listHires } from "../services/hireService";
 import UploadFileIcon from "../assets/icons/UploadFile.svg";
 import RemoveIcon from "../assets/icons/Remove.svg";
 import { fileTypeIcon } from "../utils/fileIcon";
@@ -50,6 +51,19 @@ const blackStyles: any = {
   input: (p: any) => ({ ...p, fontFamily: FONT, fontWeight: 400, fontSize: "16px" }),
   placeholder: (p: any) => ({ ...p, fontFamily: FONT, color: "#a6aab1", fontWeight: 400, fontSize: "16px", opacity: 1 }),
   singleValue: (p: any) => ({ ...p, fontFamily: FONT, fontWeight: 400, fontSize: "16px", color: "#444444" }),
+  // Black-theme options for the plain (non-checkbox) selects — react-select defaults
+  // the focused/selected option to blue; keep it neutral to match the rest of the modal.
+  option: (base: any, state: any) => ({
+    ...base,
+    fontFamily: FONT,
+    fontSize: "14px",
+    fontWeight: 400,
+    color: "#374151",
+    borderRadius: 4,
+    cursor: "pointer",
+    backgroundColor: state.isSelected ? "#f5f5f5" : state.isFocused ? "#fafafa" : "white",
+    ":active": { backgroundColor: "#f5f5f5" },
+  }),
   menuPortal: (b: any) => ({ ...b, zIndex: 9999 }),
   menu: (p: any) => ({ ...p, fontFamily: FONT, fontWeight: 400, borderRadius: 6, border: "1px solid #f5f5f5", boxShadow: "0px 4px 4px 0px rgba(0,0,0,0.08)", overflow: "hidden", marginTop: 2, marginBottom: 2 }),
   menuList: (p: any) => ({ ...p, fontFamily: FONT, fontWeight: 400, padding: 8, display: "flex", flexDirection: "column", gap: 4, scrollbarWidth: "none", msOverflowStyle: "none", "::-webkit-scrollbar": { display: "none" } }),
@@ -104,11 +118,23 @@ const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
+  // Skyline calendars link a Skyline (hire) reference; Vehicle Management calendars
+  // link only a vehicle (reg + status) — never a claim reference.
+  const isVehicles = (event?.module || module) === "vehicles";
   const assignees = useFleetAssignees();
   const [vehicleRegs, setVehicleRegs] = useState<string[]>([]);
+  const [hireRefs, setHireRefs] = useState<string[]>([]);
   useEffect(() => {
-    listVehicleRegister().then((rows) => setVehicleRegs(rows.map((r) => r.registration_number).filter(Boolean)));
-  }, []);
+    // Use live Vehicle Management records here. The register powers hire lookups
+    // and can contain stale lookup rows that should not appear in task/calendar UI.
+    listVehicleRecords().then((rows) => setVehicleRegs(rows.map((r) => r.registration_number || "").filter(Boolean)));
+    if (!isVehicles) listHires().then((rows) => setHireRefs(rows.map((r) => r.fleet_reference || "").filter(Boolean)));
+  }, [isVehicles]);
+  const hireRefOptions = useMemo<Option[]>(() => {
+    const set = new Set<string>(hireRefs);
+    if (form.claim_reference) set.add(form.claim_reference);
+    return [...set].sort().map((r) => ({ label: r, value: r }));
+  }, [hireRefs, form.claim_reference]);
   const assigneeOptions = useMemo<Option[]>(() => {
     const set = new Set<string>(assignees);
     (form.assigned_users || []).forEach((u) => set.add(u));
@@ -150,7 +176,7 @@ const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved
       reminder: form.reminder || null,
       recurrence_rule: form.recurrence_rule || null,
       description: form.description || null,
-      claim_reference: form.claim_reference || null,
+      claim_reference: isVehicles ? null : (form.claim_reference || null),
       vehicle_registration: form.vehicle_registration || null,
       attachment_path: form.attachment_path || null,
       attachment_name: form.attachment_name || null,
@@ -240,8 +266,23 @@ const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved
             <span className="text-neutral-500 text-xs font-semibold uppercase tracking-wide">Linked Records</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <FleetTextInput label="Claim Reference" placeholder="Link a claim reference" value={form.claim_reference || ""} onChange={(v) => set("claim_reference", v)} />
+          <div className={`grid ${isVehicles ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
+            {!isVehicles && (
+              <FieldLabel label="Skyline Reference">
+                <CreatableSelect
+                  options={hireRefOptions}
+                  value={form.claim_reference ? { label: form.claim_reference, value: form.claim_reference } : null}
+                  onChange={(o: any) => set("claim_reference", o?.value || "")}
+                  onCreateOption={(input: string) => set("claim_reference", input.trim())}
+                  styles={blackStyles}
+                  components={{ IndicatorSeparator: () => null }}
+                  menuPortalTarget={rsPortal}
+                  isClearable
+                  placeholder="Link a Skyline reference"
+                  formatCreateLabel={(input: string) => `Add "${input}"`}
+                />
+              </FieldLabel>
+            )}
             <FieldLabel label="Vehicle Registration">
               <CreatableSelect
                 options={vehicleOptions}

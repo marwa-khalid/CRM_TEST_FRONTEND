@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { FleetTextInput, FleetTextArea, FleetSelect, FleetCreatableSelect, FleetDateField, FleetTimeSelect } from "./fields";
 import { useFleetAssignees } from "../hooks/useFleetAssignees";
-import { listVehicleRegister } from "../../vehicles/services/vehicleService";
+import { listVehicleRecords } from "../../vehicles/services/vehicleRecordService";
 import {
   createFleetTask,
   updateFleetTask,
@@ -50,10 +50,11 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved, 
 
   // Assigned To — same options as the Claims side (real users + shared samples).
   const assignees = useFleetAssignees();
-  // Vehicle Reg — fleet register vehicles, plus the ability to add a new one.
+  // Vehicle Reg — live Vehicle Management records only. The register is a lookup
+  // table and may include old rows that no longer exist in VM.
   const [vehicleRegs, setVehicleRegs] = useState<string[]>([]);
   useEffect(() => {
-    listVehicleRegister().then((rows) => setVehicleRegs(rows.map((r) => r.registration_number).filter(Boolean)));
+    listVehicleRecords().then((rows) => setVehicleRegs(rows.map((r) => r.registration_number || "").filter(Boolean)));
   }, []);
 
   const set = <K extends keyof FleetTaskPayload>(key: K, value: FleetTaskPayload[K]) =>

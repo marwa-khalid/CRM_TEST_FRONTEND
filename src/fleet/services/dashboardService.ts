@@ -87,7 +87,8 @@ export const getVehicleStatus = async (): Promise<VehicleStatus | null> => {
 export interface FleetVehicleRow {
   registration: string;
   model: string;
-  statusKey: "available" | "hire" | "off" | "repair";
+  statusKey: "available" | "hire" | "off" | "repair" | "sale";
+  offHiredToday?: boolean; // off-hired today (now Available) — drives the daily "Off Hire" filter
   statusLabel: string;
   hireInfo?: string;
   customer?: string;

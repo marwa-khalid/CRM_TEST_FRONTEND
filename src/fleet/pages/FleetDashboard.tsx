@@ -87,30 +87,38 @@ const DataTable: React.FC<{
       <tr>{head.map((h) => <th key={h} className={`text-left text-sm whitespace-nowrap ${headText} pb-2.5 pt-1 px-2 border-b border-neutral-100`}>{h}</th>)}</tr>
     </thead>
     <tbody>
-      {rows.map((r, i) => (
-        <tr key={i}>
-          {r.map((cell, j) => (
-            <td key={j} className={`${rowClass} px-2 border-b border-neutral-100 align-top`}>
-              <span className={`${cellText} text-xs font-weight-500 ${cellClamp}`}>{Array.isArray(cell) ? cell[0] : cell}</span>
-            </td>
-          ))}
+      {rows.length === 0 ? (
+        <tr>
+          <td colSpan={Math.max(1, head.length)} className="py-8 text-center text-xs font-weight-500 text-neutral-400">Nothing to show yet.</td>
         </tr>
-      ))}
+      ) : (
+        rows.map((r, i) => (
+          <tr key={i}>
+            {r.map((cell, j) => (
+              <td key={j} className={`${rowClass} px-2 border-b border-neutral-100 align-top`}>
+                <span className={`${cellText} text-xs font-weight-500 ${cellClamp}`}>{Array.isArray(cell) ? cell[0] : cell}</span>
+              </td>
+            ))}
+          </tr>
+        ))
+      )}
     </tbody>
   </table>
 );
 
 // ── Hire Trend (WTD/MTD/YTD periods + YoY/MoM comparison) ─────────────────────
 type TrendView = { labels: string[]; vals: number[]; cap: string; cmp?: string };
+// Zero placeholders — shown only until /dashboard/hire-trend returns. Labels/captions
+// keep the axis shape; the bars read 0 rather than inventing a trend.
 const HT_VIEWS: Record<string, TrendView> = {
-  WTD: { labels: ["Mon", "Tue", "Wed", "Thu", "Fri"], vals: [3, 5, 4, 6, 4], cap: "03-08-26 to 07-08-26" },
-  MTD: { labels: ["W1", "W2", "W3", "W4", "W5"], vals: [12, 15, 11, 14, 8], cap: "Aug 2026" },
-  YTD: { labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"], vals: [42, 38, 50, 46, 55, 48, 60, 52], cap: "Jan–Aug 2026" },
+  WTD: { labels: ["Mon", "Tue", "Wed", "Thu", "Fri"], vals: [0, 0, 0, 0, 0], cap: "" },
+  MTD: { labels: ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"], vals: [0, 0, 0, 0, 0], cap: "" },
+  YTD: { labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], vals: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], cap: "" },
   // Custom = a two-period year/month comparison (like Claims), so the placeholder
   // is a 2-bar previous-vs-current — never a long day series.
-  Custom: { labels: [String(new Date().getFullYear() - 1), String(new Date().getFullYear())], vals: [24, 31], cap: `${new Date().getFullYear() - 1} vs ${new Date().getFullYear()}` },
-  YoY: { labels: ["2025", "2026"], vals: [520, 611], cap: "2025 vs 2026", cmp: "from last year" },
-  MoM: { labels: ["Jul", "Aug"], vals: [58, 66], cap: "Jul vs Aug 2026", cmp: "from last month" },
+  Custom: { labels: [String(new Date().getFullYear() - 1), String(new Date().getFullYear())], vals: [0, 0], cap: `${new Date().getFullYear() - 1} vs ${new Date().getFullYear()}` },
+  YoY: { labels: [String(new Date().getFullYear() - 1), String(new Date().getFullYear())], vals: [0, 0], cap: "", cmp: "from last year" },
+  MoM: { labels: ["Prev", "This"], vals: [0, 0], cap: "", cmp: "from last month" },
 };
 function niceAxis(rawMax: number, steps: number) {
   const step = Math.max(1, Math.ceil(Math.max(1, rawMax) / steps));
@@ -376,23 +384,53 @@ const HireTrend: React.FC = () => {
 };
 
 // ── Vehicle Status Distribution (128 Total donut + legend) ────────────────────
-const VEH_SEG = [
-  { l: "Available", v: 38, c: "#bbf7d0" }, { l: "On Hire", v: 54, c: "#6b7280" },
-  { l: "In Repair", v: 12, c: "#fed7aa" }, { l: "Off Fleet", v: 8, c: "#fecaca" },
-  { l: "Awaiting Plating", v: 9, c: "#c4b5fd" }, { l: "Awaiting De-fleet", v: 7, c: "#d4d4d8" },
-];
 // Colour per status label — presentation stays here; counts come live from the API.
 const VEH_COLORS: Record<string, string> = {
-  Available: "#bbf7d0", "On Hire": "#6b7280", "Off Hire": "#9333ea", "In Repair": "#fed7aa",
-  "Off Fleet": "#fecaca", "Awaiting Plating": "#c4b5fd", "Awaiting De-fleet": "#d4d4d8",
+  Available: "#bbf7d0",
+  "Weekly Hire": "#6b7280",
+  "In Service": "#bae6fd",
+  "In Repair": "#fed7aa",
+  "For Sale": "#f9a8d4",
+  "Off Fleet": "#99f6e4",
+  "Awaiting Plating": "#ddd6fe",
+  "Awaiting De Fleet": "#d4d4d8",
 };
-// Always surfaced in the donut legend (with a 0 count if absent) so On Hire / Off
-// Hire are visible even when no vehicle is currently on/off hire.
+// The donut legend mirrors the Vehicle Details availability dropdown. Weekly Hire is
+// the dashboard label for live on-hire vehicles; Off Fleet is the dashboard label for
+// off-hire vehicles.
 const VEH_ALWAYS_LEGEND: { l: string; c: string }[] = [
-  { l: "On Hire", c: VEH_COLORS["On Hire"] },
-  { l: "Off Hire", c: VEH_COLORS["Off Hire"] },
+  { l: "Available", c: VEH_COLORS.Available },
+  { l: "Weekly Hire", c: VEH_COLORS["Weekly Hire"] },
+  { l: "In Service", c: VEH_COLORS["In Service"] },
+  { l: "In Repair", c: VEH_COLORS["In Repair"] },
+  { l: "For Sale", c: VEH_COLORS["For Sale"] },
+  { l: "Off Fleet", c: VEH_COLORS["Off Fleet"] },
+  { l: "Awaiting Plating", c: VEH_COLORS["Awaiting Plating"] },
+  { l: "Awaiting De Fleet", c: VEH_COLORS["Awaiting De Fleet"] },
 ];
 const VEH_FALLBACK_COLORS = ["#c7d2fe", "#fde68a", "#99f6e4", "#fecaca", "#a1a1aa"];
+const VEH_SEG = VEH_ALWAYS_LEGEND.map(({ l, c }) => ({ l, v: 0, c }));
+const normaliseVehicleStatusLabel = (label: string) => {
+  const cleaned = label.trim().replace(/[_-]/g, " ").replace(/\s+/g, " ");
+  const lower = cleaned.toLowerCase();
+  if (lower === "on hire") return "Weekly Hire";
+  if (lower === "off hire") return "Off Fleet";
+  if (lower === "awaiting de fleet") return "Awaiting De Fleet";
+  const known = VEH_ALWAYS_LEGEND.find((x) => x.l.toLowerCase() === lower);
+  return known?.l || cleaned;
+};
+const mapVehicleSegments = (segments: { label: string; value: number }[]) => {
+  const totals = new Map(VEH_ALWAYS_LEGEND.map(({ l }) => [l, 0]));
+  segments.forEach((s) => {
+    const label = normaliseVehicleStatusLabel(s.label);
+    totals.set(label, (totals.get(label) || 0) + (Number(s.value) || 0));
+  });
+  return [...totals.entries()].map(([l, v], i) => ({
+    l,
+    v,
+    c: VEH_COLORS[l] ?? VEH_FALLBACK_COLORS[i % VEH_FALLBACK_COLORS.length],
+  }));
+};
 const VehicleDonut: React.FC = () => {
   // Live vehicle-status distribution; falls back to VEH_SEG placeholders.
   const [seg, setSeg] = useState<{ l: string; v: number; c: string }[] | null>(null);
@@ -405,7 +443,7 @@ const VehicleDonut: React.FC = () => {
       // call fails (r === null), not when the fleet legitimately has 0 vehicles.
       setSeg(
         r
-          ? r.segments.map((s, i) => ({ l: s.label, v: s.value, c: VEH_COLORS[s.label] ?? VEH_FALLBACK_COLORS[i % VEH_FALLBACK_COLORS.length] }))
+          ? mapVehicleSegments(r.segments)
           : null,
       );
     });
@@ -414,7 +452,7 @@ const VehicleDonut: React.FC = () => {
     };
   }, []);
   const data = seg ?? VEH_SEG;
-  // Legend always includes On Hire / Off Hire, even at 0 (the arcs still come from
+  // Legend always includes every availability status, even at 0 (the arcs still come from
   // `data`, so a 0 entry just adds a legend row, no visible slice).
   const legendData = [...data];
   VEH_ALWAYS_LEGEND.forEach(({ l, c }) => {
@@ -633,12 +671,18 @@ const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
             </div>
           </button>
           <div className="flex flex-col gap-3 max-h-[440px] overflow-auto pr-1">
-            {col.tasks.map((t, i) => (
-              <button key={i} type="button" className={`w-full text-left bg-white rounded-md border ${col.border} p-3 flex flex-col gap-1.5 hover:shadow-sm transition`}>
-                <span className="text-neutral-900 text-sm font-weight-500 line-clamp-1">{t.t}</span>
-                <span className={`text-xs ${t.od ? "text-red-500" : "text-neutral-400"}`}>{t.due}</span>
-              </button>
-            ))}
+            {col.tasks.length === 0 ? (
+              <div className="text-neutral-400 text-xs py-6 text-center border border-dashed border-neutral-200 rounded-md">
+                No tasks here.
+              </div>
+            ) : (
+              col.tasks.map((t, i) => (
+                <button key={i} type="button" className={`w-full text-left bg-white rounded-md border ${col.border} p-3 flex flex-col gap-1.5 hover:shadow-sm transition`}>
+                  <span className="text-neutral-900 text-sm font-weight-500 line-clamp-1">{t.t}</span>
+                  <span className={`text-xs ${t.od ? "text-red-500" : "text-neutral-400"}`}>{t.due}</span>
+                </button>
+              ))
+            )}
           </div>
         </div>
       ))}
@@ -651,20 +695,25 @@ const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
 // ── Fleet Performance (3 headline metrics, live from /dashboard/stats) ─────────
 // Claim-side stat-card icons, recoloured to a dark black-grey (they ship blue).
 const FP_ICON_FILTER = { filter: "brightness(0) invert(0.2)" } as const;
+const FP_URGENT_ICON_FILTER = {
+  filter: "brightness(0) saturate(100%) invert(36%) sepia(95%) saturate(2285%) hue-rotate(337deg) brightness(97%) contrast(93%)",
+} as const;
 const FP_META: Record<string, { icon: React.ReactNode; bar: string }> = {
   vehicles_on_hire: { icon: <img src={FileStatIcon} alt="" className="w-4 h-4" style={FP_ICON_FILTER} />, bar: "bg-neutral-700" },
   net_income: { icon: <img src={PoundStatIcon} alt="" className="w-4 h-4" style={FP_ICON_FILTER} />, bar: "bg-emerald-500" },
   fleet_availability: { icon: <img src={CarsStatIcon} alt="" className="w-4 h-4" style={FP_ICON_FILTER} />, bar: "bg-violet-500" },
-  urgent_alerts: { icon: <img src={UrgentStatIcon} alt="" className="w-4 h-4" style={FP_ICON_FILTER} />, bar: "bg-red-500" },
+  urgent_alerts: { icon: <img src={UrgentStatIcon} alt="" className="w-4 h-4" style={FP_URGENT_ICON_FILTER} />, bar: "bg-red-500" },
 };
 // Order the Fleet Performance cards, urgent alerts last.
 const FP_ORDER = ["vehicles_on_hire", "net_income", "fleet_availability", "urgent_alerts"];
 type FPCard = { key: string; label: string; value: string; pct: string; up: boolean; sub: string; progress: number };
+// Zero placeholders — shown only if /dashboard/stats doesn't return. No fake numbers:
+// a fleet with no data reads 0, not invented figures.
 const FP_FALLBACK: FPCard[] = [
-  { key: "vehicles_on_hire", label: "Vehicles on Hire", value: "12", pct: "6.4", up: true, sub: "of 42 active units", progress: 29 },
-  { key: "net_income", label: "Net Income", value: "£84,290", pct: "12.4", up: true, sub: "Month to date", progress: 74 },
-  { key: "fleet_availability", label: "Fleet Availability", value: "70.3%", pct: "2.1", up: false, sub: "43 units available now", progress: 70 },
-  { key: "urgent_alerts", label: "Urgent Alerts", value: "5", pct: "8.0", up: true, sub: "needs attention", progress: 20 },
+  { key: "vehicles_on_hire", label: "Vehicles on Hire", value: "0", pct: "0", up: true, sub: "of 0 active vehicles", progress: 0 },
+  { key: "net_income", label: "Net Income", value: "£0", pct: "0", up: true, sub: "Month to date", progress: 0 },
+  { key: "fleet_availability", label: "Fleet Availability", value: "0%", pct: "0", up: true, sub: "0 vehicles available now", progress: 0 },
+  { key: "urgent_alerts", label: "Urgent Alerts", value: "0", pct: "0", up: true, sub: "needs attention", progress: 0 },
 ];
 const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
   const [live, setLive] = useState<FPCard[] | null>(null);
@@ -723,11 +772,15 @@ const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
 };
 
 // ── Skyline Operations (matches the Claims dashboard's Skyline Operations) ─────
-type SkyKey = "available" | "hire" | "off" | "repair";
-type SkyVehicle = { registration: string; model: string; statusKey: SkyKey; statusLabel: string; hireInfo?: string; customer?: string };
+type SkyKey = "available" | "hire" | "off" | "repair" | "sale";
+type SkyVehicle = { registration: string; model: string; statusKey: SkyKey; statusLabel: string; hireInfo?: string; customer?: string; offHiredToday?: boolean };
+// The "Off Hire" chip is a *daily* filter: it selects vehicles off-hired today (which are
+// now Available, shown with their Available tag), not a status. Every other chip matches statusKey.
+const skyMatches = (v: SkyVehicle, key: string) => (key === "off" ? !!v.offHiredToday : v.statusKey === key);
 const SKY_STATUS_STYLE: Record<SkyKey, string> = {
   available: "bg-green-100 text-green-700", hire: "bg-neutral-100 text-neutral-800",
-  off: "bg-purple-100 text-purple-600", repair: "bg-orange-100 text-orange-500",
+  off: "bg-teal-100 text-teal-700", repair: "bg-orange-100 text-orange-500",
+  sale: "bg-pink-100 text-pink-700",
 };
 const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
   <div className="flex min-h-32 flex-1 items-start justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-4">
@@ -754,7 +807,7 @@ const SkylineVehiclesSlider: React.FC<{
   onToggleStatus: (key: string) => void;
   onClose: () => void;
 }> = ({ vehicles, summary, statusSel, onToggleStatus, onClose }) => {
-  const shown = vehicles.filter((v) => !statusSel.length || statusSel.includes(v.statusKey));
+  const shown = vehicles.filter((v) => !statusSel.length || statusSel.some((k) => skyMatches(v, k)));
   return (
     <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
       <div className="flex-1 bg-black/30" onClick={onClose} />
@@ -815,18 +868,19 @@ const SkylineOperations: React.FC = () => {
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
     setter((s) => (s.includes(val) ? s.filter((x) => x !== val) : [...s, val]));
   const regOptions = data.map((v) => ({ label: v.registration, value: v.registration }));
-  const statusOptions = [{ label: "Available", value: "available" }, { label: "On Hire", value: "hire" }, { label: "Off Hire", value: "off" }, { label: "In Repair", value: "repair" }];
+  const statusOptions = [{ label: "Available", value: "available" }, { label: "Weekly Hire", value: "hire" }, { label: "Off Hire", value: "off" }, { label: "In Repair", value: "repair" }, { label: "For Sale", value: "sale" }];
   const dateOptions = [{ label: "Today", value: "today" }, { label: "1 Week", value: "1w" }, { label: "1 Month", value: "1m" }];
   // Counts derived from the actual vehicle list so the total, the status chips and
   // the "View All" slider always reconcile.
-  const countBy = (k: SkyKey) => data.filter((v) => v.statusKey === k).length;
+  const countBy = (k: SkyKey) => data.filter((v) => skyMatches(v, k)).length;
   const summaryItems = [
     { label: "Available", value: countBy("available"), statusKey: "available", className: "bg-green-100 text-green-700" },
-    { label: "On Hire", value: countBy("hire"), statusKey: "hire", className: "bg-neutral-100 text-neutral-800" },
-    { label: "Off Hire", value: countBy("off"), statusKey: "off", className: "bg-purple-100 text-purple-600" },
+    { label: "Weekly Hire", value: countBy("hire"), statusKey: "hire", className: "bg-neutral-100 text-neutral-800" },
+    { label: "Off Hire", value: countBy("off"), statusKey: "off", className: "bg-teal-100 text-teal-700" },
     { label: "In Repair", value: countBy("repair"), statusKey: "repair", className: "bg-orange-100 text-orange-500" },
+    { label: "For Sale", value: countBy("sale"), statusKey: "sale", className: "bg-pink-100 text-pink-700" },
   ];
-  const filtered = data.filter((v) => (!regSel.length || regSel.includes(v.registration)) && (!statusSel.length || statusSel.includes(v.statusKey)));
+  const filtered = data.filter((v) => (!regSel.length || regSel.includes(v.registration)) && (!statusSel.length || statusSel.some((k) => skyMatches(v, k))));
   const visible = filtered.slice(0, 8);
   return (
     <section className="col-span-12 w-full rounded-lg border border-neutral-200 px-4 py-6 min-w-0">
@@ -1143,10 +1197,10 @@ const ExpiryCarousel: React.FC = () => {
 
 type Comp = { title: string; icon: React.ReactNode; overdue: number; bar: number; d7: number; d30: number };
 const COMPLIANCE: Comp[] = [
-  { title: "MOT", icon: <img src={MOTIcon} alt="" className="size-8" />, overdue: 2, bar: 10, d7: 1, d30: 13 },
-  { title: "Plate", icon: <img src={PlateIcon} alt="" className="size-8" />, overdue: 9, bar: 26, d7: 5, d30: 18 },
-  { title: "Road Fund Licence", icon: <img src={RoadTaxIcon} alt="" className="size-8" />, overdue: 1, bar: 8, d7: 4, d30: 10 },
-  { title: "Service", icon: <img src={ServiceIcon} alt="" className="size-8" />, overdue: 3, bar: 16, d7: 7, d30: 14 },
+  { title: "MOT", icon: <img src={MOTIcon} alt="" className="size-8" />, overdue: 0, bar: 0, d7: 0, d30: 0 },
+  { title: "Plate", icon: <img src={PlateIcon} alt="" className="size-8" />, overdue: 0, bar: 0, d7: 0, d30: 0 },
+  { title: "Road Fund Licence", icon: <img src={RoadTaxIcon} alt="" className="size-8" />, overdue: 0, bar: 0, d7: 0, d30: 0 },
+  { title: "Service", icon: <img src={ServiceIcon} alt="" className="size-8" />, overdue: 0, bar: 0, d7: 0, d30: 0 },
 ];
 const ComplianceSummary: React.FC = () => {
   // Live per-category compliance (matched by title); keeps the icons defined here.
@@ -1165,7 +1219,7 @@ const ComplianceSummary: React.FC = () => {
     const l = byTitle.get(c.title);
     return l
       ? { ...c, overdue: l.overdue, bar: l.bar, d7: l.d7, d30: l.d30, total: l.total, compliant: l.compliant, amber: l.amber }
-      : { ...c, total: 42, compliant: 95, amber: 6 };
+      : { ...c, total: 0, compliant: 0, amber: 0 };
   });
   return (
     <div className="col-span-12">
@@ -1214,19 +1268,14 @@ const WP_TABS: { key: WPBucket; tone: string; label: string }[] = [
   { key: "overdue", tone: "red", label: "Overdue" },
   { key: "received_today", tone: "green", label: "Received Today" },
 ];
-const WP_FALLBACK_ROWS: (string | [string, string])[][] = [
-  ["GU72 OPN", "Alpha Haulage Ltd", "£525.00", "£525.00", "13 May 2025", ["Due Today", "gray"]],
-  ["FL21 XZM", "Northline Logistics", "£650.00", "£650.00", "13 May 2025", ["Due Today", "gray"]],
-  ["WA22 KHG", "Swift Couriers", "£475.00", "£475.00", "13 May 2025", ["Due Today", "gray"]],
-  ["BV71 YXT", "Pinnacle Transport", "£575.00", "£575.00", "14 May 2025", ["This Week", "yellow"]],
-  ["NJ23 LFP", "Urban Freight Co", "£525.00", "£525.00", "15 May 2025", ["This Week", "yellow"]],
-];
-const WP_FALLBACK_COUNTS: WeeklyPayments["tabs"] = { due_today: 6, due_this_week: 18, overdue: 4, received_today: 11 };
+// Empty/zero placeholders — no invented payments when /dashboard/weekly-payments is unavailable.
+const WP_FALLBACK_ROWS: (string | [string, string])[][] = [];
+const WP_FALLBACK_COUNTS: WeeklyPayments["tabs"] = { due_today: 0, due_this_week: 0, overdue: 0, received_today: 0 };
 const WP_FALLBACK_SUMMARY: PaymentSummary = {
-  total: "£30,490", overdue: "£4,140", due_today: "£1,340", received: "£24,600",
+  total: "£0", overdue: "£0", due_today: "£0", received: "£0",
   by_day: [
-    { day: "Mon", amount: 3200 }, { day: "Tue", amount: 2400 }, { day: "Wed", amount: 5100 },
-    { day: "Thu", amount: 6800 }, { day: "Fri", amount: 5200 }, { day: "Sat", amount: 1600 }, { day: "Sun", amount: 300 },
+    { day: "Mon", amount: 0 }, { day: "Tue", amount: 0 }, { day: "Wed", amount: 0 },
+    { day: "Thu", amount: 0 }, { day: "Fri", amount: 0 }, { day: "Sat", amount: 0 }, { day: "Sun", amount: 0 },
   ],
 };
 
@@ -1295,9 +1344,10 @@ const WeeklyPayment: React.FC = () => {
   const rows: (string | [string, string])[][] = live
     ? active
       ? live.rows[active]
-      : [...live.rows.overdue, ...live.rows.due_today, ...live.rows.due_this_week]
+      : [...live.rows.overdue, ...live.rows.due_today, ...live.rows.due_this_week, ...live.rows.received_today]
     : WP_FALLBACK_ROWS;
-  const displayRows = rows.slice(0, 5);
+  // Small card drops the Status column (last cell) — it's only shown in the slider.
+  const displayRows = rows.slice(0, 5).map((r) => r.slice(0, 5));
   return (
     <Card span="col-span-12 lg:col-span-7">
       <CardHead
@@ -1321,7 +1371,7 @@ const WeeklyPayment: React.FC = () => {
           </div>
           <div className="overflow-x-auto">
             <DataTable
-              head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]}
+              head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date"]}
               rows={displayRows}
               headText="text-neutral-800 font-normal"
               cellText="text-neutral-500"

@@ -684,6 +684,7 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
       {detailEvent && (
         <FleetEventDetailSlider
           eventId={detailEvent.id}
+          module={module}
           occurrenceDate={detailEvent.start_date}
           occurrenceStatus={detailEvent.status}
           onClose={() => setDetailEvent(null)}
@@ -694,6 +695,7 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
       {detailTask && (
         <FleetTaskDetailSlider
           task={detailTask}
+          readOnly
           onClose={() => setDetailTask(null)}
           onEdit={() => { openEditTask(detailTask); setDetailTask(null); }}
           onRefresh={load}

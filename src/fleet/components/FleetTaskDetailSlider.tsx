@@ -15,6 +15,7 @@ import {
   type FleetTaskHistoryEvent,
 } from "../services/taskService";
 import FleetConfirmModal from "./FleetConfirmModal";
+import FleetSpinnerLoader from "./FleetSpinnerLoader";
 
 const TABS = ["Task Details", "Attachments", "Notes", "Task History"] as const;
 export type FleetTaskDetailTab = (typeof TABS)[number];
@@ -88,7 +89,7 @@ const DetailsTab: React.FC<{ task: FleetTask }> = ({ task }) => (
 );
 
 // ── Tab 2: Attachments ───────────────────────────────────────────────────────
-const AttachmentsTab: React.FC<{ task: FleetTask; onUpdated: (t: FleetTask) => void }> = ({ task, onUpdated }) => {
+const AttachmentsTab: React.FC<{ task: FleetTask; onUpdated: (t: FleetTask) => void; readOnly?: boolean }> = ({ task, onUpdated, readOnly }) => {
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -122,21 +123,23 @@ const AttachmentsTab: React.FC<{ task: FleetTask; onUpdated: (t: FleetTask) => v
   return (
     <div className="flex flex-col gap-6">
       <input ref={inputRef} type="file" multiple className="hidden" onChange={onPick} />
-      <div className="flex flex-col gap-4">
-        <div className="text-neutral-900 text-base font-semibold">Upload Attachment</div>
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          className="p-8 rounded-lg border border-neutral-200 flex flex-col items-center gap-3 hover:bg-neutral-50 disabled:opacity-60"
-        >
-          <Upload size={22} className="text-neutral-500" />
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-neutral-900 text-sm font-medium">{busy ? "Uploading…" : "Click to upload"}</span>
-            <span className="text-neutral-500 text-xs">JPG, PNG, PDF, CSV, Excel, Word, PPT supported</span>
-          </div>
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="flex flex-col gap-4">
+          <div className="text-neutral-900 text-base font-semibold">Upload Attachment</div>
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="p-8 rounded-lg border border-neutral-200 flex flex-col items-center gap-3 hover:bg-neutral-50 disabled:opacity-60"
+          >
+            <Upload size={22} className="text-neutral-500" />
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-neutral-900 text-sm font-medium">{busy ? "Uploading…" : "Click to upload"}</span>
+              <span className="text-neutral-500 text-xs">JPG, PNG, PDF, CSV, Excel, Word, PPT supported</span>
+            </div>
+          </button>
+        </div>
+      )}
       <div className="flex flex-col gap-3">
         <div className="text-neutral-700 text-base font-semibold">Attached Files ({files.length})</div>
         {files.length === 0 && <div className="text-neutral-400 text-sm">No attachments yet.</div>}
@@ -147,7 +150,7 @@ const AttachmentsTab: React.FC<{ task: FleetTask; onUpdated: (t: FleetTask) => v
               <div className="text-neutral-900 text-sm font-medium line-clamp-1">{baseName(p)}</div>
             </div>
             <button type="button" onClick={() => open(p)} title="Download" className="p-1.5 text-neutral-500 hover:text-neutral-900"><Download size={16} /></button>
-            <button type="button" onClick={() => setRemoveTarget(p)} title="Remove" className="p-1.5 text-neutral-500 hover:text-red-500"><Trash2 size={16} /></button>
+            {!readOnly && <button type="button" onClick={() => setRemoveTarget(p)} title="Remove" className="p-1.5 text-neutral-500 hover:text-red-500"><Trash2 size={16} /></button>}
           </div>
         ))}
       </div>
@@ -165,7 +168,7 @@ const AttachmentsTab: React.FC<{ task: FleetTask; onUpdated: (t: FleetTask) => v
 };
 
 // ── Tab 3: Notes ─────────────────────────────────────────────────────────────
-const NotesTab: React.FC<{ taskId: number }> = ({ taskId }) => {
+const NotesTab: React.FC<{ taskId: number; readOnly?: boolean }> = ({ taskId, readOnly }) => {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState<FleetTaskNote[]>([]);
@@ -187,18 +190,22 @@ const NotesTab: React.FC<{ taskId: number }> = ({ taskId }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="text-neutral-900 text-base font-semibold">Add Note</div>
-      <div className="flex flex-col items-end gap-3">
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Enter note…"
-          className="w-full h-28 px-5 py-4 bg-white rounded border border-neutral-200 text-neutral-700 text-sm font-light resize-none outline-none focus:border-neutral-900 placeholder:text-neutral-300"
-        />
-        <button type="button" onClick={submit} disabled={busy} className="h-9 px-5 bg-neutral-900 rounded text-white text-sm font-medium disabled:opacity-60 hover:bg-black">
-          Submit
-        </button>
-      </div>
+      {!readOnly && (
+        <>
+          <div className="text-neutral-900 text-base font-semibold">Add Note</div>
+          <div className="flex flex-col items-end gap-3">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Enter note…"
+              className="w-full h-28 px-5 py-4 bg-white rounded border border-neutral-200 text-neutral-700 text-sm font-light resize-none outline-none focus:border-neutral-900 placeholder:text-neutral-300"
+            />
+            <button type="button" onClick={submit} disabled={busy} className="h-9 px-5 bg-neutral-900 rounded text-white text-sm font-medium disabled:opacity-60 hover:bg-black">
+              Submit
+            </button>
+          </div>
+        </>
+      )}
       <div className="flex flex-col gap-3">
         {notes.length === 0 && <div className="text-neutral-400 text-sm">No notes yet.</div>}
         {notes.map((n) => (
@@ -210,7 +217,7 @@ const NotesTab: React.FC<{ taskId: number }> = ({ taskId }) => {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-neutral-500 text-xs">{fmtDateTime(n.created_at)}</span>
-                <button type="button" onClick={() => remove(n.id)} className="text-neutral-300 hover:text-red-500"><Trash2 size={15} /></button>
+                {!readOnly && <button type="button" onClick={() => remove(n.id)} className="text-neutral-300 hover:text-red-500"><Trash2 size={15} /></button>}
               </div>
             </div>
             <div className="text-neutral-700 text-sm whitespace-pre-line">{n.text}</div>
@@ -251,19 +258,44 @@ const FleetTaskDetailSlider: React.FC<{
   onClose: () => void;
   onEdit: () => void;
   onRefresh: () => void;
-}> = ({ task, initialTab = "Task Details", onClose, onEdit, onRefresh }) => {
+  // Match the calendar drawer width and show attachments/notes
+  // read-only (adding is done on the Task Management screen); empty tabs are hidden.
+  readOnly?: boolean;
+}> = ({ task, initialTab = "Task Details", onClose, onEdit, onRefresh, readOnly }) => {
   const [tab, setTab] = useState<FleetTaskDetailTab>(initialTab);
   const [t, setT] = useState<FleetTask>(task);
+  const [noteCount, setNoteCount] = useState(0);
+  const [tabLoading, setTabLoading] = useState(false);
   const onUpdated = (u: FleetTask) => { setT(u); onRefresh(); };
 
+  // Brief grey overlay on tab switch so async tab content doesn't flash/glitch in.
+  const switchTab = (name: FleetTaskDetailTab) => { setTab(name); setTabLoading(true); };
+  useEffect(() => {
+    if (!tabLoading) return;
+    const id = setTimeout(() => setTabLoading(false), 350);
+    return () => clearTimeout(id);
+  }, [tabLoading]);
+
   useEffect(() => { setTab(initialTab); }, [initialTab, task.id]);
+  // Read-only (calendar) mode hides the Notes tab when the task has none, so fetch the count up-front.
+  useEffect(() => {
+    if (!readOnly) return;
+    getFleetTaskNotes(task.id).then((n) => setNoteCount(n.length));
+  }, [readOnly, task.id]);
+
+  const attCount = splitPaths(t.attachment_path).length;
+  const tabs: readonly FleetTaskDetailTab[] = readOnly
+    ? TABS.filter((name) => !((name === "Attachments" && attCount === 0) || (name === "Notes" && noteCount === 0)))
+    : TABS;
+  const activeTab: FleetTaskDetailTab = tabs.includes(tab) ? tab : "Task Details";
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end font-sans-headline">
+      {tabLoading && <FleetSpinnerLoader />}
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-[800px] max-w-full bg-white h-full flex flex-col">
+      <div className="w-[620px] max-w-full bg-white h-full flex flex-col shadow-2xl">
         {/* header */}
-        <div className="px-10 pt-5 shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex flex-col gap-5 shrink-0">
+        <div className="px-6 pt-5 shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex flex-col gap-5 shrink-0">
           <div className="flex justify-between items-center gap-4">
             <div className="text-neutral-700 text-base font-semibold truncate">Task: {t.title}</div>
             <div className="flex items-center gap-3 shrink-0">
@@ -272,20 +304,20 @@ const FleetTaskDetailSlider: React.FC<{
             </div>
           </div>
           <div className="flex items-start gap-6">
-            {TABS.map((name) => (
-              <button key={name} type="button" onClick={() => setTab(name)} className="flex flex-col items-start gap-2 pb-0">
-                <span className={`text-sm leading-4 ${tab === name ? "text-neutral-900 font-semibold" : "text-neutral-500 hover:text-neutral-700"}`}>{name}</span>
-                <span className={`h-0.5 w-full ${tab === name ? "bg-neutral-900" : "bg-transparent"}`} />
+            {tabs.map((name) => (
+              <button key={name} type="button" onClick={() => switchTab(name)} className="flex flex-col items-start gap-2 pb-0">
+                <span className={`text-sm leading-4 ${activeTab === name ? "text-neutral-900 font-semibold" : "text-neutral-500 hover:text-neutral-700"}`}>{name}</span>
+                <span className={`h-0.5 w-full ${activeTab === name ? "bg-neutral-900" : "bg-transparent"}`} />
               </button>
             ))}
           </div>
         </div>
         {/* body */}
-        <div className="flex-1 overflow-auto p-10">
-          {tab === "Task Details" && <DetailsTab task={t} />}
-          {tab === "Attachments" && <AttachmentsTab task={t} onUpdated={onUpdated} />}
-          {tab === "Notes" && <NotesTab taskId={t.id} />}
-          {tab === "Task History" && <HistoryTab taskId={t.id} />}
+        <div className="flex-1 overflow-auto p-6">
+          {activeTab === "Task Details" && <DetailsTab task={t} />}
+          {activeTab === "Attachments" && <AttachmentsTab task={t} onUpdated={onUpdated} readOnly={readOnly} />}
+          {activeTab === "Notes" && <NotesTab taskId={t.id} readOnly={readOnly} />}
+          {activeTab === "Task History" && <HistoryTab taskId={t.id} />}
         </div>
       </div>
     </div>

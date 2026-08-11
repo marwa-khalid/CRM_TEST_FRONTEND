@@ -12,7 +12,7 @@ const FleetMissingDocumentsSlider: React.FC<{ side?: "skyline" | "vehicles"; ite
   const [loading, setLoading] = useState(!preloaded);
   const [query, setQuery] = useState("");
   const isDriver = side === "skyline";
-  const subjectLabel = isDriver ? "Driver" : "Vehicle";
+  const subjectLabel = isDriver ? "Reference" : "Vehicle";
 
   useEffect(() => {
     if (preloaded) return; // parent already fetched (shows the full-screen loader first)
@@ -57,7 +57,7 @@ const FleetMissingDocumentsSlider: React.FC<{ side?: "skyline" | "vehicles"; ite
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={isDriver ? "Enter Driver Name" : "Enter Vehicle Reg"}
+            placeholder={isDriver ? "Enter Reference" : "Enter Vehicle Reg"}
             className="w-72 px-5 py-4 bg-white rounded outline outline-1 outline-offset-[-1px] outline-neutral-200 text-neutral-700 text-base font-light placeholder:text-neutral-300 focus:outline-neutral-500"
           />
         </div>

@@ -53,7 +53,7 @@ const CurrentHireDetails: React.FC = () => {
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
-      {(recordLoading || loading || !hire?.id) && <FleetSpinnerLoader />}
+      {(recordLoading || loading) && <FleetSpinnerLoader />}
 
       <h2 className="text-black text-2xl font-semibold leading-6">Current Hire Details</h2>
 

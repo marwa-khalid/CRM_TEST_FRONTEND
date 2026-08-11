@@ -8,6 +8,7 @@ import {
   type FleetEvent, type FleetEventAudit,
 } from "../services/eventService";
 import { getFleetAttachmentUrl } from "../services/taskService";
+import { getFleetVehicles } from "../services/dashboardService";
 import { fileTypeIcon } from "../utils/fileIcon";
 import FleetSpinnerLoader from "./FleetSpinnerLoader";
 import FleetConfirmModal from "./FleetConfirmModal";
@@ -45,6 +46,24 @@ const eventChipCls = (status?: string | null): string => {
   if (s === "completed") return "bg-purple-100 text-purple-600";
   return "bg-neutral-100 text-neutral-700";
 };
+const vehicleStatusPillCls = (status?: string | null): string => {
+  const s = (status || "").toLowerCase().replace(/_/g, " ");
+  if (!s || s === "—" || s === "-") return "bg-neutral-100 text-neutral-500";
+  if (s.includes("available")) return "bg-[#d9ffd9] text-[#159215]";
+  if (s.includes("weekly hire") || s.includes("on hire")) return "bg-neutral-100 text-neutral-800";
+  if (s.includes("service")) return "bg-blue-100 text-blue-700";
+  if (s.includes("repair")) return "bg-[#ffe9d8] text-[#ff7402]";
+  if (s.includes("sale")) return "bg-pink-100 text-pink-700";
+  if (s.includes("off fleet") || s.includes("off hire")) return "bg-teal-100 text-teal-700";
+  if (s.includes("plating")) return "bg-violet-100 text-violet-700";
+  if (s.includes("de fleet")) return "bg-rose-100 text-rose-700";
+  return "bg-neutral-100 text-neutral-700";
+};
+const VehicleStatusPill: React.FC<{ status?: string | null }> = ({ status }) => (
+  <span className={`inline-flex w-fit items-center rounded px-2 py-1 text-xs font-weight-600 ${vehicleStatusPillCls(status)}`}>
+    {status || "—"}
+  </span>
+);
 
 // ── reminders helpers ─────────────────────────────────────────────────────────
 const REAL_REMINDERS = REMINDER_OPTIONS.filter((o) => o.value !== "none");
@@ -156,26 +175,28 @@ const DetailsTab: React.FC<{ ev: FleetEvent; onEditReminder?: () => void; onCanc
   </div>
 );
 
-// ── Tab 2: linked record ──────────────────────────────────────────────────────
-const LinkedTab: React.FC<{ ev: FleetEvent; onViewRecord: () => void }> = ({ ev, onViewRecord }) => {
-  const claimRef = ev.claim_reference || ev.case_reference;
-  const has = claimRef || ev.case_status || ev.vehicle_registration || ev.task_id;
-  if (!has) return <div className="text-neutral-400 text-sm">No record is linked to this event.</div>;
+// ── Tab 2: linked record (module-aware) ────────────────────────────────────────
+// Skyline events link a Skyline (hire) reference; Vehicle Management events show
+// only the vehicle registration + that vehicle's status.
+const LinkedTab: React.FC<{ ev: FleetEvent; isVehicles: boolean; vehicleStatus: string }> = ({ ev, isVehicles, vehicleStatus }) => {
+  if (isVehicles) {
+    if (!ev.vehicle_registration) return <div className="text-neutral-400 text-sm">No vehicle is linked to this event.</div>;
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex gap-6">
+          <Field label="Vehicle Registration">{ev.vehicle_registration}</Field>
+          <Field label="Status"><VehicleStatusPill status={vehicleStatus} /></Field>
+        </div>
+      </div>
+    );
+  }
+  const skyRef = ev.claim_reference || ev.case_reference;
+  if (!skyRef && !ev.vehicle_registration) return <div className="text-neutral-400 text-sm">No record is linked to this event.</div>;
   return (
     <div className="flex flex-col gap-6">
       <div className="flex gap-6">
-        <Field label="Claim Reference">
-          {claimRef ? (
-            ev.claim_id ? (
-              <button type="button" onClick={onViewRecord} className="text-neutral-900 underline hover:no-underline text-left" title="Open claim record">{claimRef}</button>
-            ) : claimRef
-          ) : undefined}
-        </Field>
-        <Field label="Case Status">{ev.case_status}</Field>
-      </div>
-      <div className="flex gap-6">
+        <Field label="Skyline Reference">{skyRef}</Field>
         <Field label="Vehicle Registration">{ev.vehicle_registration}</Field>
-        <Field label="Task">{ev.task_id ? `#${ev.task_id}` : undefined}</Field>
       </div>
     </div>
   );
@@ -282,7 +303,11 @@ const FleetEventDetailSlider: React.FC<{
   onClose: () => void;
   onEdit: (ev: FleetEvent) => void;
   onChanged: () => void;
-}> = ({ eventId, occurrenceDate, occurrenceStatus, onClose, onEdit, onChanged }) => {
+  /** Calendar context — "vehicles" (VM) or "skyline". Authoritative for the Linked Record
+   *  tab, so a VM event shows only the vehicle reg + status (never the Skyline Reference),
+   *  even if the event's own stored module is unset. */
+  module?: string;
+}> = ({ eventId, occurrenceDate, occurrenceStatus, onClose, onEdit, onChanged, module }) => {
   const navigate = useNavigate();
   const [ev, setEv] = useState<FleetEvent | null>(null);
   const [audit, setAudit] = useState<FleetEventAudit[]>([]);
@@ -291,6 +316,16 @@ const FleetEventDetailSlider: React.FC<{
   const [tab, setTab] = useState<EventTab>("Event Details");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
+  const [vehicleStatus, setVehicleStatus] = useState("—");
+  const [tabLoading, setTabLoading] = useState(false);
+
+  // Brief grey overlay on tab switch so async tab content doesn't flash/glitch in.
+  const switchTab = (t: EventTab) => { setTab(t); setTabLoading(true); };
+  useEffect(() => {
+    if (!tabLoading) return;
+    const id = setTimeout(() => setTabLoading(false), 350);
+    return () => clearTimeout(id);
+  }, [tabLoading]);
 
   const reloadAudit = (id: number) => getCalendarEventAudit(id).then(setAudit).catch(() => setAudit([]));
   useEffect(() => {
@@ -300,6 +335,16 @@ const FleetEventDetailSlider: React.FC<{
     reloadAudit(eventId);
   }, [eventId]);
 
+  // Vehicle Management events show the linked vehicle's live status in Linked Record.
+  useEffect(() => {
+    if ((module || ev?.module) !== "vehicles" || !ev?.vehicle_registration) { setVehicleStatus("—"); return; }
+    const norm = (r: string) => r.replace(/\s+/g, "").toUpperCase();
+    getFleetVehicles().then((rows) => {
+      const match = rows.find((v) => norm(v.registration) === norm(ev.vehicle_registration || ""));
+      setVehicleStatus(match?.statusLabel || "—");
+    });
+  }, [module, ev?.module, ev?.vehicle_registration]);
+
   const isSystem = (ev?.source || "manual") === "system";
   const fromTaskMgmt = ev?.source_type === "task_due" || !!ev?.task_id;
   const isEngineerInspection = ev?.event_type === "Engineer Inspection" || ev?.source_type === "engineer_inspection";
@@ -307,6 +352,7 @@ const FleetEventDetailSlider: React.FC<{
   const editable = !isSystemGenerated;
   const visibleTabs = isSystemGenerated ? TABS.filter((t) => t !== "Activity Log") : TABS;
   const recurring = !!ev?.recurrence_rule;
+  const isVehicles = (module || ev?.module) === "vehicles";
   const occDate = recurring ? (occurrenceDate || ev?.start_date || null) : null;
   const effStatus = occDate ? (occurrenceStatus || ev?.status) : ev?.status;
   const viewEv: FleetEvent | null = ev && occDate ? { ...ev, start_date: occDate, end_date: occDate, status: effStatus } : ev;
@@ -342,7 +388,7 @@ const FleetEventDetailSlider: React.FC<{
 
   return (
     <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
-      {(loading || busy) && <FleetSpinnerLoader />}
+      {(loading || busy || tabLoading) && <FleetSpinnerLoader />}
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative w-full max-w-[560px] h-full bg-white shadow-xl flex flex-col">
         {/* header */}
@@ -352,7 +398,7 @@ const FleetEventDetailSlider: React.FC<{
               <span className="text-neutral-700 text-base font-weight-600 truncate">{ev?.title || "Event Details"}</span>
               <span className={`px-2 py-0.5 rounded text-[10px] font-weight-600 shrink-0 ${badge.cls}`}>{badge.label}</span>
               {recurring && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-weight-600 shrink-0 bg-violet-100 text-violet-600">Recurring{occDate ? ` · ${fmtLong(occDate)}` : ""}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-weight-600 shrink-0 bg-neutral-100 text-neutral-600">Recurring</span>
               )}
             </div>
             <div className="flex items-center gap-3 shrink-0">
@@ -362,7 +408,7 @@ const FleetEventDetailSlider: React.FC<{
           </div>
           <div className="flex items-start gap-6">
             {visibleTabs.map((t) => (
-              <button key={t} type="button" onClick={() => setTab(t)} className="flex flex-col items-start gap-2 pb-0">
+              <button key={t} type="button" onClick={() => switchTab(t)} className="flex flex-col items-start gap-2 pb-0">
                 <span className={`text-sm leading-4 whitespace-nowrap ${tab === t ? "text-neutral-900 font-weight-600" : "text-neutral-500 hover:text-neutral-700"}`}>{t}</span>
                 <span className={`h-0.5 w-full ${tab === t ? "bg-neutral-900" : "bg-transparent"}`} />
               </button>
@@ -381,7 +427,7 @@ const FleetEventDetailSlider: React.FC<{
           {viewEv && tab === "Event Details" && (
             <DetailsTab ev={viewEv} onEditReminder={isSystemGenerated ? () => setReminderOpen(true) : undefined} onCancelRecurrence={recurring && editable ? cancelRecurrence : undefined} />
           )}
-          {viewEv && tab === "Linked Record" && <LinkedTab ev={viewEv} onViewRecord={viewRecord} />}
+          {viewEv && tab === "Linked Record" && <LinkedTab ev={viewEv} isVehicles={isVehicles} vehicleStatus={vehicleStatus} />}
           {ev && tab === "Attachments" && (
             <AttachmentsTab ev={ev} canEdit={editable} onUpdated={(u) => { setEv(u); onChanged(); reloadAudit(u.id); }} />
           )}

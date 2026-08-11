@@ -19,6 +19,7 @@ import VehiclesIcon from "../../fleet/assets/listingpage/vehicles.svg";
 import CheckIcon from "../../fleet/assets/listingpage/check.svg";
 import ProgressIcon from "../../fleet/assets/listingpage/progress.svg";
 import CheckCircleIcon from "../../fleet/assets/listingpage/checkcircle.svg";
+import TagIcon from "../../fleet/assets/listingpage/tag.svg";
 import RiseIcon from "../../fleet/assets/listingpage/rise.svg";
 import FallIcon from "../../fleet/assets/listingpage/fall.svg";
 import UploadIcon from "../../fleet/assets/listingpage/upload.svg";
@@ -30,20 +31,23 @@ const normReg = (s?: string | null) => (s || "").replace(/\s+/g, "").toUpperCase
 
 // A registered vehicle's live status: on hire (from the shared register's is_active
 // flag), in repair (from its own Vehicle Details status), otherwise available.
-type VStatus = "on_hire" | "in_repair" | "available";
+type VStatus = "on_hire" | "in_repair" | "for_sale" | "available";
 const STATUS_LABEL: Record<VStatus, string> = {
-  on_hire: "On Hire",
+  on_hire: "Weekly Hire",
   in_repair: "In Repair",
+  for_sale: "For Sale",
   available: "Available",
 };
 const STATUS_BADGE: Record<VStatus, string> = {
   on_hire: "bg-neutral-100 text-neutral-700",
   in_repair: "bg-[#ffe9d8] text-[#ff7402]",
+  for_sale: "bg-pink-100 text-pink-700",
   available: "bg-[#d9ffd9] text-[#159215]",
 };
 const STATUS_OPTIONS = [
-  { value: "on_hire", label: "On Hire" },
+  { value: "on_hire", label: "Weekly Hire" },
   { value: "in_repair", label: "In Repair" },
+  { value: "for_sale", label: "For Sale" },
   { value: "available", label: "Available" },
 ];
 
@@ -165,8 +169,12 @@ const VehicleManagementList: React.FC = () => {
   }, [register]);
 
   const statusOf = (v: VehicleRecord): VStatus => {
-    if (v.registration_number && activeRegs.has(normReg(v.registration_number))) return "on_hire";
-    if ((v.vehicle_status || "").toLowerCase().includes("repair")) return "in_repair";
+    const st = (v.vehicle_status || "").toLowerCase().replace(/_/g, " ");
+    // On hire either by the vehicle's own status or by being on a live hire (the
+    // shared register). Same precedence the dashboard donut uses, so they agree.
+    if (st === "weekly hire" || st === "on hire" || (v.registration_number && activeRegs.has(normReg(v.registration_number)))) return "on_hire";
+    if (st.includes("repair")) return "in_repair";
+    if (st.includes("sale")) return "for_sale";
     return "available";
   };
 
@@ -187,11 +195,13 @@ const VehicleManagementList: React.FC = () => {
     };
     const onHire = bySt("on_hire");
     const inRepair = bySt("in_repair");
+    const forSale = bySt("for_sale");
     const available = bySt("available");
     return [
       { title: "Total Vehicles", value: vehicles.length, icon: VehiclesIcon, tile: "bg-[#eee]", trendPct: trendFor(vehicles), darkIcon: true },
-      { title: "On Hire", value: onHire.length, icon: CheckIcon, tile: "bg-[#eee]", trendPct: trendFor(onHire), darkIcon: true },
+      { title: "Weekly Hire", value: onHire.length, icon: CheckIcon, tile: "bg-[#eee]", trendPct: trendFor(onHire), darkIcon: true },
       { title: "In Repair", value: inRepair.length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: trendFor(inRepair) },
+      { title: "For Sale", value: forSale.length, icon: TagIcon, tile: "bg-[#fce7f3]", trendPct: trendFor(forSale) },
       { title: "Available", value: available.length, icon: CheckCircleIcon, tile: "bg-[#d9ffd9]", trendPct: trendFor(available) },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -544,7 +554,7 @@ const VehicleManagementList: React.FC = () => {
       {bulkConfirm && (
         <FleetConfirmModal
           title="Delete Vehicles"
-          message={`Are you sure you want to delete ${selected.size} vehicle${selected.size === 1 ? "" : "s"}? This cannot be undone.`}
+          message={`Are you sure you want to delete ${selected.size} vehicle${selected.size === 1 ? "" : "s"}?`}
           confirmLabel="Delete"
           onConfirm={confirmBulkDelete}
           onCancel={() => setBulkConfirm(false)}

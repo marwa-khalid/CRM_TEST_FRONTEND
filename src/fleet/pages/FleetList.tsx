@@ -44,7 +44,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 const STATUS_BADGE: Record<string, string> = {
   on_hire: "bg-neutral-100 text-neutral-700",
-  off_hire: "bg-purple-100 text-purple-600",
+  off_hire: "bg-teal-100 text-teal-700",
   in_repair: "bg-[#ffe9d8] text-[#ff7402]",
   available: "bg-[#d9ffd9] text-[#159215]",
 };
@@ -226,6 +226,25 @@ const FleetList: React.FC = () => {
     return { hireIds, regs };
   }, [vehicleRecords]);
 
+  const activeRegs = useMemo(() => {
+    const s = new Set<string>();
+    register.forEach((r) => {
+      if (r.is_active) s.add(normReg(r.registration_number));
+    });
+    return s;
+  }, [register]);
+
+  const vehicleStatusOf = useCallback(
+    (v: VehicleRecord): "on_hire" | "in_repair" | "for_sale" | "available" => {
+      const st = (v.vehicle_status || "").toLowerCase().replace(/_/g, " ");
+      if (st === "weekly hire" || st === "on hire" || (v.registration_number && activeRegs.has(normReg(v.registration_number)))) return "on_hire";
+      if (st.includes("repair")) return "in_repair";
+      if (st.includes("sale")) return "for_sale";
+      return "available";
+    },
+    [activeRegs],
+  );
+
   const effectiveStatus = useCallback(
     (r: HireRecord): string =>
       inRepair.hireIds.has(r.id) ||
@@ -248,28 +267,30 @@ const FleetList: React.FC = () => {
       return l === 0 ? (t > 0 ? 100 : 0) : Math.round(((t - l) / l) * 100);
     };
     const by = (v: string) => records.filter((r) => effectiveStatus(r) === v);
-    // Available = vehicles in the fleet register still free for hire (not on hire).
-    const availableCars = register.filter((v) => !v.is_active).length;
+    // Available = the same real vehicle-record count shown on Vehicle Management.
+    // The register is a reusable lookup and can keep old inactive rows around.
+    const availableCars = vehicleRecords.filter((v) => vehicleStatusOf(v) === "available").length;
     return [
       { title: "Total Hires", value: records.length, icon: VehiclesIcon, tile: "bg-[#eee]", trendPct: trendFor(records), darkIcon: true },
       { title: "On Hire", value: by("on_hire").length, icon: CheckIcon, tile: "bg-[#eee]", trendPct: trendFor(by("on_hire")), darkIcon: true },
-      { title: "Off Hire", value: by("off_hire").length, icon: OffHireIcon, tile: "bg-purple-100", trendPct: trendFor(by("off_hire")) },
+      { title: "Off Hire", value: by("off_hire").length, icon: OffHireIcon, tile: "bg-teal-100", trendPct: trendFor(by("off_hire")) },
       // Linked to the Vehicle Details "In Repair" status (per vehicle record), not hires.
       { title: "In Repair", value: vehicleRecords.filter((v) => (v.vehicle_status || "").toLowerCase().includes("repair")).length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: 0 },
       { title: "Available", value: availableCars, icon: CheckCircleIcon, tile: "bg-[#d9ffd9]", trendPct: 0 },
     ];
-  }, [records, register, vehicleRecords, effectiveStatus]);
+  }, [records, vehicleRecords, effectiveStatus, vehicleStatusOf]);
 
-  // Vehicle registration options — every reg in the fleet register + on a record.
+  // Vehicle registration options — live VM vehicle regs + regs already used by
+  // hire records. Do not use the register lookup here; it may contain stale rows.
   const vehicleOptions = useMemo(() => {
     const regs = new Set<string>();
-    register.forEach((v) => { if (v.registration_number) regs.add(v.registration_number); });
+    vehicleRecords.forEach((v) => { if (v.registration_number) regs.add(v.registration_number); });
     records.forEach((r) => { if (r.last_vehicle_registration) regs.add(r.last_vehicle_registration); });
     return [
       { label: "All Vehicles", value: "" },
       ...[...regs].sort().map((r) => ({ label: r, value: r })),
     ];
-  }, [register, records]);
+  }, [vehicleRecords, records]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();

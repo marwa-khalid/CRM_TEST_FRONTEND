@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { HireProvider } from "../../fleet/pages/AddNewHire/HireContext";
 import { VehicleProvider } from "../screens/VehicleContext";
+import { getHire, type HireRecord } from "../../fleet/services/hireService";
 import VehicleDetails from "../screens/VehicleDetails";
 import LicensingAuthority from "../screens/LicensingAuthority";
 import LicensingAuthoritySummary from "../screens/LicensingAuthoritySummary";
@@ -48,6 +49,7 @@ const VehicleManagementRecord: React.FC = () => {
   const id = recordId ? Number(recordId) : null;
 
   const [vehicle, setVehicle] = useState<VehicleRecord | null>(null);
+  const [hire, setHire] = useState<HireRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -77,6 +79,16 @@ const VehicleManagementRecord: React.FC = () => {
       cancelled = true;
     };
   }, [id]);
+
+  // Load the hire this vehicle is currently on (if any) so Current Hire Details can
+  // show the driver. hire_id is linked when the vehicle goes on hire (backend).
+  useEffect(() => {
+    const hid = vehicle?.hire_id;
+    if (!hid) { setHire(null); return; }
+    let cancelled = false;
+    getHire(hid).then((h) => { if (!cancelled) setHire(h); });
+    return () => { cancelled = true; };
+  }, [vehicle?.hire_id]);
 
   // Deferred creation (mirrors Add New Hire's ensureHire): the DB row is created
   // the first time the user saves a field / opens a child screen — NOT on page
@@ -221,7 +233,7 @@ const VehicleManagementRecord: React.FC = () => {
           activeIndex={activeIndex}
           statusOf={stepStatus}
           onSelect={selectStep}
-          clientLabel="Vehicle"
+          clientLabel="Vehicle Registration"
         />
         <div className="flex-1 flex justify-center">
           {loading ? null : (
@@ -240,7 +252,7 @@ const VehicleManagementRecord: React.FC = () => {
                   vehicleId: vehicle?.id ?? null,
                   vehicle,
                   loading,
-                  hire: null,
+                  hire,
                   save,
                   flush,
                   ensureVehicle,

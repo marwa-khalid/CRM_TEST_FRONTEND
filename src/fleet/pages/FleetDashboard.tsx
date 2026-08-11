@@ -43,8 +43,8 @@ const GreyIconBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </span>
 );
 
-const CardHead: React.FC<{ icon?: React.ReactNode; title: string; sub?: string; right?: React.ReactNode }> = ({ icon, title, sub, right }) => (
-  <div className="flex items-center justify-between gap-2.5 mb-4">
+const CardHead: React.FC<{ icon?: React.ReactNode; title: string; sub?: string; right?: React.ReactNode; center?: boolean }> = ({ icon, title, sub, right, center }) => (
+  <div className={`flex items-center gap-2.5 mb-4 ${center ? "justify-center" : "justify-between"}`}>
     <div className="flex items-center gap-2.5 min-w-0">
       {icon}
       <div className="min-w-0">
@@ -89,13 +89,13 @@ const DataTable: React.FC<{
     <tbody>
       {rows.length === 0 ? (
         <tr>
-          <td colSpan={Math.max(1, head.length)} className="py-8 text-center text-xs font-weight-500 text-neutral-400">Nothing to show yet.</td>
+          <td colSpan={Math.max(1, head.length)} className="py-3 px-2 text-center text-xs font-weight-500 text-neutral-400">Nothing to show yet.</td>
         </tr>
       ) : (
         rows.map((r, i) => (
           <tr key={i}>
             {r.map((cell, j) => (
-              <td key={j} className={`${rowClass} px-2 border-b border-neutral-100 align-top`}>
+              <td key={j} className={`${rowClass} px-2 ${i < rows.length - 1 ? "border-b border-neutral-100" : ""} align-top`}>
                 <span className={`${cellText} text-xs font-weight-500 ${cellClamp}`}>{Array.isArray(cell) ? cell[0] : cell}</span>
               </td>
             ))}
@@ -367,7 +367,7 @@ const HireTrend: React.FC = () => {
               return (
                 <div key={i} className={`h-full flex items-end justify-center relative group ${two ? "flex-none" : "flex-1"}`}>
                   <div className={`relative rounded-t ${isCmp ? "bg-neutral-200" : "bg-neutral-400 group-hover:bg-neutral-500"}`} style={{ height: h.toFixed(1) + "%", width: `${barW}px` }}>
-                    <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{v.labels[i] + " · " + val + " hires"}</div>
+                    <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{`${val} ${val === 1 ? "hire" : "hires"}`}</div>
                   </div>
                 </div>
               );
@@ -431,7 +431,7 @@ const mapVehicleSegments = (segments: { label: string; value: number }[]) => {
     c: VEH_COLORS[l] ?? VEH_FALLBACK_COLORS[i % VEH_FALLBACK_COLORS.length],
   }));
 };
-const VehicleDonut: React.FC = () => {
+const VehicleDonut: React.FC<{ side?: string }> = ({ side }) => {
   // Live vehicle-status distribution; falls back to VEH_SEG placeholders.
   const [seg, setSeg] = useState<{ l: string; v: number; c: string }[] | null>(null);
   useEffect(() => {
@@ -469,27 +469,27 @@ const VehicleDonut: React.FC = () => {
     return el;
   });
   return (
-    <Card span="col-span-12 lg:col-span-5">
+    <Card span={side === "vehicles" ? "col-span-12 lg:col-span-7 lg:col-start-6" : "col-span-12 lg:col-span-5"} className="!border-0">
       <CardHead
         icon={<GreyIconBox><img src={VehicleStatusIcon} alt="" className="size-6" /></GreyIconBox>}
         title="Vehicle Status Distribution"
       />
-      <div className="flex-1 flex items-center content-center gap-6 flex-wrap py-1.5">
-        <svg viewBox="0 0 160 160" className="w-[220px] h-[220px] shrink-0">
+      <div className={`flex-1 flex items-center py-1.5 ${side === "vehicles" ? "flex-nowrap gap-14" : "flex-wrap content-center gap-6"}`}>
+        <svg viewBox="0 0 160 160" className={`shrink-0 ${side === "vehicles" ? "w-[264px] h-[264px]" : "w-[220px] h-[220px]"}`}>
           <circle cx="80" cy="80" r={r} fill="none" stroke="#f1f1f1" strokeWidth="22" />
           {arcs}
           <text x="80" y="80" textAnchor="middle" fontSize="30" fontWeight="700" fill="#111827">{actualTotal}</text>
           <text x="80" y="100" textAnchor="middle" fontSize="14" fill="#6b7280">Total</text>
         </svg>
-        <div className="flex-1 min-w-[160px] flex flex-col gap-3">
+        <div className={`flex flex-col gap-3 ${side === "vehicles" ? "flex-1 min-w-0" : "flex-1 min-w-[160px]"}`}>
           {data.length === 0 ? (
             <div className="text-neutral-400 text-sm">No vehicles in the fleet yet.</div>
           ) : (
             legendData.map((x, i) => (
               <div key={i} className="flex items-center gap-2.5 text-sm">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: x.c }} />
-                <span className="flex-1 text-neutral-700 truncate">{x.l}</span>
-                <span className="font-weight-600 text-neutral-900 tabular-nums pl-3 pr-2">{x.v}</span>
+                <span className="flex-1 truncate text-neutral-700">{x.l}</span>
+                <span className={`font-weight-600 text-neutral-900 tabular-nums pr-1 ${side === "vehicles" ? "pl-12" : "pl-3 pr-2"}`}>{x.v}</span>
               </div>
             ))
           )}
@@ -560,15 +560,15 @@ const AttentionRequired: React.FC<{ side: "skyline" | "vehicles" }> = ({ side })
     }
   };
   return (
-    <div className="col-span-12">
+    <div className={side === "vehicles" ? "col-span-12 lg:col-span-4 lg:pt-5" : "col-span-12"}>
       {loadingDetail && <FleetSpinnerLoader />}
-      <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-3">Attention Required</h2>
+      <h2 className={`text-neutral-900 font-weight-600 ${side === "vehicles" ? "flex items-center h-8 text-xl leading-tight mb-4" : "text-[20px] mb-3"}`}>Attention Required</h2>
       <div className="flex items-stretch gap-4">
-        {ATTENTION.map((a) => (
+        {ATTENTION.filter((a) => side !== "vehicles" || a.label === "Missing Documents").map((a) => (
           <div
             key={a.label}
             onClick={() => openTile(a.label as AttentionTile)}
-            className={`flex-1 rounded-lg border ${a.tint} p-4 flex flex-col gap-2 cursor-pointer hover:shadow-sm transition`}
+            className={`${side === "vehicles" ? "w-full" : "flex-1"} rounded-lg border ${a.tint} p-4 flex flex-col gap-2 cursor-pointer hover:shadow-sm transition`}
           >
             <div className="flex items-center gap-4">
               <img src={a.icon} alt="" />
@@ -715,7 +715,7 @@ const FP_FALLBACK: FPCard[] = [
   { key: "fleet_availability", label: "Fleet Availability", value: "0%", pct: "0", up: true, sub: "0 vehicles available now", progress: 0 },
   { key: "urgent_alerts", label: "Urgent Alerts", value: "0", pct: "0", up: true, sub: "needs attention", progress: 0 },
 ];
-const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
+const FleetPerformance: React.FC<{ period: string; side?: string }> = ({ period, side }) => {
   const [live, setLive] = useState<FPCard[] | null>(null);
   const [compare, setCompare] = useState("vs last month");
   // Loader while a period switch (WTD/MTD/YTD) refetches, so the delay reads as
@@ -741,14 +741,16 @@ const FleetPerformance: React.FC<{ period: string }> = ({ period }) => {
       cancelled = true;
     };
   }, [period]);
-  const data = live ?? FP_FALLBACK;
+  // On Vehicle Management only Fleet Availability + Urgent Alerts are relevant.
+  const all = live ?? FP_FALLBACK;
+  const data = side === "vehicles" ? all.filter((c) => c.key === "fleet_availability" || c.key === "urgent_alerts") : all;
   return (
     <div className="col-span-12 bg-white rounded-xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.05)] border border-neutral-200 overflow-hidden">
       {loading && <FleetSpinnerLoader />}
       <div className="px-5 py-4 border-b border-neutral-100">
         <h3 className="text-xl font-weight-600 text-neutral-900 leading-tight">Fleet Performance</h3>
       </div>
-      <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`p-5 grid grid-cols-1 sm:grid-cols-2 ${data.length <= 2 ? "lg:grid-cols-2" : "lg:grid-cols-4"} gap-4`}>
         {data.map((c) => (
           <div key={c.key} className="rounded-lg border border-neutral-200 p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -1156,7 +1158,7 @@ const ExpiryCarousel: React.FC = () => {
               const cardRows = hasDriver ? displayRows.map((r) => r.slice(0, -1)) : displayRows;
               return (
                 <div key={i} className="shrink-0 min-w-0" style={{ width: cardW }}>
-                  <div className="rounded-xl border border-neutral-200 p-6 flex flex-col min-w-0 h-full gap-1">
+                  <div className="rounded-xl border border-neutral-200 p-6 flex flex-col min-w-0 h-full min-h-[360px] gap-1">
                     <CardHead
                       icon={e.icon}
                       title={e.title}
@@ -1289,7 +1291,7 @@ const WPSummary: React.FC<{ s: PaymentSummary }> = ({ s }) => {
     ["Received", s.received, "text-green-600"],
   ];
   return (
-    <aside className="shrink-0 w-40 bg-neutral-50 border border-neutral-100 rounded-lg p-4 flex flex-col gap-4">
+    <aside className="flex-[2] min-w-0 bg-neutral-50 border border-neutral-100 rounded-lg p-4 flex flex-col gap-4">
       <div>
         <div className="text-2xl font-weight-600 text-neutral-900 tabular-nums leading-tight">{s.total}</div>
         <div className="text-xs text-neutral-400 mt-1">Total this week</div>
@@ -1346,17 +1348,16 @@ const WeeklyPayment: React.FC = () => {
       ? live.rows[active]
       : [...live.rows.overdue, ...live.rows.due_today, ...live.rows.due_this_week, ...live.rows.received_today]
     : WP_FALLBACK_ROWS;
-  // Small card drops the Status column (last cell) — it's only shown in the slider.
-  const displayRows = rows.slice(0, 5).map((r) => r.slice(0, 5));
+  const displayRows = rows.slice(0, 5);
   return (
-    <Card span="col-span-12 lg:col-span-7">
+    <Card span="col-span-12">
       <CardHead
         icon={<GreyIconBox><img src={WeeklyPaymentIcon} alt="" className="size-4" /></GreyIconBox>}
         title="Weekly Payment Schedule"
       />
       <div className="flex gap-4 min-w-0">
         <WPSummary s={summary} />
-        <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex-[4] min-w-0 flex flex-col">
           <div className="flex flex-wrap gap-1.5 mb-3.5">
             {WP_TABS.map(({ key, tone, label }) => (
               <button
@@ -1371,7 +1372,7 @@ const WeeklyPayment: React.FC = () => {
           </div>
           <div className="overflow-x-auto">
             <DataTable
-              head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date"]}
+              head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]}
               rows={displayRows}
               headText="text-neutral-800 font-normal"
               cellText="text-neutral-500"
@@ -1421,7 +1422,7 @@ const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles" }> = ({ side = "s
       <div className="flex flex-col items-center">
         <div className="w-full max-w-[1440px] px-7 pt-6 pb-14">
           <div className="grid grid-cols-12 gap-x-4 gap-y-8">
-            <ComplianceSummary />
+            {side === "vehicles" && <ComplianceSummary />}
             {/* Period toggle sits with Fleet Performance — it drives that card. */}
             <div className="col-span-12 flex flex-col gap-3">
               <div className="flex items-center">
@@ -1431,15 +1432,15 @@ const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles" }> = ({ side = "s
                   ))}
                 </div>
               </div>
-              <FleetPerformance period={period} />
+              <FleetPerformance period={period} side={side} />
             </div>
             <AttentionRequired side={side} />
-            <HireTrend />
-            <WeeklyPayment />
-            <VehicleDonut />
+            {side !== "vehicles" && <HireTrend />}
+            {side !== "vehicles" && <WeeklyPayment />}
+            {side === "vehicles" && <VehicleDonut side={side} />}
             <TaskManagement module={taskModule} />
-            <ExpiryCarousel />
-            <SkylineOperations />
+            {side === "vehicles" && <ExpiryCarousel />}
+            {side === "vehicles" && <SkylineOperations />}
           </div>
         </div>
       </div>

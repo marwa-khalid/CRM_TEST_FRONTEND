@@ -390,7 +390,7 @@ const FleetEventDetailSlider: React.FC<{
     <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
       {(loading || busy || tabLoading) && <FleetSpinnerLoader />}
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-[560px] h-full bg-white shadow-xl flex flex-col">
+      <div className="relative w-full max-w-[620px] h-full bg-white shadow-xl flex flex-col">
         {/* header */}
         <div className="px-6 pt-5 shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex flex-col gap-5 shrink-0">
           <div className="flex justify-between items-start gap-3">

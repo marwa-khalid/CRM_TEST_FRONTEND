@@ -274,8 +274,10 @@ const FleetList: React.FC = () => {
       { title: "Total Hires", value: records.length, icon: VehiclesIcon, tile: "bg-[#eee]", trendPct: trendFor(records), darkIcon: true },
       { title: "On Hire", value: by("on_hire").length, icon: CheckIcon, tile: "bg-[#eee]", trendPct: trendFor(by("on_hire")), darkIcon: true },
       { title: "Off Hire", value: by("off_hire").length, icon: OffHireIcon, tile: "bg-teal-100", trendPct: trendFor(by("off_hire")) },
-      // Linked to the Vehicle Details "In Repair" status (per vehicle record), not hires.
-      { title: "In Repair", value: vehicleRecords.filter((v) => (v.vehicle_status || "").toLowerCase().includes("repair")).length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: 0 },
+      // Same status precedence as Vehicle Management + the donut: a vehicle on a live
+      // hire counts as On Hire, so In Repair uses vehicleStatusOf (not the raw record
+      // status) — keeps this widget in step with the VM listing.
+      { title: "In Repair", value: vehicleRecords.filter((v) => vehicleStatusOf(v) === "in_repair").length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: 0 },
       { title: "Available", value: availableCars, icon: CheckCircleIcon, tile: "bg-[#d9ffd9]", trendPct: 0 },
     ];
   }, [records, vehicleRecords, effectiveStatus, vehicleStatusOf]);

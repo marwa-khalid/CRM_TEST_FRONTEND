@@ -96,7 +96,11 @@ const DataTable: React.FC<{
           <tr key={i}>
             {r.map((cell, j) => (
               <td key={j} className={`${rowClass} px-2 ${i < rows.length - 1 ? "border-b border-neutral-100" : ""} align-top`}>
-                <span className={`${cellText} text-xs font-weight-500 ${cellClamp}`}>{Array.isArray(cell) ? cell[0] : cell}</span>
+                {Array.isArray(cell) ? (
+                  <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-weight-500 whitespace-nowrap ${TP[cell[1]] ?? "bg-neutral-100 text-neutral-600"}`}>{cell[0]}</span>
+                ) : (
+                  <span className={`${cellText} text-xs font-weight-500 ${cellClamp}`}>{cell}</span>
+                )}
               </td>
             ))}
           </tr>
@@ -387,7 +391,7 @@ const HireTrend: React.FC = () => {
 // Colour per status label — presentation stays here; counts come live from the API.
 const VEH_COLORS: Record<string, string> = {
   Available: "#bbf7d0",
-  "Weekly Hire": "#6b7280",
+  "On Hire": "#6b7280",
   "In Service": "#bae6fd",
   "In Repair": "#fed7aa",
   "For Sale": "#f9a8d4",
@@ -395,12 +399,12 @@ const VEH_COLORS: Record<string, string> = {
   "Awaiting Plating": "#ddd6fe",
   "Awaiting De Fleet": "#d4d4d8",
 };
-// The donut legend mirrors the Vehicle Details availability dropdown. Weekly Hire is
+// The donut legend mirrors the Vehicle Details availability dropdown. On Hire is
 // the dashboard label for live on-hire vehicles; Off Fleet is the dashboard label for
 // off-hire vehicles.
 const VEH_ALWAYS_LEGEND: { l: string; c: string }[] = [
   { l: "Available", c: VEH_COLORS.Available },
-  { l: "Weekly Hire", c: VEH_COLORS["Weekly Hire"] },
+  { l: "On Hire", c: VEH_COLORS["On Hire"] },
   { l: "In Service", c: VEH_COLORS["In Service"] },
   { l: "In Repair", c: VEH_COLORS["In Repair"] },
   { l: "For Sale", c: VEH_COLORS["For Sale"] },
@@ -413,7 +417,7 @@ const VEH_SEG = VEH_ALWAYS_LEGEND.map(({ l, c }) => ({ l, v: 0, c }));
 const normaliseVehicleStatusLabel = (label: string) => {
   const cleaned = label.trim().replace(/[_-]/g, " ").replace(/\s+/g, " ");
   const lower = cleaned.toLowerCase();
-  if (lower === "on hire") return "Weekly Hire";
+  if (lower === "on hire" || lower === "weekly hire") return "On Hire";
   if (lower === "off hire") return "Off Fleet";
   if (lower === "awaiting de fleet") return "Awaiting De Fleet";
   const known = VEH_ALWAYS_LEGEND.find((x) => x.l.toLowerCase() === lower);
@@ -469,19 +473,19 @@ const VehicleDonut: React.FC<{ side?: string }> = ({ side }) => {
     return el;
   });
   return (
-    <Card span={side === "vehicles" ? "col-span-12 lg:col-span-7 lg:col-start-6" : "col-span-12 lg:col-span-5"} className="!border-0">
+    <Card span={side === "vehicles" ? "col-span-12 lg:col-span-8" : "col-span-12 lg:col-span-5"} className={side === "vehicles" ? "lg:ml-6" : ""}>
       <CardHead
         icon={<GreyIconBox><img src={VehicleStatusIcon} alt="" className="size-6" /></GreyIconBox>}
         title="Vehicle Status Distribution"
       />
       <div className={`flex-1 flex items-center py-1.5 ${side === "vehicles" ? "flex-nowrap gap-14" : "flex-wrap content-center gap-6"}`}>
-        <svg viewBox="0 0 160 160" className={`shrink-0 ${side === "vehicles" ? "w-[264px] h-[264px]" : "w-[220px] h-[220px]"}`}>
+        <svg viewBox="0 0 160 160" className={`shrink-0 ${side === "vehicles" ? "w-[190px] h-[190px]" : "w-[220px] h-[220px]"}`}>
           <circle cx="80" cy="80" r={r} fill="none" stroke="#f1f1f1" strokeWidth="22" />
           {arcs}
           <text x="80" y="80" textAnchor="middle" fontSize="30" fontWeight="700" fill="#111827">{actualTotal}</text>
           <text x="80" y="100" textAnchor="middle" fontSize="14" fill="#6b7280">Total</text>
         </svg>
-        <div className={`flex flex-col gap-3 ${side === "vehicles" ? "flex-1 min-w-0" : "flex-1 min-w-[160px]"}`}>
+        <div className={`flex flex-col ${side === "vehicles" ? "gap-2 flex-1 min-w-0" : "gap-3 flex-1 min-w-[160px]"}`}>
           {data.length === 0 ? (
             <div className="text-neutral-400 text-sm">No vehicles in the fleet yet.</div>
           ) : (
@@ -560,7 +564,7 @@ const AttentionRequired: React.FC<{ side: "skyline" | "vehicles" }> = ({ side })
     }
   };
   return (
-    <div className={side === "vehicles" ? "col-span-12 lg:col-span-4 lg:pt-5" : "col-span-12"}>
+    <div className={side === "vehicles" ? "col-span-12 lg:col-span-4 self-start rounded-xl border border-neutral-200 p-5 flex flex-col min-w-0" : "col-span-12"}>
       {loadingDetail && <FleetSpinnerLoader />}
       <h2 className={`text-neutral-900 font-weight-600 ${side === "vehicles" ? "flex items-center h-8 text-xl leading-tight mb-4" : "text-[20px] mb-3"}`}>Attention Required</h2>
       <div className="flex items-stretch gap-4">
@@ -870,14 +874,14 @@ const SkylineOperations: React.FC = () => {
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
     setter((s) => (s.includes(val) ? s.filter((x) => x !== val) : [...s, val]));
   const regOptions = data.map((v) => ({ label: v.registration, value: v.registration }));
-  const statusOptions = [{ label: "Available", value: "available" }, { label: "Weekly Hire", value: "hire" }, { label: "Off Hire", value: "off" }, { label: "In Repair", value: "repair" }, { label: "For Sale", value: "sale" }];
+  const statusOptions = [{ label: "Available", value: "available" }, { label: "On Hire", value: "hire" }, { label: "Off Hire", value: "off" }, { label: "In Repair", value: "repair" }, { label: "For Sale", value: "sale" }];
   const dateOptions = [{ label: "Today", value: "today" }, { label: "1 Week", value: "1w" }, { label: "1 Month", value: "1m" }];
   // Counts derived from the actual vehicle list so the total, the status chips and
   // the "View All" slider always reconcile.
   const countBy = (k: SkyKey) => data.filter((v) => skyMatches(v, k)).length;
   const summaryItems = [
     { label: "Available", value: countBy("available"), statusKey: "available", className: "bg-green-100 text-green-700" },
-    { label: "Weekly Hire", value: countBy("hire"), statusKey: "hire", className: "bg-neutral-100 text-neutral-800" },
+    { label: "On Hire", value: countBy("hire"), statusKey: "hire", className: "bg-neutral-100 text-neutral-800" },
     { label: "Off Hire", value: countBy("off"), statusKey: "off", className: "bg-teal-100 text-teal-700" },
     { label: "In Repair", value: countBy("repair"), statusKey: "repair", className: "bg-orange-100 text-orange-500" },
     { label: "For Sale", value: countBy("sale"), statusKey: "sale", className: "bg-pink-100 text-pink-700" },
@@ -1044,7 +1048,7 @@ const ExpiryCarousel: React.FC = () => {
   }, []);
   const cards: Expiry[] = expiries
     ? [
-        EXPIRY[0],
+        buildExpiryCard("Servicing Due", EXPIRY[0].icon, EXPIRY[0].span, expiries.service),
         buildExpiryCard("MOT Expiry", motIcon, EXPIRY[1].span, expiries.mot),
         buildExpiryCard("Plate Expiry", plate, EXPIRY[2].span, expiries.plate),
         buildExpiryCard("Road Fund Licence", roadIcon, EXPIRY[3].span, expiries.road_fund),
@@ -1226,7 +1230,7 @@ const ComplianceSummary: React.FC = () => {
   return (
     <div className="col-span-12">
       {/* Category cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-3">
         {data.map((c) => (
           <div key={c.title} className="bg-white rounded-xl shadow-[0px_1px_4px_0px_rgba(0,0,0,0.05)] border border-neutral-200 px-5 pt-5 pb-4 flex flex-col">
             <div className="flex items-center justify-between">
@@ -1236,10 +1240,12 @@ const ComplianceSummary: React.FC = () => {
               </div>
               <span className="px-2 py-0.5 bg-neutral-100 rounded-full text-neutral-500 text-xs font-weight-600 leading-4 shrink-0">{c.total} total</span>
             </div>
-            <div className="mt-4 h-1.5 bg-neutral-100 rounded flex gap-px overflow-hidden">
-              <span className="bg-red-500 h-full" style={{ width: `${c.bar}%` }} />
-              <span className="bg-amber-400 h-full" style={{ width: `${c.amber}%` }} />
-              <span className="bg-emerald-100 h-full flex-1" />
+            {/* Bar maps to the three stat boxes: red = overdue, orange = due within 7d,
+                amber = due within 30d; the emerald track shows the compliant remainder. */}
+            <div className="mt-4 h-1.5 bg-emerald-100 rounded flex gap-px overflow-hidden">
+              <span className="bg-red-500 h-full" style={{ width: `${((c.overdue || 0) / (c.total || 1)) * 100}%` }} />
+              <span className="bg-orange-400 h-full" style={{ width: `${((c.d7 || 0) / (c.total || 1)) * 100}%` }} />
+              <span className="bg-amber-300 h-full" style={{ width: `${(Math.max(0, (c.d30 || 0) - (c.d7 || 0)) / (c.total || 1)) * 100}%` }} />
             </div>
             <div className="mt-3.5 grid grid-cols-3 gap-2">
               <div className="bg-red-50 rounded-lg outline outline-1 outline-offset-[-1px] outline-red-200 px-2 py-2.5 flex flex-col items-center">
@@ -1272,7 +1278,7 @@ const WP_TABS: { key: WPBucket; tone: string; label: string }[] = [
 ];
 // Empty/zero placeholders — no invented payments when /dashboard/weekly-payments is unavailable.
 const WP_FALLBACK_ROWS: (string | [string, string])[][] = [];
-const WP_FALLBACK_COUNTS: WeeklyPayments["tabs"] = { due_today: 0, due_this_week: 0, overdue: 0, received_today: 0 };
+const WP_FALLBACK_COUNTS: WeeklyPayments["tabs"] = { due_today: 0, due_this_week: 0, overdue: 0, received_today: 0, all: 0 };
 const WP_FALLBACK_SUMMARY: PaymentSummary = {
   total: "£0", overdue: "£0", due_today: "£0", received: "£0",
   by_day: [
@@ -1349,6 +1355,7 @@ const WeeklyPayment: React.FC = () => {
       : [...live.rows.overdue, ...live.rows.due_today, ...live.rows.due_this_week, ...live.rows.received_today]
     : WP_FALLBACK_ROWS;
   const displayRows = rows.slice(0, 5);
+  const allRows = live?.rows.all ?? rows; // "View All" lists every payment — received, upcoming and owed.
   return (
     <Card span="col-span-12">
       <CardHead
@@ -1378,14 +1385,12 @@ const WeeklyPayment: React.FC = () => {
               cellText="text-neutral-500"
             />
           </div>
-          {rows.length > 5 && (
-            <div className="flex justify-center pt-3">
-              <button type="button" onClick={() => setSliderOpen(true)} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black whitespace-nowrap">View All</button>
-            </div>
-          )}
+          <div className="flex justify-center pt-3">
+            <button type="button" onClick={() => setSliderOpen(true)} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black whitespace-nowrap">View All</button>
+          </div>
         </div>
       </div>
-      {sliderOpen && <RecordsSlider title="Weekly Payment Schedule" head={["#", "Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]} rows={rows.map((r, i) => [String(i + 1), ...r])} onClose={() => setSliderOpen(false)} />}
+      {sliderOpen && <RecordsSlider title="All Payments" head={["#", "Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]} rows={allRows.map((r, i) => [String(i + 1), ...r])} onClose={() => setSliderOpen(false)} />}
     </Card>
   );
 };
@@ -1427,8 +1432,8 @@ const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles" }> = ({ side = "s
             <div className="col-span-12 flex flex-col gap-3">
               <div className="flex items-center">
                 <div className="p-[3px] bg-neutral-100 rounded-lg inline-flex items-center gap-1">
-                  {["WTD", "MTD", "YTD"].map((p) => (
-                    <button key={p} type="button" onClick={() => setPeriod(p)} className={`px-4 py-[5px] rounded-md text-xs font-weight-600 leading-5 transition ${period === p ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}>{p}</button>
+                  {[{ v: "TDY", l: "Today" }, { v: "WTD", l: "WTD" }, { v: "MTD", l: "MTD" }, { v: "YTD", l: "YTD" }].map(({ v, l }) => (
+                    <button key={v} type="button" onClick={() => setPeriod(v)} className={`px-4 py-[5px] rounded-md text-xs font-weight-600 leading-5 transition ${period === v ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}>{l}</button>
                   ))}
                 </div>
               </div>

@@ -7,7 +7,7 @@ import fleetApi from "./fleetApi";
 
 export const TASK_STATUSES = ["Pending", "In Progress", "Awaiting Response", "Completed"] as const;
 export const TASK_PRIORITIES = ["Low", "Medium", "High"] as const;
-export const TASK_DEPARTMENTS = ["Fleet", "Claims", "Recovery", "Customer Service"] as const;
+export const TASK_DEPARTMENTS = ["Fleet", "Claims", "Recovery"] as const;
 
 export interface FleetTask {
   id: number;

@@ -41,6 +41,8 @@ const blackStyles: any = {
     borderWidth: state.isFocused ? "2px" : "1px",
     borderColor: state.isFocused ? "#171717" : "#e5e7eb",
     boxShadow: "none",
+    outline: "none",
+    "&:hover": { borderColor: state.isFocused ? "#171717" : "#d4d4d4" },
     paddingLeft: "8px",
     backgroundColor: "white",
     fontSize: "14px",
@@ -48,7 +50,7 @@ const blackStyles: any = {
     fontFamily: FONT,
   }),
   valueContainer: (p: any) => ({ ...p, fontFamily: FONT, fontSize: "16px", fontWeight: 400, flexWrap: "wrap" }),
-  input: (p: any) => ({ ...p, fontFamily: FONT, fontWeight: 400, fontSize: "16px" }),
+  input: (p: any) => ({ ...p, fontFamily: FONT, fontWeight: 400, fontSize: "16px", outline: "none", boxShadow: "none" }),
   placeholder: (p: any) => ({ ...p, fontFamily: FONT, color: "#a6aab1", fontWeight: 400, fontSize: "16px", opacity: 1 }),
   singleValue: (p: any) => ({ ...p, fontFamily: FONT, fontWeight: 400, fontSize: "16px", color: "#444444" }),
   // Black-theme options for the plain (non-checkbox) selects — react-select defaults
@@ -266,7 +268,7 @@ const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved
             <span className="text-neutral-500 text-xs font-semibold uppercase tracking-wide">Linked Records</span>
           </div>
 
-          <div className={`grid ${isVehicles ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
+          <div className="grid grid-cols-1 gap-4">
             {!isVehicles && (
               <FieldLabel label="Skyline Reference">
                 <CreatableSelect
@@ -283,20 +285,22 @@ const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved
                 />
               </FieldLabel>
             )}
-            <FieldLabel label="Vehicle Registration">
-              <CreatableSelect
-                options={vehicleOptions}
-                value={form.vehicle_registration ? { label: form.vehicle_registration, value: form.vehicle_registration } : null}
-                onChange={(o: any) => set("vehicle_registration", o?.value || "")}
-                onCreateOption={(input: string) => set("vehicle_registration", input.trim())}
-                styles={blackStyles}
-                components={{ IndicatorSeparator: () => null }}
-                menuPortalTarget={rsPortal}
-                isClearable
-                placeholder="Select or add registration"
-                formatCreateLabel={(input: string) => `Add "${input}"`}
-              />
-            </FieldLabel>
+            {isVehicles && (
+              <FieldLabel label="Vehicle Registration">
+                <CreatableSelect
+                  options={vehicleOptions}
+                  value={form.vehicle_registration ? { label: form.vehicle_registration, value: form.vehicle_registration } : null}
+                  onChange={(o: any) => set("vehicle_registration", o?.value || "")}
+                  onCreateOption={(input: string) => set("vehicle_registration", input.trim())}
+                  styles={blackStyles}
+                  components={{ IndicatorSeparator: () => null }}
+                  menuPortalTarget={rsPortal}
+                  isClearable
+                  placeholder="Select or add registration"
+                  formatCreateLabel={(input: string) => `Add "${input}"`}
+                />
+              </FieldLabel>
+            )}
           </div>
 
           <FleetTextArea label="Description" placeholder="Add any detail…" value={form.description || ""} onChange={(v) => set("description", v)} rows={3} />

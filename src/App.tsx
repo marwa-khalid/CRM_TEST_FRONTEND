@@ -116,8 +116,11 @@ const AppInner: React.FC = () => {
           <Route path="/settings" element={<AccountSettings />} />
         </Route>
       </Routes>
-      {/* Calendar/reminder polling is a Claims-only concern — never on Fleet. */}
-      {!pathname.startsWith("/fleet") && <ReminderWatcher />}
+      {/* Calendar/reminder polling — never on the Fleet (Skyline) side. On Vehicle
+          Management it uses the Fleet black theme so the popup matches that screen. */}
+      {!pathname.startsWith("/fleet") && (
+        <ReminderWatcher accent={pathname.startsWith("/vehicle-management") ? "black" : "blue"} />
+      )}
     </>
   );
 };

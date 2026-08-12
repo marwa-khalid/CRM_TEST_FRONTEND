@@ -6,7 +6,7 @@ import fleetApi from "./fleetApi";
 // from tasks (purple).
 
 export const EVENT_TYPES = ["Meeting", "Appointment", "Reminder", "Follow-Up", "Other"] as const;
-export const DEPARTMENTS = ["Claims", "Fleet", "Recovery", "Storage", "Engineering", "Administration"];
+export const DEPARTMENTS = ["Claims", "Fleet", "Recovery"];
 export const REMINDER_OPTIONS = [
   { value: "none", label: "Don't remind me" },
   { value: "15m", label: "15 minutes before" },

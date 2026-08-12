@@ -112,7 +112,7 @@ const rsPortal = typeof document !== "undefined" ? document.body : undefined;
 
 interface Popup { id: string; title: string; startMs: number; timeLabel: string; subtitle: string; }
 
-const ReminderWatcher: React.FC = () => {
+const ReminderWatcher: React.FC<{ accent?: "blue" | "black" }> = ({ accent = "blue" }) => {
   const [popups, setPopups] = useState<Popup[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [snoozeMin, setSnoozeMin] = useState(5);
@@ -260,14 +260,26 @@ const ReminderWatcher: React.FC = () => {
     snoozeTimers.current.push(timer);
   };
 
+  // Accent theme — Claims screens stay blue; the Vehicle Management screen uses
+  // the Fleet black/neutral theme so the popup matches its surroundings.
+  const isDark = accent === "black";
+  const T = {
+    bellBg: isDark ? "bg-neutral-100" : "bg-blue-100",
+    bellIcon: isDark ? "text-neutral-700" : "text-blue-500",
+    selRow: isDark ? "bg-neutral-100" : "bg-blue-100",
+    subtitle: isDark ? "text-neutral-600" : "text-blue-500",
+    snoozeBtn: isDark ? "bg-neutral-100 text-neutral-800 hover:bg-neutral-200" : "bg-blue-100 text-blue-500 hover:bg-blue-200",
+    dismissAll: isDark ? "bg-neutral-900 hover:bg-black" : "bg-blue-500 hover:bg-blue-600",
+  };
+
   return (
     <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[10000] font-['Stack_Sans_Headline']">
       <div className="w-[580px] max-w-[94vw] min-h-[460px] max-h-[80vh] bg-white rounded shadow-2xl border border-neutral-200 overflow-hidden flex flex-col">
         {/* Header: bell + "N Reminder(s)" count */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
           <div className="flex items-center gap-3">
-            <span className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-              <Bell size={18} className="text-blue-500" />
+            <span className={`w-9 h-9 rounded-full ${T.bellBg} flex items-center justify-center shrink-0`}>
+              <Bell size={18} className={T.bellIcon} />
             </span>
             <span className="text-neutral-900 text-[16px] font-weight-600">
               {popups.length} Reminder{popups.length === 1 ? "" : "(s)"}
@@ -289,7 +301,7 @@ const ReminderWatcher: React.FC = () => {
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setSelectedId(p.id); }}
                 className={`w-full flex items-start gap-3 px-6 py-3 text-left text-neutral-900 ${
-                  isSel ? "bg-blue-100" : "hover:bg-neutral-50"
+                  isSel ? T.selRow : "hover:bg-neutral-50"
                 }`}
               >
                 <div className="flex-1 min-w-0 ms-2">
@@ -303,7 +315,7 @@ const ReminderWatcher: React.FC = () => {
                     {formatDetailDateTime(p.startMs)}
                   </div>
                   {p.subtitle && (
-                    <div className="text-xs font-weight-600 truncate text-blue-500">
+                    <div className={`text-xs font-weight-600 truncate ${T.subtitle}`}>
                       {p.subtitle}
                     </div>
                   )}
@@ -325,7 +337,7 @@ const ReminderWatcher: React.FC = () => {
                   onChange={(o: any) => setSnoozeMin(o?.value ?? 5)}
                   styles={snoozeSelectStyles}
                   maxMenuHeight={180}
-                  components={{ DropdownIndicator: BlueDropdownIndicator, IndicatorSeparator: () => null }}
+                  components={{ DropdownIndicator: isDark ? undefined : BlueDropdownIndicator, IndicatorSeparator: () => null }}
                   isSearchable={false}
                   menuPlacement="bottom"
                   menuPortalTarget={rsPortal}
@@ -334,7 +346,7 @@ const ReminderWatcher: React.FC = () => {
               <button
                 onClick={snooze}
                 disabled={!selected}
-                className="h-[52px] px-4 rounded bg-blue-100 text-blue-500 text-sm font-weight-600 hover:bg-blue-200 disabled:opacity-50"
+                className={`h-[52px] px-4 rounded ${T.snoozeBtn} text-sm font-weight-600 disabled:opacity-50`}
               >
                 Snooze
               </button>
@@ -349,7 +361,7 @@ const ReminderWatcher: React.FC = () => {
               </button>
               <button
                 onClick={dismissAll}
-                className="h-[52px] px-4 rounded bg-blue-500 text-white text-sm font-weight-600 hover:bg-blue-600"
+                className={`h-[52px] px-4 rounded ${T.dismissAll} text-white text-sm font-weight-600`}
               >
                 Dismiss All
               </button>

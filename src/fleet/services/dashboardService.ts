@@ -113,9 +113,9 @@ export interface PaymentSummary {
   by_day: { day: string; amount: number }[];
 }
 export interface WeeklyPayments {
-  tabs: { due_today: number; due_this_week: number; overdue: number; received_today: number };
-  // Rows grouped by bucket so the dashboard tabs can filter to one bucket.
-  rows: { due_today: PaymentRows; due_this_week: PaymentRows; overdue: PaymentRows; received_today: PaymentRows };
+  tabs: { due_today: number; due_this_week: number; overdue: number; received_today: number; all: number };
+  // Rows grouped by bucket so the dashboard tabs can filter to one bucket; `all` = every payment (View All).
+  rows: { due_today: PaymentRows; due_this_week: PaymentRows; overdue: PaymentRows; received_today: PaymentRows; all: PaymentRows };
   // Left-panel roll-up: money by bucket + received-so-far this week + per-weekday chart.
   summary?: PaymentSummary;
 }
@@ -151,6 +151,7 @@ export interface Expiries {
   road_fund: ExpiryCard;
   mot: ExpiryCard;
   plate: ExpiryCard;
+  service: ExpiryCard;
 }
 export const getExpiries = async (): Promise<Expiries | null> => {
   try {

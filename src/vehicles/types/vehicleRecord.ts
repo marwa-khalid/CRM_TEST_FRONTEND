@@ -39,7 +39,7 @@ export const CONTRACT_TYPE_OPTIONS: Option[] = [
 
 export const VEHICLE_STATUS_OPTIONS: Option[] = [
   { label: "Available", value: "available" },
-  { label: "Weekly Hire", value: "weekly_hire" },
+  { label: "On Hire", value: "weekly_hire" },
   { label: "In Service", value: "in_service" },
   { label: "In Repair", value: "in_repair" },
   { label: "For Sale", value: "for_sale" },

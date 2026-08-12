@@ -33,7 +33,7 @@ const normReg = (s?: string | null) => (s || "").replace(/\s+/g, "").toUpperCase
 // flag), in repair (from its own Vehicle Details status), otherwise available.
 type VStatus = "on_hire" | "in_repair" | "for_sale" | "available";
 const STATUS_LABEL: Record<VStatus, string> = {
-  on_hire: "Weekly Hire",
+  on_hire: "On Hire",
   in_repair: "In Repair",
   for_sale: "For Sale",
   available: "Available",
@@ -45,7 +45,7 @@ const STATUS_BADGE: Record<VStatus, string> = {
   available: "bg-[#d9ffd9] text-[#159215]",
 };
 const STATUS_OPTIONS = [
-  { value: "on_hire", label: "Weekly Hire" },
+  { value: "on_hire", label: "On Hire" },
   { value: "in_repair", label: "In Repair" },
   { value: "for_sale", label: "For Sale" },
   { value: "available", label: "Available" },
@@ -199,7 +199,7 @@ const VehicleManagementList: React.FC = () => {
     const available = bySt("available");
     return [
       { title: "Total Vehicles", value: vehicles.length, icon: VehiclesIcon, tile: "bg-[#eee]", trendPct: trendFor(vehicles), darkIcon: true },
-      { title: "Weekly Hire", value: onHire.length, icon: CheckIcon, tile: "bg-[#eee]", trendPct: trendFor(onHire), darkIcon: true },
+      { title: "On Hire", value: onHire.length, icon: CheckIcon, tile: "bg-[#eee]", trendPct: trendFor(onHire), darkIcon: true },
       { title: "In Repair", value: inRepair.length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: trendFor(inRepair) },
       { title: "For Sale", value: forSale.length, icon: TagIcon, tile: "bg-[#fce7f3]", trendPct: trendFor(forSale) },
       { title: "Available", value: available.length, icon: CheckCircleIcon, tile: "bg-[#d9ffd9]", trendPct: trendFor(available) },
@@ -300,7 +300,7 @@ const VehicleManagementList: React.FC = () => {
 
   const exportCsv = () => {
     const rows = [
-      ["Registration", "Make", "Model", "Transmission", "Status", "Date Added"],
+      ["Registration", "Make", "Model", "Transmission", "Status", "Date"],
       ...filtered.map((v) => [
         v.registration_number || "",
         v.make || "",
@@ -446,7 +446,7 @@ const VehicleManagementList: React.FC = () => {
                 <span>MODEL</span>
                 <span>TRANSMISSION</span>
                 <span>STATUS</span>
-                <span>DATE ADDED</span>
+                <span>DATE</span>
                 <span />
               </div>
 

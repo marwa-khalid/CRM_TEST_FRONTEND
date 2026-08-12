@@ -176,8 +176,8 @@ const DetailsTab: React.FC<{ ev: FleetEvent; onEditReminder?: () => void; onCanc
 );
 
 // ── Tab 2: linked record (module-aware) ────────────────────────────────────────
-// Skyline events link a Skyline (hire) reference; Vehicle Management events show
-// only the vehicle registration + that vehicle's status.
+// Skyline events show the Skyline (hire) reference + the linked vehicle's status;
+// Vehicle Management events show the vehicle registration + that vehicle's status.
 const LinkedTab: React.FC<{ ev: FleetEvent; isVehicles: boolean; vehicleStatus: string }> = ({ ev, isVehicles, vehicleStatus }) => {
   if (isVehicles) {
     if (!ev.vehicle_registration) return <div className="text-neutral-400 text-sm">No vehicle is linked to this event.</div>;
@@ -196,7 +196,7 @@ const LinkedTab: React.FC<{ ev: FleetEvent; isVehicles: boolean; vehicleStatus: 
     <div className="flex flex-col gap-6">
       <div className="flex gap-6">
         <Field label="Skyline Reference">{skyRef}</Field>
-        <Field label="Vehicle Registration">{ev.vehicle_registration}</Field>
+        <Field label="Status"><VehicleStatusPill status={vehicleStatus} /></Field>
       </div>
     </div>
   );
@@ -335,15 +335,15 @@ const FleetEventDetailSlider: React.FC<{
     reloadAudit(eventId);
   }, [eventId]);
 
-  // Vehicle Management events show the linked vehicle's live status in Linked Record.
+  // Both sides show the linked vehicle's live status in Linked Record.
   useEffect(() => {
-    if ((module || ev?.module) !== "vehicles" || !ev?.vehicle_registration) { setVehicleStatus("—"); return; }
+    if (!ev?.vehicle_registration) { setVehicleStatus("—"); return; }
     const norm = (r: string) => r.replace(/\s+/g, "").toUpperCase();
     getFleetVehicles().then((rows) => {
       const match = rows.find((v) => norm(v.registration) === norm(ev.vehicle_registration || ""));
       setVehicleStatus(match?.statusLabel || "—");
     });
-  }, [module, ev?.module, ev?.vehicle_registration]);
+  }, [ev?.vehicle_registration]);
 
   const isSystem = (ev?.source || "manual") === "system";
   const fromTaskMgmt = ev?.source_type === "task_due" || !!ev?.task_id;
@@ -418,7 +418,7 @@ const FleetEventDetailSlider: React.FC<{
 
         {/* body */}
         <div className="flex-1 overflow-auto p-6 flex flex-col gap-4">
-          {recurring && (
+          {recurring && tab === "Event Details" && (
             <div className="px-3 py-2 rounded bg-neutral-100 text-neutral-600 text-xs">
               This is a recurring event. Complete, cancel or delete here affects
               <span className="font-weight-600"> only this occurrence{occDate ? ` (${fmtLong(occDate)})` : ""}</span> — the rest of the series stays unchanged.

@@ -591,7 +591,7 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
                               <div className={`w-1 rounded shrink-0 ${style.dot}`} style={{ opacity: past ? 0.45 : 1 }} />
                               <div className="w-20 shrink-0 text-[13px] text-neutral-500">{time || "All day"}</div>
                               <div className="min-w-0 flex-1">
-                                <div className={`text-[14px] font-semibold truncate ${style.strike ? "line-through text-neutral-400" : "text-neutral-900"}`}>{style.title}</div>
+                                <div className={`text-[14px] font-semibold truncate ${style.strike ? "line-through text-neutral-400" : past ? "text-neutral-400" : "text-neutral-900"}`}>{style.title}</div>
                                 <div className="text-[12px] text-neutral-500 truncate">{agendaSubtitle(entry)}</div>
                               </div>
                               {hasAttachment(entry) && <Paperclip size={14} className="self-center shrink-0 text-neutral-400" aria-label="Has attachment" />}

@@ -15,7 +15,9 @@ const FleetNotificationBell: React.FC<{ iconSize?: number; onOpenTask?: () => vo
   const navigate = useNavigate();
   // Which notification feed this bell shows: Skyline ("Fleet" tag) or Vehicle
   // Management ("Vehicles" tag). Vehicle expiries + vehicle tasks carry "Vehicles".
-  const wantedTag = module === "vehicles" ? "Vehicles" : "Fleet";
+  const isVehicleModule = module.startsWith("vehicles");
+  const vehicleContext = module.startsWith("vehicles_") ? module.split("_")[1] : "skyline";
+  const wantedTag = isVehicleModule ? "Vehicles" : "Fleet";
   const [open, setOpen] = useState(false);
   const [dbNotifs, setDbNotifs] = useState<NotifItem[]>([]);
   const [overdue, setOverdue] = useState<FleetTask[]>([]);
@@ -70,7 +72,7 @@ const FleetNotificationBell: React.FC<{ iconSize?: number; onOpenTask?: () => vo
   const handleClick = (n: NotifItem) => {
     setReadIds((prev) => new Set(prev).add(n.id));
     if (n.notif_id) markFleetNotificationRead(n.notif_id).then(fetchDb);
-    if (n.taskId) (onOpenTask ? onOpenTask() : navigate(module === "vehicles" ? "/vehicle-management/tasks" : "/fleet/tasks"));
+    if (n.taskId) (onOpenTask ? onOpenTask() : navigate(isVehicleModule ? `/vehicle-management/${vehicleContext}/tasks` : "/fleet/tasks"));
     setOpen(false);
   };
 

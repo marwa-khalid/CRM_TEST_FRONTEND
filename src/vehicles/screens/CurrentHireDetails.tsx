@@ -22,7 +22,7 @@ const displayDate = (value: unknown): string => {
  * can never drift out of sync.
  */
 const CurrentHireDetails: React.FC = () => {
-  const { hire, loading: recordLoading } = useVehicle();
+  const { hire, vehicle, loading: recordLoading } = useVehicle();
   const [dates, setDates] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [loading, setLoading] = useState(false);
 
@@ -50,6 +50,8 @@ const CurrentHireDetails: React.FC = () => {
   }, [hire?.id]);
 
   const telephone = s(hire?.driver_telephone) || s(hire?.driver_mobile);
+  const isCams = s(vehicle?.context).toLowerCase() === "cams";
+  const personLabel = isCams ? "Client" : "Driver";
 
   return (
     <div className="w-full max-w-[788px] flex flex-col gap-6 font-sans-headline">
@@ -64,12 +66,12 @@ const CurrentHireDetails: React.FC = () => {
             Blank fields are correct when the vehicle has no hire yet. */}
         <div className="grid grid-cols-2 gap-5">
           <FleetReadonlyField label="Assigned To Ref." value={s(hire?.fleet_reference)} placeholder="—" />
-          <FleetReadonlyField label="Client Name" value={s(hire?.driver_name)} placeholder="—" />
+          <FleetReadonlyField label={`${personLabel} Name`} value={s(hire?.driver_name)} placeholder="—" />
         </div>
-        <FleetReadonlyField label="Address" value={s(hire?.driver_address)} placeholder="—" />
+        <FleetReadonlyField label={`${personLabel} Address`} value={s(hire?.driver_address)} placeholder="—" />
         <div className="grid grid-cols-2 gap-5">
-          <FleetReadonlyField label="Postcode" value={s(hire?.driver_postcode)} placeholder="—" />
-          <FleetReadonlyField label="Mobile Number" value={telephone} placeholder="—" />
+          <FleetReadonlyField label={`${personLabel} Postcode`} value={s(hire?.driver_postcode)} placeholder="—" />
+          <FleetReadonlyField label={`${personLabel} Mobile Number`} value={telephone} placeholder="—" />
         </div>
         <div className="grid grid-cols-2 gap-5">
           <FleetReadonlyField

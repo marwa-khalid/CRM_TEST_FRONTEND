@@ -174,6 +174,8 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
   // button), not the edit modal directly — mirrors the Claims calendar.
   const [detailEvent, setDetailEvent] = useState<FleetEvent | null>(null);
   const [detailTask, setDetailTask] = useState<FleetTask | null>(null);
+  const isVehicleModule = module.startsWith("vehicles");
+  const vehicleContext = module.startsWith("vehicles_") ? module.split("_")[1] : undefined;
 
   const load = async () => {
     setLoading(true);
@@ -182,7 +184,7 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
     const [t, e, x] = await Promise.all([
       listFleetTasks({ module }),
       listCalendarEvents({ module }),
-      module === "vehicles" ? listAllExpiries() : Promise.resolve([]),
+      isVehicleModule ? listAllExpiries(vehicleContext) : Promise.resolve([]),
     ]);
     setTasks(t);
     // Drop the auto-synced expiry system-events — expiries are plotted from the
@@ -194,7 +196,7 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
 
   useEffect(() => {
     load();
-  }, []);
+  }, [module]);
 
   // "All Users" (task assignees) + "All Vehicles" (regs across every entry).
   const userOptions = useMemo<Option[]>(() => {
@@ -384,7 +386,7 @@ const FleetTasksCalendar: React.FC<{ module?: string }> = ({ module = "skyline" 
   return (
     <div className="min-h-screen bg-white font-sans-headline">
       {loading && <FleetSpinnerLoader />}
-      <FleetPageHeader title="Calendar" />
+      <FleetPageHeader title="Calendar" module={module} />
 
       <main className="px-10 py-10">
         <section className="max-w-[1120px] mx-auto flex flex-col gap-5">

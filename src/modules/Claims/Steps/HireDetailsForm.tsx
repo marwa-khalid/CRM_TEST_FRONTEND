@@ -44,6 +44,10 @@ import {
   upsertVehicleRegister,
   type VehicleRegisterEntry,
 } from "../../../services/VehicleRegister/vehicleRegister";
+import {
+  listVehicleRecords,
+  type VehicleRecord,
+} from "../../../vehicles/services/vehicleRecordService";
 import { CustomDatePicker } from "../Components/DatePicker";
 import { parseCalendarDateTimeStamp } from "../../../common/common";
 import { CheckoutModal } from "../Components/CheckoutModal";
@@ -191,11 +195,15 @@ export const HireDetailsForm = ({ formRef, claimId }: any) => {
   const [actualVehicleCategory, setActualVehicleCategory] = useState([]);
   const [clientVehicleCategory, setClientVehicleCategory] = useState([]);
   const [vehicleStatus, setVehicleStatus] = useState([]);
-  // Shared vehicle pool (registered in Vehicle Management) — feeds the reg dropdown
-  // and carries the on-hire (is_active) flag that enforces Claims⇄Skyline exclusivity.
+  // Kept for saving typed registrations into the legacy shared register, and as
+  // a fallback if the VM record list is not available for this environment.
   const [vehicleRegister, setVehicleRegister] = useState<VehicleRegisterEntry[]>([]);
+  const [vehicleRecords, setVehicleRecords] = useState<VehicleRecord[]>([]);
   const reloadRegister = () => {
-    listVehicleRegister().then(setVehicleRegister);
+    listVehicleRegister("cams").then(setVehicleRegister);
+  };
+  const reloadVehicleRecords = () => {
+    listVehicleRecords("cams").then(setVehicleRecords);
   };
   const [activeVehicleTab, setActiveVehicleTab] = useState(0);
 const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outline-none font-light transition-colors placeholder:font-['Stack_Sans_Headline']`;
@@ -328,12 +336,13 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
           const reg = (v.hire_vehicle_registration || "").trim();
           if (!reg) continue;
           const onHire = Boolean(v.hireOutDate && !v.hireBackDate);
-          const payload: any = { registration_number: reg, is_active: onHire };
+          const payload: any = { registration_number: reg, is_active: onHire, context: "cams" };
           if (v.make) payload.make = v.make;
           if (v.model) payload.model = v.model;
           await upsertVehicleRegister(payload);
         }
         reloadRegister();
+        reloadVehicleRecords();
 
         toast.success("Hire details saved successfully");
       } catch (error) {
@@ -370,7 +379,8 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
       );
     };
     fetchLookups();
-    listVehicleRegister().then(setVehicleRegister);
+    listVehicleRegister("cams").then(setVehicleRegister);
+    listVehicleRecords("cams").then(setVehicleRecords);
   }, []);
   // Load hire records and existing checkout data from API
   useEffect(() => {
@@ -589,24 +599,52 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
 
   const currentVehicle = formik.values.thirdPartyVehicles[activeVehicleTab];
 
-  // --- Registered-vehicle reg dropdown (shared pool) ------------------------
-  // The reg number is now chosen from the shared register (vehicles registered in
-  // Vehicle Management). Selecting one auto-fills make/model. A vehicle already on
-  // hire elsewhere (Claims or Skyline) is is_active → shown but not selectable, so
-  // the same car can't be hired twice at once.
+  // --- Vehicle Management reg dropdown (CAMS/claim-side pool) ---------------
+  // Only available CAMS vehicles should be selectable here. The current value is
+  // kept visible when editing an existing claim, even if that vehicle is no longer
+  // available in VM.
   const normaliseReg = (v: string) =>
     (v || "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const normaliseStatus = (v?: string | null) =>
+    String(v || "").toLowerCase().replace(/_/g, " ").trim();
+  const isAvailableVehicleRecord = (record?: VehicleRecord | null) => {
+    const status = normaliseStatus(record?.vehicle_status);
+    return !status || status === "available";
+  };
   const currentReg = currentVehicle?.hire_vehicle_registration || "";
-  const registrationOptions = vehicleRegister.map((r) => ({
-    value: r.registration_number,
-    label: r.is_active ? `${r.registration_number} — on hire` : r.registration_number,
-    make: r.make,
-    model: r.model,
-    is_active: r.is_active,
-  }));
+  const currentRegNormalised = normaliseReg(currentReg);
+  const recordRegistrationOptions = vehicleRecords
+    .filter((r) => {
+      const registration = normaliseReg(r.registration_number || "");
+      if (!registration) return false;
+      if (registration === currentRegNormalised) return true;
+      return isAvailableVehicleRecord(r);
+    })
+    .map((r) => ({
+      value: r.registration_number || "",
+      label: r.registration_number || "",
+      make: r.make || "",
+      model: r.model || "",
+    }));
+  const registerRegistrationOptions = vehicleRegister
+    .filter((r) => {
+      const registration = normaliseReg(r.registration_number || "");
+      if (!registration) return false;
+      if (registration === currentRegNormalised) return true;
+      return !r.is_active;
+    })
+    .map((r) => ({
+      value: r.registration_number || "",
+      label: r.registration_number || "",
+      make: r.make || "",
+      model: r.model || "",
+    }));
+  const registrationOptions = vehicleRecords.length > 0
+    ? recordRegistrationOptions
+    : registerRegistrationOptions;
   // Keep the current value visible even if it isn't (yet) in the register.
-  if (currentReg && !registrationOptions.some((o) => normaliseReg(o.value) === normaliseReg(currentReg))) {
-    registrationOptions.unshift({ value: currentReg, label: currentReg, make: "", model: "", is_active: false });
+  if (currentReg && !registrationOptions.some((o) => normaliseReg(o.value) === currentRegNormalised)) {
+    registrationOptions.unshift({ value: currentReg, label: currentReg, make: "", model: "" });
   }
   const handleRegistrationSelect = (opt: any) => {
     const reg = opt?.value || "";
@@ -1603,9 +1641,6 @@ const inputStyles = `hover:border-neutral-400 focus:border-blue-500 focus:outlin
                   onChange={handleRegistrationSelect}
                   onCreateOption={(input: string) =>
                     handleRegistrationSelect({ value: input })
-                  }
-                  isOptionDisabled={(o: any) =>
-                    o.is_active && normaliseReg(o.value) !== normaliseReg(currentReg)
                   }
                   styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
                   components={{

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { X, Trash2 } from "lucide-react";
 import {
@@ -123,6 +123,7 @@ const StatCard: React.FC<StatConfig> = ({ title, value, icon, tile, trendPct, da
  *  Skyline hire dropdowns. Same widgets + table language as the Skyline listing. */
 const VehicleManagementList: React.FC = () => {
   const navigate = useNavigate();
+  const { context } = useParams();
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
   const [register, setRegister] = useState<FleetVehicleRegister[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,7 +141,7 @@ const VehicleManagementList: React.FC = () => {
 
   const load = async () => {
     setLoading(true);
-    const [recs, reg] = await Promise.all([listVehicleRecords(), listVehicleRegister()]);
+    const [recs, reg] = await Promise.all([listVehicleRecords(context), listVehicleRegister()]);
     setVehicles(recs);
     setRegister(reg);
     setSelected(new Set());
@@ -148,7 +149,7 @@ const VehicleManagementList: React.FC = () => {
   };
   useEffect(() => {
     load();
-  }, []);
+  }, [context]);
 
   // Reminders popup on each visit — Vehicle Management owns the vehicle-document
   // reminders (MOT / Plate / Road Fund).
@@ -256,7 +257,7 @@ const VehicleManagementList: React.FC = () => {
   // Open a blank editor. The DB row is only created once the user actually enters
   // data (deferred creation in VehicleManagementRecord), so backing out here
   // leaves no empty record behind.
-  const register_ = () => navigate("/vehicle-management/new");
+  const register_ = () => navigate(`/vehicle-management/${context}/new`);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -325,10 +326,10 @@ const VehicleManagementList: React.FC = () => {
 
       {/* Topbar */}
       <div className="h-20 px-4 sm:px-6 lg:px-10 flex items-center justify-between border-b border-[#eee]">
-        <h1 className="text-black text-2xl font-semibold">Vehicle Management</h1>
+        <h1 className="text-black text-2xl font-semibold">Vehicle Management &ndash; {context === "cams" ? "CAMS" : "Skyline"}</h1>
         <div className="flex items-center gap-6">
           <img src={SearchIcon} alt="Search" className="w-5 h-5" />
-          <FleetNotificationBell module="vehicles" />
+          <FleetNotificationBell module={`vehicles_${context || "skyline"}`} />
         </div>
       </div>
 
@@ -461,7 +462,7 @@ const VehicleManagementList: React.FC = () => {
                   return (
                     <div key={v.id} className={`grid ${GRID} gap-2 px-4 py-3 items-center text-sm border-t border-[#eee] hover:bg-neutral-50`}>
                       <Checkbox checked={selected.has(v.id)} onChange={() => toggleOne(v.id)} label={`Select ${v.registration_number || "vehicle"}`} />
-                      <button type="button" onClick={() => navigate(`/vehicle-management/${v.id}`)} className="text-left text-neutral-900 font-medium hover:underline truncate">
+                      <button type="button" onClick={() => navigate(`/vehicle-management/${context}/${v.id}`)} className="text-left text-neutral-900 font-medium hover:underline truncate">
                         {v.registration_number || "—"}
                       </button>
                       <span className="text-neutral-700 truncate">{v.make || "—"}</span>
@@ -489,7 +490,7 @@ const VehicleManagementList: React.FC = () => {
                           <>
                             <div className="fixed inset-0 z-[80]" onClick={() => setMenu(null)} />
                             <div style={{ position: "fixed", top: menu.top, right: menu.right }} className="z-[90] w-32 bg-white rounded-lg shadow-lg border border-neutral-200 py-1">
-                              <button type="button" onClick={() => { setMenu(null); navigate(`/vehicle-management/${v.id}`); }} className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
+                              <button type="button" onClick={() => { setMenu(null); navigate(`/vehicle-management/${context}/${v.id}`); }} className="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50">
                                 View
                               </button>
                               <button type="button" onClick={() => { setMenu(null); setDeleteTarget(v); }} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-neutral-50">

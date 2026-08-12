@@ -44,7 +44,7 @@ const DETAILS_FIELDS = ["registration_number", "make", "model", "transmission", 
  * reads blank until a Claims/Skyline hire assigns the vehicle.
  */
 const VehicleManagementRecord: React.FC = () => {
-  const { recordId } = useParams();
+  const { context, recordId } = useParams();
   const navigate = useNavigate();
   const id = recordId ? Number(recordId) : null;
 
@@ -97,7 +97,7 @@ const VehicleManagementRecord: React.FC = () => {
   const ensureRecord = useCallback(async (): Promise<VehicleRecord | null> => {
     if (vehicleRef.current) return vehicleRef.current;
     if (!createPromiseRef.current) {
-      createPromiseRef.current = createVehicleRecord().finally(() => {
+      createPromiseRef.current = createVehicleRecord(context).finally(() => {
         createPromiseRef.current = null;
       });
     }
@@ -108,9 +108,9 @@ const VehicleManagementRecord: React.FC = () => {
     }
     vehicleRef.current = created;
     setVehicle(created);
-    navigate(`/vehicle-management/${created.id}`, { replace: true });
+    navigate(`/vehicle-management/${context}/${created.id}`, { replace: true });
     return created;
-  }, [navigate]);
+  }, [navigate, context]);
 
   // --- Vehicle provider plumbing (buffer edits, flush on navigation) ---
   const save = useCallback(async (partial: Record<string, unknown>) => {
@@ -124,21 +124,27 @@ const VehicleManagementRecord: React.FC = () => {
     const rec = vehicleRef.current;
     if (!rec) return;
     pendingRef.current = {};
-    const updated = await updateVehicleRecord(rec.id, pending);
-    if (updated) {
-      setVehicle(updated);
-      // Keep the shared register in step so this vehicle appears in the Claims &
-      // Skyline hire reg dropdowns. Done from the frontend against the existing
-      // register endpoint, so it works without redeploying the backend hook.
-      if (updated.registration_number) {
-        void upsertVehicleRegister({
-          registration_number: updated.registration_number,
-          make: updated.make || "",
-          model: updated.model || "",
-          transmission: updated.transmission || undefined,
-        });
-      }
-    } else toast.error("Could not save. Please try again.");
+    try {
+      const updated = await updateVehicleRecord(rec.id, pending);
+      if (updated) {
+        setVehicle(updated);
+        // Keep the shared register in step so this vehicle appears in the Claims &
+        // Skyline hire reg dropdowns. Done from the frontend against the existing
+        // register endpoint, so it works without redeploying the backend hook.
+        if (updated.registration_number) {
+          void upsertVehicleRegister({
+            registration_number: updated.registration_number,
+            make: updated.make || "",
+            model: updated.model || "",
+            transmission: updated.transmission || undefined,
+          });
+        }
+      } else toast.error("Could not save. Please try again.");
+    } catch (e) {
+      // A rejected edit (e.g. a duplicate registration) — keep it so the user can fix it.
+      pendingRef.current = { ...pending, ...pendingRef.current };
+      toast.error((e as Error)?.message || "Could not save. Please try again.");
+    }
   }, []);
   const refresh = useCallback(async () => {
     const rec = vehicleRef.current;
@@ -176,11 +182,11 @@ const VehicleManagementRecord: React.FC = () => {
   };
   const goBack = async () => {
     await flushAll();
-    navigate("/vehicle-management");
+    navigate(`/vehicle-management/${context}`);
   };
   const discard = () => {
     pendingRef.current = {};
-    navigate("/vehicle-management");
+    navigate(`/vehicle-management/${context}`);
   };
   const saveNext = async () => {
     if (saving) return;

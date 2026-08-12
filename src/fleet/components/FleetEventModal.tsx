@@ -93,10 +93,13 @@ interface Props {
   defaultDate?: string; // yyyy-mm-dd — seeds Start Date when creating from the calendar
   onClose: () => void;
   onSaved: () => void;
-  module?: string; // skyline / vehicles — which app's calendar this event belongs to
+  module?: string; // skyline / vehicles_<context> — which app's calendar this event belongs to
 }
 
 const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved, module = "skyline" }) => {
+  const activeModule = event?.module || module;
+  const isVehicles = activeModule.startsWith("vehicles");
+  const vehicleContext = activeModule.startsWith("vehicles_") ? activeModule.split("_")[1] : undefined;
   const [form, setForm] = useState<FleetEventPayload>({
     title: event?.title || "",
     event_type: event?.event_type || "Meeting",
@@ -115,6 +118,7 @@ const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved
     vehicle_registration: event?.vehicle_registration || "",
     attachment_path: event?.attachment_path || "",
     attachment_name: event?.attachment_name || "",
+    module: activeModule,
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -122,16 +126,15 @@ const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved
 
   // Skyline calendars link a Skyline (hire) reference; Vehicle Management calendars
   // link only a vehicle (reg + status) — never a claim reference.
-  const isVehicles = (event?.module || module) === "vehicles";
   const assignees = useFleetAssignees();
   const [vehicleRegs, setVehicleRegs] = useState<string[]>([]);
   const [hireRefs, setHireRefs] = useState<string[]>([]);
   useEffect(() => {
     // Use live Vehicle Management records here. The register powers hire lookups
     // and can contain stale lookup rows that should not appear in task/calendar UI.
-    listVehicleRecords().then((rows) => setVehicleRegs(rows.map((r) => r.registration_number || "").filter(Boolean)));
+    listVehicleRecords(vehicleContext).then((rows) => setVehicleRegs(rows.map((r) => r.registration_number || "").filter(Boolean)));
     if (!isVehicles) listHires().then((rows) => setHireRefs(rows.map((r) => r.fleet_reference || "").filter(Boolean)));
-  }, [isVehicles]);
+  }, [isVehicles, vehicleContext]);
   const hireRefOptions = useMemo<Option[]>(() => {
     const set = new Set<string>(hireRefs);
     if (form.claim_reference) set.add(form.claim_reference);
@@ -165,7 +168,7 @@ const FleetEventModal: React.FC<Props> = ({ event, defaultDate, onClose, onSaved
     setSaving(true);
     const payload: FleetEventPayload = {
       ...form,
-      module: event ? form.module : module, // preserve on edit; stamp on create
+      module: event ? (event.module || module) : module, // preserve on edit; stamp on create
       title: form.title.trim(),
       status: form.status || "Scheduled",
       start_date: form.start_date || null,

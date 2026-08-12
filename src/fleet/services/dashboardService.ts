@@ -61,9 +61,10 @@ export interface ServicingDue {
   tabs: { overdue: number; weekly: number; monthly: number };
   rows: { overdue: PaymentRows; weekly: PaymentRows; monthly: PaymentRows };
 }
-export const getServicingDue = async (): Promise<ServicingDue | null> => {
+// `context` (cams | skyline) scopes the card to one Vehicle Management side.
+export const getServicingDue = async (context?: string): Promise<ServicingDue | null> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/servicing-due");
+    const { data } = await fleetApi.get("/fleet/dashboard/servicing-due", { params: { context } });
     return data as ServicingDue;
   } catch {
     return null;
@@ -85,9 +86,10 @@ export interface VehicleStatus {
   total: number;
   segments: { label: string; value: number }[];
 }
-export const getVehicleStatus = async (): Promise<VehicleStatus | null> => {
+// `context` (cams | skyline) scopes the donut to one Vehicle Management side.
+export const getVehicleStatus = async (context?: string): Promise<VehicleStatus | null> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/vehicle-status");
+    const { data } = await fleetApi.get("/fleet/dashboard/vehicle-status", { params: { context } });
     return data as VehicleStatus;
   } catch {
     return null;
@@ -105,9 +107,10 @@ export interface FleetVehicleRow {
   hireInfo?: string;
   customer?: string;
 }
-export const getFleetVehicles = async (): Promise<FleetVehicleRow[] | null> => {
+// `context` (cams | skyline) scopes the list to one Vehicle Management side.
+export const getFleetVehicles = async (context?: string): Promise<FleetVehicleRow[] | null> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/vehicles");
+    const { data } = await fleetApi.get("/fleet/dashboard/vehicles", { params: { context } });
     return Array.isArray(data?.items) ? data.items : [];
   } catch {
     return null;
@@ -144,9 +147,10 @@ export const getWeeklyPayments = async (): Promise<WeeklyPayments | null> => {
 export interface Compliance {
   categories: { key: string; title: string; overdue: number; bar: number; d7: number; d30: number; total: number; compliant: number; amber: number }[];
 }
-export const getCompliance = async (): Promise<Compliance | null> => {
+// `context` (cams | skyline) scopes compliance to one Vehicle Management side.
+export const getCompliance = async (context?: string): Promise<Compliance | null> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/compliance");
+    const { data } = await fleetApi.get("/fleet/dashboard/compliance", { params: { context } });
     return data as Compliance;
   } catch {
     return null;
@@ -165,9 +169,10 @@ export interface Expiries {
   plate: ExpiryCard;
   service: ExpiryCard;
 }
-export const getExpiries = async (): Promise<Expiries | null> => {
+// `context` (cams | skyline) scopes the expiry cards to one Vehicle Management side.
+export const getExpiries = async (context?: string): Promise<Expiries | null> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/expiries");
+    const { data } = await fleetApi.get("/fleet/dashboard/expiries", { params: { context } });
     return data as Expiries;
   } catch {
     return null;
@@ -181,10 +186,10 @@ export interface Attention {
   overdue_payments: number;
 }
 // `side` (skyline | vehicles) scopes the Missing Documents count to driver docs
-// vs vehicle docs.
-export const getAttention = async (side = "vehicles"): Promise<Attention | null> => {
+// vs vehicle docs; `context` (cams | skyline) scopes vehicle docs to one VM side.
+export const getAttention = async (side = "vehicles", context?: string): Promise<Attention | null> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/attention", { params: { side } });
+    const { data } = await fleetApi.get("/fleet/dashboard/attention", { params: { side, context } });
     return data as Attention;
   } catch {
     return null;
@@ -197,9 +202,9 @@ export interface MissingDoc {
   registration: string;
   hire_id: number | null;
 }
-export const getMissingDocuments = async (side = "vehicles"): Promise<MissingDoc[]> => {
+export const getMissingDocuments = async (side = "vehicles", context?: string): Promise<MissingDoc[]> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/missing-documents", { params: { side } });
+    const { data } = await fleetApi.get("/fleet/dashboard/missing-documents", { params: { side, context } });
     return Array.isArray(data?.items) ? data.items : [];
   } catch {
     return [];

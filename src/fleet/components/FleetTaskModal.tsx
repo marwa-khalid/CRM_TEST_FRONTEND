@@ -26,10 +26,11 @@ interface Props {
   defaultDate?: string; // yyyy-mm-dd — seeds Due Date when creating from the calendar
   onClose: () => void;
   onSaved: () => void;
-  module?: string; // skyline / vehicles — which app's list this task belongs to
+  module?: string; // skyline / vehicles_<context> — which app's list this task belongs to
 }
 
 const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved, module = "skyline" }) => {
+  const vehicleContext = module.startsWith("vehicles_") ? module.split("_")[1] : undefined;
   const [form, setForm] = useState<FleetTaskPayload>({
     title: task?.title || "",
     description: task?.description || "",
@@ -43,6 +44,7 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved, 
     vehicle_registration: task?.vehicle_registration || "",
     attachment_path: task?.attachment_path || "",
     attachment_name: task?.attachment_name || "",
+    module: task?.module || module,
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -54,8 +56,8 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved, 
   // table and may include old rows that no longer exist in VM.
   const [vehicleRegs, setVehicleRegs] = useState<string[]>([]);
   useEffect(() => {
-    listVehicleRecords().then((rows) => setVehicleRegs(rows.map((r) => r.registration_number || "").filter(Boolean)));
-  }, []);
+    listVehicleRecords(vehicleContext).then((rows) => setVehicleRegs(rows.map((r) => r.registration_number || "").filter(Boolean)));
+  }, [vehicleContext]);
 
   const set = <K extends keyof FleetTaskPayload>(key: K, value: FleetTaskPayload[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -93,7 +95,7 @@ const FleetTaskModal: React.FC<Props> = ({ task, defaultDate, onClose, onSaved, 
     // Send nulls (not empty strings) for the optional fields the backend treats as dates/enums.
     const payload: FleetTaskPayload = {
       ...form,
-      module: task ? form.module : module, // preserve on edit; stamp on create
+      module: task ? (task.module || module) : module, // preserve on edit; stamp on create
       title: form.title.trim(),
       description: form.description || null,
       assigned_user: form.assigned_user || null,

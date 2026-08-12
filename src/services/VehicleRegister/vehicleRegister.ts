@@ -17,9 +17,9 @@ export interface VehicleRegisterEntry {
   is_active: boolean;
 }
 
-export const listVehicleRegister = async (): Promise<VehicleRegisterEntry[]> => {
+export const listVehicleRegister = async (context?: string): Promise<VehicleRegisterEntry[]> => {
   try {
-    const { data } = await axiosInstance.get("/vehicles/vehicle-register");
+    const { data } = await axiosInstance.get("/vehicles/vehicle-register", { params: { context } });
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
@@ -27,7 +27,7 @@ export const listVehicleRegister = async (): Promise<VehicleRegisterEntry[]> => 
 };
 
 export const upsertVehicleRegister = async (
-  payload: Partial<VehicleRegisterEntry> & { registration_number: string },
+  payload: Partial<VehicleRegisterEntry> & { registration_number: string; context?: string },
 ): Promise<VehicleRegisterEntry | null> => {
   try {
     const { data } = await axiosInstance.post("/vehicles/vehicle-register", payload);

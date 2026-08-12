@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
 import LogoIcon from "../../fleet/assets/listingpage/Logo.svg";
 import CollapseIcon from "../../fleet/assets/listingpage/GoBack.svg";
 import HomeIcon from "../../fleet/assets/listingpage/home.svg";
@@ -60,6 +60,8 @@ interface NavItem {
 
 const VehicleManagementShell: React.FC = () => {
   const navigate = useNavigate();
+  const { context } = useParams();
+  const base = `/vehicle-management/${context}`;
   const { name, initials } = currentUser();
   // Collapsed = icon-only rail so the page area goes near-full-width. Persisted so
   // it survives navigation between Vehicle Management screens (and reloads).
@@ -72,10 +74,10 @@ const VehicleManagementShell: React.FC = () => {
     });
 
   const items: NavItem[] = [
-    { label: "Dashboard", icon: HomeIcon, to: "/vehicle-management/dashboard" },
-    { label: "Vehicles", icon: VehiclesIcon, to: "/vehicle-management", end: true, dark: true },
-    { label: "Tasks", icon: TasksIcon, to: "/vehicle-management/tasks" },
-    { label: "Calendar", icon: CalendarIcon, to: "/vehicle-management/calendar" },
+    { label: "Dashboard", icon: HomeIcon, to: `${base}/dashboard` },
+    { label: "Vehicles", icon: VehiclesIcon, to: base, end: true, dark: true },
+    { label: "Tasks", icon: TasksIcon, to: `${base}/tasks` },
+    { label: "Calendar", icon: CalendarIcon, to: `${base}/calendar` },
     { label: "Reports", icon: ReportsIcon, onClick: () => navigate("/dashboard") },
   ];
 

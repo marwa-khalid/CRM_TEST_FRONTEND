@@ -69,9 +69,9 @@ export const getHireVehicleRecord = async (hireId: number): Promise<VehicleRecor
   }
 };
 
-export const listVehicleRecords = async (): Promise<VehicleRecord[]> => {
+export const listVehicleRecords = async (context?: string): Promise<VehicleRecord[]> => {
   try {
-    const { data } = await fleetApi.get("/vehicles/vehicle-record");
+    const { data } = await fleetApi.get("/vehicles/vehicle-record", { params: { context } });
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
@@ -79,9 +79,9 @@ export const listVehicleRecords = async (): Promise<VehicleRecord[]> => {
 };
 
 // Register a new standalone vehicle (no hire) — the Vehicle Management module.
-export const createVehicleRecord = async (): Promise<VehicleRecord | null> => {
+export const createVehicleRecord = async (context?: string): Promise<VehicleRecord | null> => {
   try {
-    const { data } = await fleetApi.post("/vehicles/vehicle-record");
+    const { data } = await fleetApi.post("/vehicles/vehicle-record", { context });
     return data;
   } catch {
     return null;
@@ -113,8 +113,10 @@ export const updateVehicleRecord = async (
   try {
     const { data } = await fleetApi.patch(`/vehicles/vehicle-record/${recordId}`, payload);
     return data;
-  } catch {
-    return null;
+  } catch (e) {
+    // Surface a specific message (e.g. a duplicate registration) to the caller.
+    const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+    throw new Error(detail || "Could not save the vehicle record.");
   }
 };
 

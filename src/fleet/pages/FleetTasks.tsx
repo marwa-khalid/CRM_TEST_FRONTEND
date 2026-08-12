@@ -165,7 +165,7 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [module]);
 
   // Counts by status (+ Overdue) with a real month-over-month trend from created_at.
   const statCards = useMemo<TaskStat[]>(() => {
@@ -309,7 +309,7 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
   return (
     <div className="min-h-screen bg-white font-sans-headline">
       {loading && <FleetSpinnerLoader />}
-      <FleetPageHeader title="Tasks" />
+      <FleetPageHeader title="Tasks" module={module} />
 
       <main className="px-10 py-10">
         <section className="max-w-[1120px] mx-auto flex flex-col gap-5">

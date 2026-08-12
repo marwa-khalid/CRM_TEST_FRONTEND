@@ -335,15 +335,19 @@ const FleetEventDetailSlider: React.FC<{
     reloadAudit(eventId);
   }, [eventId]);
 
+  const activeModule = module || ev?.module || "";
+  const isVehicles = activeModule.startsWith("vehicles");
+  const vehicleContext = activeModule.startsWith("vehicles_") ? activeModule.split("_")[1] : undefined;
+
   // Both sides show the linked vehicle's live status in Linked Record.
   useEffect(() => {
     if (!ev?.vehicle_registration) { setVehicleStatus("—"); return; }
     const norm = (r: string) => r.replace(/\s+/g, "").toUpperCase();
-    getFleetVehicles().then((rows) => {
+    getFleetVehicles(vehicleContext).then((rows) => {
       const match = rows.find((v) => norm(v.registration) === norm(ev.vehicle_registration || ""));
       setVehicleStatus(match?.statusLabel || "—");
     });
-  }, [ev?.vehicle_registration]);
+  }, [ev?.vehicle_registration, vehicleContext]);
 
   const isSystem = (ev?.source || "manual") === "system";
   const fromTaskMgmt = ev?.source_type === "task_due" || !!ev?.task_id;
@@ -352,7 +356,6 @@ const FleetEventDetailSlider: React.FC<{
   const editable = !isSystemGenerated;
   const visibleTabs = isSystemGenerated ? TABS.filter((t) => t !== "Activity Log") : TABS;
   const recurring = !!ev?.recurrence_rule;
-  const isVehicles = (module || ev?.module) === "vehicles";
   const occDate = recurring ? (occurrenceDate || ev?.start_date || null) : null;
   const effStatus = occDate ? (occurrenceStatus || ev?.status) : ev?.status;
   const viewEv: FleetEvent | null = ev && occDate ? { ...ev, start_date: occDate, end_date: occDate, status: effStatus } : ev;

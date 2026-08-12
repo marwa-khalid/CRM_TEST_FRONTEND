@@ -24,6 +24,7 @@ export interface FleetTask {
   notes?: string | null;
   attachment_path?: string | null;
   attachment_name?: string | null;
+  module?: string | null;
   is_overdue?: boolean;
   created_at?: string | null;
   updated_at?: string | null;

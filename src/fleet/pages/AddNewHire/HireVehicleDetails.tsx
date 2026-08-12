@@ -40,6 +40,11 @@ import {
   upsertVehicleRegister,
   type FleetVehicleRegister,
 } from "../../../vehicles/services/vehicleService";
+import {
+  listVehicleRecords,
+  type VehicleRecord,
+} from "../../../vehicles/services/vehicleRecordService";
+import { getFleetVehicles, type FleetVehicleRow } from "../../services/dashboardService";
 import { extractInsuranceCertificate } from "../../services/driverService";
 import {
   BOROUGH_OPTIONS,
@@ -112,6 +117,16 @@ const displayDate = (value: string) => {
   return dte.toLocaleDateString("en-GB");
 };
 const normaliseReg = (value: string) => value.replace(/[^a-z0-9]/gi, "").toUpperCase();
+const normaliseStatus = (value?: string | null) => String(value || "").toLowerCase().replace(/_/g, " ").trim();
+const isAvailableVehicleRecord = (record?: VehicleRecord | null) => {
+  const status = normaliseStatus(record?.vehicle_status);
+  return !status || status === "available";
+};
+const isOnHireDashboardVehicle = (vehicle?: FleetVehicleRow | null) => {
+  const key = normaliseStatus(vehicle?.statusKey);
+  const label = normaliseStatus(vehicle?.statusLabel);
+  return key === "hire" || key === "on hire" || key === "weekly hire" || label === "on hire" || label === "weekly hire";
+};
 
 const ClockIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" aria-hidden>
@@ -213,6 +228,8 @@ const HireVehicleDetails: React.FC = () => {
   const [emailPreviewHtml, setEmailPreviewHtml] = useState("");
   const [emailSendOverride, setEmailSendOverride] = useState<((args: FleetEmailSendArgs) => Promise<SendHireEmailResult>) | null>(null);
   const [vehicleRegister, setVehicleRegister] = useState<FleetVehicleRegister[]>([]);
+  const [vehicleRecords, setVehicleRecords] = useState<VehicleRecord[]>([]);
+  const [onHireRegistrations, setOnHireRegistrations] = useState<string[]>([]);
   const [insuranceOcrLoading, setInsuranceOcrLoading] = useState(false);
   const [deleteCertOpen, setDeleteCertOpen] = useState(false);
   const [deleteVehicleIndex, setDeleteVehicleIndex] = useState<number | null>(null);
@@ -225,12 +242,27 @@ const HireVehicleDetails: React.FC = () => {
   const onHire = active.hireStatus === "on_hire";
   const offHire = active.hireStatus === "off_hire";
   const customerOwnInsurance = active.hireInsuranceType === "customer_own";
-  const selectedRegisterVehicle = vehicleRegister.find((item) => normaliseReg(item.registration_number) === normaliseReg(active.registrationNumber));
-  const vehicleUnavailable = Boolean(selectedRegisterVehicle?.is_active && active.hireStatus !== "on_hire");
-  const registrationOptions = vehicleRegister.map((item) => ({
-    value: item.registration_number,
-    label: `${item.registration_number}`,
-  }));
+  const activeRegistration = normaliseReg(active.registrationNumber);
+  const selectedVehicleRecord = vehicleRecords.find((item) => normaliseReg(item.registration_number || "") === activeRegistration);
+  const onHireRegistrationSet = new Set(onHireRegistrations);
+  const selectedVehicleIsAlreadyOnHire = Boolean(activeRegistration && onHireRegistrationSet.has(activeRegistration));
+  const vehicleUnavailable = Boolean(
+    activeRegistration &&
+    active.hireStatus !== "on_hire" &&
+    (selectedVehicleIsAlreadyOnHire || (selectedVehicleRecord && !isAvailableVehicleRecord(selectedVehicleRecord))),
+  );
+  const registrationOptions = vehicleRecords
+    .filter((item) => {
+      const registration = normaliseReg(item.registration_number || "");
+      if (!registration) return false;
+      if (registration === activeRegistration) return true;
+      if (onHireRegistrationSet.has(registration)) return false;
+      return isAvailableVehicleRecord(item);
+    })
+    .map((item) => ({
+      value: item.registration_number || "",
+      label: `${item.registration_number || ""}`,
+    }));
 
   // Load existing vehicles for this hire (or create the first one).
   useEffect(() => {
@@ -243,7 +275,13 @@ const HireVehicleDetails: React.FC = () => {
     setInitialLoading(true);
     (async () => {
       try {
-        const [list, docs, register] = await Promise.all([listVehicles(hireId), getHireDocuments(hireId), listVehicleRegister()]);
+        const [list, docs, register, records, effectiveVehicles] = await Promise.all([
+          listVehicles(hireId),
+          getHireDocuments(hireId),
+          listVehicleRegister("skyline"),
+          listVehicleRecords("skyline"),
+          getFleetVehicles("skyline"),
+        ]);
         const cert = docs.filter((doc) => doc.doc_type === INSURANCE_DOC_TYPE).sort((a, b) => b.id - a.id)[0];
         const certViewUrl = cert ? await getHireDocumentFileUrl(hireId, cert.id) : null;
         const certPatch = {
@@ -255,6 +293,13 @@ const HireVehicleDetails: React.FC = () => {
 
         if (!active) return;
         setVehicleRegister(register);
+        setVehicleRecords(records);
+        setOnHireRegistrations(
+          (effectiveVehicles || [])
+            .filter(isOnHireDashboardVehicle)
+            .map((item) => normaliseReg(item.registration || ""))
+            .filter(Boolean),
+        );
         if (list.length > 0) {
           const mapped = list.map((record) => ({ ...fromRecord(record), ...certPatch }));
           setVehicles(mapped);
@@ -310,13 +355,14 @@ const HireVehicleDetails: React.FC = () => {
       make: vehicle.make,
       model: vehicle.model,
       transmission: vehicle.transmission,
+      context: "skyline",
     });
     if (row) mergeRegisterRow(row);
   };
 
   const handleRegistrationSelect = async (registrationNumber: string) => {
     const normalisedRegistration = normaliseReg(registrationNumber);
-    const selected = vehicleRegister.find((item) => normaliseReg(item.registration_number) === normalisedRegistration);
+    const selected = vehicleRecords.find((item) => normaliseReg(item.registration_number || "") === normalisedRegistration);
     const updates: Partial<Vehicle> = {
       registrationNumber: normalisedRegistration,
       make: selected?.make || "",
@@ -534,6 +580,14 @@ const HireVehicleDetails: React.FC = () => {
             : item,
         ),
       );
+      setVehicleRecords((items) =>
+        items.map((item) =>
+          normaliseReg(item.registration_number || "") === normaliseReg(active.registrationNumber)
+            ? { ...item, vehicle_status: "available", hire_id: null }
+            : item,
+        ),
+      );
+      setOnHireRegistrations((items) => items.filter((registration) => registration !== normaliseReg(active.registrationNumber)));
       setCheckoutOpen(false);
       toast.success("Vehicle checked out (off hire).");
     } catch {
@@ -589,6 +643,16 @@ const HireVehicleDetails: React.FC = () => {
         return;
       }
     }
+    if (target.hireStatus === "on_hire") {
+      setVehicleRecords((items) =>
+        items.map((item) =>
+          normaliseReg(item.registration_number || "") === normaliseReg(target.registrationNumber)
+            ? { ...item, vehicle_status: "available", hire_id: null }
+            : item,
+        ),
+      );
+      setOnHireRegistrations((items) => items.filter((registration) => registration !== normaliseReg(target.registrationNumber)));
+    }
 
     const remaining = vehicles.filter((_, index) => index !== deleteVehicleIndex);
     const nextIndex = activeIndex < deleteVehicleIndex ? activeIndex : Math.max(0, activeIndex - 1);
@@ -611,6 +675,17 @@ const HireVehicleDetails: React.FC = () => {
           : item,
       ),
     );
+    setVehicleRecords((items) =>
+      items.map((item) =>
+        normaliseReg(item.registration_number || "") === normaliseReg(active.registrationNumber)
+          ? { ...item, vehicle_status: "weekly_hire", hire_id: hireId ?? item.hire_id }
+          : item,
+      ),
+    );
+    const onHireReg = normaliseReg(active.registrationNumber);
+    if (onHireReg) {
+      setOnHireRegistrations((items) => Array.from(new Set([...items, onHireReg])));
+    }
     await saveActive({
       hire_status: "on_hire",
       hire_start_date: start,

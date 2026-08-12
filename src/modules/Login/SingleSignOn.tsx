@@ -203,16 +203,16 @@ const SingleSignOn = () => {
                 </div>
               </div>
 
-              {/* Vehicle Management — the customer side / shared vehicle pool. */}
+              {/* Vehicle Management — CAMS (Claims cars). */}
               <div
                 className="flex flex-col items-start justify-start self-stretch gap-6 p-4 rounded-lg outline outline-1 outline-[#A3CFFF] -outline-offset-1 bg-white cursor-pointer"
-                onClick={() => navigate("/vehicle-management")}
+                onClick={() => navigate("/vehicle-management/cams")}
               >
                 <div className="flex items-center justify-between self-stretch">
                   <div className="flex items-center gap-2">
                     <img src={Fleet} alt="" className="w-8 h-8" />
                     <div className="text-neutral-900 font-weight-600 text-black text-[12px]">
-                      VEHICLES
+                      VEHICLES · CAMS
                     </div>
                   </div>
                   <img src={ArrowRight} alt="" />
@@ -220,11 +220,38 @@ const SingleSignOn = () => {
 
                 <div className="flex flex-col items-start gap-3">
                   <h3 className="text-black text-[16px] font-weight-600 font-weight-[500] leading-4 font-['Stack_Sans_Headline']">
-                    Vehicle Management
+                    Vehicle Management &ndash; CAMS
                   </h3>
                   <p className="text-[#888888] text-[12px] font-weight-400 leading-relaxed">
-                    Register and manage vehicles — the shared pool for Claims and
-                    Skyline hires.
+                    Register and manage the vehicle pool for Claims (CAMS) hires.
+                    <br />
+                    Track availability, licensing, servicing and current hire in
+                    one place.
+                  </p>
+                </div>
+              </div>
+
+              {/* Vehicle Management — Skyline cars. */}
+              <div
+                className="flex flex-col items-start justify-start self-stretch gap-6 p-4 rounded-lg outline outline-1 outline-[#A3CFFF] -outline-offset-1 bg-white cursor-pointer"
+                onClick={() => navigate("/vehicle-management/skyline")}
+              >
+                <div className="flex items-center justify-between self-stretch">
+                  <div className="flex items-center gap-2">
+                    <img src={Fleet} alt="" className="w-8 h-8" />
+                    <div className="text-neutral-900 font-weight-600 text-black text-[12px]">
+                      VEHICLES · SKYLINE
+                    </div>
+                  </div>
+                  <img src={ArrowRight} alt="" />
+                </div>
+
+                <div className="flex flex-col items-start gap-3">
+                  <h3 className="text-black text-[16px] font-weight-600 font-weight-[500] leading-4 font-['Stack_Sans_Headline']">
+                    Vehicle Management &ndash; Skyline
+                  </h3>
+                  <p className="text-[#888888] text-[12px] font-weight-400 leading-relaxed">
+                    Register and manage the vehicle pool for Skyline hires.
                     <br />
                     Track availability, licensing, servicing and current hire in
                     one place.

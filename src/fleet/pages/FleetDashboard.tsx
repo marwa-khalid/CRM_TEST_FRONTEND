@@ -435,12 +435,12 @@ const mapVehicleSegments = (segments: { label: string; value: number }[]) => {
     c: VEH_COLORS[l] ?? VEH_FALLBACK_COLORS[i % VEH_FALLBACK_COLORS.length],
   }));
 };
-const VehicleDonut: React.FC<{ side?: string }> = ({ side }) => {
+const VehicleDonut: React.FC<{ side?: string; context?: string }> = ({ side, context }) => {
   // Live vehicle-status distribution; falls back to VEH_SEG placeholders.
   const [seg, setSeg] = useState<{ l: string; v: number; c: string }[] | null>(null);
   useEffect(() => {
     let cancelled = false;
-    getVehicleStatus().then((r) => {
+    getVehicleStatus(context).then((r) => {
       if (cancelled) return;
       // Use the live result whenever the backend responds — even an empty list
       // (no vehicles) is real data. Only fall back to the placeholder when the
@@ -454,7 +454,7 @@ const VehicleDonut: React.FC<{ side?: string }> = ({ side }) => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [context]);
   const data = seg ?? VEH_SEG;
   // Legend always includes every availability status, even at 0 (the arcs still come from
   // `data`, so a 0 entry just adds a legend row, no visible slice).
@@ -515,7 +515,7 @@ const ATTENTION_KEY: Record<string, keyof Attention> = {
   "Overdue Payments": "overdue_payments",
 };
 type AttentionTile = "Overdue Returns" | "Missing Documents" | "Overdue Payments";
-const AttentionRequired: React.FC<{ side: "skyline" | "vehicles" }> = ({ side }) => {
+const AttentionRequired: React.FC<{ side: "skyline" | "vehicles"; context?: string }> = ({ side, context }) => {
   const [live, setLive] = useState<Attention | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false); // full-screen overlay while a tile's rows load
   const [open, setOpen] = useState<AttentionTile | null>(null);
@@ -524,13 +524,13 @@ const AttentionRequired: React.FC<{ side: "skyline" | "vehicles" }> = ({ side })
   const [paymentCards, setPaymentCards] = useState<AttentionCard[]>([]);
   useEffect(() => {
     let cancelled = false;
-    getAttention(side).then((r) => {
+    getAttention(side, context).then((r) => {
       if (!cancelled) setLive(r);
     });
     return () => {
       cancelled = true;
     };
-  }, [side]);
+  }, [side, context]);
   const daysBadge = (n: number) => `${n} Day${n === 1 ? "" : "s"} Overdue`;
   // Show the normal full-screen overlay spinner first, then open the slider once
   // its rows are in hand (so it opens already filled, never with an inline spinner).
@@ -538,7 +538,7 @@ const AttentionRequired: React.FC<{ side: "skyline" | "vehicles" }> = ({ side })
     setLoadingDetail(true);
     try {
       if (tile === "Missing Documents") {
-        setMissingItems(await getMissingDocuments(side));
+        setMissingItems(await getMissingDocuments(side, context));
       } else if (tile === "Overdue Returns") {
         const rows = await getOverdueReturns();
         setReturnCards(rows.map((r) => ({
@@ -719,7 +719,7 @@ const FP_FALLBACK: FPCard[] = [
   { key: "fleet_availability", label: "Fleet Availability", value: "0%", pct: "0", up: true, sub: "0 vehicles available now", progress: 0 },
   { key: "urgent_alerts", label: "Urgent Alerts", value: "0", pct: "0", up: true, sub: "needs attention", progress: 0 },
 ];
-const FleetPerformance: React.FC<{ period: string; side?: string }> = ({ period, side }) => {
+const FleetPerformance: React.FC<{ period: string; side?: string; context?: string }> = ({ period, side, context }) => {
   const [live, setLive] = useState<FPCard[] | null>(null);
   const [compare, setCompare] = useState("vs last month");
   // Loader while a period switch (WTD/MTD/YTD) refetches, so the delay reads as
@@ -728,7 +728,7 @@ const FleetPerformance: React.FC<{ period: string; side?: string }> = ({ period,
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getStats(period, side === "vehicles" ? "vehicles" : "skyline").then((r) => {
+    getStats(period, context ? `vehicles_${context}` : side === "vehicles" ? "vehicles" : "skyline").then((r) => {
       if (cancelled || !r) return;
       setCompare(r.compare_label);
       const byKey = new Map(r.cards.map((c) => [c.key, c]));
@@ -744,7 +744,7 @@ const FleetPerformance: React.FC<{ period: string; side?: string }> = ({ period,
     return () => {
       cancelled = true;
     };
-  }, [period, side]);
+  }, [period, side, context]);
   // On Vehicle Management only Fleet Availability + Urgent Alerts are relevant.
   const all = live ?? FP_FALLBACK;
   const data = side === "vehicles" ? all.filter((c) => c.key === "fleet_availability" || c.key === "urgent_alerts") : all;
@@ -810,9 +810,10 @@ const SkylineVehiclesSlider: React.FC<{
   vehicles: SkyVehicle[]; // full list; the slider filters it by the status chips
   summary: { label: string; value: number; statusKey: string; className: string }[];
   statusSel: string[];
+  title: string; // side-aware heading (CAMS Vehicles / Skyline Vehicles)
   onToggleStatus: (key: string) => void;
   onClose: () => void;
-}> = ({ vehicles, summary, statusSel, onToggleStatus, onClose }) => {
+}> = ({ vehicles, summary, statusSel, title, onToggleStatus, onClose }) => {
   const shown = vehicles.filter((v) => !statusSel.length || statusSel.some((k) => skyMatches(v, k)));
   return (
     <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
@@ -853,7 +854,7 @@ const SkylineVehiclesSlider: React.FC<{
     </div>
   );
 };
-const SkylineOperations: React.FC = () => {
+const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
   const [regSel, setRegSel] = useState<string[]>([]);
   const [statusSel, setStatusSel] = useState<string[]>([]);
   const [dateSel, setDateSel] = useState<string[]>([]);
@@ -863,13 +864,13 @@ const SkylineOperations: React.FC = () => {
   const [vehicles, setVehicles] = useState<SkyVehicle[] | null>(null);
   useEffect(() => {
     let cancelled = false;
-    getFleetVehicles().then((r) => {
+    getFleetVehicles(context).then((r) => {
       if (!cancelled) setVehicles(r as SkyVehicle[] | null);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [context]);
   const data = vehicles ?? [];
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
     setter((s) => (s.includes(val) ? s.filter((x) => x !== val) : [...s, val]));
@@ -1030,7 +1031,7 @@ const RecordsSlider: React.FC<{
   </div>
 );
 const CAROUSEL_GAP = 24; // matches the track's gap-6
-const ExpiryCarousel: React.FC = () => {
+const ExpiryCarousel: React.FC<{ context?: string }> = ({ context }) => {
   const [expiries, setExpiries] = useState<Expiries | null>(null);
   const [servicing, setServicing] = useState<ServicingDue | null>(null);
   // Active bucket filter per card (keyed by title so all copies in the loop sync).
@@ -1040,16 +1041,16 @@ const ExpiryCarousel: React.FC = () => {
   const paused = Object.values(filters).some(Boolean) || sliderData !== null;
   useEffect(() => {
     let cancelled = false;
-    getExpiries().then((r) => {
+    getExpiries(context).then((r) => {
       if (!cancelled) setExpiries(r);
     });
-    getServicingDue().then((r) => {
+    getServicingDue(context).then((r) => {
       if (!cancelled) setServicing(r);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [context]);
   const servicingCard: Expiry = servicing
     ? {
         ...EXPIRY[0],
@@ -1220,18 +1221,18 @@ const COMPLIANCE: Comp[] = [
   { title: "Road Fund Licence", icon: <img src={RoadTaxIcon} alt="" className="size-8" />, overdue: 0, bar: 0, d7: 0, d30: 0 },
   { title: "Service", icon: <img src={ServiceIcon} alt="" className="size-8" />, overdue: 0, bar: 0, d7: 0, d30: 0 },
 ];
-const ComplianceSummary: React.FC = () => {
+const ComplianceSummary: React.FC<{ context?: string }> = ({ context }) => {
   // Live per-category compliance (matched by title); keeps the icons defined here.
   const [live, setLive] = useState<Compliance | null>(null);
   useEffect(() => {
     let cancelled = false;
-    getCompliance().then((r) => {
+    getCompliance(context).then((r) => {
       if (!cancelled) setLive(r);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [context]);
   const byTitle = new Map((live?.categories ?? []).map((c) => [c.title, c]));
   const data = COMPLIANCE.map((c) => {
     const l = byTitle.get(c.title);
@@ -1243,14 +1244,16 @@ const ComplianceSummary: React.FC = () => {
     <div className="col-span-12">
       {/* Category cards */}
       <div className="grid grid-cols-4 gap-3">
-        {data.map((c) => (
+        {data.map((c) => {
+          const pillTotal = (c.overdue || 0) + (c.d7 || 0) + (c.d30 || 0);
+          return (
           <div key={c.title} className="bg-white rounded-xl shadow-[0px_1px_4px_0px_rgba(0,0,0,0.05)] border border-neutral-200 px-5 pt-5 pb-4 flex flex-col">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 {c.icon}
                 <h4 className="text-neutral-900 text-sm font-weight-600 leading-5 truncate">{c.title}</h4>
               </div>
-              <span className="px-2 py-0.5 bg-neutral-100 rounded-full text-neutral-500 text-xs font-weight-600 leading-4 shrink-0">{c.total} total</span>
+              <span className="px-2 py-0.5 bg-neutral-100 rounded-full text-neutral-500 text-xs font-weight-600 leading-4 shrink-0">{pillTotal} total</span>
             </div>
             {/* Bar maps to the three stat boxes: red = overdue, orange = due within 7d,
                 amber = due within 30d; the emerald track shows the compliant remainder. */}
@@ -1274,7 +1277,8 @@ const ComplianceSummary: React.FC = () => {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1408,16 +1412,17 @@ const WeeklyPayment: React.FC = () => {
 };
 
 // ── page ──────────────────────────────────────────────────────────────────────
-const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles" }> = ({ side = "skyline" }) => {
+const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles"; context?: string }> = ({ side = "skyline", context }) => {
   // Full-screen loader while the dashboard's data loads (same as the other screens).
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("MTD"); // global period (drives Fleet Performance)
-  const taskModule = side === "vehicles" ? "vehicles" : "skyline";
+  // On VM the tasks/calendar are scoped per side (vehicles_cams / vehicles_skyline).
+  const taskModule = context ? `vehicles_${context}` : side === "vehicles" ? "vehicles" : "skyline";
   useEffect(() => {
     let cancelled = false;
     Promise.allSettled([
-      getStats("MTD"), getVehicleStatus(), getWeeklyPayments(), getExpiries(),
-      getCompliance(), getAttention(side), getHireTrend("WTD", ""),
+      getStats("MTD", taskModule), getVehicleStatus(context), getWeeklyPayments(), getExpiries(context),
+      getCompliance(context), getAttention(side, context), getHireTrend("WTD", ""),
       listFleetTasks({ module: taskModule, all_users: true }),
     ]).finally(() => {
       if (!cancelled) setLoading(false);
@@ -1425,21 +1430,21 @@ const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles" }> = ({ side = "s
     return () => {
       cancelled = true;
     };
-  }, [side, taskModule]);
+  }, [side, taskModule, context]);
   return (
     <div className="min-h-screen bg-white text-neutral-900 font-['Stack_Sans_Headline']">
       {loading && <FleetSpinnerLoader />}
       {/* Top bar */}
       <div className="sticky top-0 z-20 h-[80px] px-7 border-b border-[#eee] bg-white flex items-center justify-between">
         <span className="text-neutral-900 text-2xl font-weight-600 leading-6">Dashboard</span>
-        <FleetNotificationBell />
+        <FleetNotificationBell module={taskModule} />
       </div>
 
       {/* Content */}
       <div className="flex flex-col items-center">
         <div className="w-full max-w-[1440px] px-7 pt-6 pb-14">
           <div className="grid grid-cols-12 gap-x-4 gap-y-8">
-            {side === "vehicles" && <ComplianceSummary />}
+            {side === "vehicles" && <ComplianceSummary context={context} />}
             {/* Period toggle sits with Fleet Performance — it drives that card. */}
             <div className="col-span-12 flex flex-col gap-3">
               <div className="flex items-center">
@@ -1449,15 +1454,15 @@ const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles" }> = ({ side = "s
                   ))}
                 </div>
               </div>
-              <FleetPerformance period={period} side={side} />
+              <FleetPerformance period={period} side={side} context={context} />
             </div>
-            <AttentionRequired side={side} />
+            <AttentionRequired side={side} context={context} />
             {side !== "vehicles" && <HireTrend />}
             {side !== "vehicles" && <WeeklyPayment />}
-            {side === "vehicles" && <VehicleDonut side={side} />}
+            {side === "vehicles" && <VehicleDonut side={side} context={context} />}
             <TaskManagement module={taskModule} />
-            {side === "vehicles" && <ExpiryCarousel />}
-            {side === "vehicles" && <SkylineOperations />}
+            {side === "vehicles" && <ExpiryCarousel context={context} />}
+            {side === "vehicles" && <SkylineOperations context={context} />}
           </div>
         </div>
       </div>

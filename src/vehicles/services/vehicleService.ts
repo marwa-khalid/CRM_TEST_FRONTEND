@@ -12,9 +12,9 @@ export interface FleetVehicleRegister {
   is_active: boolean;
 }
 
-export const listVehicleRegister = async (): Promise<FleetVehicleRegister[]> => {
+export const listVehicleRegister = async (context?: string): Promise<FleetVehicleRegister[]> => {
   try {
-    const { data } = await fleetApi.get("/vehicles/vehicle-register");
+    const { data } = await fleetApi.get("/vehicles/vehicle-register", { params: { context } });
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
@@ -22,7 +22,7 @@ export const listVehicleRegister = async (): Promise<FleetVehicleRegister[]> => 
 };
 
 export const upsertVehicleRegister = async (
-  payload: Partial<FleetVehicleRegister> & { registration_number: string },
+  payload: Partial<FleetVehicleRegister> & { registration_number: string; context?: string },
 ): Promise<FleetVehicleRegister | null> => {
   try {
     const { data } = await fleetApi.post("/vehicles/vehicle-register", payload);

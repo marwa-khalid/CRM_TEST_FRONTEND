@@ -6,6 +6,7 @@ import AllTasksIcon from "../assets/dashboard//AllTasks.svg";
 import OverdueIcon from "../../assets/Dashboard/Overdue.svg";
 import CriticalIcon from "../../assets/Dashboard/Critical.svg";
 import PendingFollowupsIcon from "../../assets/Dashboard/PendingFollowups.svg";
+import InProgressIcon from "../assets/listingpage/progress.svg";
 import MOTIcon from "../assets/dashboard/MOT-Icon-Black.svg";
 import RoadTaxIcon from "../assets/dashboard/Road-Fund-Licence-Icon-Black.svg";
 import ServiceIcon from "../assets/dashboard/Service-Icon-Black.svg";
@@ -608,6 +609,7 @@ const TASK_COLS: TaskCol[] = [
   { count: 0, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [] },
   { count: 0, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: [] },
   { count: 0, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: [] },
+  { count: 0, label: "In Progress", icon: InProgressIcon, iconBg: "bg-amber-100", border: "border-amber-200", tasks: [] },
   { count: 0, label: "Pending Followups", icon: PendingFollowupsIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [] },
 ];
 // Map a live task to the card's { t, due, od } shape (matches the dummy format).
@@ -629,18 +631,21 @@ const fmtTask = (t: FleetTask): Task => {
 const buildTaskCols = (tasks: FleetTask[]): TaskCol[] => {
   const pick = (list: FleetTask[]) => list.slice(0, 6).map(fmtTask);
   const active = tasks.filter((t) => !["Completed", "Rejected"].includes(t.status || ""));
-  // Mutually exclusive: an overdue task shows only under Overdue, so nothing is
-  // listed in two columns. Pending Followups = pending tasks not yet overdue.
-  const overdue = tasks.filter((t) => t.is_overdue);
-  const awaiting = tasks.filter((t) => (t.status || "") === "Awaiting Response" && !t.is_overdue);
-  const pending = tasks.filter((t) => (t.status || "") === "Pending" && !t.is_overdue);
-  // All Tasks lists only what has no column of its own (e.g. In Progress); the
-  // Overdue / Awaiting / Pending tasks live under their own headings.
-  const uncovered = active.filter((t) => !t.is_overdue && (t.status || "") !== "Awaiting Response" && (t.status || "") !== "Pending");
+  // A COMPLETE partition of the active tasks: every task falls into exactly one of
+  // Overdue / Awaiting Response / In Progress / Pending Followups — so the four
+  // sub-counts always add up to All Tasks. Overdue wins over the status; Pending
+  // Followups is the catch-all for every remaining non-overdue task, so nothing is
+  // ever left uncounted.
+  const overdue = active.filter((t) => t.is_overdue);
+  const nonOverdue = active.filter((t) => !t.is_overdue);
+  const awaiting = nonOverdue.filter((t) => (t.status || "") === "Awaiting Response");
+  const inProgress = nonOverdue.filter((t) => (t.status || "") === "In Progress");
+  const pending = nonOverdue.filter((t) => (t.status || "") !== "Awaiting Response" && (t.status || "") !== "In Progress");
   return [
-    { count: active.length, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(uncovered) },
+    { count: active.length, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(active) },
     { count: overdue.length, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: pick(overdue) },
     { count: awaiting.length, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: pick(awaiting) },
+    { count: inProgress.length, label: "In Progress", icon: InProgressIcon, iconBg: "bg-amber-100", border: "border-amber-200", tasks: pick(inProgress) },
     { count: pending.length, label: "Pending Followups", icon: PendingFollowupsIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(pending) },
   ];
 };
@@ -662,7 +667,7 @@ const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
   return (
     <div className="col-span-12">
       <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-4">Task Management</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         {data.map((col) => (
         <div key={col.label} className="rounded-xl border border-neutral-200 p-4 flex flex-col gap-4 min-w-0">
           <button type="button" className="flex items-center gap-3 text-left">
@@ -716,7 +721,7 @@ type FPCard = { key: string; label: string; value: string; pct: string; up: bool
 const FP_FALLBACK: FPCard[] = [
   { key: "vehicles_on_hire", label: "Vehicles on Hire", value: "0", pct: "0", up: true, sub: "of 0 active vehicles", progress: 0 },
   { key: "net_income", label: "Net Income", value: "£0", pct: "0", up: true, sub: "Month to date", progress: 0 },
-  { key: "fleet_availability", label: "Fleet Availability", value: "0%", pct: "0", up: true, sub: "0 vehicles available now", progress: 0 },
+  { key: "fleet_availability", label: "Fleet Utilization", value: "0%", pct: "0", up: true, sub: "0 of 0 vehicles", progress: 0 },
   { key: "urgent_alerts", label: "Urgent Alerts", value: "0", pct: "0", up: true, sub: "needs attention", progress: 0 },
 ];
 const FleetPerformance: React.FC<{ period: string; side?: string; context?: string }> = ({ period, side, context }) => {
@@ -745,7 +750,7 @@ const FleetPerformance: React.FC<{ period: string; side?: string; context?: stri
       cancelled = true;
     };
   }, [period, side, context]);
-  // On Vehicle Management only Fleet Availability + Urgent Alerts are relevant.
+  // On Vehicle Management only Fleet Utilization + Urgent Alerts are relevant.
   const all = live ?? FP_FALLBACK;
   const data = side === "vehicles" ? all.filter((c) => c.key === "fleet_availability" || c.key === "urgent_alerts") : all;
   return (
@@ -779,7 +784,7 @@ const FleetPerformance: React.FC<{ period: string; side?: string; context?: stri
 
 // ── Skyline Operations (matches the Claims dashboard's Skyline Operations) ─────
 type SkyKey = "available" | "hire" | "off" | "repair" | "sale";
-type SkyVehicle = { registration: string; model: string; statusKey: SkyKey; statusLabel: string; hireInfo?: string; customer?: string; offHiredToday?: boolean };
+type SkyVehicle = { registration: string; model: string; statusKey: SkyKey; statusLabel: string; hireInfo?: string; customer?: string; reference?: string; offHiredToday?: boolean };
 // The "Off Hire" chip is a *daily* filter: it selects vehicles off-hired today (which are
 // now Available, shown with their Available tag), not a status. Every other chip matches statusKey.
 const skyMatches = (v: SkyVehicle, key: string) => (key === "off" ? !!v.offHiredToday : v.statusKey === key);
@@ -799,6 +804,7 @@ const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
         <div className="flex flex-col gap-1">
           <p className="text-xs font-weight-400 font-normal text-neutral-700">{v.hireInfo}</p>
           {v.customer && <p className="text-xs font-weight-400 font-normal text-neutral-500">{v.customer}</p>}
+          {v.reference && <p className="text-xs font-weight-400 font-normal text-neutral-500">{v.reference}</p>}
         </div>
       )}
     </div>
@@ -1040,7 +1046,6 @@ const ExpiryCarousel: React.FC<{ context?: string }> = ({ context }) => {
   const [filters, setFilters] = useState<Record<string, string | null>>({});
   // "View All" opens a right-side slider with the full record set for that card.
   const [sliderData, setSliderData] = useState<{ title: string; head: string[]; rows: (string | [string, string])[][] } | null>(null);
-  const paused = Object.values(filters).some(Boolean) || sliderData !== null;
   useEffect(() => {
     let cancelled = false;
     getExpiries(context).then((r) => {
@@ -1122,11 +1127,9 @@ const ExpiryCarousel: React.FC<{ context?: string }> = ({ context }) => {
     setIndex((i) => i + delta);
   }, []);
 
-  useEffect(() => {
-    if (paused) return; // pause autoplay while a card is filtered or the slider is open
-    const id = setInterval(() => advance(1), 7000);
-    return () => clearInterval(id);
-  }, [advance, paused]);
+  // Autoplay disabled — the carousel only moves when the user clicks the arrows.
+  // The triplicated track + onSettled snap-back below still give seamless looping
+  // in either direction from the arrows.
 
   // When a slide finishes on an edge copy, jump back into the middle set with no
   // animation so the motion always continues in one seamless direction. Guard

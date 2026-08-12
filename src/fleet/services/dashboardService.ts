@@ -108,6 +108,7 @@ export interface FleetVehicleRow {
   statusLabel: string;
   hireInfo?: string;
   customer?: string;
+  reference?: string; // the hire's reference (shown under the driver on the vehicle card)
 }
 // `context` (cams | skyline) scopes the list to one Vehicle Management side.
 export const getFleetVehicles = async (context?: string): Promise<FleetVehicleRow[] | null> => {

@@ -57,6 +57,18 @@ export interface StatsResponse {
 }
 
 // `period` is WTD | MTD | YTD (uppercased for the API). Returns null on failure.
+export interface ServicingDue {
+  tabs: { overdue: number; weekly: number; monthly: number };
+  rows: { overdue: PaymentRows; weekly: PaymentRows; monthly: PaymentRows };
+}
+export const getServicingDue = async (): Promise<ServicingDue | null> => {
+  try {
+    const { data } = await fleetApi.get("/fleet/dashboard/servicing-due");
+    return data as ServicingDue;
+  } catch {
+    return null;
+  }
+};
 export const getStats = async (period: string, module?: string): Promise<StatsResponse | null> => {
   try {
     const { data } = await fleetApi.get("/fleet/dashboard/stats", {

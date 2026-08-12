@@ -21,9 +21,9 @@ import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
 import FleetMissingDocumentsSlider from "../components/FleetMissingDocumentsSlider";
 import FleetAttentionSlider, { type AttentionCard } from "../components/FleetAttentionSlider";
 import {
-  getHireTrend, getStats, getVehicleStatus, getWeeklyPayments, getCompliance, getExpiries, getAttention,
+  getHireTrend, getStats, getVehicleStatus, getWeeklyPayments, getCompliance, getExpiries, getServicingDue, getAttention,
   getMissingDocuments, getOverdueReturns, getOverduePayments, getFleetVehicles,
-  type WeeklyPayments, type PaymentSummary, type Attention, type Compliance, type Expiries, type MissingDoc,
+  type WeeklyPayments, type PaymentSummary, type Attention, type Compliance, type Expiries, type ServicingDue, type MissingDoc,
 } from "../services/dashboardService";
 import { listFleetTasks, type FleetTask } from "../services/taskService";
 
@@ -1032,6 +1032,7 @@ const RecordsSlider: React.FC<{
 const CAROUSEL_GAP = 24; // matches the track's gap-6
 const ExpiryCarousel: React.FC = () => {
   const [expiries, setExpiries] = useState<Expiries | null>(null);
+  const [servicing, setServicing] = useState<ServicingDue | null>(null);
   // Active bucket filter per card (keyed by title so all copies in the loop sync).
   const [filters, setFilters] = useState<Record<string, string | null>>({});
   // "View All" opens a right-side slider with the full record set for that card.
@@ -1042,13 +1043,24 @@ const ExpiryCarousel: React.FC = () => {
     getExpiries().then((r) => {
       if (!cancelled) setExpiries(r);
     });
+    getServicingDue().then((r) => {
+      if (!cancelled) setServicing(r);
+    });
     return () => {
       cancelled = true;
     };
   }, []);
+  const servicingCard: Expiry = servicing
+    ? {
+        ...EXPIRY[0],
+        tabs: [["red", "Overdue", String(servicing.tabs.overdue)], ["orange", "Weekly", String(servicing.tabs.weekly)], ["violet", "Monthly", String(servicing.tabs.monthly)]],
+        buckets: servicing.rows,
+        rows: [...servicing.rows.overdue, ...servicing.rows.weekly, ...servicing.rows.monthly],
+      }
+    : EXPIRY[0];
   const cards: Expiry[] = expiries
     ? [
-        buildExpiryCard("Servicing Due", EXPIRY[0].icon, EXPIRY[0].span, expiries.service),
+        servicingCard,
         buildExpiryCard("MOT Expiry", motIcon, EXPIRY[1].span, expiries.mot),
         buildExpiryCard("Plate Expiry", plate, EXPIRY[2].span, expiries.plate),
         buildExpiryCard("Road Fund Licence", roadIcon, EXPIRY[3].span, expiries.road_fund),

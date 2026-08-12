@@ -728,7 +728,7 @@ const FleetPerformance: React.FC<{ period: string; side?: string }> = ({ period,
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getStats(period).then((r) => {
+    getStats(period, side === "vehicles" ? "vehicles" : "skyline").then((r) => {
       if (cancelled || !r) return;
       setCompare(r.compare_label);
       const byKey = new Map(r.cards.map((c) => [c.key, c]));
@@ -744,7 +744,7 @@ const FleetPerformance: React.FC<{ period: string; side?: string }> = ({ period,
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, side]);
   // On Vehicle Management only Fleet Availability + Urgent Alerts are relevant.
   const all = live ?? FP_FALLBACK;
   const data = side === "vehicles" ? all.filter((c) => c.key === "fleet_availability" || c.key === "urgent_alerts") : all;

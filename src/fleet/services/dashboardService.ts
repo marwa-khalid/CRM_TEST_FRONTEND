@@ -57,10 +57,10 @@ export interface StatsResponse {
 }
 
 // `period` is WTD | MTD | YTD (uppercased for the API). Returns null on failure.
-export const getStats = async (period: string): Promise<StatsResponse | null> => {
+export const getStats = async (period: string, module?: string): Promise<StatsResponse | null> => {
   try {
     const { data } = await fleetApi.get("/fleet/dashboard/stats", {
-      params: { period: period.toUpperCase() },
+      params: { period: period.toUpperCase(), module },
     });
     return data as StatsResponse;
   } catch {

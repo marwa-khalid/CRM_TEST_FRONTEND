@@ -159,7 +159,7 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
 
   const load = async () => {
     setLoading(true);
-    setTasks(await listFleetTasks({ module }));
+    setTasks(await listFleetTasks({ module, all_users: true }));
     setLoading(false);
   };
 
@@ -184,7 +184,8 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
       });
       return l === 0 ? (t > 0 ? 100 : 0) : Math.round(((t - l) / l) * 100);
     };
-    const byStatus = (label: string) => tasks.filter((t) => (t.status || "").toLowerCase() === label.toLowerCase());
+    // Overdue is its own bucket — an overdue task is NOT also counted under its status.
+    const byStatus = (label: string) => tasks.filter((t) => (t.status || "").toLowerCase() === label.toLowerCase() && !t.is_overdue);
     const overdue = tasks.filter((t) => t.is_overdue);
     return [
       { title: "Total Tasks", value: tasks.length, icon: TotalTasksIcon, bg: "bg-neutral-100", trend: trendFor(tasks), darkIcon: true },

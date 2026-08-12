@@ -20,6 +20,8 @@ const downloadBlob = (blob: Blob, filename: string) => {
 export interface VehicleRecord {
   id: number;
   hire_id?: number | null;
+  // Which Vehicle Management side this record belongs to ("cams" | "skyline").
+  context?: string | null;
   obtained_for_purpose?: string | null;
   contract_type?: string | null;
   company_owned_or_leased?: boolean | null;

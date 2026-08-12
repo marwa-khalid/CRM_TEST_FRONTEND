@@ -57,9 +57,11 @@ export interface StatsResponse {
 }
 
 // `period` is WTD | MTD | YTD (uppercased for the API). Returns null on failure.
+// Mileage-based: remaining = service_due_mileage − current_mileage. Rows are
+// [reg, current_mileage, service_due_at, [statusLabel, colour]].
 export interface ServicingDue {
-  tabs: { overdue: number; weekly: number; monthly: number };
-  rows: { overdue: PaymentRows; weekly: PaymentRows; monthly: PaymentRows };
+  tabs: { overdue: number; within_500: number; within_1000: number };
+  rows: { overdue: PaymentRows; within_500: PaymentRows; within_1000: PaymentRows };
 }
 // `context` (cams | skyline) scopes the card to one Vehicle Management side.
 export const getServicingDue = async (context?: string): Promise<ServicingDue | null> => {

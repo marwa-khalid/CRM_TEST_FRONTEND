@@ -820,7 +820,7 @@ const SkylineVehiclesSlider: React.FC<{
       <div className="flex-1 bg-black/30" onClick={onClose} />
       <div className="w-[920px] max-w-full bg-white h-full flex flex-col p-10 gap-6">
         <div className="flex justify-between items-start">
-          <h2 className="text-black text-2xl font-weight-600 leading-6">Skyline Vehicles</h2>
+          <h2 className="text-black text-2xl font-weight-600 leading-6">{title}</h2>
           <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
         </div>
         <div className="h-px bg-neutral-100 w-full" />
@@ -872,6 +872,8 @@ const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
     };
   }, [context]);
   const data = vehicles ?? [];
+  // Section heading follows the VM side so the CAMS page never reads "Skyline Vehicles".
+  const vehLabel = context === "cams" ? "CAMS Vehicles" : "Skyline Vehicles";
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
     setter((s) => (s.includes(val) ? s.filter((x) => x !== val) : [...s, val]));
   const regOptions = data.map((v) => ({ label: v.registration, value: v.registration }));
@@ -892,7 +894,7 @@ const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
   return (
     <section className="col-span-12 w-full rounded-lg border border-neutral-200 px-4 py-6 min-w-0">
       <div className="flex flex-col gap-10">
-        <h2 className="text-xl font-weight-600 leading-5 text-black">Skyline Vehicles</h2>
+        <h2 className="text-xl font-weight-600 leading-5 text-black">{vehLabel}</h2>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
@@ -933,7 +935,7 @@ const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
           )}
         </div>
       </div>
-      {sliderOpen && <SkylineVehiclesSlider vehicles={data} summary={summaryItems} statusSel={statusSel} onToggleStatus={(k) => toggle(setStatusSel, k)} onClose={() => setSliderOpen(false)} />}
+      {sliderOpen && <SkylineVehiclesSlider vehicles={data} summary={summaryItems} statusSel={statusSel} title={vehLabel} onToggleStatus={(k) => toggle(setStatusSel, k)} onClose={() => setSliderOpen(false)} />}
     </section>
   );
 };
@@ -953,11 +955,11 @@ const EXPIRY_BUCKETS = ["expired", "today", "d7", "d30"];
 // Cleared for now — Servicing Due shows no rows until it's wired to live data.
 const SERVICING_BUCKETS: Record<string, (string | [string, string])[][]> = {
   overdue: [],
-  weekly: [],
-  monthly: [],
+  within_500: [],
+  within_1000: [],
 };
 const EXPIRY: Expiry[] = [
-  { span: "col-span-12 lg:col-span-6", icon: serviceIcon, title: "Servicing Due", tabs: [["red", "Overdue", "0"], ["orange", "Weekly", "0"], ["violet", "Monthly", "0"]], bucketKeys: ["overdue", "weekly", "monthly"], head: ["Vehicle", "Current Mileage", "Overdue", "Driver"], buckets: SERVICING_BUCKETS, rows: [...SERVICING_BUCKETS.overdue, ...SERVICING_BUCKETS.weekly, ...SERVICING_BUCKETS.monthly] },
+  { span: "col-span-12 lg:col-span-6", icon: serviceIcon, title: "Servicing Due", tabs: [["red", "Overdue", "0"], ["orange", "Due within 500 mi", "0"], ["violet", "Due within 1,000 mi", "0"]], bucketKeys: ["overdue", "within_500", "within_1000"], head: ["Vehicle", "Current Mileage", "Service Due At", "Status"], buckets: SERVICING_BUCKETS, rows: [...SERVICING_BUCKETS.overdue, ...SERVICING_BUCKETS.within_500, ...SERVICING_BUCKETS.within_1000] },
   { span: "col-span-12 md:col-span-6 xl:col-span-4", icon: motIcon, title: "MOT Expiry", tabs: [["red", "Expired", "2"], ["gray", "Today", "1"], ["orange", "7 Days", "5"], ["violet", "30 Days", "13"]], head: ["Vehicle", "Expiry Date", "Remaining Days"], rows: [
     ["BX68 YZO", "12 May 2025", ["Expired", "red"]], ["VU18 KXL", "10 May 2025", ["Expired", "red"]], ["YL24 HBG", "13 May 2025", ["Today", "orange"]], ["FP21 KJU", "17 May 2025", ["4 days", "orange"]], ["MJ23 XTD", "18 May 2025", ["5 days", "orange"]]] },
   { span: "col-span-12 md:col-span-6 xl:col-span-4", icon: plate, title: "Plate Expiry", tabs: [["red", "Expired", "1"], ["orange", "7 Days", "3"], ["violet", "30 Days", "9"]], head: ["Vehicle", "Expiry Date", "Remaining Days"], rows: [
@@ -1054,9 +1056,9 @@ const ExpiryCarousel: React.FC<{ context?: string }> = ({ context }) => {
   const servicingCard: Expiry = servicing
     ? {
         ...EXPIRY[0],
-        tabs: [["red", "Overdue", String(servicing.tabs.overdue)], ["orange", "Weekly", String(servicing.tabs.weekly)], ["violet", "Monthly", String(servicing.tabs.monthly)]],
+        tabs: [["red", "Overdue", String(servicing.tabs.overdue)], ["orange", "Due within 500 mi", String(servicing.tabs.within_500)], ["violet", "Due within 1,000 mi", String(servicing.tabs.within_1000)]],
         buckets: servicing.rows,
-        rows: [...servicing.rows.overdue, ...servicing.rows.weekly, ...servicing.rows.monthly],
+        rows: [...servicing.rows.overdue, ...servicing.rows.within_500, ...servicing.rows.within_1000],
       }
     : EXPIRY[0];
   const cards: Expiry[] = expiries

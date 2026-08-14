@@ -1,4 +1,4 @@
-import { gbp, slash, longDate, m, d, cellBase, headBase, DocShell, DocHeader, SectionLabel, DocFooter } from "./docHelpers";
+import { gbp, shortSlash, d, m, packCell, packHead, DocShell, toNum } from "./docHelpers";
 
 export type StorageInvoiceRow = {
   provider?: string;
@@ -22,6 +22,8 @@ export type StorageRecoveryInvoiceDocData = {
   yourReference?: string;
   client?: string;
   billTo?: string;
+  vehicleRegistration?: string;
+  vehicleDescription?: string;
   storages?: StorageInvoiceRow[];
   recoveries?: RecoveryInvoiceRow[];
   total?: number;
@@ -30,129 +32,101 @@ export type StorageRecoveryInvoiceDocData = {
 const StorageRecoveryInvoiceDoc = ({ data }: { data: StorageRecoveryInvoiceDocData }) => {
   const storages = data.storages && data.storages.length ? data.storages : [];
   const recoveries = data.recoveries && data.recoveries.length ? data.recoveries : [];
+  const subTotal =
+    data.total ??
+    storages.reduce((sum, row) => sum + toNum(row.amount), 0) +
+      recoveries.reduce((sum, row) => sum + toNum(row.amount), 0);
+  const vat = subTotal * 0.2;
+  const totalDue = subTotal + vat;
 
   return (
     <DocShell>
-      <DocHeader
-        ourRef={data.ourReference}
-        yourRef={data.yourReference}
-        dated={slash(data.invoiceDate)}
-      />
-
-      <div className="self-stretch pt-7 flex justify-between items-end">
-        <div className="pt-3.5 pb-0.5 flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase leading-4">INVOICE · STORAGE &amp; RECOVERY</div>
-          <div className="text-base font-bold uppercase leading-5">STORAGE AND RECOVERY INVOICE</div>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="text-right text-[12px] font-weight-600 uppercase leading-3 tracking-wider">BILL TO</div>
-          <div className="text-right text-base font-weight-600 leading-5">{data.billTo || "—"}</div>
-        </div>
+      <div className="mt-[92px] w-[250px] text-[10px] leading-[1.35] whitespace-pre-line">
+        <div className="font-bold mb-2">Bill To:</div>
+        <div>{data.billTo || "—"}</div>
       </div>
 
-      <div className="self-stretch pt-3.5">
-        <table className="w-full border-collapse table-fixed">
-          <tbody>
-            <tr>
-              <td className={`${cellBase} w-1/2`}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Invoice No.:</span>
-                  <span className="text-xs font-bold text-right">{data.invoiceNumber || "—"}</span>
-                </div>
-              </td>
-              <td className={`${cellBase} w-1/2`}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Invoice Date:</span>
-                  <span className="text-xs font-bold text-right">{slash(data.invoiceDate)}</span>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td className={cellBase}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Client:</span>
-                  <span className="text-xs font-bold text-right">{data.client || "—"}</span>
-                </div>
-              </td>
-              <td className={cellBase}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Invoice Type:</span>
-                  <span className="text-xs font-bold text-right">Storage &amp; Recovery</span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="mt-10 grid grid-cols-[92px_1fr] gap-y-1 text-[10px] leading-[1.35]">
+        <div>Invoice Date:</div>
+        <div>{shortSlash(data.invoiceDate)}</div>
+        <div>Invoice Number:</div>
+        <div>{data.invoiceNumber || "—"}</div>
       </div>
 
-      <SectionLabel no="01." title="STORAGE CHARGES" />
-      <table className="w-full border-collapse">
+      <h1 className="mt-3 mb-3 text-center text-[16px] font-bold tracking-wide">
+        STORAGE &amp; RECOVERY INVOICE
+      </h1>
+
+      <table className="w-[470px] mx-auto border-collapse table-fixed mb-5">
         <thead>
           <tr>
-            <th className={`${headBase} text-left`}>Storage Provider</th>
-            <th className={`${headBase} text-left w-24`}>Start Date</th>
-            <th className={`${headBase} text-left w-24`}>End Date</th>
-            <th className={`${headBase} text-right w-14`}>Days</th>
-            <th className={`${headBase} text-right w-24`}>Daily Rate</th>
-            <th className={`${headBase} text-right w-24`}>Amount</th>
+            <th className={`${packHead} w-[33%] text-center`}>Client</th>
+            <th className={`${packHead} w-[33%] text-center`}>Vehicle<br />Registration</th>
+            <th className={`${packHead} w-[34%] text-center`}>Vehicle Description</th>
           </tr>
         </thead>
         <tbody>
-          {storages.length ? (
-            storages.map((row, index) => (
-              <tr key={index}>
-                <td className={cellBase}>{d(row.provider)}</td>
-                <td className={cellBase}>{longDate(row.startDate)}</td>
-                <td className={cellBase}>{longDate(row.endDate)}</td>
-                <td className={`${cellBase} text-right`}>{d(row.days)}</td>
-                <td className={`${cellBase} text-right`}>{m(row.rate)}</td>
-                <td className={`${cellBase} text-right`}>{m(row.amount)}</td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td className={`${cellBase} text-center`} colSpan={6}>No storage charges</td>
-            </tr>
-          )}
+          <tr>
+            <td className={`${packCell} text-center`}>{data.client || "—"}</td>
+            <td className={`${packCell} text-center whitespace-pre-line`}>{data.vehicleRegistration || "—"}</td>
+            <td className={`${packCell} text-center whitespace-pre-line`}>{data.vehicleDescription || "—"}</td>
+          </tr>
         </tbody>
       </table>
 
-      <SectionLabel no="02." title="RECOVERY CHARGES" />
-      <table className="w-full border-collapse">
+      <table className="w-[560px] mx-auto border-collapse table-fixed">
         <thead>
           <tr>
-            <th className={`${headBase} text-left`}>Recovery Provider</th>
-            <th className={`${headBase} text-left w-32`}>Recovery Date</th>
-            <th className={`${headBase} text-right w-32`}>Amount</th>
+            <th className={`${packHead} text-center`}>Details</th>
+            <th className={`${packHead} text-center w-[130px]`}>Amount</th>
           </tr>
         </thead>
         <tbody>
-          {recoveries.length ? (
-            recoveries.map((row, index) => (
-              <tr key={index}>
-                <td className={cellBase}>{d(row.provider)}</td>
-                <td className={cellBase}>{longDate(row.recoveryDate)}</td>
-                <td className={`${cellBase} text-right`}>{m(row.amount)}</td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td className={`${cellBase} text-center`} colSpan={3}>No recovery charges</td>
+          {recoveries.length ? recoveries.map((row, index) => (
+            <tr key={`recovery-${index}`}>
+              <td className={packCell}>
+                Vehicle Recovered to Nationwide Assist
+                {row.provider ? ` by ${row.provider}` : ""}
+                {row.recoveryDate ? ` on ${shortSlash(row.recoveryDate)}` : ""}
+              </td>
+              <td className={`${packCell} text-right`}>{m(row.amount)}</td>
             </tr>
-          )}
+          )) : null}
+          {storages.length ? storages.map((row, index) => (
+            <tr key={`storage-${index}`}>
+              <td className={packCell}>
+                Vehicle stored at Nationwide Assist at {m(row.rate)} per day for {d(row.days)} days
+                {row.startDate || row.endDate ? ` from ${shortSlash(row.startDate)} until ${shortSlash(row.endDate)}` : ""}
+              </td>
+              <td className={`${packCell} text-right`}>{m(row.amount)}</td>
+            </tr>
+          )) : null}
+          {!recoveries.length && !storages.length ? (
+            <tr>
+              <td className={`${packCell} text-center`}>No storage or recovery charges</td>
+              <td className={`${packCell} text-right`}>{gbp(0)}</td>
+            </tr>
+          ) : null}
+          <tr>
+            <td className={`${packCell} border-none`} />
+            <td className={`${packCell} bg-white font-bold`}>
+              <div className="flex justify-between"><span>Sub Total</span><span>{gbp(subTotal)}</span></div>
+            </td>
+          </tr>
+          <tr>
+            <td className={`${packCell} border-none`} />
+            <td className={`${packCell} bg-white font-bold`}>
+              <div className="flex justify-between"><span>VAT</span><span>{gbp(vat)}</span></div>
+            </td>
+          </tr>
+          <tr>
+            <td className={`${packCell} border-none`} />
+            <td className={`${packCell} bg-[#d9d9d9] font-bold`}>
+              <div className="flex justify-between"><span>TOTAL</span><span>{gbp(totalDue)}</span></div>
+            </td>
+          </tr>
         </tbody>
       </table>
-
-      <div className="self-stretch pt-2.5 flex flex-col items-end">
-        <div className="w-72 flex flex-col">
-          <div className="pt-[5px] border-t-2 border-black flex justify-between items-center">
-            <span className="text-xs font-bold uppercase leading-4">TOTAL DUE</span>
-            <span className="text-xs font-bold leading-4">{gbp(data.total || 0)}</span>
-          </div>
-        </div>
-      </div>
-
-      <DocFooter label="Storage and Recovery Invoice" />
     </DocShell>
   );
 };

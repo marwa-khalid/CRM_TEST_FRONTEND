@@ -26,11 +26,47 @@ import CoveringLetterForm from "./CoveringLetterForm";
 import FrontCoverForm from "./FrontCoverForm";
 import HirePeriodValidationForm from "./HirePeriodValidationForm";
 import StorageRecoveryInvoiceForm from "./StorageRecoveryInvoiceForm";
+import { useCurrentUser } from "../../../context/AuthContext";
 
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
 
 const toF = (v: any): number => parseFloat(String(v ?? 0)) || 0;
+
+const fullName = (...parts: any[]) =>
+  parts
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+
+const thirdPartyInsurerName = (insurer: any) =>
+  fullName(insurer?.company_name, insurer?.first_name, insurer?.surname);
+
+const thirdPartyInsurerBillTo = (insurer: any) =>
+  [
+    thirdPartyInsurerName(insurer),
+    insurer?.address?.address,
+    insurer?.address?.postcode,
+  ]
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join("\n");
+
+type PlatingLine = {
+  privateHireMot: number;
+  privateHirePlatingCosts: number;
+  hasValues: boolean;
+};
+
+const hasChargeValue = (v: any) => v !== undefined && v !== null && v !== "";
+
+const parsePlatingLine = (data: any): PlatingLine => ({
+  privateHireMot: toF(data?.private_hire_mot_cost),
+  privateHirePlatingCosts: toF(data?.private_hire_plating_fee),
+  hasValues:
+    hasChargeValue(data?.private_hire_mot_cost) ||
+    hasChargeValue(data?.private_hire_plating_fee),
+});
 
 
 function addDays(dateStr: string, days: number): string {
@@ -56,6 +92,7 @@ function dateToISO(d: Date): string {
 // ─── main component ────────────────────────────────────────────────────────────
 
 const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
+  const { user } = useCurrentUser();
 
   // ABI base rates (read-only, from hire records)
   // ABI hire = Σ(each vehicle's rate × its days). For one vehicle this is rate × days.
@@ -113,6 +150,9 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   );
   const packVehicles = packPairs.map((p) => p.v) as ClaimVehicle[];
   const packRecords = packPairs.map((p) => p.rec);
+  const packVehicleIds = packVehicles
+    .map((v: any, i) => String(v?.id ?? `idx-${i}`))
+    .join("|");
 
   // Document-only claim data: policy number + insurer (TPI), client (Screen 3),
   // and incident date (accident details).
@@ -120,8 +160,10 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     if (!claimId) return;
     getThirdPartyInsurer(claimId)
       .then((res: any) => {
+        const insurer = res?.data?.third_party_insurer;
         setPolicyNumber(res?.data?.policy_number || "");
-        setInsurerName(res?.data?.third_party_insurer?.first_name || "");
+        setInsurerName(thirdPartyInsurerName(insurer));
+        setInsurerBillTo(thirdPartyInsurerBillTo(insurer));
         setInsurerReference(res?.data?.insurer_reference || "");
       })
       .catch(() => {});
@@ -136,7 +178,11 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       .catch(() => {});
   }, [claimId]);
 
-  const signatory = "Akeel rehman";
+  const signatory =
+    user?.name ||
+    user?.email?.split("@")[0] ||
+    (localStorage.getItem("pendingLoginEmail") || "").split("@")[0] ||
+    "";
   const perVehicle = packVehicles.length >= 2;
 
   // Date picker visibility state
@@ -186,12 +232,15 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   // Claim data sourced for the documents (read-only).
   const [policyNumber, setPolicyNumber] = useState("");
   const [insurerName, setInsurerName] = useState("");
+  const [insurerBillTo, setInsurerBillTo] = useState("");
   const [insurerReference, setInsurerReference] = useState("");
   const [clientName, setClientName] = useState("");
   const [incidentDate, setIncidentDate] = useState("");
   const [caseReference, setCaseReference] = useState("");
   const [platingMot, setPlatingMot] = useState(0);
   const [platingFee, setPlatingFee] = useState(0);
+  const [platingByVehicle, setPlatingByVehicle] = useState<Record<string, PlatingLine>>({});
+  const [automaticCharge, setAutomaticCharge] = useState(5);
   const [repairCost, setRepairCost] = useState(0);
   const [vehicleCatMap, setVehicleCatMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
@@ -382,6 +431,11 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       .then(({ data }: any) => {
         setPlatingMot(toF(data?.private_hire_mot_cost));
         setPlatingFee(toF(data?.private_hire_plating_fee));
+        setAutomaticCharge(
+          data?.automatic !== undefined && data?.automatic !== null && data?.automatic !== ""
+            ? toF(data.automatic)
+            : 5,
+        );
       })
       .catch(() => {});
 
@@ -402,6 +456,52 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       })
       .catch(() => {});
   }, [claimId]);
+
+  useEffect(() => {
+    if (!claimId || !packVehicles.length) {
+      setPlatingByVehicle({});
+      return;
+    }
+
+    let cancelled = false;
+
+    Promise.all(
+      packVehicles.map(async (vehicle: any, index) => {
+        const key = String(vehicle?.id ?? `idx-${index}`);
+        let values = parsePlatingLine(null);
+
+        if (vehicle?.id != null) {
+          try {
+            const { data } = await getPlatingCharges(claimId, vehicle.id);
+            values = parsePlatingLine(data);
+          } catch {
+            values = parsePlatingLine(null);
+          }
+        }
+
+        // Older single-vehicle claims were saved at claim level before plating
+        // became per-vehicle, so keep those values visible in the invoice form.
+        if (!values.hasValues) {
+          try {
+            const { data } = await getPlatingCharges(claimId);
+            const claimLevelValues = parsePlatingLine(data);
+            if (claimLevelValues.hasValues) values = claimLevelValues;
+          } catch {
+            // Leave this vehicle empty if neither source has plating values.
+          }
+        }
+
+        return [key, values] as const;
+      }),
+    ).then((entries) => {
+      if (!cancelled) setPlatingByVehicle(Object.fromEntries(entries));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claimId, packVehicleIds]);
 
   // Load saved Payment Pack Sent Detail
   useEffect(() => {
@@ -587,16 +687,23 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       invoiceNumber: formik.values.invoice_number || "",
       invoiceDate: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
       client: clientName || rec?.client_name || "",
-      billTo: insurerName,
+      billTo: insurerBillTo || insurerName,
       registration: vv?.registration || rec?.registration_number || rec?.hire_vehicle_registration || "",
       make: vv?.make || rec?.make || "",
       model: vv?.model || rec?.model || "",
+      group:
+        vehicleCatMap[rec?.actual_vehicle_category_id] ||
+        rec?.actual_vehicle_category?.label ||
+        rec?.vehicle_group || "",
       hireStart: String(rec?.hire_start_date || rec?.hire_out || "").slice(0, 10),
       hireEnd: String(rec?.hire_end_date || rec?.hire_back || "").slice(0, 10),
       totalHireDays: days || "",
       basicHireDays: days || "",
       basicHireRate: bhrRate,
       basicHireAmount: bhrHire,
+      automaticDays: firstCard ? noOfDays : undefined,
+      automaticRate: firstCard ? automaticCharge : undefined,
+      automaticAmount: firstCard ? noOfDays * automaticCharge : undefined,
       cdwAmount: firstCard ? 60 : undefined,
       collectionAmount: firstCard ? 60 : undefined,
       adminAmount: firstCard ? (bhrAdminFee || 60) : undefined,
@@ -621,6 +728,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       totalHireDays: days || "",
       abiRatePerDay: rec ? toF(rec.abi_hire_charge_per_day) : (noOfDays ? abiDailyRate / noOfDays : undefined),
       extras: (perVehicle && rec ? toF(rec.abi_extra_charges_per_day) : abiExtraCharges) || undefined,
+      automatic: automaticCharge,
       vehicle: [vv?.make || rec?.make, vv?.model || rec?.model].filter(Boolean).join(" "),
       registration: vv?.registration || rec?.registration_number || rec?.hire_vehicle_registration || "",
       dated: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
@@ -630,6 +738,9 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const platingPrefills = packVehicles.map((v, i) => {
     const rec = packRecords[i] as any;
     const vv = v as any;
+    const line = platingByVehicle[String(vv?.id ?? `idx-${i}`)];
+    const mot = line?.hasValues ? line.privateHireMot : platingMot;
+    const fee = line?.hasValues ? line.privateHirePlatingCosts : platingFee;
     return {
       ourReference: caseReference,
       yourReference: insurerReference,
@@ -638,10 +749,10 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       registration: vv?.registration || rec?.registration_number || rec?.hire_vehicle_registration || "",
       make: vv?.make || rec?.make || "",
       model: vv?.model || rec?.model || "",
-      privateHireMot: platingMot || undefined,
-      privateHirePlatingCosts: platingFee || undefined,
+      privateHireMot: mot || undefined,
+      privateHirePlatingCosts: fee || undefined,
       client: clientName || rec?.client_name || "",
-      billTo: insurerName,
+      billTo: insurerBillTo || insurerName,
     };
   });
 
@@ -651,7 +762,15 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     invoiceNumber: formik.values.invoice_number || "",
     invoiceDate: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
     client: clientName,
-    billTo: insurerName,
+    billTo: insurerBillTo || insurerName,
+    vehicleRegistration: packVehicles.map((v: any, i: number) => {
+      const rec = packRecords[i] as any;
+      return v?.registration || rec?.registration_number || rec?.hire_vehicle_registration || "";
+    }).filter(Boolean).join("\n"),
+    vehicleDescription: packVehicles.map((v: any, i: number) => {
+      const rec = packRecords[i] as any;
+      return [v?.make || rec?.make, v?.model || rec?.model].filter(Boolean).join(" ");
+    }).filter(Boolean).join("\n"),
     storages: storageInvoiceRows.map((row: any) => ({
       provider: row?.storage_provider || row?.name || "",
       startDate: String(row?.start_date || "").slice(0, 10),
@@ -723,7 +842,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             yourReference: insurerReference,
             policyNumber,
             incidentDate,
-            billTo: insurerName,
+            billTo: insurerBillTo || insurerName,
             caseType: packVehicles.length > 1 ? "Multiple Vehicles" : "Single Vehicle",
             dated: String(
               formik.values.payment_pack_raised_date || dateToISO(new Date()),

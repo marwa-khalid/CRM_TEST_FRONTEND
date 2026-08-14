@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PackScreen, Section, Text, DateField, ReadField, toNum, gbp, money } from "./paymentPackUi";
 import PlatingInvoiceDoc, { type PlatingDocVehicle } from "./PlatingInvoiceDoc";
 import VehicleCards from "./VehicleCards";
@@ -33,6 +33,8 @@ const PlatingInvoiceForm = ({
 }) => {
   // All local to this form — editing/deleting never touches the actual claim.
   const list = prefills && prefills.length ? prefills : [prefill];
+  const prefillSignature = JSON.stringify(list);
+  const lastPrefillSignature = useRef(prefillSignature);
   const [shared, setShared] = useState({
     ourReference: list[0].ourReference || "",
     billTo: list[0].billTo || "",
@@ -50,6 +52,23 @@ const PlatingInvoiceForm = ({
   });
   const [vForms, setVForms] = useState(list.map(initV));
   const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (lastPrefillSignature.current === prefillSignature) return;
+    lastPrefillSignature.current = prefillSignature;
+    setShared({
+      ourReference: list[0].ourReference || "",
+      billTo: list[0].billTo || "",
+      invoiceDate: list[0].invoiceDate || "",
+      invoiceNumber: list[0].invoiceNumber || "",
+      yourReference: list[0].yourReference || "",
+      client: list[0].client || "",
+    });
+    setVForms(list.map(initV));
+    setActive(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillSignature]);
+
   const SHARED_KEYS = new Set([
     "ourReference", "billTo", "invoiceDate", "invoiceNumber", "yourReference", "client",
   ]);

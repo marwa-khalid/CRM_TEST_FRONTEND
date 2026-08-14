@@ -1,4 +1,4 @@
-import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
+ import { useReportCompletion, isAllFilled } from "../Components/ClaimCompletion";
 import {
   useState,
   useEffect,

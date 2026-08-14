@@ -23,6 +23,7 @@ export type CreditHireInvoicePrefill = {
   registration?: string;
   make?: string;
   model?: string;
+  group?: string;
   basicHireDays?: string | number;
   basicHireRate?: number;
   basicHireAmount?: number;
@@ -33,6 +34,9 @@ export type CreditHireInvoicePrefill = {
   collectionAmount?: number;
   adminRate?: number;
   adminAmount?: number;
+  automaticDays?: string | number;
+  automaticRate?: number;
+  automaticAmount?: number;
   yourReference?: string;
   billTo?: string;
   // Read-only rows for the other vehicles on the claim (printed under the
@@ -122,6 +126,7 @@ const CreditHireInvoiceForm = ({
     registration: p.registration || "",
     make: p.make || "",
     model: p.model || "",
+    group: p.group || "",
     basicHireDays: String(p.basicHireDays ?? ""),
     basicHireRate: money(p.basicHireRate),
     basicHireAmount: money(p.basicHireAmount),
@@ -132,6 +137,9 @@ const CreditHireInvoiceForm = ({
     collectionAmount: money(p.collectionAmount),
     adminRate: money(p.adminRate),
     adminAmount: money(p.adminAmount),
+    automaticDays: String(p.automaticDays ?? ""),
+    automaticRate: money(p.automaticRate),
+    automaticAmount: money(p.automaticAmount),
   });
   const [vForms, setVForms] = useState(list.map(initV));
   const [active, setActive] = useState(0);
@@ -163,7 +171,7 @@ const CreditHireInvoiceForm = ({
   );
 
   const subTotal =
-    toNum(f.basicHireAmount) + toNum(f.cdwAmount) + toNum(f.collectionAmount) + toNum(f.adminAmount);
+    toNum(f.basicHireAmount) + toNum(f.cdwAmount) + toNum(f.collectionAmount) + toNum(f.adminAmount) + toNum(f.automaticAmount);
   const vat = subTotal * 0.2;
   const totalDue = subTotal + vat;
 
@@ -173,6 +181,7 @@ const CreditHireInvoiceForm = ({
   const docVehicles: CreditHireDocVehicle[] = vForms.map((vf) => ({
     vehicle: [vf.make, vf.model].filter(Boolean).join(" "),
     registration: vf.registration,
+    group: vf.group,
     hireStart: vf.hireStart,
     hireEnd: vf.hireEnd,
     days: vf.totalHireDays,
@@ -180,12 +189,13 @@ const CreditHireInvoiceForm = ({
   // Per-vehicle charge lists (same labels/order for every vehicle) + subtotals.
   const vehicleCharges: CreditHireDocCharge[][] = vForms.map((vf) => [
     { label: "Basic Hire Rate", days: vf.basicHireDays, rate: vf.basicHireRate, amount: vf.basicHireAmount },
-    { label: "Collision Damage Waiver", days: vf.cdwDays, rate: vf.cdwRate, amount: vf.cdwAmount },
     { label: "Collection & Delivery Charge", rate: vf.collectionRate, amount: vf.collectionAmount },
     { label: "Admin Fee", rate: vf.adminRate, amount: vf.adminAmount },
+    { label: "Automatic", days: vf.automaticDays, rate: vf.automaticRate, amount: vf.automaticAmount },
+    { label: "Collision Damage Waiver", days: vf.cdwDays, rate: vf.cdwRate, amount: vf.cdwAmount },
   ]);
   const vehicleSubtotals = vForms.map(
-    (vf) => toNum(vf.basicHireAmount) + toNum(vf.cdwAmount) + toNum(vf.collectionAmount) + toNum(vf.adminAmount),
+    (vf) => toNum(vf.basicHireAmount) + toNum(vf.cdwAmount) + toNum(vf.collectionAmount) + toNum(vf.adminAmount) + toNum(vf.automaticAmount),
   );
   const allVehiclesSub = vehicleSubtotals.reduce((a, b) => a + b, 0);
   const allVehiclesVat = allVehiclesSub * 0.2;
@@ -272,12 +282,6 @@ const CreditHireInvoiceForm = ({
             amount={f.basicHireAmount} onAmount={(v) => set("basicHireAmount", v)}
           />
           <ChargeRow
-            label="Collision Damage Waiver"
-            days={f.cdwDays} onDays={(v) => set("cdwDays", v)}
-            rate={f.cdwRate} onRate={(v) => set("cdwRate", v)}
-            amount={f.cdwAmount} onAmount={(v) => set("cdwAmount", v)}
-          />
-          <ChargeRow
             label="Collection & Delivery Charge" showDays={false}
             rate={f.collectionRate} onRate={(v) => set("collectionRate", v)}
             amount={f.collectionAmount} onAmount={(v) => set("collectionAmount", v)}
@@ -286,6 +290,18 @@ const CreditHireInvoiceForm = ({
             label="Admin Fee" showDays={false}
             rate={f.adminRate} onRate={(v) => set("adminRate", v)}
             amount={f.adminAmount} onAmount={(v) => set("adminAmount", v)}
+          />
+          <ChargeRow
+            label="Automatic"
+            days={f.automaticDays} onDays={(v) => set("automaticDays", v)}
+            rate={f.automaticRate} onRate={(v) => set("automaticRate", v)}
+            amount={f.automaticAmount} onAmount={(v) => set("automaticAmount", v)}
+          />
+          <ChargeRow
+            label="Collision Damage Waiver"
+            days={f.cdwDays} onDays={(v) => set("cdwDays", v)}
+            rate={f.cdwRate} onRate={(v) => set("cdwRate", v)}
+            amount={f.cdwAmount} onAmount={(v) => set("cdwAmount", v)}
           />
 
           <div className="self-stretch h-px bg-neutral-100" />

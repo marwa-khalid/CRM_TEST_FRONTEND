@@ -15,6 +15,7 @@ export type ABIHireBreakdownPrefill = {
   totalHireDays?: string | number;
   abiRatePerDay?: number;
   extras?: number;
+  automatic?: number;
   towBar?: number;
   dualControl?: number;
   other?: number;
@@ -49,6 +50,7 @@ const ABIHireBreakdownForm = ({
     totalHireDays: String(p.totalHireDays ?? ""),
     abiRatePerDay: money(p.abiRatePerDay),
     extras: money(p.extras),
+    automatic: money(p.automatic),
     towBar: money(p.towBar),
     dualControl: money(p.dualControl),
     other: money(p.other),
@@ -77,13 +79,13 @@ const ABIHireBreakdownForm = ({
   );
 
   // Derived totals (active vehicle — drives the single-vehicle document).
-  const totalAdditionalDaily = toNum(f.extras) + toNum(f.towBar) + toNum(f.dualControl) + toNum(f.other);
+  const totalAdditionalDaily = toNum(f.extras) + toNum(f.automatic) + toNum(f.towBar) + toNum(f.dualControl) + toNum(f.other);
   const totalDailyABIRate = toNum(f.abiRatePerDay) + totalAdditionalDaily;
   const totalABICosts = totalDailyABIRate * toNum(f.totalHireDays);
 
   // Per-vehicle breakdown for the multi-vehicle document (natural order, 1..N).
   const vehiclesData = vForms.map((vf) => {
-    const addl = toNum(vf.extras) + toNum(vf.towBar) + toNum(vf.dualControl) + toNum(vf.other);
+    const addl = toNum(vf.extras) + toNum(vf.automatic) + toNum(vf.towBar) + toNum(vf.dualControl) + toNum(vf.other);
     const dailyRate = toNum(vf.abiRatePerDay) + addl;
     const cost = dailyRate * toNum(vf.totalHireDays);
     return {
@@ -94,6 +96,8 @@ const ABIHireBreakdownForm = ({
       hireEnd: vf.hireEnd,
       days: vf.totalHireDays,
       abiHireRate: toNum(vf.abiRatePerDay),
+      extras: toNum(vf.extras),
+      automatic: toNum(vf.automatic),
       towBar: toNum(vf.towBar),
       dualControl: toNum(vf.dualControl),
       totalAdditionalDaily: addl,
@@ -118,6 +122,7 @@ const ABIHireBreakdownForm = ({
         days: f.totalHireDays,
         abiHireRate: toNum(f.abiRatePerDay),
         extras: toNum(f.extras),
+        automatic: toNum(f.automatic),
         towBar: toNum(f.towBar),
         dualControl: toNum(f.dualControl),
         other: toNum(f.other),
@@ -171,6 +176,9 @@ const ABIHireBreakdownForm = ({
         <div className="flex gap-4">
           <Text label="ABI Hire Rate per day £" value={f.abiRatePerDay} onChange={(v) => set("abiRatePerDay", v)} placeholder="£0.00" />
           <Text label="Extras (Daily Rate)" value={f.extras} onChange={(v) => set("extras", v)} placeholder="£0.00" />
+        </div>
+        <div className="flex gap-4">
+          <Text label="Automatic" value={f.automatic} onChange={(v) => set("automatic", v)} placeholder="£0.00" />
         </div>
         <div className="flex gap-4">
           <Text label="Tow Bar" value={f.towBar} onChange={(v) => set("towBar", v)} placeholder="£0.00" />

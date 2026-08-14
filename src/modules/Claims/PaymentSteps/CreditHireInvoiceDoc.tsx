@@ -1,17 +1,11 @@
-import { gbp, slash, longDate, m, d, cellBase, headBase, DocShell, DocHeader, SectionLabel, DocFooter } from "./docHelpers";
-
-// Print/PDF document for the Credit Hire Invoice (rendered only for Print /
-// Download / Email — never shown on screen). Values come from the edited form.
-// Single vehicle: one flat Hire Charges table (Details / Days / Daily Rate / Amount).
-// Multiple vehicles: the Vehicle & Hire Period table numbers each vehicle and the
-// Hire Charges table groups Days/Rate/Amount columns per vehicle with a per-vehicle
-// subtotal row — matching the "vehicle swap" figma.
+import { gbp, shortSlash, m, d, packCell, packHead, DocShell, toNum } from "./docHelpers";
 
 export type CreditHireDocVehicle = {
   vehicle?: string;
   registration?: string;
-  hireStart?: string; // YYYY-MM-DD
-  hireEnd?: string; // YYYY-MM-DD
+  group?: string;
+  hireStart?: string;
+  hireEnd?: string;
   days?: string | number;
 };
 
@@ -25,13 +19,12 @@ export type CreditHireDocCharge = {
 export type CreditHireDocData = {
   ourReference?: string;
   invoiceNumber?: string;
-  invoiceDate?: string; // YYYY-MM-DD
+  invoiceDate?: string;
   yourReference?: string;
   client?: string;
   billTo?: string;
   vehicles?: CreditHireDocVehicle[];
-  charges?: CreditHireDocCharge[]; // single-vehicle flat table
-  // Multi-vehicle: one charge list per vehicle (same labels/order) + per-vehicle subtotal.
+  charges?: CreditHireDocCharge[];
   vehicleCharges?: CreditHireDocCharge[][];
   vehicleSubtotals?: number[];
   subTotal?: number;
@@ -39,215 +32,159 @@ export type CreditHireDocData = {
   totalDue?: number;
 };
 
-// Header cell for the grouped per-vehicle column (two lines: vehicle then dates).
-// headBase's tall line-height would over-inflate a two-line cell, so this uses
-// its own compact leading.
-const groupHeadCls =
-  "border border-black px-1.5 py-1 bg-gray-200 text-black text-center align-middle";
+const vehicleLines = (items: CreditHireDocVehicle[], key: "registration" | "vehicle") =>
+  items.map((v) => d(v[key])).join("\n");
+
+const chargeHead =
+  "border border-black bg-[#d9d9d9] px-1.5 py-1 text-[9px] font-bold leading-[1.25] align-middle";
+const chargeCell = "px-1.5 py-2 text-[9px] leading-[1.35] align-middle";
+const separatedChargeCell = `${chargeCell} border-t border-black`;
+
+const buildChargeRows = (
+  vehicles: CreditHireDocVehicle[],
+  charges: CreditHireDocCharge[],
+  vehicleCharges?: CreditHireDocCharge[][],
+) => {
+  if (!vehicleCharges?.length) return charges;
+
+  const sumAmounts = (label: string) =>
+    vehicleCharges.reduce((sum, rows) => {
+      const row = (rows || []).find((charge) => charge.label === label);
+      return sum + toNum(row?.amount);
+    }, 0);
+  const firstFor = (label: string) =>
+    vehicleCharges.flat().find((charge) => charge.label === label && (charge.days || charge.rate || charge.amount));
+  const commonRow = (label: string): CreditHireDocCharge | null => {
+    const first = firstFor(label);
+    const amount = sumAmounts(label);
+    if (!first && !amount) return null;
+    return {
+      label,
+      days: first?.days,
+      rate: first?.rate,
+      amount,
+    };
+  };
+
+  const rows: CreditHireDocCharge[] = [];
+  vehicles.forEach((vehicle, vehicleIndex) => {
+    const charge = (vehicleCharges[vehicleIndex] || []).find((row) => row.label === "Basic Hire Rate");
+    if (!charge) return;
+    const days = charge.days || vehicle.days;
+    const group = vehicle.group ? `\n${vehicle.group}` : "";
+    rows.push({
+      ...charge,
+      label: `${d(days)} Days Charged at Basic Hire Rate${group}`,
+      days,
+    });
+  });
+  [
+    commonRow("Collection & Delivery Charge"),
+    commonRow("Admin Fee"),
+    commonRow("Automatic"),
+    commonRow("Collision Damage Waiver"),
+  ].forEach((row) => {
+    if (row) rows.push(row);
+  });
+  return rows;
+};
 
 const CreditHireInvoiceDoc = ({ data }: { data: CreditHireDocData }) => {
   const vehicles = data.vehicles && data.vehicles.length ? data.vehicles : [{}];
-  const multi = vehicles.length > 1;
-  const vehiclesLabel = `${vehicles.length} Vehicle${vehicles.length === 1 ? "" : "s"}`;
-  const charges = data.charges || [];
-  const vehicleCharges = data.vehicleCharges || [];
-  const vehicleSubtotals = data.vehicleSubtotals || [];
-  // Charge row labels (shared across vehicles) drive the multi-vehicle table body.
-  const chargeRows = (vehicleCharges[0] || charges).map((c) => c.label);
-
-  // Column widths for the multi table: Details ~31%, the rest split evenly across
-  // vehicle groups (Days / Rate / Amount = 25% / 37.5% / 37.5% of each group).
-  const groupPct = multi ? 69 / vehicles.length : 0;
+  const chargeRows = buildChargeRows(vehicles, data.charges || [], data.vehicleCharges);
+  const first = vehicles[0] || {};
+  const last = vehicles[vehicles.length - 1] || first;
+  const basicHireRows = chargeRows.filter((charge) =>
+    charge.label.includes("Days Charged at Basic Hire Rate"),
+  ).length;
 
   return (
     <DocShell>
-      <DocHeader ourRef={data.ourReference} yourRef={data.yourReference} dated={slash(data.invoiceDate)} />
-
-      {/* Title + Bill To */}
-      <div className="self-stretch pt-7 flex justify-between items-end">
-        <div className="pt-3.5 pb-0.5 flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase leading-4">INVOICE · CREDIT HIRE</div>
-          <div className="text-base font-bold uppercase leading-5">CREDIT HIRE INVOICE</div>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="text-right text-[12px] font-weight-600 uppercase leading-3 tracking-wider">BILL TO</div>
-          <div className="text-right text-base font-weight-600 leading-5">{data.billTo || "—"}</div>
-        </div>
+      <div className="mt-[40px] w-[250px] text-[10px] leading-[1.35] whitespace-pre-line">
+        <div className="font-bold mb-2">Bill To:</div>
+        <div>{data.billTo || "—"}</div>
       </div>
 
-      {/* Invoice meta box — 2×2 */}
-      <div className="self-stretch pt-3.5">
-        <table className="w-full border-collapse table-fixed">
-          <tbody>
-            <tr>
-              <td className={`${cellBase} w-1/2`}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Invoice No.:</span>
-                  <span className="text-xs font-bold text-right">{data.invoiceNumber || "—"}</span>
-                </div>
-              </td>
-              <td className={`${cellBase} w-1/2`}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Invoice Date:</span>
-                  <span className="text-xs font-bold text-right">{slash(data.invoiceDate)}</span>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td className={cellBase}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Client:</span>
-                  <span className="text-xs font-bold text-right">{data.client || "—"}</span>
-                </div>
-              </td>
-              <td className={cellBase}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px]">Vehicles:</span>
-                  <span className="text-xs font-bold text-right">{vehiclesLabel}</span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="mt-10 grid grid-cols-[92px_1fr] gap-y-1 text-[10px] leading-[1.35]">
+        <div>Invoice Date:</div>
+        <div>{shortSlash(data.invoiceDate)}</div>
+        <div>Invoice Number:</div>
+        <div>{data.invoiceNumber || "—"}</div>
+        <div className="mt-3">Hire Start:</div>
+        <div className="mt-3">{shortSlash(first.hireStart)}</div>
+        <div>Hire End:</div>
+        <div>{shortSlash(last.hireEnd)}</div>
+        <div>Total Hire Days:</div>
+        <div>{d(vehicles.reduce((sum, v) => sum + toNum(v.days), 0) || first.days)} Days</div>
       </div>
 
-      <SectionLabel
-        no="01."
-        title="VEHICLE & HIRE PERIOD"
-        right={
-          multi ? (
-            <div className="px-1.5 py-px outline outline-1 outline-offset-[-1px] outline-black text-[10px] leading-4">
-              Vehicle Swap
-            </div>
-          ) : undefined
-        }
-      />
-      <table className="w-full border-collapse">
+      <h1 className="mt-3 mb-3 text-center text-[16px] font-bold tracking-wide">
+        CREDIT HIRE INVOICE
+      </h1>
+
+      <table className="w-[470px] mx-auto border-collapse table-fixed mb-5">
         <thead>
           <tr>
-            <th className={`${headBase} text-left w-10`}>{multi ? "#" : "Veh"}</th>
-            <th className={`${headBase} text-left`}>Vehicle</th>
-            <th className={`${headBase} text-left`}>Registration</th>
-            <th className={`${headBase} text-left`}>Hire Start</th>
-            <th className={`${headBase} text-left`}>Hire End</th>
-            <th className={`${headBase} text-right w-16`}>Days</th>
+            <th className={`${packHead} w-[33%] text-center`}>Client</th>
+            <th className={`${packHead} w-[33%] text-center`}>Hire Vehicle<br />Registration</th>
+            <th className={`${packHead} w-[34%] text-center`}>Vehicle Description</th>
           </tr>
         </thead>
         <tbody>
-          {vehicles.map((v, i) => (
-            <tr key={i}>
-              <td className={cellBase}>{multi ? i + 1 : "—"}</td>
-              <td className={cellBase}>{v.vehicle || "—"}</td>
-              <td className={cellBase}>{v.registration || "—"}</td>
-              <td className={cellBase}>{longDate(v.hireStart)}</td>
-              <td className={cellBase}>{longDate(v.hireEnd)}</td>
-              <td className={`${cellBase} text-right`}>{d(v.days)}</td>
-            </tr>
-          ))}
+          <tr>
+            <td className={`${packCell} text-center`}>{data.client || "—"}</td>
+            <td className={`${packCell} text-center whitespace-pre-line`}>{vehicleLines(vehicles, "registration")}</td>
+            <td className={`${packCell} text-center whitespace-pre-line`}>{vehicleLines(vehicles, "vehicle")}</td>
+          </tr>
         </tbody>
       </table>
 
-      <SectionLabel no="02." title="HIRE CHARGES" />
-      {multi ? (
-        <table className="w-full border-collapse table-fixed">
-          <colgroup>
-            <col style={{ width: "31%" }} />
-            {vehicles.flatMap((_, i) => [
-              <col key={`${i}-d`} style={{ width: `${groupPct * 0.25}%` }} />,
-              <col key={`${i}-r`} style={{ width: `${groupPct * 0.375}%` }} />,
-              <col key={`${i}-a`} style={{ width: `${groupPct * 0.375}%` }} />,
-            ])}
-          </colgroup>
-          <thead>
-            <tr>
-              <th rowSpan={2} className={`${headBase} text-left align-bottom`}>Details</th>
-              {vehicles.map((v, i) => (
-                <th key={i} colSpan={3} className={groupHeadCls}>
-                  <div className="text-[10px] font-bold leading-[1.4]">
-                    Vehicle {i + 1} — {v.vehicle || "—"}
-                    {v.registration ? ` · ${v.registration}` : ""}
-                  </div>
-                  <div className="text-[9px] font-normal leading-[1.3]">
-                    {longDate(v.hireStart)} – {longDate(v.hireEnd)} · {d(v.days)} days
-                  </div>
-                </th>
-              ))}
-            </tr>
-            <tr>
-              {vehicles.flatMap((_, i) => [
-                <th key={`${i}-d`} className={`${headBase} text-right`}>Days</th>,
-                <th key={`${i}-r`} className={`${headBase} text-right`}>Rate</th>,
-                <th key={`${i}-a`} className={`${headBase} text-right`}>Amount</th>,
-              ])}
-            </tr>
-          </thead>
-          <tbody>
-            {chargeRows.map((label, r) => (
-              <tr key={r}>
-                <td className={`${cellBase} text-left`}>{label}</td>
-                {vehicles.flatMap((_, vi) => {
-                  const c: CreditHireDocCharge =
-                    vehicleCharges[vi]?.[r] || { label };
-                  return [
-                    <td key={`${vi}-d`} className={`${cellBase} text-right`}>{d(c.days)}</td>,
-                    <td key={`${vi}-r`} className={`${cellBase} text-right`}>{m(c.rate)}</td>,
-                    <td key={`${vi}-a`} className={`${cellBase} text-right`}>{m(c.amount)}</td>,
-                  ];
-                })}
+      <table className="w-[560px] mx-auto border-collapse table-fixed">
+        <thead>
+          <tr>
+            <th className={`${chargeHead} text-center w-[48%]`}>Details</th>
+            <th className={`${chargeHead} text-center w-[16%]`}>No of Days<br />Hire</th>
+            <th className={`${chargeHead} text-center w-[18%]`}>Daily<br />Rate £</th>
+            <th className={`${chargeHead} text-center w-[18%]`}>Amount £</th>
+          </tr>
+        </thead>
+        <tbody>
+          {chargeRows.map((charge, index) => {
+            const startsNewGroup = index === 0 || index >= basicHireRows;
+            const cellCls = startsNewGroup ? separatedChargeCell : chargeCell;
+            return (
+              <tr key={index}>
+                <td className={`${cellCls} border-l border-black whitespace-pre-line font-bold`}>{charge.label}</td>
+                <td className={`${cellCls} text-center`}>{d(charge.days)}</td>
+                <td className={`${cellCls} text-right`}>{m(charge.rate)}</td>
+                <td className={`${cellCls} border-r border-black text-right`}>{m(charge.amount)}</td>
               </tr>
-            ))}
-            <tr>
-              <td className={`${cellBase} text-left font-bold`}>Vehicle Subtotal</td>
-              {vehicles.map((_, vi) => (
-                <td key={vi} colSpan={3} className={`${cellBase} text-right font-bold`}>
-                  {gbp(vehicleSubtotals[vi] || 0)}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      ) : (
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th className={`${headBase} text-left`}>Details</th>
-              <th className={`${headBase} text-right w-20`}>Days</th>
-              <th className={`${headBase} text-right w-28`}>Daily Rate</th>
-              <th className={`${headBase} text-right w-28`}>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {charges.map((c, i) => (
-              <tr key={i}>
-                <td className={cellBase}>{c.label}</td>
-                <td className={`${cellBase} text-right`}>{d(c.days)}</td>
-                <td className={`${cellBase} text-right`}>{m(c.rate)}</td>
-                <td className={`${cellBase} text-right`}>{m(c.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {/* Totals */}
-      <div className="self-stretch pt-2.5 flex flex-col items-end">
-        <div className="w-80 flex flex-col">
-          <div className="py-[3px] border-b border-stone-300 flex justify-between">
-            <span className="text-xs leading-4">{multi ? "Sub Total (all vehicles)" : "Sub Total"}</span>
-            <span className="text-xs font-bold leading-4">{gbp(data.subTotal || 0)}</span>
-          </div>
-          <div className="py-[3px] border-b border-stone-300 flex justify-between">
-            <span className="text-xs leading-4">VAT @ 20%</span>
-            <span className="text-xs font-bold leading-4">{gbp(data.vat || 0)}</span>
-          </div>
-          <div className="pt-[5px] border-t-2 border-black flex justify-between items-center">
-            <span className="text-xs font-bold uppercase leading-4">TOTAL DUE</span>
-            <span className="text-xs font-bold leading-4">{gbp(data.totalDue || 0)}</span>
-          </div>
-        </div>
-      </div>
-
-      <DocFooter label="Credit Hire Invoice" />
+            );
+          })}
+          <tr>
+            <td className="border-t border-black px-1.5 py-1.5 text-[9px] leading-[1.35] align-middle" colSpan={2} rowSpan={3}>
+              <div className="pt-5 text-center font-bold">
+                Payment due within 30 days
+                <br />
+                <br />
+                Please make cheques payable to: Nationwide
+                <br />
+                Assist Ltd
+              </div>
+            </td>
+            <td className={`${packCell} bg-[#d9d9d9] font-bold text-right`}>Sub Total</td>
+            <td className={`${packCell} bg-[#d9d9d9] font-bold text-right`}>{gbp(data.subTotal || 0)}</td>
+          </tr>
+          <tr>
+            <td className={`${packCell} bg-[#d9d9d9] font-bold text-right`}>VAT</td>
+            <td className={`${packCell} bg-[#d9d9d9] font-bold text-right`}>{gbp(data.vat || 0)}</td>
+          </tr>
+          <tr>
+            <td className={`${packCell} bg-[#d9d9d9] font-bold text-right`}>TOTAL</td>
+            <td className={`${packCell} bg-[#d9d9d9] font-bold text-right`}>{gbp(data.totalDue || 0)}</td>
+          </tr>
+        </tbody>
+      </table>
     </DocShell>
   );
 };

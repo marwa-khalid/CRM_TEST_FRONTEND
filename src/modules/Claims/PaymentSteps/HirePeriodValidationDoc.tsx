@@ -1,13 +1,9 @@
-import { slash, datedLong, DocShell, DocHeader, SectionLabel, DocFooter } from "./docHelpers";
-
-// Print/PDF document for the Payment Pack "Hire Period Validation" sheet.
-// Non-editable A4 render of the form's key dates (figma design). Filled dates
-// show DD / MM / YYYY centred (no rule); empty fields show a blank rule.
+import { shortSlash, DocShell } from "./docHelpers";
 
 export type HirePeriodValidationDocData = {
   ourReference?: string;
   yourReference?: string;
-  dated?: string; // YYYY-MM-DD
+  dated?: string;
   dateNotifiedByInsured?: string;
   dateOfInspection?: string;
   dateRepairsAuthorised?: string;
@@ -19,78 +15,47 @@ export type HirePeriodValidationDocData = {
   dateCilChequeReceived?: string;
 };
 
-// One "label ……… value / blank rule" row.
-const Row = ({ label, value }: { label: string; value?: string }) => (
-  <div className="self-stretch py-1.5 border-b border-neutral-400 flex justify-between items-end">
-    <span className="text-xs leading-4">{label}</span>
-    {value ? (
-      <div className="min-w-[224px] flex flex-col items-center">
-        <span className="text-center text-xs font-bold leading-4">{slash(value)}</span>
-      </div>
-    ) : (
-      <div className="pl-3.5 flex">
-        <div className="w-56 h-px border-b border-black" />
-      </div>
-    )}
+const DateRow = ({ label, value, indent = false }: { label: string; value?: string; indent?: boolean }) => (
+  <div className={`grid grid-cols-[260px_1fr] text-[10px] leading-[1.8] ${indent ? "ml-16" : ""}`}>
+    <div>{indent ? "- " : ""}{label}</div>
+    <div>{value ? shortSlash(value) : ""}</div>
   </div>
+);
+
+const SectionTitle = ({ children }: { children: React.ReactNode }) => (
+  <div className="mt-5 mb-1 text-[10px] underline">{children}</div>
 );
 
 const HirePeriodValidationDoc = ({ data }: { data: HirePeriodValidationDocData }) => (
   <DocShell>
-    <DocHeader
-      ourRef={data.ourReference}
-      yourRef={data.yourReference}
-      dated={datedLong(data.dated)}
-    />
-
-    {/* Title block */}
-    <div className="self-stretch pt-8 flex flex-col">
-      <div className="pt-3.5 text-[10px] uppercase leading-4">Validation · Internal Record</div>
-      <div className="pt-4 text-base font-bold uppercase leading-5">Hire Period Validation</div>
-      <div className="pt-2 text-xs leading-4">
-        To be completed in support of the hire claim. Where applicable, attach a copy estimate,
-        agreed labour figure, or telephone contact details for the garage. Applies across all
-        swapped vehicles in this claim.
-      </div>
+    <div className="mt-[30px] text-center text-[12px] font-bold tracking-wide">
+      HIRE PERIOD VALIDATION FORM
     </div>
 
-    <SectionLabel no="01." title="Notification & Inspection" />
-    <div className="self-stretch flex flex-col">
-      <Row label="Date of notification by Insured" value={data.dateNotifiedByInsured} />
-      <Row label="Date of inspection" value={data.dateOfInspection} />
-    </div>
+    <div className="mt-14 ml-1 w-[560px] text-[10px] leading-[1.8]">
+      <DateRow label="Date of notification by Insured:" value={data.dateNotifiedByInsured} />
+      <DateRow label="Date of inspection:" value={data.dateOfInspection} />
 
-    <SectionLabel no="02." title="If Repair Case" />
-    <div className="self-stretch flex flex-col">
-      <Row label="Date repairs authorised" value={data.dateRepairsAuthorised} />
-      <Row label="Date repairs started" value={data.dateRepairsStarted} />
-      <Row label="Date satisfaction note signed" value={data.dateSatisfactionNoteSigned} />
-    </div>
+      <SectionTitle>If repair case</SectionTitle>
+      <DateRow label="Date Repairs Authorised:" value={data.dateRepairsAuthorised} indent />
+      <DateRow label="Date Repairs Started:" value={data.dateRepairsStarted} indent />
+      <DateRow label="Date Satisfaction Note Signed:" value={data.dateSatisfactionNoteSigned} indent />
 
-    <SectionLabel no="03." title="In Event of Total Loss" />
-    <div className="self-stretch flex flex-col">
-      <Row label="Date of settlement offer" value={data.dateOfSettlementOffer} />
-      <Row label="Date offer accepted" value={data.dateOfferAccepted} />
-      <Row label="Date payment received" value={data.datePaymentReceived} />
-    </div>
+      <SectionTitle>In event of total loss</SectionTitle>
+      <DateRow label="Date of settlement offer:" value={data.dateOfSettlementOffer} indent />
+      <DateRow label="Date offer accepted:" value={data.dateOfferAccepted} indent />
+      <DateRow label="Date cheque received:" value={data.datePaymentReceived} indent />
 
-    <SectionLabel no="04." title="If CIL Requested" />
-    <div className="self-stretch flex flex-col">
-      <Row label="Date CIL cheque received" value={data.dateCilChequeReceived} />
-    </div>
+      <SectionTitle>If CIL requested</SectionTitle>
+      <DateRow label="Date CIL cheque received:" value={data.dateCilChequeReceived} indent />
 
-    {/* Attachment required note */}
-    <div className="self-stretch pt-6 flex flex-col">
-      <div className="self-stretch px-2 py-1.5 outline outline-1 outline-offset-[-1px] outline-black flex flex-col">
-        <div className="pb-0.5 text-xs font-bold underline leading-4">Attachment Required</div>
-        <div className="text-xs leading-4">
-          Please attach a copy estimate or agreed labour figure. If not available, provide
-          telephone contact details for the garage.
-        </div>
-      </div>
-    </div>
+      <p className="mt-7">
+        (Attached - copy estimate or agreed labour figure or, if not available, telephone
+        contact details for garage)
+      </p>
 
-    <DocFooter label="Hire Period Validation Form" />
+      <p className="mt-8">If applicable – explanation for delays</p>
+    </div>
   </DocShell>
 );
 

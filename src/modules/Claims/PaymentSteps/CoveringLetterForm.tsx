@@ -55,6 +55,7 @@ const CoveringLetterForm = ({
     ourReference: prefill.ourReference || "",
     incidentDate: prefill.incidentDate || "",
     valetingFee: prefill.valetingFee != null ? String(prefill.valetingFee) : "",
+    signatory: prefill.signatory || "",
   });
   const [valetingTouched, setValetingTouched] = useState(false);
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
@@ -73,10 +74,12 @@ const CoveringLetterForm = ({
       ourReference: prev.ourReference || prefill.ourReference || "",
       incidentDate: prev.incidentDate || prefill.incidentDate || "",
       valetingFee: !valetingTouched && prefill.valetingFee != null ? String(prefill.valetingFee) : prev.valetingFee,
+      signatory: prev.signatory || prefill.signatory || "",
     }));
   }, [
     prefill.yourInsured, prefill.yourReference, prefill.ourClient,
-    prefill.ourReference, prefill.incidentDate, prefill.valetingFee, valetingTouched,
+    prefill.ourReference, prefill.incidentDate, prefill.valetingFee,
+    prefill.signatory, valetingTouched,
   ]);
 
   // Fill any Schedule-of-Charges cell still empty when the charge data loads.
@@ -132,7 +135,7 @@ const CoveringLetterForm = ({
         vat: docVat,
         total: docTotal,
         valetingFee,
-        signatory: prefill.signatory,
+        signatory: f.signatory,
       }}
     />
   );

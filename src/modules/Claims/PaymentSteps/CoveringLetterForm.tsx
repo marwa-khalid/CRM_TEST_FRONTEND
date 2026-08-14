@@ -54,8 +54,9 @@ const CoveringLetterForm = ({
     ourClient: prefill.ourClient || "",
     ourReference: prefill.ourReference || "",
     incidentDate: prefill.incidentDate || "",
-    valetingFee: prefill.valetingFee != null ? String(prefill.valetingFee) : "30",
+    valetingFee: prefill.valetingFee != null ? String(prefill.valetingFee) : "",
   });
+  const [valetingTouched, setValetingTouched] = useState(false);
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
 
   const [cells, setCells] = useState<Record<string, string>>(prefill.charges || {});
@@ -71,10 +72,11 @@ const CoveringLetterForm = ({
       ourClient: prev.ourClient || prefill.ourClient || "",
       ourReference: prev.ourReference || prefill.ourReference || "",
       incidentDate: prev.incidentDate || prefill.incidentDate || "",
+      valetingFee: !valetingTouched && prefill.valetingFee != null ? String(prefill.valetingFee) : prev.valetingFee,
     }));
   }, [
     prefill.yourInsured, prefill.yourReference, prefill.ourClient,
-    prefill.ourReference, prefill.incidentDate,
+    prefill.ourReference, prefill.incidentDate, prefill.valetingFee, valetingTouched,
   ]);
 
   // Fill any Schedule-of-Charges cell still empty when the charge data loads.
@@ -93,6 +95,8 @@ const CoveringLetterForm = ({
   const subTotal = Object.values(cells).reduce((s, v) => s + toNum(v), 0);
   const vat = subTotal * 0.2;
   const totalDue = subTotal + vat;
+  const valetingFee = toNum(f.valetingFee);
+  const finalTotalDue = totalDue + valetingFee;
 
   // ── Print/PDF document — Front Cover sheet + Heads of Claim covering letter ──
   // Per-column (BHR / <30 / 31–60 / 61+) sub totals, VAT and totals.
@@ -127,7 +131,7 @@ const CoveringLetterForm = ({
         subTotal: docSubTotal,
         vat: docVat,
         total: docTotal,
-        valetingFee: toNum(f.valetingFee),
+        valetingFee,
         signatory: prefill.signatory,
       }}
     />
@@ -239,6 +243,28 @@ const CoveringLetterForm = ({
           </div>
           <div className="w-64 px-5 py-4 bg-neutral-50 rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4">
             {gbp(totalDue)}
+          </div>
+        </div>
+        <div className="self-stretch flex justify-end items-center gap-5">
+          <div className="w-40 text-neutral-950 text-sm font-weight-500">
+            Valeting Fees (Not VAT Applicable)
+          </div>
+          <input
+            className={`${fieldInputCls} w-64`}
+            value={f.valetingFee}
+            onChange={(e) => {
+              setValetingTouched(true);
+              set("valetingFee", e.target.value);
+            }}
+            placeholder="--"
+          />
+        </div>
+        <div className="self-stretch flex justify-end items-center gap-5">
+          <div className="w-40 text-neutral-900 text-base font-weight-600">
+            Final Total Due
+          </div>
+          <div className="w-64 px-5 py-4 bg-neutral-50 rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4">
+            {gbp(finalTotalDue)}
           </div>
         </div>
       </Section>

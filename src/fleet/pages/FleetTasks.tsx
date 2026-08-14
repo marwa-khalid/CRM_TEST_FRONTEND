@@ -26,6 +26,7 @@ import PendingIcon from "../assets/listingpage/pending.svg";
 import ProgressIcon from "../assets/listingpage/progress.svg";
 import AlertIcon from "../assets/icons/Alert.svg";
 import CompletedIcon from "../assets/listingpage/checkcircle.svg";
+import AwaitingIcon from "../../assets/Dashboard/Critical.svg";
 
 const ALL: Option = { label: "All", value: "" };
 const statusOptions: Option[] = [ALL, ...TASK_STATUSES.map((s) => ({ label: s, value: s }))];
@@ -191,6 +192,7 @@ const FleetTasks: React.FC<{ module?: string }> = ({ module = "skyline" }) => {
       { title: "Total Tasks", value: tasks.length, icon: TotalTasksIcon, bg: "bg-neutral-100", trend: trendFor(tasks), darkIcon: true },
       { title: "Pending", value: byStatus("Pending").length, icon: PendingIcon, bg: "bg-[#ffe3e4]", trend: trendFor(byStatus("Pending")) },
       { title: "In Progress", value: byStatus("In Progress").length, icon: ProgressIcon, bg: "bg-[#fff1d7]", trend: trendFor(byStatus("In Progress")) },
+      { title: "Awaiting Response", value: byStatus("Awaiting Response").length, icon: AwaitingIcon, bg: "bg-[#fef3c7]", trend: trendFor(byStatus("Awaiting Response")) },
       { title: "Overdue", value: overdue.length, icon: AlertIcon, bg: "bg-[#ffe3e4]", trend: trendFor(overdue) },
       { title: "Completed", value: byStatus("Completed").length, icon: CompletedIcon, bg: "bg-[#d9ffd9]", trend: trendFor(byStatus("Completed")) },
     ];

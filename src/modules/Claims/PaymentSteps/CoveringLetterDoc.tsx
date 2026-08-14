@@ -1,4 +1,4 @@
-import { gbp, m0, datedLong, cellBase, headBase, DocShell, DocHeader, SectionLabel, DocFooter } from "./docHelpers";
+import { m0, datedLong, cellBase, headBase, DocShell, DocHeader, SectionLabel, DocFooter } from "./docHelpers";
 
 // Print/PDF document for the Covering Letter — "Heads of Claim" schedule with a
 // per-period (BHR / <30 / 31–60 / 61+) column for every head of claim. The
@@ -47,6 +47,14 @@ const NumCells = ({ vals, bold, topThick }: { vals: ColVals; bold?: boolean; top
 const CoveringLetterDoc = ({ data }: { data: CoveringLetterDocData }) => {
   const rows = data.rows || [];
   const empty: ColVals = {};
+  const valetingVals = COLS.reduce<ColVals>((acc, col) => {
+    acc[col] = data.valetingFee || 0;
+    return acc;
+  }, {});
+  const finalTotal = COLS.reduce<ColVals>((acc, col) => {
+    acc[col] = (Number(data.total?.[col]) || 0) + (data.valetingFee || 0);
+    return acc;
+  }, {});
 
   return (
     <DocShell>
@@ -135,13 +143,21 @@ const CoveringLetterDoc = ({ data }: { data: CoveringLetterDocData }) => {
             <td className={`${cellBase} font-bold border-t-2`}>TOTAL</td>
             <NumCells vals={data.total || empty} bold topThick />
           </tr>
+          <tr>
+            <td className={cellBase}>Valeting Fees (Not VAT Applicable)</td>
+            <NumCells vals={valetingVals} />
+          </tr>
+          <tr>
+            <td className={`${cellBase} font-bold border-t-2`}>TOTAL</td>
+            <NumCells vals={finalTotal} bold topThick />
+          </tr>
         </tbody>
       </table>
 
       {/* Note under table */}
       <div className="self-stretch pt-1.5">
         <div className="text-xs leading-4">
-          Highlighted column indicates the applicable ABI GTA rate for settlement within the current period. Valeting fees (not VAT applicable): {gbp(data.valetingFee || 0)}.
+          Highlighted column indicates the applicable ABI GTA rate for settlement within the current period.
         </div>
       </div>
 
@@ -169,12 +185,13 @@ const CoveringLetterDoc = ({ data }: { data: CoveringLetterDocData }) => {
       {/* Cheque + signature */}
       <div className="self-stretch pt-4 flex justify-between items-end">
         <div className="flex flex-col gap-1">
-          <div className="text-[10px] leading-4">Please make your cheque payable to:</div>
-          <div className="text-xs font-weight-600 leading-5">Nationwide Assist Ltd</div>
+          <div className="text-xs leading-5">
+            Please make your cheque payable to: <span className="font-weight-600">Nationwide Assist Ltd</span>
+          </div>
         </div>
         <div className="flex flex-col items-end">
-          <div className="text-right text-[10px] leading-4">Yours faithfully,</div>
-          <div className="pt-1.5 text-right text-base font-bold leading-5">{data.signatory || "Nationwide Assist Ltd"}</div>
+          <div className="text-right text-[10px] leading-4">Yours Faithfully,</div>
+          <div className="pt-1.5 text-right text-base font-bold leading-5">{data.signatory || "Akeel rehman"}</div>
           <div className="text-right text-[9px] leading-3">Nationwide Assist Ltd</div>
         </div>
       </div>

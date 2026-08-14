@@ -6,7 +6,6 @@ import AllTasksIcon from "../assets/dashboard//AllTasks.svg";
 import OverdueIcon from "../../assets/Dashboard/Overdue.svg";
 import CriticalIcon from "../../assets/Dashboard/Critical.svg";
 import PendingFollowupsIcon from "../../assets/Dashboard/PendingFollowups.svg";
-import InProgressIcon from "../assets/listingpage/progress.svg";
 import MOTIcon from "../assets/dashboard/MOT-Icon-Black.svg";
 import RoadTaxIcon from "../assets/dashboard/Road-Fund-Licence-Icon-Black.svg";
 import ServiceIcon from "../assets/dashboard/Service-Icon-Black.svg";
@@ -609,7 +608,6 @@ const TASK_COLS: TaskCol[] = [
   { count: 0, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [] },
   { count: 0, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: [] },
   { count: 0, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: [] },
-  { count: 0, label: "In Progress", icon: InProgressIcon, iconBg: "bg-amber-100", border: "border-amber-200", tasks: [] },
   { count: 0, label: "Pending Followups", icon: PendingFollowupsIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [] },
 ];
 // Map a live task to the card's { t, due, od } shape (matches the dummy format).
@@ -631,21 +629,18 @@ const fmtTask = (t: FleetTask): Task => {
 const buildTaskCols = (tasks: FleetTask[]): TaskCol[] => {
   const pick = (list: FleetTask[]) => list.slice(0, 6).map(fmtTask);
   const active = tasks.filter((t) => !["Completed", "Rejected"].includes(t.status || ""));
-  // A COMPLETE partition of the active tasks: every task falls into exactly one of
-  // Overdue / Awaiting Response / In Progress / Pending Followups — so the four
-  // sub-counts always add up to All Tasks. Overdue wins over the status; Pending
-  // Followups is the catch-all for every remaining non-overdue task, so nothing is
-  // ever left uncounted.
-  const overdue = active.filter((t) => t.is_overdue);
-  const nonOverdue = active.filter((t) => !t.is_overdue);
-  const awaiting = nonOverdue.filter((t) => (t.status || "") === "Awaiting Response");
-  const inProgress = nonOverdue.filter((t) => (t.status || "") === "In Progress");
-  const pending = nonOverdue.filter((t) => (t.status || "") !== "Awaiting Response" && (t.status || "") !== "In Progress");
+  // Mutually exclusive: an overdue task shows only under Overdue, so nothing is
+  // listed in two columns. Pending Followups = pending tasks not yet overdue.
+  const overdue = tasks.filter((t) => t.is_overdue);
+  const awaiting = tasks.filter((t) => (t.status || "") === "Awaiting Response" && !t.is_overdue);
+  const pending = tasks.filter((t) => (t.status || "") === "Pending" && !t.is_overdue);
+  // All Tasks lists only what has no column of its own (e.g. In Progress); the
+  // Overdue / Awaiting / Pending tasks live under their own headings.
+  const uncovered = active.filter((t) => !t.is_overdue && (t.status || "") !== "Awaiting Response" && (t.status || "") !== "Pending");
   return [
-    { count: active.length, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(active) },
+    { count: active.length, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(uncovered) },
     { count: overdue.length, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: pick(overdue) },
     { count: awaiting.length, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: pick(awaiting) },
-    { count: inProgress.length, label: "In Progress", icon: InProgressIcon, iconBg: "bg-amber-100", border: "border-amber-200", tasks: pick(inProgress) },
     { count: pending.length, label: "Pending Followups", icon: PendingFollowupsIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(pending) },
   ];
 };
@@ -667,7 +662,7 @@ const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
   return (
     <div className="col-span-12">
       <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-4">Task Management</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {data.map((col) => (
         <div key={col.label} className="rounded-xl border border-neutral-200 p-4 flex flex-col gap-4 min-w-0">
           <button type="button" className="flex items-center gap-3 text-left">

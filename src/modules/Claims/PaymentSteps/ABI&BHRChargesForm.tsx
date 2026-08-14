@@ -9,6 +9,7 @@ import { getHireRecords } from "../../../services/HireDetail/HireDetails";
 import { getActualVehicleCategory } from "../../../services/HireDetail/HireDetails";
 import { getRepairData } from "../../../services/RepairAndCost/RepairAndCost";
 import { getHireProvidedVehicles } from "../../../services/Vehicle/vehicle";
+import { getCheckoutDetails } from "../../../services/HireVehicleProvided/HireVehicleProvided";
 import { getThirdPartyInsurer } from "../../../services/ThirdPartyInsurer/ThirdPartyInsurer";
 import { getClientByClaimID } from "../../../services/Client/client";
 import { getAccidentDetailById } from "../../../services/Accidents/accident";
@@ -24,6 +25,7 @@ import PlatingInvoiceForm from "./PlatingInvoiceForm";
 import CoveringLetterForm from "./CoveringLetterForm";
 import FrontCoverForm from "./FrontCoverForm";
 import HirePeriodValidationForm from "./HirePeriodValidationForm";
+import StorageRecoveryInvoiceForm from "./StorageRecoveryInvoiceForm";
 
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
@@ -70,8 +72,11 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   // Billed breakdown (auto-fetched, read-only)
   const [storageCharges, setStorageCharges] = useState(0);
   const [recoveryCharges, setRecoveryCharges] = useState(0);
+  const [storageInvoiceRows, setStorageInvoiceRows] = useState<any[]>([]);
+  const [recoveryInvoiceRows, setRecoveryInvoiceRows] = useState<any[]>([]);
   const [engineerCharges, setEngineerCharges] = useState(0);
   const [platingCharges, setPlatingCharges] = useState(0);
+  const [valetingCharges, setValetingCharges] = useState(0);
 
   // Per-vehicle hire records + the vehicle switcher cards. The Payment Pack
   // Charges sections show the selected vehicle; the Billed Breakdown stays total.
@@ -81,6 +86,14 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   useEffect(() => {
     if (!claimId) return;
     getHireProvidedVehicles(claimId).then((vs) => setVehicles(Array.isArray(vs) ? vs : []));
+    getCheckoutDetails(claimId)
+      .then((res: any) => {
+        const checks = Array.isArray(res?.data) ? res.data : [];
+        setValetingCharges(
+          checks.reduce((sum: number, check: any) => sum + toF(check?.valet_charges), 0),
+        );
+      })
+      .catch(() => setValetingCharges(0));
   }, [claimId]);
 
   // Only OFF-HIRED vehicles belong in the payment pack — a vehicle still on hire
@@ -123,22 +136,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
       .catch(() => {});
   }, [claimId]);
 
-  // Claims handler (the logged-in user generating the pack) — signs the covering
-  // letter. Prefer their real name; fall back to the email handle.
-  const signatory = (() => {
-    try {
-      const u = JSON.parse(
-        localStorage.getItem("user") || localStorage.getItem("activeUser") || "{}",
-      );
-      const name =
-        u.name ||
-        u.full_name ||
-        [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
-      return name || String(u.email || "").split("@")[0] || "";
-    } catch {
-      return "";
-    }
-  })();
+  const signatory = "Akeel rehman";
   const perVehicle = packVehicles.length >= 2;
 
   // Date picker visibility state
@@ -182,6 +180,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [showCoveringLetter, setShowCoveringLetter] = useState(false);
   // Hire Period Validation editable form screen (popup's "Hire Period" item).
   const [showHirePeriod, setShowHirePeriod] = useState(false);
+  // Storage and Recovery Invoice editable form screen.
+  const [showStorageRecoveryInvoice, setShowStorageRecoveryInvoice] = useState(false);
 
   // Claim data sourced for the documents (read-only).
   const [policyNumber, setPolicyNumber] = useState("");
@@ -351,12 +351,19 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
 
     getStorageRecoveryProvider(claimId)
       .then(({ data }: any) => {
-        const s = (data?.storages ?? []).reduce((sum: number, r: any) => sum + toF(r.total_storage_charges), 0);
-        const r = (data?.recoveries ?? []).reduce((sum: number, r: any) => sum + toF(r.recovery_charges), 0);
+        const storages = data?.storages ?? [];
+        const recoveries = data?.recoveries ?? [];
+        const s = storages.reduce((sum: number, r: any) => sum + toF(r.total_storage_charges), 0);
+        const r = recoveries.reduce((sum: number, r: any) => sum + toF(r.recovery_charges), 0);
         setStorageCharges(s);
         setRecoveryCharges(r);
+        setStorageInvoiceRows(storages);
+        setRecoveryInvoiceRows(recoveries);
       })
-      .catch(() => {});
+      .catch(() => {
+        setStorageInvoiceRows([]);
+        setRecoveryInvoiceRows([]);
+      });
 
     gettingEnginerDetails(claimId)
       .then((data: any) => {
@@ -638,6 +645,28 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     };
   });
 
+  const storageRecoveryPrefill = {
+    ourReference: caseReference,
+    yourReference: insurerReference,
+    invoiceNumber: formik.values.invoice_number || "",
+    invoiceDate: String(formik.values.payment_pack_raised_date || "").slice(0, 10),
+    client: clientName,
+    billTo: insurerName,
+    storages: storageInvoiceRows.map((row: any) => ({
+      provider: row?.storage_provider || row?.name || "",
+      startDate: String(row?.start_date || "").slice(0, 10),
+      endDate: String(row?.end_date || "").slice(0, 10),
+      days: row?.total_storage_days ?? "",
+      rate: row?.charge_per_day ?? "",
+      amount: row?.total_storage_charges ?? "",
+    })),
+    recoveries: recoveryInvoiceRows.map((row: any) => ({
+      provider: row?.recovery_provider || row?.name || "",
+      recoveryDate: String(row?.date_of_recovery || "").slice(0, 10),
+      amount: row?.recovery_charges ?? "",
+    })),
+  };
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
@@ -671,6 +700,15 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           onEmailSent={handlePaymentPackEmailSent}
           onClose={() => setShowPlatingInvoice(false)}
           prefills={platingPrefills}
+        />
+      )}
+
+      {showStorageRecoveryInvoice && (
+        <StorageRecoveryInvoiceForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
+          onClose={() => setShowStorageRecoveryInvoice(false)}
+          prefill={storageRecoveryPrefill}
         />
       )}
 
@@ -709,7 +747,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
               formik.values.payment_pack_raised_date || dateToISO(new Date()),
             ).slice(0, 10),
             vehicleCount: packVehicles.length || 1,
-            valetingFee: 30,
+            valetingFee: valetingCharges,
             signatory,
             charges: coveringCharges,
           }}
@@ -806,6 +844,10 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
                 {
                   label: "Plating Invoice",
                   open: () => setShowPlatingInvoice(true),
+                },
+                {
+                  label: "Storage and Recovery Invoice",
+                  open: () => setShowStorageRecoveryInvoice(true),
                 },
               ].map((item, index, arr) => (
                 <React.Fragment key={item.label}>

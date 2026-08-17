@@ -867,10 +867,14 @@ const PaymentDetails: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (!hireId || form.paymentDay || !DEFAULT_PAYMENT_DAY) return;
+    // Only default a NEW hire that has no saved payment day yet. Guard on the hire's
+    // OWN value (not just the local form): on remount this effect can run before the
+    // form hydrates, and checking the stale-empty form would overwrite an already-saved
+    // day with today — the "it reverts to Monday after save" bug. hire.payment_day is truth.
+    if (!hireId || !hire || hire.payment_day || form.paymentDay || !DEFAULT_PAYMENT_DAY) return;
     set("paymentDay", DEFAULT_PAYMENT_DAY);
     persist(TO_BACKEND.paymentDay, DEFAULT_PAYMENT_DAY);
-  }, [hireId, form.paymentDay, save]);
+  }, [hireId, hire, form.paymentDay, save]);
 
   useEffect(() => {
     if (!dateDerivedWeeks) return;
@@ -1244,13 +1248,32 @@ const PaymentDetails: React.FC = () => {
                       <MoneyCell value={r.paid_amount} className="text-center" />
                       <PaymentDateCell dateValue={r.payment_date} timeValue={r.payment_time} />
                       <span className="block min-w-0 truncate text-center" title={rowNote}>{rowNote || <span className="text-neutral-400">-</span>}</span>
-                      {(editSinglePayment || !fullyReceived) ? (
+                      {editSinglePayment ? (
+                        // Fully recorded in one payment: edit it, or delete it outright.
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openPaymentModal(r.id, txns[0].id)}
+                            className="flex-1 min-w-0 h-8 px-2 bg-neutral-900 rounded text-white text-sm hover:bg-black inline-flex items-center justify-center whitespace-nowrap"
+                          >
+                            Edit Payment
+                          </button>
+                          <button
+                            type="button"
+                            title="Delete this payment"
+                            onClick={() => setDeleteTxn({ weekId: r.id, txnId: txns[0].id })}
+                            className="w-8 h-8 shrink-0 flex items-center justify-center rounded hover:bg-neutral-100"
+                          >
+                            <img src={RemoveIcon} alt="Delete" className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : !fullyReceived ? (
                         <button
                           type="button"
-                          onClick={() => openPaymentModal(r.id, editSinglePayment ? txns[0].id : null)}
+                          onClick={() => openPaymentModal(r.id, null)}
                           className="w-full h-8 px-2 bg-neutral-900 rounded text-white text-sm hover:bg-black inline-flex items-center justify-center whitespace-nowrap"
                         >
-                          {editSinglePayment ? "Edit Payment" : "Record Payment"}
+                          Record Payment
                         </button>
                       ) : (
                         <span />

@@ -317,7 +317,7 @@ export const HireTrend: React.FC = () => {
               const isCmp = two && i === 0;
               return (
                 <div key={i} className={`h-full flex items-end justify-center relative group ${two ? "flex-none" : "flex-1"}`}>
-                  <div className={`relative rounded-t ${isCmp ? "bg-blue-200" : "bg-blue-300 group-hover:bg-blue-400"}`} style={{ height: h.toFixed(1) + "%", width: `${barW}px` }}>
+                  <div className={`relative rounded-t ${isCmp ? "bg-neutral-200" : "bg-neutral-400 group-hover:bg-neutral-500"}`} style={{ height: h.toFixed(1) + "%", width: `${barW}px` }}>
                     <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{`${val} ${val === 1 ? "hire" : "hires"}`}</div>
                   </div>
                 </div>
@@ -978,7 +978,10 @@ export const WeeklyPayment: React.FC = () => {
     ["all", "All", t?.all ?? 0], ["overdue", "Overdue", t?.overdue ?? 0], ["received_today", "Received", t?.received_today ?? 0],
     ["due_today", "Due Today", t?.due_today ?? 0], ["due_this_week", "Due This Week", t?.due_this_week ?? 0],
   ];
-  const shown = (rowsByTab[tab] ?? []).slice(0, 5);
+  // Overdue rows (previous weeks' backlog) are listed in the "View All" slider only — the
+  // main card stays focused on this week. The Overdue tab still shows its count.
+  const isOverdueRow = (r: (string | [string, string])[]) => Array.isArray(r[5]) && (r[5] as [string, string])[1] === "red";
+  const shown = (tab === "overdue" ? [] : (rowsByTab[tab] ?? []).filter((r) => !isOverdueRow(r))).slice(0, 5);
   return (
     <Card span="col-span-12">
       <div className="flex flex-col lg:flex-row gap-10">
@@ -998,7 +1001,7 @@ export const WeeklyPayment: React.FC = () => {
           </div>
           <div className="flex flex-col gap-3">
             {shown.length === 0 ? (
-              <div className="py-10 text-center text-xs text-neutral-400">No payments here.</div>
+              <div className="py-10 text-center text-xs text-neutral-400">{tab === "overdue" ? 'Overdue payments are listed under "View All".' : "No payments here."}</div>
             ) : shown.map((r, i) => <WPPaymentCard key={i} r={r} />)}
           </div>
         </div>

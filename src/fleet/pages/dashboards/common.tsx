@@ -952,9 +952,16 @@ export const WeeklyPaymentGraph: React.FC<{ data: { day: string; amount: number;
           ))}
         </div>
       </div>
-      {/* x-axis labels — pl matches the y-label column so they sit under the plot */}
+      {/* x-axis labels — pl matches the y-label column so they sit under the plot.
+          A day with no dot (received & overdue both 0 — the point lies on the axis) turns
+          its label into the hover target instead, showing the same tooltip as a dot would. */}
       <div className="pl-12 flex justify-between text-[10px] leading-none text-neutral-400 pt-2">
-        {days.map((d, i) => <span key={i}>{d.day.slice(0, 3).toUpperCase()}</span>)}
+        {days.map((d, i) => {
+          const label = d.day.slice(0, 3).toUpperCase();
+          return received[i] === 0 && overdue[i] === 0
+            ? <span key={i} className="group relative cursor-default">{label}{tip(i)}</span>
+            : <span key={i}>{label}</span>;
+        })}
       </div>
     </div>
   );

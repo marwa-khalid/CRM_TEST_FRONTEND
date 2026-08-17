@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import FleetNotificationBell from "../components/FleetNotificationBell";
 import TrendingUp from "../../assets/Dashboard/TrendingUp.svg";
 import TrendingDown from "../../assets/Dashboard/TrendingDown.svg";
@@ -6,12 +6,17 @@ import AllTasksIcon from "../assets/dashboard//AllTasks.svg";
 import OverdueIcon from "../../assets/Dashboard/Overdue.svg";
 import CriticalIcon from "../../assets/Dashboard/Critical.svg";
 import PendingFollowupsIcon from "../../assets/Dashboard/PendingFollowups.svg";
-import MOTIcon from "../assets/dashboard/MOT-Icon-Black.svg";
-import RoadTaxIcon from "../assets/dashboard/Road-Fund-Licence-Icon-Black.svg";
-import ServiceIcon from "../assets/dashboard/Service-Icon-Black.svg";
-import VehicleStatusIcon from "../assets/dashboard/Vehiclestatus.svg";
-import WeeklyPaymentIcon from "../assets/dashboard/WeeklyPayment.svg";
-import PlateIcon from "../assets/dashboard/Plate-Icon-Black.svg";
+import MOTNewIcon from "../assets/dashboard/newicons/MOT.svg";
+import PlateNewIcon from "../assets/dashboard/newicons/PLATE.svg";
+import RoadFundNewIcon from "../assets/dashboard/newicons/roadfund.svg";
+import ServicingDueNewIcon from "../assets/dashboard/newicons/servicingdue.svg";
+import FleetNewIcon from "../assets/dashboard/newicons/fleet.svg";
+import VehiclesOnHireIcon from "../assets/dashboard/newicons/vehiclesonhire.svg";
+import MissingDocIcon from "../assets/dashboard/newicons/awaiting.svg";
+import UrgentNewIcon from "../assets/dashboard/newicons/urgent.svg";
+import TrendingUpIcon from "../assets/dashboard/newicons/TrendingUp.svg";
+import TrendingDownIcon from "../assets/dashboard/newicons/TrendingDown.svg";
+import IncomeNewIcon from "../assets/dashboard/newicons/income.svg";
 import FileStatIcon from "../../assets/Dashboard/File.svg";
 import PoundStatIcon from "../../assets/Dashboard/Pound.svg";
 import CarsStatIcon from "../../assets/Dashboard/Cars.svg";
@@ -23,7 +28,7 @@ import FleetAttentionSlider, { type AttentionCard } from "../components/FleetAtt
 import {
   getHireTrend, getStats, getVehicleStatus, getWeeklyPayments, getCompliance, getExpiries, getServicingDue, getAttention,
   getMissingDocuments, getOverdueReturns, getOverduePayments, getFleetVehicles,
-  type WeeklyPayments, type PaymentSummary, type Attention, type Compliance, type Expiries, type ServicingDue, type MissingDoc,
+  type WeeklyPayments, type PaymentSummary, type Attention, type Expiries, type ServicingDue, type MissingDoc, type StatsResponse, type ExpiryCard,
 } from "../services/dashboardService";
 import { listFleetTasks, type FleetTask } from "../services/taskService";
 
@@ -35,13 +40,6 @@ const Card: React.FC<{ span: string; className?: string; children: React.ReactNo
   <div className={`${span} rounded-xl border border-neutral-200 p-5 flex flex-col min-w-0 ${className}`}>{children}</div>
 );
 
-// Sky-tinted, outlined icon box for the compliance / expiry / section-header icons.
-// Grey icon box (same neutral background as the Fleet Performance metric icons).
-const GreyIconBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="size-8 bg-neutral-100 rounded-lg inline-flex justify-center items-center overflow-hidden shrink-0">
-    {children}
-  </span>
-);
 
 const CardHead: React.FC<{ icon?: React.ReactNode; title: string; sub?: string; right?: React.ReactNode; center?: boolean }> = ({ icon, title, sub, right, center }) => (
   <div className={`flex items-center gap-2.5 mb-4 ${center ? "justify-center" : "justify-between"}`}>
@@ -57,58 +55,7 @@ const CardHead: React.FC<{ icon?: React.ReactNode; title: string; sub?: string; 
 );
 
 
-// Same chip design as the Skyline Operations summary boxes (solid tint, no border).
-const TP: Record<string, string> = {
-  violet: "bg-violet-100 text-violet-600", gray: "bg-gray-200 text-zinc-500",
-  yellow: "bg-yellow-100 text-yellow-700",
-  red: "bg-red-100 text-red-600", orange: "bg-orange-100 text-orange-600", green: "bg-green-100 text-green-700",
-};
-const TabPills: React.FC<{ tabs: [string, string, string][] }> = ({ tabs }) => (
-  <div className="flex flex-wrap gap-1.5 mb-3.5">
-    {tabs.map(([tone, label, count]) => (
-      <span key={label} className={`rounded px-2 py-1.5 text-xs font-weight-400 font-normal leading-4 ${TP[tone]}`}>
-        {label} {count}
-      </span>
-    ))}
-  </div>
-);
 
-// Data table (Weekly Payment + expiry cards). Cell text matches the task-card title style.
-const DataTable: React.FC<{
-  head: string[];
-  rows: (string | [string, string])[][];
-  headText?: string;
-  cellText?: string;
-  rowClass?: string;
-  cellClamp?: string;
-}> = ({ head, rows, headText = "text-neutral-500", cellText = "text-neutral-900", rowClass = "py-3", cellClamp = "line-clamp-1" }) => (
-  <table className="w-full border-collapse">
-    <thead>
-      <tr>{head.map((h) => <th key={h} className={`text-left text-sm whitespace-nowrap ${headText} pb-2.5 pt-1 px-2 border-b border-neutral-100`}>{h}</th>)}</tr>
-    </thead>
-    <tbody>
-      {rows.length === 0 ? (
-        <tr>
-          <td colSpan={Math.max(1, head.length)} className="py-3 px-2 text-center text-xs font-weight-500 text-neutral-400">Nothing to show yet.</td>
-        </tr>
-      ) : (
-        rows.map((r, i) => (
-          <tr key={i}>
-            {r.map((cell, j) => (
-              <td key={j} className={`${rowClass} px-2 ${i < rows.length - 1 ? "border-b border-neutral-100" : ""} align-top`}>
-                {Array.isArray(cell) ? (
-                  <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-weight-500 whitespace-nowrap ${TP[cell[1]] ?? "bg-neutral-100 text-neutral-600"}`}>{cell[0]}</span>
-                ) : (
-                  <span className={`${cellText} text-xs font-weight-500 ${cellClamp}`}>{cell}</span>
-                )}
-              </td>
-            ))}
-          </tr>
-        ))
-      )}
-    </tbody>
-  </table>
-);
 
 // ── Hire Trend (WTD/MTD/YTD periods + YoY/MoM comparison) ─────────────────────
 type TrendView = { labels: string[]; vals: number[]; cap: string; cmp?: string };
@@ -289,7 +236,7 @@ const HireTrend: React.FC = () => {
       {loading && <FleetSpinnerLoader />}
       <h3 className="text-xl font-weight-600 text-neutral-900 mb-3.5">Hire Trend</h3>
       <div className="flex items-center gap-2.5 flex-wrap mb-4">
-        <div className="inline-flex items-center gap-0.5 border border-neutral-200 rounded p-0.5">
+        <div className="inline-flex items-center gap-1 rounded outline outline-1 -outline-offset-1 outline-neutral-900">
           {["WTD", "MTD", "YTD"].map((p) => (
             <button key={p} type="button" onClick={() => { setPeriod(p); setMode(""); }} className={segBtn(!mode && period === p)}>{p}</button>
           ))}
@@ -333,7 +280,7 @@ const HireTrend: React.FC = () => {
             onB={setCmpB}
           />
         )}
-        <div className="inline-flex items-center gap-0.5 border border-neutral-200 rounded p-0.5">
+        <div className="inline-flex items-center gap-1 rounded outline outline-1 -outline-offset-1 outline-neutral-900">
           {["YoY", "MoM"].map((m) => (
             <button key={m} type="button" onClick={() => setMode(mode === m ? "" : m)} className={segBtn(mode === m)}>{m}</button>
           ))}
@@ -370,7 +317,7 @@ const HireTrend: React.FC = () => {
               const isCmp = two && i === 0;
               return (
                 <div key={i} className={`h-full flex items-end justify-center relative group ${two ? "flex-none" : "flex-1"}`}>
-                  <div className={`relative rounded-t ${isCmp ? "bg-neutral-200" : "bg-neutral-400 group-hover:bg-neutral-500"}`} style={{ height: h.toFixed(1) + "%", width: `${barW}px` }}>
+                  <div className={`relative rounded-t ${isCmp ? "bg-blue-200" : "bg-blue-300 group-hover:bg-blue-400"}`} style={{ height: h.toFixed(1) + "%", width: `${barW}px` }}>
                     <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{`${val} ${val === 1 ? "hire" : "hires"}`}</div>
                   </div>
                 </div>
@@ -390,14 +337,14 @@ const HireTrend: React.FC = () => {
 // ── Vehicle Status Distribution (128 Total donut + legend) ────────────────────
 // Colour per status label — presentation stays here; counts come live from the API.
 const VEH_COLORS: Record<string, string> = {
-  Available: "#bbf7d0",
-  "On Hire": "#6b7280",
-  "In Service": "#bae6fd",
-  "In Repair": "#fed7aa",
-  "For Sale": "#f9a8d4",
-  "Off Fleet": "#99f6e4",
-  "Awaiting Plating": "#ddd6fe",
-  "Awaiting De Fleet": "#d4d4d8",
+  Available: "#86efac",        // green-300
+  "On Hire": "#93c5fd",        // blue-300
+  "In Service": "#d8b4fe",     // purple-300 (not in the mockup's 6 — kept distinct)
+  "In Repair": "#fdba74",      // orange-300
+  "For Sale": "#f9a8d4",       // pink-300 (not in the mockup's 6 — kept distinct)
+  "Off Hire": "#fca5a5",       // red-300 (backend canonical "Off Fleet" is shown as Off Hire in VM)
+  "Awaiting Plating": "#fcd34d", // amber-300
+  "Awaiting De Fleet": "#7dd3fc", // sky-300
 };
 // The donut legend mirrors the Vehicle Details availability dropdown. On Hire is
 // the dashboard label for live on-hire vehicles; Off Fleet is the dashboard label for
@@ -408,7 +355,7 @@ const VEH_ALWAYS_LEGEND: { l: string; c: string }[] = [
   { l: "In Service", c: VEH_COLORS["In Service"] },
   { l: "In Repair", c: VEH_COLORS["In Repair"] },
   { l: "For Sale", c: VEH_COLORS["For Sale"] },
-  { l: "Off Fleet", c: VEH_COLORS["Off Fleet"] },
+  { l: "Off Hire", c: VEH_COLORS["Off Hire"] },
   { l: "Awaiting Plating", c: VEH_COLORS["Awaiting Plating"] },
   { l: "Awaiting De Fleet", c: VEH_COLORS["Awaiting De Fleet"] },
 ];
@@ -418,7 +365,7 @@ const normaliseVehicleStatusLabel = (label: string) => {
   const cleaned = label.trim().replace(/[_-]/g, " ").replace(/\s+/g, " ");
   const lower = cleaned.toLowerCase();
   if (lower === "on hire" || lower === "weekly hire") return "On Hire";
-  if (lower === "off hire") return "Off Fleet";
+  if (lower === "off hire" || lower === "off fleet") return "Off Hire";
   if (lower === "awaiting de fleet") return "Awaiting De Fleet";
   const known = VEH_ALWAYS_LEGEND.find((x) => x.l.toLowerCase() === lower);
   return known?.l || cleaned;
@@ -435,9 +382,10 @@ const mapVehicleSegments = (segments: { label: string; value: number }[]) => {
     c: VEH_COLORS[l] ?? VEH_FALLBACK_COLORS[i % VEH_FALLBACK_COLORS.length],
   }));
 };
-const VehicleDonut: React.FC<{ side?: string; context?: string }> = ({ side, context }) => {
+const VehicleDonut: React.FC<{ side?: string; context?: string; span?: string }> = ({ side, context, span }) => {
   // Live vehicle-status distribution; falls back to VEH_SEG placeholders.
   const [seg, setSeg] = useState<{ l: string; v: number; c: string }[] | null>(null);
+  const [hover, setHover] = useState<number | null>(null); // hovered arc → its count shows in the centre
   useEffect(() => {
     let cancelled = false;
     getVehicleStatus(context).then((r) => {
@@ -468,36 +416,51 @@ const VehicleDonut: React.FC<{ side?: string; context?: string }> = ({ side, con
   let off = 0;
   const arcs = data.map((x, i) => {
     const len = (x.v / total) * C;
-    const el = <circle key={i} cx="80" cy="80" r={r} fill="none" stroke={x.c} strokeWidth="22" strokeDasharray={`${len.toFixed(2)} ${(C - len).toFixed(2)}`} strokeDashoffset={(-off).toFixed(2)} transform="rotate(-90 80 80)" />;
+    const el = (
+      <circle
+        key={i} cx="80" cy="80" r={r} fill="none" stroke={x.c} strokeWidth="22"
+        strokeDasharray={`${len.toFixed(2)} ${(C - len).toFixed(2)}`} strokeDashoffset={(-off).toFixed(2)}
+        transform="rotate(-90 80 80)"
+        opacity={hover == null || hover === i ? 1 : 0.3}
+        style={{ cursor: x.v > 0 ? "pointer" : "default", transition: "opacity 0.12s" }}
+        onMouseEnter={() => x.v > 0 && setHover(i)}
+        onMouseLeave={() => setHover(null)}
+      />
+    );
     off += len;
     return el;
   });
   return (
-    <Card span={side === "vehicles" ? "col-span-12 lg:col-span-8" : "col-span-12 lg:col-span-5"} className={side === "vehicles" ? "lg:ml-6" : ""}>
-      <CardHead
-        icon={<GreyIconBox><img src={VehicleStatusIcon} alt="" className="size-6" /></GreyIconBox>}
-        title="Vehicle Status Distribution"
-      />
-      <div className={`flex-1 flex items-center py-1.5 ${side === "vehicles" ? "flex-nowrap gap-14" : "flex-wrap content-center gap-6"}`}>
-        <svg viewBox="0 0 160 160" className={`shrink-0 ${side === "vehicles" ? "w-[190px] h-[190px]" : "w-[220px] h-[220px]"}`}>
+    <Card span={span ?? (side === "vehicles" ? "col-span-12 lg:col-span-8" : "col-span-12 lg:col-span-5")} className={span ? "" : (side === "vehicles" ? "lg:ml-6" : "")}>
+      <CardHead title="Vehicle Status Distribution" />
+      <div className="flex-1 flex flex-col items-center justify-center gap-8 py-2">
+        <svg viewBox="0 0 160 160" className="w-[200px] h-[200px] shrink-0">
           <circle cx="80" cy="80" r={r} fill="none" stroke="#f1f1f1" strokeWidth="22" />
           {arcs}
-          <text x="80" y="80" textAnchor="middle" fontSize="30" fontWeight="700" fill="#111827">{actualTotal}</text>
-          <text x="80" y="100" textAnchor="middle" fontSize="14" fill="#6b7280">Total</text>
-        </svg>
-        <div className={`flex flex-col ${side === "vehicles" ? "gap-2 flex-1 min-w-0" : "gap-3 flex-1 min-w-[160px]"}`}>
-          {data.length === 0 ? (
-            <div className="text-neutral-400 text-sm">No vehicles in the fleet yet.</div>
-          ) : (
-            legendData.map((x, i) => (
-              <div key={i} className="flex items-center gap-2.5 text-sm">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: x.c }} />
-                <span className="flex-1 truncate text-neutral-700">{x.l}</span>
-                <span className={`font-weight-600 text-neutral-900 tabular-nums pr-1 ${side === "vehicles" ? "pl-12" : "pl-3 pr-2"}`}>{x.v}</span>
-              </div>
-            ))
+          {hover != null && data[hover] && (
+            <g style={{ pointerEvents: "none" }}>
+              <text x="80" y="79" textAnchor="middle" fontSize="26" fontWeight="700" fill="#111827">{data[hover].v}</text>
+              <text x="80" y="95" textAnchor="middle" fontSize="7.5" fontWeight="500" fill="#6b7280">{data[hover].l}</text>
+            </g>
           )}
+        </svg>
+        <div className="flex flex-col items-center gap-0.5">
+          <div className="text-black text-2xl font-weight-600 leading-6">{actualTotal} Vehicles</div>
+          <div className="text-neutral-500 text-sm font-weight-500">Total Fleet</div>
         </div>
+        {data.length === 0 ? (
+          <div className="text-neutral-400 text-sm">No vehicles in the fleet yet.</div>
+        ) : (
+          <div className="grid grid-cols-2 gap-x-10 gap-y-4">
+            {legendData.map((x, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <span className="w-4 h-4 rounded-full shrink-0" style={{ background: x.c }} />
+                <span className="w-36 text-neutral-700 font-weight-500">{x.l}</span>
+                <span className="text-neutral-700 text-base font-weight-600 tabular-nums">{x.v}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -506,7 +469,7 @@ const VehicleDonut: React.FC<{ side?: string; context?: string }> = ({ side, con
 // ── Attention Required (ditto the Claims dashboard "Attention Required") ───────
 const ATTENTION = [
   { value: 6, label: "Overdue Returns", note: "Vehicles past expected return date", tint: "bg-red-100 border-red-100", icon: OverdueIcon },
-  { value: 4, label: "Missing Documents", note: "Vehicles missing required documents", tint: "bg-yellow-100 border-yellow-100", icon: CriticalIcon },
+  { value: 4, label: "Missing Documents", note: "Vehicles missing required documents", tint: "bg-yellow-100 border-yellow-100", icon: MissingDocIcon },
   { value: 3, label: "Overdue Payments", note: "Hire payments past their due date", tint: "bg-red-100 border-red-100", icon: OverdueIcon },
 ] as const;
 const ATTENTION_KEY: Record<string, keyof Attention> = {
@@ -710,73 +673,6 @@ const FP_META: Record<string, { icon: React.ReactNode; bar: string }> = {
 };
 // Order the Fleet Performance cards, urgent alerts last.
 const FP_ORDER = ["vehicles_on_hire", "net_income", "fleet_availability", "urgent_alerts"];
-type FPCard = { key: string; label: string; value: string; pct: string; up: boolean; sub: string; progress: number };
-// Zero placeholders — shown only if /dashboard/stats doesn't return. No fake numbers:
-// a fleet with no data reads 0, not invented figures.
-const FP_FALLBACK: FPCard[] = [
-  { key: "vehicles_on_hire", label: "Vehicles on Hire", value: "0", pct: "0", up: true, sub: "of 0 active vehicles", progress: 0 },
-  { key: "net_income", label: "Net Income", value: "£0", pct: "0", up: true, sub: "Month to date", progress: 0 },
-  { key: "fleet_availability", label: "Fleet Utilization", value: "0%", pct: "0", up: true, sub: "0 of 0 vehicles", progress: 0 },
-  { key: "urgent_alerts", label: "Urgent Alerts", value: "0", pct: "0", up: true, sub: "needs attention", progress: 0 },
-];
-const FleetPerformance: React.FC<{ period: string; side?: string; context?: string }> = ({ period, side, context }) => {
-  const [live, setLive] = useState<FPCard[] | null>(null);
-  const [compare, setCompare] = useState("vs last month");
-  // Loader while a period switch (WTD/MTD/YTD) refetches, so the delay reads as
-  // "working", not "nothing happened".
-  const [loading, setLoading] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    getStats(period, context ? `vehicles_${context}` : side === "vehicles" ? "vehicles" : "skyline").then((r) => {
-      if (cancelled || !r) return;
-      setCompare(r.compare_label);
-      const byKey = new Map(r.cards.map((c) => [c.key, c]));
-      setLive(
-        FP_ORDER.flatMap((k) => {
-          const c = byKey.get(k);
-          return c ? [{ key: c.key, label: c.label.replace(/\s*\(.*\)$/, ""), value: c.value, pct: c.pct, up: c.up, sub: c.sub, progress: c.progress }] : [];
-        }),
-      );
-    }).finally(() => {
-      if (!cancelled) setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [period, side, context]);
-  // On Vehicle Management only Fleet Utilization + Urgent Alerts are relevant.
-  const all = live ?? FP_FALLBACK;
-  const data = side === "vehicles" ? all.filter((c) => c.key === "fleet_availability" || c.key === "urgent_alerts") : all;
-  return (
-    <div className="col-span-12 bg-white rounded-xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.05)] border border-neutral-200 overflow-hidden">
-      {loading && <FleetSpinnerLoader />}
-      <div className="px-5 py-4 border-b border-neutral-100">
-        <h3 className="text-xl font-weight-600 text-neutral-900 leading-tight">Fleet Performance</h3>
-      </div>
-      <div className={`p-5 grid grid-cols-1 sm:grid-cols-2 ${data.length <= 2 ? "lg:grid-cols-2" : "lg:grid-cols-4"} gap-4`}>
-        {data.map((c) => (
-          <div key={c.key} className="rounded-lg border border-neutral-200 p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="w-9 h-9 bg-neutral-100 rounded-lg inline-flex items-center justify-center">{FP_META[c.key]?.icon}</span>
-              <img src={c.up ? TrendingUp : TrendingDown} alt="" className="w-11 h-11" />
-            </div>
-            <div className="text-neutral-900 text-2xl font-weight-600 leading-7 tabular-nums">{c.value}</div>
-            <div className="text-neutral-500 text-xs">{c.label}</div>
-            <div className="h-px w-full bg-neutral-200" />
-            <div className="flex items-center gap-2">
-              <span className={`flex items-center gap-1 shrink-0 whitespace-nowrap rounded px-2 py-1 text-sm font-weight-600 ${c.up ? "bg-green-100 text-green-500" : "bg-red-100 text-red-500"}`}>
-                <img src={c.up ? TrendingUp : TrendingDown} alt="" className="w-3.5 h-3.5 shrink-0" />{c.pct}%
-              </span>
-              <span className="text-xs font-weight-500 text-neutral-500 leading-tight">{compare}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 // ── Skyline Operations (matches the Claims dashboard's Skyline Operations) ─────
 type SkyKey = "available" | "hire" | "off" | "repair" | "sale";
 type SkyVehicle = { registration: string; model: string; statusKey: SkyKey; statusLabel: string; hireInfo?: string; customer?: string; reference?: string; offHiredToday?: boolean };
@@ -787,6 +683,18 @@ const SKY_STATUS_STYLE: Record<SkyKey, string> = {
   available: "bg-green-100 text-green-700", hire: "bg-neutral-100 text-neutral-800",
   off: "bg-teal-100 text-teal-700", repair: "bg-orange-100 text-orange-500",
   sale: "bg-pink-100 text-pink-700",
+};
+// Status badge colours for the vehicle cards, mirroring the donut's VEH_COLORS hues
+// (each is the -100/-700 pairing of the same family the donut uses at -300).
+const VEH_BADGE: Record<string, string> = {
+  "Available": "bg-green-100 text-green-700",
+  "On Hire": "bg-blue-100 text-blue-700",
+  "In Service": "bg-purple-100 text-purple-700",
+  "In Repair": "bg-orange-100 text-orange-600",
+  "For Sale": "bg-pink-100 text-pink-700",
+  "Off Hire": "bg-red-100 text-red-600",
+  "Awaiting Plating": "bg-amber-100 text-amber-700",
+  "Awaiting De Fleet": "bg-sky-100 text-sky-700",
 };
 const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
   <div className="flex min-h-32 flex-1 items-start justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-4">
@@ -803,41 +711,52 @@ const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
         </div>
       )}
     </div>
-    <span className={`inline-flex h-fit w-fit shrink-0 items-center justify-center rounded px-2 py-1 text-xs font-weight-400 font-normal leading-4 ${SKY_STATUS_STYLE[v.statusKey]}`}>{v.statusLabel}</span>
+    <span className={`inline-flex h-fit w-fit shrink-0 items-center justify-center rounded px-2 py-1 text-xs font-weight-400 font-normal leading-4 ${VEH_BADGE[normaliseVehicleStatusLabel(v.statusLabel)] ?? SKY_STATUS_STYLE[v.statusKey]}`}>{v.statusLabel === "Off Fleet" ? "Off Hire" : v.statusLabel}</span>
   </div>
 );
 // Right-side drawer showing every vehicle card (opened by "View All Vehicles").
+// Self-contained Registration + Status filters and a 4-up card grid (figma design).
+const SLIDER_STATUS_OPTS = [
+  { label: "Available", value: "available" }, { label: "On Hire", value: "hire" },
+  { label: "Off Hire", value: "off" }, { label: "In Repair", value: "repair" }, { label: "For Sale", value: "sale" },
+];
 const SkylineVehiclesSlider: React.FC<{
-  vehicles: SkyVehicle[]; // full list; the slider filters it by the status chips
+  vehicles: SkyVehicle[]; // full list; the slider filters it by its own controls
   summary: { label: string; value: number; statusKey: string; className: string }[];
-  statusSel: string[];
   title: string; // side-aware heading (CAMS Vehicles / Skyline Vehicles)
-  onToggleStatus: (key: string) => void;
   onClose: () => void;
-}> = ({ vehicles, summary, statusSel, title, onToggleStatus, onClose }) => {
-  const shown = vehicles.filter((v) => !statusSel.length || statusSel.some((k) => skyMatches(v, k)));
+}> = ({ vehicles, summary, title, onClose }) => {
+  const [regSel, setRegSel] = useState<string[]>([]);
+  const [statusSel, setStatusSel] = useState<string[]>([]);
+  const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
+    setter((s) => (s.includes(val) ? s.filter((x) => x !== val) : [...s, val]));
+  const regOptions = vehicles.map((v) => ({ label: v.registration, value: v.registration }));
+  const shown = vehicles.filter(
+    (v) => (!regSel.length || regSel.includes(v.registration)) && (!statusSel.length || statusSel.some((k) => skyMatches(v, k))),
+  );
   return (
     <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
       <div className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-[920px] max-w-full bg-white h-full flex flex-col p-10 gap-6">
-        <div className="flex justify-between items-start">
+      <div className="w-[950px] max-w-full bg-white h-full flex flex-col p-10 gap-5 overflow-auto">
+        <div className="flex justify-between items-center">
           <h2 className="text-black text-2xl font-weight-600 leading-6">{title}</h2>
-          <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
+          <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded-sm text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
         </div>
-        <div className="h-px bg-neutral-100 w-full" />
+        <div className="h-px bg-neutral-200 w-full" />
         <div className="flex flex-wrap justify-between items-center gap-4">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-8">
             <p className="text-2xl font-weight-600 leading-6 text-black">{vehicles.length} Vehicles</p>
-            <p className="text-sm font-weight-500 text-zinc-500">Total Fleet</p>
+            <FleetMultiSelectFilter label="Registration" options={regOptions} selected={regSel} onToggle={(v) => toggle(setRegSel, v)} onClear={() => setRegSel([])} />
+            <FleetMultiSelectFilter label="Status" options={SLIDER_STATUS_OPTS} selected={statusSel} onToggle={(v) => toggle(setStatusSel, v)} onClear={() => setStatusSel([])} />
           </div>
-          {/* Status chips double as filters — click to narrow the list (same as the main card). */}
+          {/* Status chips double as filters — click to narrow the list. */}
           <div className="flex flex-wrap items-center gap-2">
             {summary.map((item) => (
               <button
                 key={item.label}
                 type="button"
-                onClick={() => onToggleStatus(item.statusKey)}
-                className={`rounded p-3 text-sm font-weight-400 font-normal leading-4 transition ${item.className} ${statusSel.includes(item.statusKey) ? "ring-2 ring-offset-1 ring-neutral-400" : statusSel.length ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
+                onClick={() => toggle(setStatusSel, item.statusKey)}
+                className={`rounded-sm p-3 text-sm font-weight-400 font-normal leading-4 transition ${item.className} ${statusSel.includes(item.statusKey) ? "ring-2 ring-offset-1 ring-neutral-400" : statusSel.length ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
               >
                 {item.label} {item.value}
               </button>
@@ -847,7 +766,7 @@ const SkylineVehiclesSlider: React.FC<{
         {shown.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-sm text-neutral-400">No vehicles match.</div>
         ) : (
-          <div className="flex-1 overflow-auto grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 auto-rows-min">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 auto-rows-min">
             {shown.map((v, i) => <SkyVehicleCard key={`${v.registration}-${i}`} v={v} />)}
           </div>
         )}
@@ -936,347 +855,592 @@ const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
           )}
         </div>
       </div>
-      {sliderOpen && <SkylineVehiclesSlider vehicles={data} summary={summaryItems} statusSel={statusSel} title={vehLabel} onToggleStatus={(k) => toggle(setStatusSel, k)} onClose={() => setSliderOpen(false)} />}
+      {sliderOpen && <SkylineVehiclesSlider vehicles={data} summary={summaryItems} title={vehLabel} onClose={() => setSliderOpen(false)} />}
     </section>
   );
 };
 
-// ── Expiry cards + Compliance Summary ─────────────────────────────────────────
-// These icons are 28×28 and include their own rounded background box, so they
-// render directly (no SkyIconBox wrapper) in the carousel cards.
-const plate = <img src={PlateIcon} alt="" className="size-8" />;
-const motIcon = <img src={MOTIcon} alt="" className="size-8" />;
-const roadIcon = <img src={RoadTaxIcon} alt="" className="size-8" />;
-const serviceIcon = <img src={ServiceIcon} alt="" className="size-8" />;
-
-type Expiry = { span: string; icon: React.ReactNode; title: string; tabs: [string, string, string][]; head: string[]; rows: (string | [string, string])[][]; buckets?: Record<string, (string | [string, string])[][]>; bucketKeys?: string[] };
-// Tab order → bucket key for the live expiry cards (parallel to buildExpiryCard's tabs).
-const EXPIRY_BUCKETS = ["expired", "today", "d7", "d30"];
-// Servicing Due is a mileage placeholder; give it bucketed rows so its tabs filter too.
-// Cleared for now — Servicing Due shows no rows until it's wired to live data.
-const SERVICING_BUCKETS: Record<string, (string | [string, string])[][]> = {
-  overdue: [],
-  within_500: [],
-  within_1000: [],
+// ── Weekly Payment Schedule ───────────────────────────────────────────────────
+const WP_FALLBACK_SUMMARY: PaymentSummary = {
+  total: "£0", overdue: "£0", due_today: "£0", received: "£0",
+  by_day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => ({ day, amount: 0, overdue: 0 })),
 };
-const EXPIRY: Expiry[] = [
-  { span: "col-span-12 lg:col-span-6", icon: serviceIcon, title: "Servicing Due", tabs: [["red", "Overdue", "0"], ["orange", "Due within 500 mi", "0"], ["violet", "Due within 1,000 mi", "0"]], bucketKeys: ["overdue", "within_500", "within_1000"], head: ["Vehicle", "Current Mileage", "Service Due At", "Status"], buckets: SERVICING_BUCKETS, rows: [...SERVICING_BUCKETS.overdue, ...SERVICING_BUCKETS.within_500, ...SERVICING_BUCKETS.within_1000] },
-  { span: "col-span-12 md:col-span-6 xl:col-span-4", icon: motIcon, title: "MOT Expiry", tabs: [["red", "Expired", "2"], ["gray", "Today", "1"], ["orange", "7 Days", "5"], ["violet", "30 Days", "13"]], head: ["Vehicle", "Expiry Date", "Remaining Days"], rows: [
-    ["BX68 YZO", "12 May 2025", ["Expired", "red"]], ["VU18 KXL", "10 May 2025", ["Expired", "red"]], ["YL24 HBG", "13 May 2025", ["Today", "orange"]], ["FP21 KJU", "17 May 2025", ["4 days", "orange"]], ["MJ23 XTD", "18 May 2025", ["5 days", "orange"]]] },
-  { span: "col-span-12 md:col-span-6 xl:col-span-4", icon: plate, title: "Plate Expiry", tabs: [["red", "Expired", "1"], ["orange", "7 Days", "3"], ["violet", "30 Days", "9"]], head: ["Vehicle", "Expiry Date", "Remaining Days"], rows: [
-    ["HN19 KTP", "9 May 2025", ["Expired", "red"]], ["BC21 LMW", "14 May 2025", ["2 days", "orange"]], ["TF70 XRD", "16 May 2025", ["3 days", "orange"]], ["MK22 VBS", "19 May 2025", ["6 days", "orange"]], ["GL68 PNC", "27 May 2025", ["14 days", "green"]]] },
-  { span: "col-span-12 md:col-span-6 xl:col-span-4", icon: roadIcon, title: "Road Fund Licence", tabs: [["red", "Expired", "1"], ["orange", "7 Days", "4"], ["violet", "30 Days", "10"]], head: ["Vehicle", "Expiry Date", "Remaining Days"], rows: [
-    ["YC67 BMO", "11 May 2025", ["Expired", "red"]], ["GU24 VPL", "16 May 2025", ["3 days", "orange"]], ["FN22 TYG", "17 May 2025", ["4 days", "orange"]], ["PL73 HNZ", "19 May 2025", ["6 days", "orange"]], ["WA72 FFE", "25 May 2025", ["12 days", "green"]]] },
-];
-// Build one live expiry card from the API shape (MOT / Plate / Road Fund).
-const buildExpiryCard = (title: string, icon: React.ReactNode, span: string, card: Expiries["mot"]): Expiry => ({
-  span, icon, title,
-  tabs: [
-    ["red", "Expired", String(card.tabs.expired)],
-    ["gray", "Today", String(card.tabs.today)],
-    ["orange", "7 Days", String(card.tabs.d7)],
-    ["violet", "30 Days", String(card.tabs.d30)],
-  ],
-  head: ["Vehicle", "Expiry Date", "Remaining Days", "Driver"],
-  rows: [...card.rows.expired, ...card.rows.today, ...card.rows.d7, ...card.rows.d30],
-  buckets: card.rows,
-  bucketKeys: EXPIRY_BUCKETS,
-});
-// Expiries carousel — always flows one direction (cards are triplicated so the
-// motion never reverses). Servicing Due stays a mileage placeholder; the other
-// three are live.
-const CAROUSEL = [EXPIRY[0], EXPIRY[1], EXPIRY[2], EXPIRY[3]];
-// Right-side drawer showing the full record set for one expiry card.
-const RecordsSlider: React.FC<{
-  title: string;
-  head: string[];
-  rows: (string | [string, string])[][];
-  onClose: () => void;
-  variant?: "table" | "cards";
-}> = ({ title, head, rows, onClose, variant = "table" }) => (
-  <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
-    <div className="flex-1 bg-black/30" onClick={onClose} />
-    <div className={`${variant === "cards" ? "w-[920px]" : "w-[860px]"} max-w-full bg-white h-full flex flex-col p-10 gap-5`}>
-      <div className="flex justify-between items-start">
-        <h2 className="text-black text-2xl font-weight-600 leading-6">{title}</h2>
-        <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
+
+// "Received v/s Overdue" weekly area chart (green = received, red = overdue).
+const WeeklyPaymentGraph: React.FC<{ data: { day: string; amount: number; overdue: number }[] }> = ({ data }) => {
+  const days = data.length ? data : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => ({ day, amount: 0, overdue: 0 }));
+  const received = days.map((d) => d.amount);
+  const overdue = days.map((d) => d.overdue);
+  // Nice y-axis with headroom: the top gridline always sits above the peak so the
+  // curve never touches the ceiling (e.g. a 1,250 peak tops out at 1,500).
+  const peak = Math.max(...received, ...overdue, 0);
+  const niceStep = (raw: number) => {
+    const pow = Math.pow(10, Math.floor(Math.log10(Math.max(raw, 1))));
+    const u = raw / pow;
+    const s = u <= 1 ? 1 : u <= 1.5 ? 1.5 : u <= 2 ? 2 : u <= 2.5 ? 2.5 : u <= 3 ? 3 : u <= 5 ? 5 : 10;
+    return s * pow;
+  };
+  // Aim for ~6 evenly-spaced gridlines with a little headroom above the peak, so the
+  // axis reads full (not 3 lonely ticks) and the curve never touches the ceiling.
+  const top = peak > 0 ? peak * 1.15 : 1000;
+  const step = niceStep(top / 6);
+  let yMax = Math.ceil(top / step) * step;
+  if (yMax <= peak) yMax += step;
+  const ticks: number[] = [];
+  for (let t = 0; t <= yMax + 1e-6; t += step) ticks.push(Math.round(t));
+  const n = days.length;
+  // Normalised 0–100 space; the SVG then stretches to fill the column height
+  // (strokes stay crisp via non-scaling-stroke, labels/dots live in HTML so they never distort).
+  const X = (i: number) => (i / Math.max(1, n - 1)) * 100;
+  const Y = (v: number) => 100 - (v / yMax) * 100;
+  const smooth = (vals: number[]) => {
+    const p = vals.map((v, i) => [X(i), Y(v)] as [number, number]);
+    if (p.length < 2) return "";
+    let d = `M ${p[0][0].toFixed(2)} ${p[0][1].toFixed(2)}`;
+    for (let i = 0; i < p.length - 1; i++) {
+      const p0 = p[i - 1] || p[i], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2] || p2;
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
+    }
+    return d;
+  };
+  const area = (vals: number[]) => `${smooth(vals)} L 100 100 L 0 100 Z`;
+  return (
+    <div className="flex-1 min-h-0 flex flex-col" style={{ minHeight: 280 }}>
+      <div className="flex-1 min-h-0 flex">
+        {/* y-axis labels — evenly spaced, so they line up with the gridlines */}
+        <div className="w-12 shrink-0 flex flex-col justify-between items-end pr-2 text-[10px] leading-none text-neutral-400 tabular-nums">
+          {[...ticks].reverse().map((t, i) => <span key={i}>{t.toLocaleString()}</span>)}
+        </div>
+        {/* plot — SVG stretches to fill the remaining height */}
+        <div className="relative flex-1 min-w-0">
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
+            <defs>
+              <linearGradient id="wpGreen" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#86efac" stopOpacity="0.55" /><stop offset="100%" stopColor="#86efac" stopOpacity="0" /></linearGradient>
+              <linearGradient id="wpRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#fca5a5" stopOpacity="0.5" /><stop offset="100%" stopColor="#fca5a5" stopOpacity="0" /></linearGradient>
+            </defs>
+            {ticks.map((t, i) => <line key={i} x1="0" y1={Y(t)} x2="100" y2={Y(t)} stroke="#e5e5e5" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />)}
+            <path d={area(received)} fill="url(#wpGreen)" />
+            <path d={area(overdue)} fill="url(#wpRed)" />
+            <path d={smooth(received)} fill="none" stroke="#22c55e" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            <path d={smooth(overdue)} fill="none" stroke="#ef4444" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          </svg>
+          {/* round data dots (kept in HTML so non-uniform SVG scaling can't squash them) */}
+          {received.map((v, i) => v > 0 && <span key={`g${i}`} className="absolute w-1.5 h-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-green-500 ring-2 ring-white" style={{ left: `${X(i)}%`, top: `${Y(v)}%` }} />)}
+          {overdue.map((v, i) => v > 0 && <span key={`r${i}`} className="absolute w-1.5 h-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-500 ring-2 ring-white" style={{ left: `${X(i)}%`, top: `${Y(v)}%` }} />)}
+          {/* per-day hover columns → guide line + tooltip with both amounts */}
+          {days.map((d, i) => (
+            <div key={`h${i}`} className="group absolute inset-y-0" style={{ left: `${X(i)}%`, width: `${100 / n}%`, transform: "translateX(-50%)" }}>
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-1 z-10 hidden group-hover:block whitespace-nowrap rounded-md bg-white border border-neutral-200 px-2 py-1.5 text-[10px] leading-tight text-neutral-700 shadow-lg">
+                <div className="font-weight-600 mb-0.5 text-neutral-900">{d.day.slice(0, 3).toUpperCase()}</div>
+                <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Received £{received[i].toLocaleString()}</div>
+                <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />Overdue £{overdue[i].toLocaleString()}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="h-px bg-neutral-100 w-full" />
-      <div className="text-black text-xl font-weight-600 leading-5">{rows.length} Records</div>
-      <div className="flex-1 overflow-auto">
-        {variant === "cards" ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {rows.map((r, i) => {
-              const status = r.find((c) => Array.isArray(c)) as [string, string] | undefined;
-              return (
-                <div key={i} className="rounded-lg border border-neutral-200 p-4 flex flex-col gap-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-neutral-900 text-sm font-weight-600 truncate">{typeof r[0] === "string" ? r[0] : r[0]?.[0]}</span>
-                    {status && <span className={`shrink-0 rounded px-2 py-1 text-xs font-weight-500 ${TP[status[1]] ?? "bg-neutral-100 text-neutral-600"}`}>{status[0]}</span>}
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    {r.slice(1).map((c, j) => Array.isArray(c) ? null : (
-                      <div key={j} className="flex items-center justify-between text-xs">
-                        <span className="text-neutral-400">{head[j + 1]}</span>
-                        <span className="text-neutral-700 font-weight-500 text-right">{c}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <DataTable head={head} rows={rows} headText="text-neutral-900 font-weight-400" cellText="text-neutral-500" cellClamp="whitespace-nowrap" />
-        )}
+      {/* x-axis labels — pl matches the y-label column so they sit under the plot */}
+      <div className="pl-12 flex justify-between text-[10px] leading-none text-neutral-400 pt-2">
+        {days.map((d, i) => <span key={i}>{d.day.slice(0, 3).toUpperCase()}</span>)}
       </div>
     </div>
-  </div>
-);
-const CAROUSEL_GAP = 24; // matches the track's gap-6
-const ExpiryCarousel: React.FC<{ context?: string }> = ({ context }) => {
-  const [expiries, setExpiries] = useState<Expiries | null>(null);
-  const [servicing, setServicing] = useState<ServicingDue | null>(null);
-  // Active bucket filter per card (keyed by title so all copies in the loop sync).
-  const [filters, setFilters] = useState<Record<string, string | null>>({});
-  // "View All" opens a right-side slider with the full record set for that card.
-  const [sliderData, setSliderData] = useState<{ title: string; head: string[]; rows: (string | [string, string])[][] } | null>(null);
+  );
+};
+const WeeklyPayment: React.FC = () => {
+  const [live, setLive] = useState<WeeklyPayments | null>(null);
+  const [tab, setTab] = useState<string>("all");
+  const [sliderOpen, setSliderOpen] = useState(false); // "View All" opens a right-side slider
   useEffect(() => {
     let cancelled = false;
-    getExpiries(context).then((r) => {
-      if (!cancelled) setExpiries(r);
-    });
-    getServicingDue(context).then((r) => {
-      if (!cancelled) setServicing(r);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [context]);
-  const servicingCard: Expiry = servicing
-    ? {
-        ...EXPIRY[0],
-        tabs: [["red", "Overdue", String(servicing.tabs.overdue)], ["orange", "Due within 500 mi", String(servicing.tabs.within_500)], ["violet", "Due within 1,000 mi", String(servicing.tabs.within_1000)]],
-        buckets: servicing.rows,
-        rows: [...servicing.rows.overdue, ...servicing.rows.within_500, ...servicing.rows.within_1000],
-      }
-    : EXPIRY[0];
-  const cards: Expiry[] = expiries
-    ? [
-        servicingCard,
-        buildExpiryCard("MOT Expiry", motIcon, EXPIRY[1].span, expiries.mot),
-        buildExpiryCard("Plate Expiry", plate, EXPIRY[2].span, expiries.plate),
-        buildExpiryCard("Road Fund Licence", roadIcon, EXPIRY[3].span, expiries.road_fund),
-      ]
-    : CAROUSEL;
-  const track = [...cards, ...cards, ...cards];
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const [index, setIndex] = useState(cards.length); // start in the middle set
-  const [cardW, setCardW] = useState(0);
-  const [animate, setAnimate] = useState(false);
-  const stepW = cardW + CAROUSEL_GAP;
-
-  // Fit exactly `per` cards to the viewport with an INTEGER pixel width, so every
-  // card edge and every slide step lands on a whole pixel — no sub-pixel rounding
-  // that shaves the edge card (the old calc((100% - …)/3) basis did). Re-measured
-  // on any width change via ResizeObserver.
-  useLayoutEffect(() => {
-    const el = viewportRef.current;
-    if (!el) return;
-    let raf = 0;
-    const measure = () => {
-      const w = el.clientWidth;
-      if (w <= 0) {
-        // Viewport not laid out yet (e.g. still behind the page loader) — retry
-        // next frame so the cards don't stay stuck at width 0 (invisible).
-        raf = requestAnimationFrame(measure);
-        return;
-      }
-      const per = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
-      const cw = Math.floor((w - (per - 1) * CAROUSEL_GAP) / per);
-      if (cw > 0) setCardW(cw);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    window.addEventListener("resize", measure);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-    };
+    getWeeklyPayments().then((r) => { if (!cancelled) setLive(r); });
+    return () => { cancelled = true; };
   }, []);
-
-  // Re-enable the transition the frame after any non-animated (snap) reposition,
-  // including the initial jump into the middle set.
-  useEffect(() => {
-    if (!animate) {
-      const r = requestAnimationFrame(() => setAnimate(true));
-      return () => cancelAnimationFrame(r);
-    }
-  }, [animate]);
-
-  const advance = useCallback((delta: number) => {
-    setAnimate(true);
-    setIndex((i) => i + delta);
-  }, []);
-
-  // Autoplay disabled — the carousel only moves when the user clicks the arrows.
-  // The triplicated track + onSettled snap-back below still give seamless looping
-  // in either direction from the arrows.
-
-  // When a slide finishes on an edge copy, jump back into the middle set with no
-  // animation so the motion always continues in one seamless direction. Guard
-  // against transitions that bubble up from child elements (card hovers, tooltip
-  // fades) — only the track's own transform slide may trigger the snap, otherwise
-  // stray events decrement index repeatedly and translate the track off-screen
-  // (the "completely white" flash).
-  const onSettled = (e: React.TransitionEvent) => {
-    if (e.target !== trackRef.current || e.propertyName !== "transform") return;
-    if (index >= cards.length * 2) {
-      setAnimate(false);
-      setIndex((i) => i - cards.length);
-    } else if (index < cards.length) {
-      setAnimate(false);
-      setIndex((i) => i + cards.length);
-    }
+  const summary = live?.summary ?? WP_FALLBACK_SUMMARY;
+  const rowsByTab: Record<string, (string | [string, string])[][]> = {
+    all: live?.rows.all ?? [], overdue: live?.rows.overdue ?? [], due_today: live?.rows.due_today ?? [],
+    due_this_week: live?.rows.due_this_week ?? [], received_today: live?.rows.received_today ?? [],
   };
-
-  const arrow = (dir: "l" | "r") => (
-    <button type="button" aria-label={dir === "l" ? "Previous" : "Next"} onClick={() => advance(dir === "l" ? -1 : 1)}
-      className={`absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white border border-neutral-100 shadow-md grid place-items-center text-[#9A9EB2] hover:text-neutral-600 transition-colors ${dir === "l" ? "-left-3" : "-right-3"}`}>
-      <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6">
-        <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        {dir === "l" ? (
-          <><path d="M5 12L11 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M5 12L11 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></>
-        ) : (
-          <><path d="M19 12L13 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M19 12L13 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></>
-        )}
-      </svg>
-    </button>
-  );
+  const t = live?.tabs;
+  const tabs: [string, string, number][] = [
+    ["all", "All", t?.all ?? 0], ["overdue", "Overdue", t?.overdue ?? 0], ["due_today", "Due Today", t?.due_today ?? 0],
+    ["due_this_week", "Due This Week", t?.due_this_week ?? 0], ["received_today", "Received", t?.received_today ?? 0],
+  ];
+  const shown = (rowsByTab[tab] ?? []).slice(0, 5);
   return (
-    <div className="col-span-12">
-      <div className="relative">
-        {arrow("l")}
-        <div ref={viewportRef} className="overflow-hidden">
-          <div ref={trackRef} onTransitionEnd={onSettled}
-            className="flex items-stretch gap-6"
-            style={{ transform: `translateX(-${index * stepW}px)`, transition: animate ? "transform 0.45s ease" : "none" }}>
-            {track.map((e, i) => {
-              const active = filters[e.title] ?? null;
-              const rows = e.buckets && active ? e.buckets[active] : e.rows;
-              const displayRows = rows.slice(0, 5);
-              // Driver only shows in the "View All" slider — drop that trailing
-              // column from the compact carousel card.
-              const hasDriver = e.head[e.head.length - 1] === "Driver";
-              const cardHead = hasDriver ? e.head.slice(0, -1) : e.head;
-              const cardRows = hasDriver ? displayRows.map((r) => r.slice(0, -1)) : displayRows;
-              return (
-                <div key={i} className="shrink-0 min-w-0" style={{ width: cardW }}>
-                  <div className="rounded-xl border border-neutral-200 p-6 flex flex-col min-w-0 h-full min-h-[360px] gap-1">
-                    <CardHead
-                      icon={e.icon}
-                      title={e.title}
-                      right={<button type="button" onClick={() => setSliderData({ title: e.title, head: e.head, rows })} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black whitespace-nowrap">View All</button>}
-                    />
-                    {e.buckets ? (
-                      <div className="flex flex-wrap gap-1.5 mb-3.5">
-                        {e.tabs.map(([tone, label, count], ti) => {
-                          const bkey = e.bucketKeys?.[ti] ?? "";
-                          return (
-                            <button
-                              key={label}
-                              type="button"
-                              onClick={() => setFilters((f) => ({ ...f, [e.title]: f[e.title] === bkey ? null : bkey }))}
-                              className={`rounded px-2 py-1.5 text-xs font-weight-400 font-normal leading-4 transition ${TP[tone]} ${active === bkey ? "ring-2 ring-offset-1 ring-neutral-400" : active ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
-                            >
-                              {label} {count}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <TabPills tabs={e.tabs} />
-                    )}
-                    <div className="overflow-x-auto"><DataTable head={cardHead} rows={cardRows} headText="text-neutral-700 font-normal" cellText="text-neutral-500" rowClass="py-4" /></div>
-                  </div>
-                </div>
-              );
-            })}
+    <Card span="col-span-12">
+      <div className="flex flex-col lg:flex-row gap-10">
+        {/* Left — schedule list */}
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
+          <h2 className="text-black text-xl font-weight-600 leading-5">Weekly Payment Schedule</h2>
+          <div className="flex flex-wrap gap-3">
+            {tabs.map(([k, label, count]) => (
+              <button key={k} type="button" onClick={() => setTab(k)}
+                className={`px-3 py-1 rounded-full inline-flex gap-2 text-xs ${tab === k ? "bg-neutral-700 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}>
+                <span>{label}</span><span>{count}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-3">
+            {shown.length === 0 ? (
+              <div className="py-10 text-center text-xs text-neutral-400">No payments here.</div>
+            ) : shown.map((r, i) => <WPPaymentCard key={i} r={r} hoverPreview />)}
+          </div>
+          <div className="flex justify-center pt-1">
+            <button type="button" onClick={() => setSliderOpen(true)} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black">View All</button>
           </div>
         </div>
-        {arrow("r")}
+        {/* Right — Received v/s Overdue graph */}
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
+          <h2 className="text-black text-xl font-weight-600 leading-5">Weekly Payment Graph</h2>
+          <span className="text-neutral-700 text-sm">Received v/s Overdue</span>
+          <WeeklyPaymentGraph data={summary.by_day} />
+        </div>
       </div>
-      {sliderData && <RecordsSlider title={sliderData.title} head={sliderData.head} rows={sliderData.rows} variant="cards" onClose={() => setSliderData(null)} />}
+      {sliderOpen && <WeeklyPaymentSlider data={live} onClose={() => setSliderOpen(false)} />}
+    </Card>
+  );
+};
+
+// ── page ──────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// Vehicle Management dashboard — figma redesign (VM side only). New components so
+// the Skyline hire dashboard + shared widgets are untouched. All read the same live
+// endpoints the old VM widgets used.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Four compliance cards (MOT / Plate / Road Fund / Servicing Due), each Overdue /
+// Due Today / Due in 7 Days / Due in 30 Days from the live expiry buckets.
+const VM_COMPLIANCE: { key: keyof Expiries; title: string; icon: string; ring: string; head: string }[] = [
+  { key: "mot", title: "MOT", icon: MOTNewIcon, ring: "outline-blue-200", head: "bg-blue-100" },
+  { key: "plate", title: "Plate", icon: PlateNewIcon, ring: "outline-yellow-300", head: "bg-yellow-100" },
+  { key: "road_fund", title: "Road Fund", icon: RoadFundNewIcon, ring: "outline-green-300", head: "bg-green-100" },
+  { key: "service", title: "Servicing Due", icon: ServicingDueNewIcon, ring: "outline-purple-400", head: "bg-purple-200" },
+];
+const ServicingDuePopup: React.FC<{
+  row: (string | [string, string])[];
+  onClose: () => void;
+  hover?: boolean; // hover mode: transparent + click-through, so the row keeps hover
+}> = ({ row, onClose, hover }) => {
+  const registration = row[0] as string;
+
+  // Convert values like "48,200", "48200", or "48,200 mi" → 48200
+  const parseMileage = (value: unknown) => {
+    const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const currentMileage = parseMileage(row[1]);
+  const nextServiceAt = parseMileage(row[2]);
+
+  const remaining = nextServiceAt - currentMileage;
+
+  const formatMileage = (value: number) =>
+    `${value.toLocaleString("en-GB")} mi`;
+
+  return (
+    <div
+      className={`fixed inset-0 z-[80] flex items-center justify-center p-4 font-['Stack_Sans_Headline'] ${hover ? "pointer-events-none" : "bg-black/30"}`}
+      onClick={hover ? undefined : onClose}
+    >
+      <div
+        className="w-[520px] max-w-full px-5 pt-5 pb-6 bg-white rounded-lg flex flex-col gap-3 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h2 className=" text-black text-xl font-semibold ">
+            Servicing Due
+          </h2>
+
+        </div>
+
+        {/* Divider */}
+        <div className="h-px w-full bg-neutral-100" />
+
+        {/* Vehicle details */}
+        <div className="py-1 flex flex-col gap-1">
+          <div className="text-black text-base font-semibold">
+            {registration}
+          </div>
+
+          <div className="text-neutral-700 text-sm">
+            Current Mileage:{" "}
+            <span className="font-semibold">
+              {formatMileage(currentMileage)}
+            </span>
+          </div>
+        </div>
+
+        {/* Mileage cards */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Next Service */}
+          <div className="flex-1 px-5 py-3 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col justify-center gap-1">
+            <div className="text-neutral-900 text-2xl font-weight-600 leading-6">
+              {formatMileage(nextServiceAt)}
+            </div>
+
+            <div className="text-neutral-700 text-xs">Next Service At</div>
+          </div>
+
+          {/* Remaining */}
+          <div className="flex-1 px-5 py-3 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col justify-center gap-1">
+            <div
+              className={`text-2xl font-weight-600 leading-6 ${
+                remaining < 0 ? "text-red-500" : "text-neutral-900"
+              }`}
+            >
+              {remaining < 0
+                ? `${Math.abs(remaining).toLocaleString("en-GB")} mi`
+                : formatMileage(remaining)}
+            </div>
+
+            <div className="text-neutral-700 text-xs">
+              {remaining < 0 ? "Overdue By" : "Remaining"}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+  };
+const RoadFundExpiryPopup: React.FC<{
+  row: (string | [string, string])[];
+  bucket: { label: string; tone: string };
+  onClose: () => void;
+  hover?: boolean; // hover mode: transparent + click-through, so the row keeps hover
+}> = ({ row, bucket, onClose, hover }) => {
+  const registration = (row[0] as string) || "—";
+  const expiryDate = (row[1] as string) || "—";
+  const hireStatus = (row[5] as string) || "—";
+
+  const parseDate = (value: string) => {
+    if (!value || value === "—") return null;
+
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const expiry = parseDate(expiryDate);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (expiry) {
+    expiry.setHours(0, 0, 0, 0);
+  }
+
+  const daysRemaining = expiry
+    ? Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const isExpired = daysRemaining !== null && daysRemaining < 0;
+
+  const formatDate = (value: string) => {
+    const date = parseDate(value);
+
+    if (!date) return value;
+
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const badgeClass =
+    bucket.tone === "red"
+      ? "bg-red-100 text-red-500"
+      : bucket.tone === "yellow"
+        ? "bg-yellow-100 text-yellow-700"
+        : bucket.tone === "blue"
+          ? "bg-blue-100 text-blue-500"
+          : bucket.tone === "orange"
+            ? "bg-orange-100 text-orange-500"
+            : "bg-neutral-100 text-neutral-700";
+
+  return (
+    <div
+      className={`fixed inset-0 z-[80] flex items-center justify-center p-4 font-['Stack_Sans_Headline'] ${hover ? "pointer-events-none" : "bg-black/30"}`}
+      onClick={hover ? undefined : onClose}
+    >
+      <div
+        className="w-[520px] max-w-full px-5 pt-5 pb-6 bg-white rounded-lg flex flex-col gap-3 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-black text-xl font-weight-600 leading-5">
+            Road Fund Expiry
+          </h2>
+
+        </div>
+
+        {/* Divider */}
+        <div className="h-px w-full bg-neutral-100" />
+
+        {/* Vehicle Details */}
+        <div className="py-4 flex justify-between items-start gap-4">
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="text-black text-base font-semibold">
+              {registration}
+            </div>
+
+            <div className="text-neutral-700 text-sm">
+              Hire Status: <span className="font-semibold">{hireStatus}</span>
+            </div>
+          </div>
+
+          {/* Expiry Status */}
+          <div className="flex flex-col items-start gap-1 shrink-0">
+            <span className={`px-2 py-1 rounded-sm text-xs ${badgeClass}`}>
+              {bucket.label}
+            </span>
+
+            <span className="text-neutral-500 text-xs">
+              {formatDate(expiryDate)}
+            </span>
+          </div>
+        </div>
+
+        {/* Days Remaining */}
+        <div className="w-full">
+          <div className="w-full px-5 py-3 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col justify-center items-start gap-1">
+            <div
+              className={`text-2xl font-semibold leading-6 ${
+                isExpired ? "text-red-500" : "text-neutral-900"
+              }`}
+            >
+              {daysRemaining === null ? "—" : Math.abs(daysRemaining)}
+            </div>
+
+            <div className="text-neutral-700 text-xs">
+              {isExpired ? "Days Overdue" : "Days Remaining"}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+  const MOTExpiryPopup: React.FC<{
+  row: (string | [string, string])[];
+  bucket: { label: string; tone: string };
+  onClose: () => void;
+  hover?: boolean; // hover mode: transparent + click-through, so the row keeps hover
+}> = ({ row, bucket, onClose, hover }) => {
+  const registration = (row[0] as string) || "—";
+  const expiryDate = (row[1] as string) || "—";
+  const hireStatus = (row[5] as string) || "—";
+  // Driver only applies while the vehicle is on hire. The driver name is slot 3
+  // (slot 2 is the days-remaining badge, e.g. ["Expired","red"]); otherwise show "—".
+  const driver = (row[3] as string) || "";
+  const customerName = hireStatus.trim().toLowerCase() === "on hire" && driver && driver !== "—" ? driver : "—";
+
+  const parseDate = (value: string) => {
+    if (!value || value === "—") return null;
+
+    // Handles normal ISO/date strings returned by the backend.
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const expiry = parseDate(expiryDate);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (expiry) {
+    expiry.setHours(0, 0, 0, 0);
+  }
+
+  const daysRemaining = expiry
+    ? Math.ceil(
+        (expiry.getTime() - today.getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
+    : null;
+
+  const isExpired = daysRemaining !== null && daysRemaining < 0;
+
+  const formatDate = (value: string) => {
+    const date = parseDate(value);
+
+    if (!date) return value;
+
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const badgeClass =
+    bucket.tone === "red"
+      ? "bg-red-100 text-red-500"
+      : bucket.tone === "yellow"
+        ? "bg-yellow-100 text-yellow-700"
+        : bucket.tone === "blue"
+          ? "bg-blue-100 text-blue-500"
+          : bucket.tone === "orange"
+            ? "bg-orange-100 text-orange-500"
+            : "bg-neutral-100 text-neutral-700";
+
+  return (
+    <div
+      className={`fixed inset-0 z-[80] flex items-center justify-center p-4 font-['Stack_Sans_Headline'] ${hover ? "pointer-events-none" : "bg-black/30"}`}
+      onClick={hover ? undefined : onClose}
+    >
+      <div
+        className="w-[520px] max-w-full px-5 pt-5 pb-6 bg-white rounded-lg flex flex-col gap-3 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-black text-xl font-weight-600 leading-5">
+            MOT Expiry
+          </h2>
+
+        </div>
+
+        {/* Divider */}
+        <div className="h-px w-full bg-neutral-100" />
+
+        {/* Vehicle details */}
+        <div className="py-4 flex justify-between items-start gap-4">
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="text-black text-base font-semibold">
+              {registration}
+            </div>
+
+            <div className="text-neutral-700 text-sm">
+              Customer Name:{" "}
+              <span className="font-semibold">{customerName}</span>
+            </div>
+
+            <div className="text-neutral-700 text-sm">
+              Hire Status: <span className="font-semibold">{hireStatus}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-start gap-1 shrink-0">
+            <span className={`px-2 py-1 rounded-sm text-xs ${badgeClass}`}>
+              {bucket.label}
+            </span>
+
+            <span className="text-neutral-500 text-xs">
+              {formatDate(expiryDate)}
+            </span>
+          </div>
+        </div>
+
+        {/* Days Remaining */}
+        <div className="w-full">
+          <div className="w-full px-5 py-3 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col justify-center items-start gap-1">
+            <div
+              className={`text-2xl font-weight-600 leading-6 ${
+                isExpired ? "text-red-500" : "text-neutral-900"
+              }`}
+            >
+              {daysRemaining === null ? "—" : Math.abs(daysRemaining)}
+            </div>
+
+            <div className="text-neutral-700 text-xs">
+              {isExpired ? "Days Overdue" : "Days Remaining"}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+const VMComplianceCards: React.FC<{ context?: string }> = ({ context }) => {
+  const [data, setData] = useState<Expiries | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getExpiries(context).then((r) => { if (!cancelled) setData(r); });
+    return () => { cancelled = true; };
+  }, [context]);
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+      {VM_COMPLIANCE.map((c) => {
+        const t = data?.[c.key]?.tabs ?? { expired: 0, today: 0, d7: 0, d30: 0 };
+        const rows: [string, number, boolean][] = [
+          ["Overdue", t.expired, true], ["Due Today", t.today, false],
+          ["Due in 7 Days", t.d7, false], ["Due in 30 Days", t.d30, false],
+        ];
+        return (
+          <div key={c.key} className={`p-4 rounded-lg outline outline-1 -outline-offset-1 ${c.ring} flex flex-col gap-2`}>
+            <div className={`${c.head} rounded-lg flex items-center gap-3 pr-3`}>
+              <span className="p-3 rounded flex items-center justify-center"><img src={c.icon} alt="" className="size-6" /></span>
+              <span className="text-black text-xl font-weight-600 leading-5">{c.title}</span>
+            </div>
+            <div className="p-3 flex flex-col gap-2">
+              {rows.map(([label, val, danger]) => (
+                <div key={label} className="flex justify-between items-start">
+                  <span className={`text-sm font-weight-500 ${danger ? "text-red-500" : "text-neutral-700"}`}>{label}</span>
+                  <span className="text-neutral-700 text-base font-weight-600 tabular-nums">{val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
 
-type Comp = { title: string; icon: React.ReactNode; overdue: number; bar: number; d7: number; d30: number };
-const COMPLIANCE: Comp[] = [
-  { title: "MOT", icon: <img src={MOTIcon} alt="" className="size-8" />, overdue: 0, bar: 0, d7: 0, d30: 0 },
-  { title: "Plate", icon: <img src={PlateIcon} alt="" className="size-8" />, overdue: 0, bar: 0, d7: 0, d30: 0 },
-  { title: "Road Fund Licence", icon: <img src={RoadTaxIcon} alt="" className="size-8" />, overdue: 0, bar: 0, d7: 0, d30: 0 },
-  { title: "Service", icon: <img src={ServiceIcon} alt="" className="size-8" />, overdue: 0, bar: 0, d7: 0, d30: 0 },
-];
-const ComplianceSummary: React.FC<{ context?: string }> = ({ context }) => {
-  // Live per-category compliance (matched by title); keeps the icons defined here.
-  const [live, setLive] = useState<Compliance | null>(null);
+// Fleet Performance — two cards (Fleet Utilization + Urgent Alerts) with a trend
+// arrow and a period-over-period delta badge.
+const vmTrend = (up: boolean) => (
+  <img src={up ? TrendingUpIcon : TrendingDownIcon} alt="" className="w-12 h-12 object-contain" />
+);
+const VMFleetPerformance: React.FC<{ period: string; context?: string }> = ({ period, context }) => {
+  const [live, setLive] = useState<StatsResponse | null>(null);
+  const [loading, setLoading] = useState(false); // full-screen spinner while the period refetch runs (like Hire Trend)
   useEffect(() => {
     let cancelled = false;
-    getCompliance(context).then((r) => {
-      if (!cancelled) setLive(r);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [context]);
-  const byTitle = new Map((live?.categories ?? []).map((c) => [c.title, c]));
-  const data = COMPLIANCE.map((c) => {
-    const l = byTitle.get(c.title);
-    return l
-      ? { ...c, overdue: l.overdue, bar: l.bar, d7: l.d7, d30: l.d30, total: l.total, compliant: l.compliant, amber: l.amber }
-      : { ...c, total: 0, compliant: 0, amber: 0 };
-  });
+    setLoading(true);
+    getStats(period, context ? `vehicles_${context}` : "vehicles")
+      .then((r) => { if (!cancelled) setLive(r); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [period, context]);
+  const byKey = new Map((live?.cards ?? []).map((c) => [c.key, c]));
+  const compare = live?.compare_label ?? "vs last month";
+  const cards = [
+    { c: byKey.get("fleet_availability"), icon: FleetNewIcon, iconBg: "bg-blue-100" },
+    { c: byKey.get("urgent_alerts"), icon: UrgentNewIcon, iconBg: "bg-red-100" },
+  ];
   return (
-    <div className="col-span-12">
-      {/* Category cards */}
-      <div className="grid grid-cols-4 gap-3">
-        {data.map((c) => {
-          const pillTotal = (c.overdue || 0) + (c.d7 || 0) + (c.d30 || 0);
+    <div className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col gap-6">
+      {loading && <FleetSpinnerLoader />}
+      <h2 className="text-black text-xl font-weight-600 leading-5">Fleet Performance</h2>
+      <div className="flex flex-col sm:flex-row gap-6">
+        {cards.map(({ c, icon, iconBg }, i) => {
+          const up = c?.up ?? true;
           return (
-          <div key={c.title} className="bg-white rounded-xl shadow-[0px_1px_4px_0px_rgba(0,0,0,0.05)] border border-neutral-200 px-5 pt-5 pb-4 flex flex-col">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                {c.icon}
-                <h4 className="text-neutral-900 text-sm font-weight-600 leading-5 truncate">{c.title}</h4>
+            <div key={i} className="flex-1 p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col gap-3">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-4">
+                  <span className={`p-3 ${iconBg} rounded flex items-center justify-center`}><img src={icon} alt="" className="size-6" /></span>
+                  {vmTrend(up)}
+                </div>
+                <div className="flex flex-col items-start gap-1 text-right">
+                  <div className="text-black text-2xl font-weight-600 leading-6">{c?.value ?? "—"}</div>
+                  <div className="text-neutral-500 text-sm font-weight-500">{(c?.label ?? "").replace(/\s*\(.*\)$/, "")}</div>
+                </div>
               </div>
-              <span className="px-2 py-0.5 bg-neutral-100 rounded-full text-neutral-500 text-xs font-weight-600 leading-4 shrink-0">{pillTotal} total</span>
-            </div>
-            {/* Bar maps to the three stat boxes: red = overdue, orange = due within 7d,
-                amber = due within 30d; the emerald track shows the compliant remainder. */}
-            <div className="mt-4 h-1.5 bg-emerald-100 rounded flex gap-px overflow-hidden">
-              <span className="bg-red-500 h-full" style={{ width: `${((c.overdue || 0) / (c.total || 1)) * 100}%` }} />
-              <span className="bg-orange-400 h-full" style={{ width: `${((c.d7 || 0) / (c.total || 1)) * 100}%` }} />
-              <span className="bg-amber-300 h-full" style={{ width: `${(Math.max(0, (c.d30 || 0) - (c.d7 || 0)) / (c.total || 1)) * 100}%` }} />
-            </div>
-            <div className="mt-3.5 grid grid-cols-3 gap-2">
-              <div className="bg-red-50 rounded-lg outline outline-1 outline-offset-[-1px] outline-red-200 px-2 py-2.5 flex flex-col items-center">
-                <span className="text-red-600 text-xl font-weight-600 leading-5 tabular-nums">{c.overdue}</span>
-                <span className="text-red-600 text-[10px] font-weight-500 uppercase tracking-tight mt-1">Overdue</span>
-              </div>
-              <div className="bg-amber-50 rounded-lg outline outline-1 outline-offset-[-1px] outline-amber-200 px-2 py-2.5 flex flex-col items-center">
-                <span className="text-amber-800 text-xl font-weight-600 leading-5 tabular-nums">{c.d7}</span>
-                <span className="text-amber-600 text-[10px] font-weight-500 uppercase tracking-tight mt-1">7 Days</span>
-              </div>
-              <div className="bg-neutral-50 rounded-lg outline outline-1 outline-offset-[-1px] outline-neutral-200 px-2 py-2.5 flex flex-col items-center">
-                <span className="text-neutral-700 text-xl font-weight-600 leading-5 tabular-nums">{c.d30}</span>
-                <span className="text-neutral-400 text-[10px] font-weight-500 uppercase tracking-tight mt-1">30 Days</span>
+              <div className="h-px bg-neutral-200" />
+              <div className="flex items-center gap-2">
+                <span className={`px-1 py-0.5 rounded text-xs font-weight-600 ${up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"}`}>{up ? "+" : "-"}{c?.pct ?? "0"}%</span>
+                <span className="text-neutral-500 text-sm">{compare}</span>
               </div>
             </div>
-          </div>
           );
         })}
       </div>
@@ -1284,134 +1448,659 @@ const ComplianceSummary: React.FC<{ context?: string }> = ({ context }) => {
   );
 };
 
-// ── Weekly Payment Schedule ───────────────────────────────────────────────────
-type WPBucket = keyof WeeklyPayments["rows"];
-const WP_TABS: { key: WPBucket; tone: string; label: string }[] = [
-  { key: "due_today", tone: "gray", label: "Due Today" },
-  { key: "due_this_week", tone: "yellow", label: "Due This Week" },
-  { key: "overdue", tone: "red", label: "Overdue" },
-  { key: "received_today", tone: "green", label: "Received Today" },
-];
-// Empty/zero placeholders — no invented payments when /dashboard/weekly-payments is unavailable.
-const WP_FALLBACK_ROWS: (string | [string, string])[][] = [];
-const WP_FALLBACK_COUNTS: WeeklyPayments["tabs"] = { due_today: 0, due_this_week: 0, overdue: 0, received_today: 0, all: 0 };
-const WP_FALLBACK_SUMMARY: PaymentSummary = {
-  total: "£0", overdue: "£0", due_today: "£0", received: "£0",
-  by_day: [
-    { day: "Mon", amount: 0 }, { day: "Tue", amount: 0 }, { day: "Wed", amount: 0 },
-    { day: "Thu", amount: 0 }, { day: "Fri", amount: 0 }, { day: "Sat", amount: 0 }, { day: "Sun", amount: 0 },
-  ],
-};
+// Servicing Due — mileage list with All / Overdue / within-500 / within-1000 tabs.
+type ServTab = "all" | "overdue" | "within_500" | "within_1000";
+const ServicingRow: React.FC<{
+  r: (string | [string, string])[];
+  onClick?: () => void;
+  onHoverIn?: () => void;
+  onHoverOut?: () => void;
+}> = ({ r, onClick, onHoverIn, onHoverOut }) => {
+  const reg = r[0] as string;
+  const cur = r[1] as string;
+  const due = r[2] as string;
 
-// Left-hand roll-up panel: total this week + owed/received breakdown + a per-weekday
-// mini chart. Grey-toned to match the Fleet theme; uses the app's own fonts.
-const WPSummary: React.FC<{ s: PaymentSummary }> = ({ s }) => {
-  const max = Math.max(1, ...s.by_day.map((d) => d.amount));
-  const rows: [string, string, string][] = [
-    ["Overdue", s.overdue, "text-red-600"],
-    ["Due Today", s.due_today, "text-amber-600"],
-    ["Received", s.received, "text-green-600"],
+  const status = r[3] as [string, string];
+  const overdue = Array.isArray(status) && status[1] === "red";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={onHoverIn}
+      onMouseLeave={onHoverOut}
+      className="w-full text-left py-3 border-b border-neutral-100 flex justify-between items-start gap-3 hover:bg-neutral-50 transition"
+    >
+      <div className="flex flex-col gap-1 min-w-0">
+        <span className="text-black text-sm font-weight-500">
+          {reg}
+        </span>
+
+        <div className="flex flex-wrap gap-4 text-xs text-neutral-700">
+          <span>
+            Current:{" "}
+            <span className="font-weight-600">{cur} mi</span>
+          </span>
+
+          <span>
+            Due at:{" "}
+            <span className="font-weight-600">{due} mi</span>
+          </span>
+        </div>
+      </div>
+
+      <span
+        className={`shrink-0 px-3 py-1 rounded-sm text-xs whitespace-nowrap ${
+          overdue
+            ? "bg-red-100 text-red-500"
+            : "bg-neutral-100 text-neutral-700"
+        }`}
+      >
+        {Array.isArray(status) ? status[0] : ""}
+      </span>
+    </button>
+  );
+};
+const servicingRowsByTab = (data: ServicingDue | null): Record<ServTab, (string | [string, string])[][]> => ({
+  all: data ? [...data.rows.overdue, ...data.rows.within_500, ...data.rows.within_1000] : [],
+  overdue: data?.rows.overdue ?? [],
+  within_500: data?.rows.within_500 ?? [],
+  within_1000: data?.rows.within_1000 ?? [],
+});
+const ServicingTabsRow: React.FC<{ data: ServicingDue | null; tab: ServTab; setTab: (t: ServTab) => void }> = ({ data, tab, setTab }) => {
+  const tt = data?.tabs;
+  const tabs: [ServTab, string, number][] = [
+    ["all", "All", tt ? tt.overdue + tt.within_500 + tt.within_1000 : 0],
+    ["overdue", "Overdue", tt?.overdue ?? 0],
+    ["within_500", "Due within 500 miles", tt?.within_500 ?? 0],
+    ["within_1000", "Due within 1,000 miles", tt?.within_1000 ?? 0],
   ];
   return (
-    <aside className="flex-[2] min-w-0 bg-neutral-50 border border-neutral-100 rounded-lg p-4 flex flex-col gap-4">
-      <div>
-        <div className="text-2xl font-weight-600 text-neutral-900 tabular-nums leading-tight">{s.total}</div>
-        <div className="text-xs text-neutral-400 mt-1">Total this week</div>
-      </div>
-      <div className="flex flex-col gap-2">
-        {rows.map(([label, value, tone]) => (
-          <div key={label} className="flex items-center justify-between">
-            <span className="text-xs text-neutral-400">{label}</span>
-            <span className={`text-xs font-weight-500 tabular-nums ${tone}`}>{value}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-auto">
-        <div className="flex items-end gap-1 h-20">
-          {s.by_day.map((d) => (
-            // Full-height hover target so even short/empty bars show their amount.
-            <div key={d.day} className="group relative flex-1 h-full flex items-end justify-center">
-              <div
-                className={`w-full rounded-sm transition-colors ${d.amount === max ? "bg-neutral-400" : "bg-neutral-200"} group-hover:bg-neutral-500`}
-                style={{ height: `${Math.max(4, (d.amount / max) * 100)}%` }}
-              />
-              <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-10 whitespace-nowrap rounded bg-neutral-900 px-1.5 py-0.5 text-[10px] text-white shadow opacity-0 transition group-hover:opacity-100">
-                {d.day}: £{d.amount.toLocaleString()}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex mt-1.5">
-          {s.by_day.map((d) => <span key={d.day} className="flex-1 text-center text-[9px] text-neutral-400">{d.day[0]}</span>)}
-        </div>
-      </div>
-    </aside>
+    <div className="flex flex-wrap gap-3">
+      {tabs.map(([k, label, count]) => (
+        <button key={k} type="button" onClick={() => setTab(k)}
+          className={`px-3 py-1 rounded-full inline-flex gap-2 text-xs ${tab === k ? "bg-neutral-700 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}>
+          <span>{label}</span><span>{count}</span>
+        </button>
+      ))}
+    </div>
   );
 };
-const WeeklyPayment: React.FC = () => {
-  // Live cross-hire schedule; the four tabs filter the table to a single bucket
-  // (click again to clear). Falls back to placeholders if the backend is unreachable.
-  const [live, setLive] = useState<WeeklyPayments | null>(null);
-  const [active, setActive] = useState<WPBucket | null>(null);
-  const [sliderOpen, setSliderOpen] = useState(false); // "View All" opens a right-side slider
+const ServicingDueSlider: React.FC<{ data: ServicingDue | null; onClose: () => void }> = ({ data, onClose }) => {
+  const [tab, setTab] = useState<ServTab>("all");
+  const shown = servicingRowsByTab(data)[tab];
+  return (
+    <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
+      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="w-[700px] max-w-full bg-white h-full flex flex-col p-10 gap-5 overflow-auto">
+        <div className="flex justify-between items-center">
+          <h2 className="text-black text-2xl font-weight-600 leading-6">Servicing Due</h2>
+          <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded-sm text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
+        </div>
+        <div className="h-px bg-neutral-200 w-full" />
+        <ServicingTabsRow data={data} tab={tab} setTab={setTab} />
+        {shown.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-sm text-neutral-400">No vehicles here.</div>
+        ) : (
+          <div className="flex flex-col">{shown.map((r, i) => <ServicingRow key={i} r={r} />)}</div>
+        )}
+      </div>
+    </div>
+  );
+};
+const VMServicingDue: React.FC<{ context?: string }> = ({ context }) => {
+  const [data, setData] = useState<ServicingDue | null>(null);
+  const [tab, setTab] = useState<ServTab>("all");
+  const [sliderOpen, setSliderOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<
+    (string | [string, string])[] | null
+  >(null);
   useEffect(() => {
     let cancelled = false;
-    getWeeklyPayments().then((r) => {
-      if (!cancelled) setLive(r);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  const counts = live?.tabs ?? WP_FALLBACK_COUNTS;
-  const summary = live?.summary ?? WP_FALLBACK_SUMMARY;
-  const rows: (string | [string, string])[][] = live
-    ? active
-      ? live.rows[active]
-      : [...live.rows.overdue, ...live.rows.due_today, ...live.rows.due_this_week, ...live.rows.received_today]
-    : WP_FALLBACK_ROWS;
-  const displayRows = rows.slice(0, 5);
-  const allRows = live?.rows.all ?? rows; // "View All" lists every payment — received, upcoming and owed.
+    getServicingDue(context).then((r) => { if (!cancelled) setData(r); });
+    return () => { cancelled = true; };
+  }, [context]);
+  const shown = servicingRowsByTab(data)[tab];
   return (
-    <Card span="col-span-12">
-      <CardHead
-        icon={<GreyIconBox><img src={WeeklyPaymentIcon} alt="" className="size-4" /></GreyIconBox>}
-        title="Weekly Payment Schedule"
-      />
-      <div className="flex gap-4 min-w-0">
-        <WPSummary s={summary} />
-        <div className="flex-[4] min-w-0 flex flex-col">
-          <div className="flex flex-wrap gap-1.5 mb-3.5">
-            {WP_TABS.map(({ key, tone, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => { setActive((a) => (a === key ? null : key)); setSliderOpen(false); }}
-                className={`rounded px-2 py-1.5 text-xs font-weight-400 font-normal leading-4 transition ${TP[tone]} ${active === key ? "ring-2 ring-offset-1 ring-neutral-400" : active ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
-              >
-                {label} {counts[key]}
-              </button>
-            ))}
-          </div>
-          <div className="overflow-x-auto">
-            <DataTable
-              head={["Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]}
-              rows={displayRows}
-              headText="text-neutral-800 font-normal"
-              cellText="text-neutral-500"
-            />
-          </div>
-          <div className="flex justify-center pt-3">
-            <button type="button" onClick={() => setSliderOpen(true)} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black whitespace-nowrap">View All</button>
-          </div>
+    <div className="flex-1 min-w-0 px-4 py-6 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between items-start">
+          <h2 className="text-black text-xl font-weight-600 leading-5">
+            Servicing Due
+          </h2>
+          <button
+            type="button"
+            onClick={() => setSliderOpen(true)}
+            className="h-8 px-3 py-2 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-700 text-sm leading-4 hover:bg-neutral-50"
+          >
+            View All Vehicles
+          </button>
         </div>
+        <ServicingTabsRow data={data} tab={tab} setTab={setTab} />
       </div>
-      {sliderOpen && <RecordsSlider title="All Payments" head={["#", "Vehicle", "Customer", "Weekly Payment", "Outstanding", "Due Date", "Status"]} rows={allRows.map((r, i) => [String(i + 1), ...r])} onClose={() => setSliderOpen(false)} />}
-    </Card>
+      <div className="flex flex-col">
+        {shown.length === 0 ? (
+          <div className="py-10 text-center text-xs text-neutral-400">
+            No vehicles here.
+          </div>
+        ) : (
+          shown
+            .slice(0, 6)
+            .map((r, i) => (
+              <ServicingRow
+                key={i}
+                r={r}
+                onHoverIn={() => setSelectedService(r)}
+                onHoverOut={() => setSelectedService(null)}
+              />
+            ))
+        )}
+      </div>
+      {selectedService && (
+        <ServicingDuePopup
+          row={selectedService}
+          onClose={() => setSelectedService(null)}
+          hover
+        />
+      )}
+      {sliderOpen && (
+        <ServicingDueSlider data={data} onClose={() => setSliderOpen(false)} />
+      )}
+    </div>
   );
 };
 
-// ── page ──────────────────────────────────────────────────────────────────────
+// Expiry sections (replace the carousel): MOT + Road Fund as lists, Plate as cards.
+const VM_EXP_BUCKETS: { key: "expired" | "today" | "d7" | "d30"; label: string; tone: string }[] = [
+  { key: "expired", label: "Expired", tone: "red" },
+  { key: "today", label: "Due Today", tone: "gray" },
+  { key: "d7", label: "Due in 7 Days", tone: "yellow" },
+  { key: "d30", label: "Due in 30 Days", tone: "blue" },
+];
+const EXP_TONE: Record<string, string> = {
+  red: "bg-red-100 text-red-500", gray: "bg-neutral-100 text-neutral-700",
+  yellow: "bg-yellow-100 text-yellow-600", blue: "bg-blue-100 text-blue-500",
+  orange: "bg-orange-100 text-orange-500", violet: "bg-violet-100 text-violet-600",
+};
+// One outlined-card row for an expiry item (reg + hire status + bucket badge + date).
+// Shared by the MOT / Road Fund dashboard sections and their sliders.
+const ExpiryRow: React.FC<{
+  r: (string | [string, string])[];
+  bucket: { label: string; tone: string };
+  onClick?: () => void;
+  onHoverIn?: () => void;
+  onHoverOut?: () => void;
+}> = ({ r, bucket, onClick, onHoverIn, onHoverOut }) => {
+  const reg = r[0] as string;
+  const dateStr = r[1] as string;
+  const status = (r[5] as string) || "";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={onHoverIn}
+      onMouseLeave={onHoverOut}
+      className="w-full text-left px-4 py-3 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col gap-1 hover:bg-neutral-50 transition"
+    >
+      <div className="flex justify-between items-center gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-black text-sm font-weight-500 truncate">
+            {reg}
+          </span>
+
+          {status && (
+            <span className="text-blue-500 text-xs font-weight-600 shrink-0">
+              {status}
+            </span>
+          )}
+        </div>
+
+        <span
+          className={`shrink-0 px-2 py-1 rounded-sm text-xs whitespace-nowrap ${
+            EXP_TONE[bucket.tone]
+          }`}
+        >
+          {bucket.label}
+        </span>
+      </div>
+
+      <span className="text-neutral-500 text-xs">
+        Expiry Date: {dateStr}
+      </span>
+    </button>
+  );
+};
+// Drawer opened by an expiry section's "View All Vehicles" — tabs + Vehicle Status
+// filter + full list of outlined rows.
+const ExpiryListSlider: React.FC<{ title: string; card?: ExpiryCard; onClose: () => void }> = ({ title, card, onClose }) => {
+  const [tab, setTab] = useState<string>("all");
+  const [statusSel, setStatusSel] = useState<string[]>([]);
+ 
+  const tabs = card?.tabs ?? { expired: 0, today: 0, d7: 0, d30: 0 };
+  const total = tabs.expired + tabs.today + tabs.d7 + tabs.d30;
+  const flat = card ? VM_EXP_BUCKETS.flatMap((b) => (card.rows[b.key] || []).map((r) => ({ r, b }))) : [];
+  // Show every vehicle-status type in the filter, even ones absent from this list.
+  const statusOptions = VEH_ALWAYS_LEGEND.map(({ l }) => ({ label: l, value: l }));
+  const shown = flat.filter((x) =>
+    (tab === "all" || x.b.key === tab) && (!statusSel.length || statusSel.includes(x.r[5] as string)),
+  );
+  return (
+    <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
+      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="w-[700px] max-w-full bg-white h-full flex flex-col p-10 gap-5 overflow-auto">
+        <div className="flex justify-between items-center">
+          <h2 className="text-black text-2xl font-weight-600 leading-6">{title}</h2>
+          <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded-sm text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
+        </div>
+        <div className="h-px bg-neutral-200 w-full" />
+        <VMExpiryTabs tab={tab} setTab={setTab} tabs={tabs} total={total} />
+        <div className="flex flex-wrap items-center gap-8">
+          <p className="text-2xl font-weight-600 leading-6 text-black">{total} Vehicles</p>
+          <FleetMultiSelectFilter label="Vehicle Status" options={statusOptions} selected={statusSel}
+            onToggle={(v) => setStatusSel((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]))} onClear={() => setStatusSel([])} />
+        </div>
+        {shown.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-sm text-neutral-400">No vehicles match.</div>
+        ) : (
+          <div className="flex flex-col gap-3">
+           {shown.map(({ r, b }, i) => (
+  <ExpiryRow key={i} r={r} bucket={b} />
+))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+const VMExpiryTabs = ({ tab, setTab, tabs, total }: { tab: string; setTab: (t: string) => void; tabs: ExpiryCard["tabs"]; total: number }) => {
+  const pills: [string, string, number][] = [["all", "All", total], ...VM_EXP_BUCKETS.map((b) => [b.key, b.label, tabs[b.key]] as [string, string, number])];
+  return (
+    <div className="flex flex-wrap gap-3">
+      {pills.map(([k, label, count]) => (
+        <button key={k} type="button" onClick={() => setTab(k)}
+          className={`px-3 py-1 rounded-full inline-flex gap-2 text-xs ${tab === k ? "bg-neutral-700 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}>
+          <span>{label}</span><span>{count}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
+const VMExpiryList: React.FC<{ title: string; card?: ExpiryCard }> = ({ title, card }) => {
+  const [tab, setTab] = useState<string>("all");
+  const [sliderOpen, setSliderOpen] = useState(false);
+   const [selectedRow, setSelectedRow] = useState<{
+     r: (string | [string, string])[];
+     b: { label: string; tone: string };
+   } | null>(null);
+  const tabs = card?.tabs ?? { expired: 0, today: 0, d7: 0, d30: 0 };
+  const total = tabs.expired + tabs.today + tabs.d7 + tabs.d30;
+  const flat = card ? VM_EXP_BUCKETS.flatMap((b) => (card.rows[b.key] || []).map((r) => ({ r, b }))) : [];
+  const shown = (tab === "all" ? flat : flat.filter((x) => x.b.key === tab)).slice(0, 5);
+  return (
+    <div className="flex-1 min-w-0 px-4 py-6 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-black text-xl font-weight-600 leading-5">
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={() => setSliderOpen(true)}
+            className="h-8 px-3 py-2 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-700 text-sm leading-4 hover:bg-neutral-50"
+          >
+            View All Vehicles
+          </button>
+        </div>
+        <VMExpiryTabs tab={tab} setTab={setTab} tabs={tabs} total={total} />
+        <div className="text-black text-2xl font-weight-600 leading-6">
+          {total} Vehicles
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        {shown.length === 0 ? (
+          <div className="py-10 text-center text-xs text-neutral-400">
+            No vehicles here.
+          </div>
+        ) : (
+          shown.map(({ r, b }, i) => (
+            <ExpiryRow
+              key={i}
+              r={r}
+              bucket={b}
+              onHoverIn={() => setSelectedRow({ r, b })}
+              onHoverOut={() => setSelectedRow(null)}
+            />
+          ))
+        )}
+      </div>
+      {sliderOpen && (
+        <ExpiryListSlider
+          title={title}
+          card={card}
+          onClose={() => setSliderOpen(false)}
+        />
+      )}
+
+      {title === "MOT Expiry" && selectedRow && (
+        <MOTExpiryPopup
+          row={selectedRow.r}
+          bucket={selectedRow.b}
+          onClose={() => setSelectedRow(null)}
+          hover
+        />
+      )}
+
+      {title === "Road Fund Expiry" && selectedRow && (
+        <RoadFundExpiryPopup
+          row={selectedRow.r}
+          bucket={selectedRow.b}
+          onClose={() => setSelectedRow(null)}
+          hover
+        />
+      )}
+    </div>
+  );
+};
+// Plate uses its own Expired / Upcoming / Urgent categories + shows the licensing
+// authority (backend now returns it in row[3], and "make model" in row[4]).
+const PLATE_CATS: { key: string; label: string; tone: string; buckets: ("expired" | "today" | "d7" | "d30")[] }[] = [
+  { key: "expired", label: "Expired", tone: "bg-red-100 text-red-500", buckets: ["expired"] },
+  { key: "upcoming", label: "Upcoming", tone: "bg-blue-100 text-blue-500", buckets: ["d30"] },
+  { key: "urgent", label: "Urgent", tone: "bg-orange-100 text-orange-500", buckets: ["today", "d7"] },
+];
+type PlateRow = { r: (string | [string, string])[]; cat: typeof PLATE_CATS[number] };
+const platePartition = (card?: ExpiryCard): PlateRow[] => {
+  if (!card) return [];
+  const out: PlateRow[] = [];
+  PLATE_CATS.forEach((cat) => cat.buckets.forEach((bk) => (card.rows[bk] || []).forEach((r) => out.push({ r, cat }))));
+  return out;
+};
+const plateCounts = (card?: ExpiryCard) => {
+  const t = card?.tabs ?? { expired: 0, today: 0, d7: 0, d30: 0 };
+  return { total: t.expired + t.today + t.d7 + t.d30, expired: t.expired, upcoming: t.d30, urgent: t.today + t.d7 };
+};
+const PlateCard: React.FC<{ row: PlateRow }> = ({ row }) => {
+  const { r, cat } = row;
+  const reg = r[0] as string, dateStr = r[1] as string, authority = r[3] as string, model = (r[4] as string) || "";
+  return (
+    <div className="p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col gap-5">
+      <div className="flex justify-between items-start gap-2">
+        <div className="flex flex-col gap-1 min-w-0">
+          <span className="text-black text-sm font-weight-500">{reg}</span>
+          {model && <span className="text-neutral-700 text-xs">{model}</span>}
+        </div>
+        <span className={`shrink-0 px-2 py-1 rounded-sm text-xs whitespace-nowrap ${cat.tone}`}>{cat.label}</span>
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="text-neutral-500 text-xs">Authority: {authority && authority !== "—" ? authority : "—"}</span>
+        <span className={`text-xs ${cat.key === "upcoming" ? "text-neutral-500" : "text-red-500"}`}>Expiry Date: {dateStr}</span>
+      </div>
+    </div>
+  );
+};
+const PlateChips: React.FC<{ card?: ExpiryCard; sel: string; onSel: (k: string) => void }> = ({ card, sel, onSel }) => {
+  const c = plateCounts(card);
+  const chips: [string, string, number, string][] = [
+    ["expired", "Expired", c.expired, "bg-red-100 text-red-500"],
+    ["upcoming", "Upcoming", c.upcoming, "bg-blue-100 text-blue-500"],
+    ["urgent", "Urgent", c.urgent, "bg-orange-100 text-orange-500"],
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {chips.map(([k, label, n, tone]) => (
+        <button key={k} type="button" onClick={() => onSel(sel === k ? "" : k)}
+          className={`p-3 rounded-sm text-sm ${tone} ${sel === k ? "ring-2 ring-offset-1 ring-neutral-400" : sel ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}>
+          {label}  {n}
+        </button>
+      ))}
+    </div>
+  );
+};
+const PlateExpirySlider: React.FC<{ card?: ExpiryCard; onClose: () => void }> = ({ card, onClose }) => {
+  const [regSel, setRegSel] = useState<string[]>([]);
+  const [authSel, setAuthSel] = useState<string[]>([]);
+  const [catSel, setCatSel] = useState<string>("");
+  const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, v: string) => setter((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]));
+  const all = platePartition(card);
+  const regOptions = Array.from(new Set(all.map((x) => x.r[0] as string))).map((v) => ({ label: v, value: v }));
+  const authOptions = Array.from(new Set(all.map((x) => x.r[3] as string).filter((a) => a && a !== "—"))).map((v) => ({ label: v, value: v }));
+  const shown = all.filter((x) =>
+    (!catSel || x.cat.key === catSel)
+    && (!regSel.length || regSel.includes(x.r[0] as string))
+    && (!authSel.length || authSel.includes(x.r[3] as string)),
+  );
+  return (
+    <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
+      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="w-[950px] max-w-full bg-white h-full flex flex-col p-10 gap-5 overflow-auto">
+        <div className="flex justify-between items-center">
+          <h2 className="text-black text-2xl font-weight-600 leading-6">Plate Expiry</h2>
+          <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded-sm text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
+        </div>
+        <div className="h-px bg-neutral-200 w-full" />
+        <div className="flex flex-wrap justify-between items-center gap-4">
+          <div className="flex flex-wrap items-center gap-8">
+            <p className="text-2xl font-weight-600 leading-6 text-black">{plateCounts(card).total} Vehicles</p>
+            <FleetMultiSelectFilter label="Registration" options={regOptions} selected={regSel} onToggle={(v) => toggle(setRegSel, v)} onClear={() => setRegSel([])} />
+            <FleetMultiSelectFilter label="Licensing Authority" options={authOptions} selected={authSel} onToggle={(v) => toggle(setAuthSel, v)} onClear={() => setAuthSel([])} />
+          </div>
+          <PlateChips card={card} sel={catSel} onSel={setCatSel} />
+        </div>
+        {shown.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-sm text-neutral-400">No vehicles match.</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 auto-rows-min">
+            {shown.map((row, i) => <PlateCard key={i} row={row} />)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+const VMPlateExpiry: React.FC<{ card?: ExpiryCard }> = ({ card }) => {
+  const [sel, setSel] = useState<string>("");
+  const [sliderOpen, setSliderOpen] = useState(false);
+  const all = platePartition(card);
+  const shown = (sel ? all.filter((x) => x.cat.key === sel) : all).slice(0, 10);
+  return (
+    <div className="px-4 py-6 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-black text-xl font-weight-600 leading-5">Plate Expiry</h2>
+          <button type="button" onClick={() => setSliderOpen(true)} className="h-8 px-3 py-2 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-700 text-sm leading-4 hover:bg-neutral-50">View All Vehicles</button>
+        </div>
+        <div className="flex flex-wrap justify-between items-center gap-4">
+          <div className="text-black text-2xl font-weight-600 leading-6">{plateCounts(card).total} Vehicles</div>
+          <PlateChips card={card} sel={sel} onSel={setSel} />
+        </div>
+      </div>
+      {shown.length === 0 ? (
+        <div className="py-10 text-center text-xs text-neutral-400">No vehicles here.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {shown.map((row, i) => <PlateCard key={i} row={row} />)}
+        </div>
+      )}
+      {sliderOpen && <PlateExpirySlider card={card} onClose={() => setSliderOpen(false)} />}
+    </div>
+  );
+};
+const VMExpiryZone: React.FC<{ context?: string }> = ({ context }) => {
+  const [data, setData] = useState<Expiries | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getExpiries(context).then((r) => { if (!cancelled) setData(r); });
+    return () => { cancelled = true; };
+  }, [context]);
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col lg:flex-row gap-5">
+        <VMExpiryList title="MOT Expiry" card={data?.mot} />
+        <VMExpiryList title="Road Fund Expiry" card={data?.road_fund} />
+      </div>
+      <VMPlateExpiry card={data?.plate} />
+    </div>
+  );
+};
+
+// ── Skyline hire dashboard (figma redesign) ───────────────────────────────────
+// Four stat cards (Vehicles on Hire / Net Income / Fleet Utilization / Urgent
+// Alerts) in the new card style — icon + trend + value + delta badge.
+const SK_STAT_ICONBG: Record<string, string> = {
+  vehicles_on_hire: "bg-blue-100", net_income: "bg-neutral-100",
+  fleet_availability: "bg-blue-100", urgent_alerts: "bg-red-100",
+};
+// New per-card icons (added as the client supplies them); falls back to FP_META otherwise.
+const SK_STAT_ICON: Record<string, string> = {
+  vehicles_on_hire: VehiclesOnHireIcon,
+  fleet_availability: FleetNewIcon,
+  urgent_alerts: UrgentNewIcon,
+  net_income: IncomeNewIcon,
+};
+const SkylineFleetStats: React.FC<{ period: string }> = ({ period }) => {
+  const [live, setLive] = useState<StatsResponse | null>(null);
+  const [loading, setLoading] = useState(false); // full-screen spinner while the period refetch runs (like Hire Trend)
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    getStats(period, "skyline")
+      .then((r) => { if (!cancelled) setLive(r); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [period]);
+  const byKey = new Map((live?.cards ?? []).map((c) => [c.key, c]));
+  const compare = live?.compare_label ?? "vs last month";
+  return (
+    <div className="flex flex-col sm:flex-row gap-6">
+      {loading && <FleetSpinnerLoader />}
+      {FP_ORDER.map((k) => {
+        const c = byKey.get(k);
+        const up = c?.up ?? true;
+        return (
+          <div key={k} className="flex-1 p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col gap-3">
+            <div className="flex items-center gap-4">
+              <span className={`p-3 ${SK_STAT_ICONBG[k]} rounded-sm flex items-center justify-center`}>{SK_STAT_ICON[k] ? <img src={SK_STAT_ICON[k]} alt="" className="size-6" /> : FP_META[k]?.icon}</span>
+              {vmTrend(up)}
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="text-black text-2xl font-weight-600 leading-6">{c?.value ?? "—"}</div>
+              <div className="text-neutral-500 text-sm font-weight-500">{(c?.label ?? "").replace(/\s*\(.*\)$/, "")}</div>
+            </div>
+            <div className="h-px bg-neutral-200" />
+            <div className="flex items-center gap-2">
+              <span className={`px-1 py-0.5 rounded-sm text-xs font-weight-600 ${up ? "bg-green-100 text-green-700" : "bg-red-100 text-red-500"}`}>{up ? "+" : "-"}{c?.pct ?? "0"}%</span>
+              <span className="text-neutral-500 text-sm">{compare}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Weekly Payment Schedule slider — card rows opened by the section's "View All".
+const WP_TONE: Record<string, string> = {
+  red: "bg-red-100 text-red-500", gray: "bg-blue-100 text-blue-500", blue: "bg-blue-100 text-blue-500",
+  yellow: "bg-yellow-100 text-yellow-700", green: "bg-green-100 text-green-700",
+};
+// Full-detail preview shown while hovering a payment row on the dashboard (not the slider).
+const WPPaymentPreview: React.FC<{ reg: string; cust: string; hireStatus: string; status: [string, string]; dueDate: string; weekly: string; balance: string }> = ({ reg, cust, hireStatus, status, dueDate, weekly, balance }) => (
+  <div className="w-[440px] max-w-[92vw] px-5 pt-5 pb-6 bg-white rounded-lg shadow-2xl border border-neutral-200 flex flex-col gap-3">
+    <div className="text-black text-xl font-weight-600 leading-5">Weekly Payment Schedule</div>
+    <div className="h-px bg-neutral-100 w-full" />
+    <div className="py-1 flex justify-between items-start">
+      <div className="flex flex-col gap-1 min-w-0">
+        <div className="text-black text-base font-weight-600">{reg}</div>
+        <div><span className="text-neutral-700 text-sm">Customer: </span><span className="text-neutral-700 text-sm font-weight-600">{cust}</span></div>
+        <div><span className="text-neutral-700 text-sm">Hire Status: </span><span className="text-neutral-700 text-sm font-weight-600">{hireStatus}</span></div>
+      </div>
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        {Array.isArray(status) && <span className={`px-2 py-1 rounded-sm text-xs whitespace-nowrap ${WP_TONE[status[1]] ?? "bg-neutral-100 text-neutral-600"}`}>{status[0]}</span>}
+        <div className="text-neutral-500 text-xs">Due Date: {dueDate}</div>
+      </div>
+    </div>
+    <div className="flex justify-start items-start gap-4">
+      <div className="flex-1 px-5 py-3 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col justify-center items-start gap-1">
+        <div className="text-neutral-900 text-2xl font-weight-600 leading-6">{weekly}</div>
+        <div className="text-neutral-700 text-xs">Weekly:</div>
+      </div>
+      <div className="flex-1 px-5 py-3 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col justify-center items-start gap-1">
+        <div className="text-neutral-900 text-2xl font-weight-600 leading-6">{balance}</div>
+        <div className="text-neutral-700 text-xs">Balance:</div>
+      </div>
+    </div>
+  </div>
+);
+const WPPaymentCard: React.FC<{ r: (string | [string, string])[]; hoverPreview?: boolean }> = ({ r, hoverPreview }) => {
+  const reg = r[0] as string, cust = r[1] as string, weekly = r[2] as string, balance = r[3] as string, dueDate = r[4] as string;
+  const status = r[5] as [string, string];
+  const hireStatus = (r[6] as string) || "—";
+  const overdue = Array.isArray(status) && status[1] === "red";
+  return (
+    <div className={`group relative p-4 rounded-lg outline outline-1 -outline-offset-1 ${overdue ? "outline-red-500" : "outline-neutral-200"} flex justify-between items-start gap-3`}>
+      <div className="flex flex-col gap-1 min-w-0">
+        <div className="flex items-start gap-3">
+          {/* fixed-width reg/customer column so every status pill lines up at the same x */}
+          <div className="flex flex-col gap-1 w-40 shrink-0">
+            <span className="text-black text-sm font-weight-500 truncate">{reg}</span>
+            <span className="text-neutral-700 text-xs truncate">{cust}</span>
+          </div>
+          {Array.isArray(status) && <span className={`shrink-0 px-2 py-1 rounded-sm text-xs whitespace-nowrap ${WP_TONE[status[1]] ?? "bg-neutral-100 text-neutral-600"}`}>{status[0]}</span>}
+        </div>
+        <span className="text-neutral-500 text-xs">Due Date: {dueDate}</span>
+      </div>
+      <div className="flex flex-col shrink-0">
+        <div className="flex items-center gap-1"><span className="w-14 text-neutral-700 text-xs">Weekly: </span><span className="text-neutral-900 text-sm font-weight-600">{weekly}</span></div>
+        <div className="flex items-center gap-1"><span className="w-14 text-neutral-700 text-xs">Balance: </span><span className="text-neutral-900 text-sm font-weight-600">{balance}</span></div>
+      </div>
+      {hoverPreview && (
+        <div className="pointer-events-none fixed inset-0 z-[60] hidden group-hover:flex items-center justify-center">
+          <WPPaymentPreview reg={reg} cust={cust} hireStatus={hireStatus} status={status} dueDate={dueDate} weekly={weekly} balance={balance} />
+        </div>
+      )}
+    </div>
+  );
+};
+const WeeklyPaymentSlider: React.FC<{ data: WeeklyPayments | null; onClose: () => void }> = ({ data, onClose }) => {
+  const [tab, setTab] = useState<string>("all");
+  const rowsByTab: Record<string, (string | [string, string])[][]> = {
+    all: data?.rows.all ?? [], overdue: data?.rows.overdue ?? [], due_today: data?.rows.due_today ?? [],
+    due_this_week: data?.rows.due_this_week ?? [], received_today: data?.rows.received_today ?? [],
+  };
+  const t = data?.tabs;
+  const tabs: [string, string, number][] = [
+    ["all", "All", t?.all ?? 0], ["overdue", "Overdue", t?.overdue ?? 0], ["due_today", "Due Today", t?.due_today ?? 0],
+    ["due_this_week", "Due This Week", t?.due_this_week ?? 0], ["received_today", "Received", t?.received_today ?? 0],
+  ];
+  const shown = rowsByTab[tab] ?? [];
+  return (
+    <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
+      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="w-[900px] max-w-full bg-white h-full flex flex-col p-10 gap-5 overflow-auto">
+        <div className="flex justify-between items-center">
+          <h2 className="text-black text-2xl font-weight-600 leading-6">Weekly Payment Schedule</h2>
+          <button type="button" onClick={onClose} className="px-10 py-4 bg-neutral-900 rounded-sm text-white text-base font-weight-500 leading-4 hover:bg-black">Close</button>
+        </div>
+        <div className="h-px bg-neutral-200 w-full" />
+        <div className="flex flex-wrap gap-3">
+          {tabs.map(([k, label, count]) => (
+            <button key={k} type="button" onClick={() => setTab(k)}
+              className={`px-3 py-1 rounded-full inline-flex gap-2 text-xs ${tab === k ? "bg-neutral-700 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}>
+              <span>{label}</span><span>{count}</span>
+            </button>
+          ))}
+        </div>
+        {shown.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-sm text-neutral-400">No payments here.</div>
+        ) : (
+          <div className="flex flex-col gap-3">{shown.map((r, i) => <WPPaymentCard key={i} r={r} />)}</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles"; context?: string }> = ({ side = "skyline", context }) => {
   // Full-screen loader while the dashboard's data loads (same as the other screens).
   const [loading, setLoading] = useState(true);
@@ -1443,27 +2132,39 @@ const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles"; context?: string
       {/* Content */}
       <div className="flex flex-col items-center">
         <div className="w-full max-w-[1440px] px-7 pt-6 pb-14">
-          <div className="grid grid-cols-12 gap-x-4 gap-y-8">
-            {side === "vehicles" && <ComplianceSummary context={context} />}
-            {/* Period toggle sits with Fleet Performance — it drives that card. */}
-            <div className="col-span-12 flex flex-col gap-3">
-              <div className="flex items-center">
-                <div className="p-[3px] bg-neutral-100 rounded-lg inline-flex items-center gap-1">
-                  {[{ v: "TDY", l: "Today" }, { v: "WTD", l: "WTD" }, { v: "MTD", l: "MTD" }, { v: "YTD", l: "YTD" }].map(({ v, l }) => (
-                    <button key={v} type="button" onClick={() => setPeriod(v)} className={`px-4 py-[5px] rounded-md text-xs font-weight-600 leading-5 transition ${period === v ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}>{l}</button>
-                  ))}
-                </div>
+          {side === "vehicles" ? (
+            /* ── Vehicle Management dashboard — figma redesign ── */
+            <div className="flex flex-col gap-10">
+              <VMComplianceCards context={context} />
+              <VMFleetPerformance period={period} context={context} />
+              <div className="flex flex-col lg:flex-row gap-5">
+                <VehicleDonut side="vehicles" context={context} span="flex-1 min-w-0" />
+                <VMServicingDue context={context} />
               </div>
-              <FleetPerformance period={period} side={side} context={context} />
+              <TaskManagement module={taskModule} />
+              <VMExpiryZone context={context} />
+              <SkylineOperations context={context} />
             </div>
-            <AttentionRequired side={side} context={context} />
-            {side !== "vehicles" && <HireTrend />}
-            {side !== "vehicles" && <WeeklyPayment />}
-            {side === "vehicles" && <VehicleDonut side={side} context={context} />}
-            <TaskManagement module={taskModule} />
-            {side === "vehicles" && <ExpiryCarousel context={context} />}
-            {side === "vehicles" && <SkylineOperations context={context} />}
-          </div>
+          ) : (
+            /* ── Skyline hire dashboard — figma redesign ── */
+            <div className="flex flex-col gap-10">
+              <div className="flex justify-between items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="rounded outline outline-1 -outline-offset-1 outline-neutral-900 inline-flex items-center gap-1">
+                    {[{ v: "TDY", l: "Today" }, { v: "WTD", l: "WTD" }, { v: "MTD", l: "MTD" }, { v: "YTD", l: "YTD" }].map(({ v, l }) => (
+                      <button key={v} type="button" onClick={() => setPeriod(v)} className={`px-4 py-2 rounded text-sm leading-4 transition ${period === v ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900"}`}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+                <button type="button" className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-weight-500 leading-4 hover:bg-black">Add Hire</button>
+              </div>
+              <SkylineFleetStats period={period} />
+              <AttentionRequired side={side} context={context} />
+              <HireTrend />
+              <WeeklyPayment />
+              <TaskManagement module={taskModule} />
+            </div>
+          )}
         </div>
       </div>
     </div>

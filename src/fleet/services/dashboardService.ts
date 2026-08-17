@@ -128,7 +128,7 @@ export interface PaymentSummary {
   overdue: string;
   due_today: string;
   received: string;
-  by_day: { day: string; amount: number }[];
+  by_day: { day: string; amount: number; overdue: number }[]; // amount = received
 }
 export interface WeeklyPayments {
   tabs: { due_today: number; due_this_week: number; overdue: number; received_today: number; all: number };

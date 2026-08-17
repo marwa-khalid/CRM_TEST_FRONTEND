@@ -7,7 +7,8 @@ import VehicleManagementRecord from "./pages/VehicleManagementRecord";
 // Fleet), scoped to the current side via module="vehicles_<context>".
 import FleetTasks from "../fleet/pages/FleetTasks";
 import FleetTasksCalendar from "../fleet/pages/FleetTasksCalendar";
-import FleetDashboard from "../fleet/pages/FleetDashboard";
+import CamsVehicleDashboard from "../fleet/pages/dashboards/CamsVehicleDashboard";
+import SkylineVehicleDashboard from "../fleet/pages/dashboards/SkylineVehicleDashboard";
 
 // Vehicle Management is split per side — CAMS (Claims cars) and Skyline — mounted at
 // /vehicle-management/:context/* (context = "cams" | "skyline"). Both are identical
@@ -17,7 +18,8 @@ import FleetDashboard from "../fleet/pages/FleetDashboard";
 // Small wrappers read the :context param and scope the reused Fleet screens to it.
 const VMDashboard: React.FC = () => {
   const { context } = useParams();
-  return <FleetDashboard side="vehicles" context={context} />;
+  // Each VM side is its own dashboard file now; pick by the :context route param.
+  return context === "cams" ? <CamsVehicleDashboard /> : <SkylineVehicleDashboard />;
 };
 const VMTasks: React.FC = () => {
   const { context } = useParams();

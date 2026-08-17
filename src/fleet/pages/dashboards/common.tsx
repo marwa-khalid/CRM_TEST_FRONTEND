@@ -1,47 +1,47 @@
 import React, { useState, useRef, useEffect } from "react";
-import FleetNotificationBell from "../components/FleetNotificationBell";
-import TrendingUp from "../../assets/Dashboard/TrendingUp.svg";
-import TrendingDown from "../../assets/Dashboard/TrendingDown.svg";
-import AllTasksIcon from "../assets/dashboard//AllTasks.svg";
-import OverdueIcon from "../../assets/Dashboard/Overdue.svg";
-import CriticalIcon from "../../assets/Dashboard/Critical.svg";
-import PendingFollowupsIcon from "../../assets/Dashboard/PendingFollowups.svg";
-import MOTNewIcon from "../assets/dashboard/newicons/MOT.svg";
-import PlateNewIcon from "../assets/dashboard/newicons/PLATE.svg";
-import RoadFundNewIcon from "../assets/dashboard/newicons/roadfund.svg";
-import ServicingDueNewIcon from "../assets/dashboard/newicons/servicingdue.svg";
-import FleetNewIcon from "../assets/dashboard/newicons/fleet.svg";
-import VehiclesOnHireIcon from "../assets/dashboard/newicons/vehiclesonhire.svg";
-import MissingDocIcon from "../assets/dashboard/newicons/awaiting.svg";
-import UrgentNewIcon from "../assets/dashboard/newicons/urgent.svg";
-import TrendingUpIcon from "../assets/dashboard/newicons/TrendingUp.svg";
-import TrendingDownIcon from "../assets/dashboard/newicons/TrendingDown.svg";
-import IncomeNewIcon from "../assets/dashboard/newicons/income.svg";
-import FileStatIcon from "../../assets/Dashboard/File.svg";
-import PoundStatIcon from "../../assets/Dashboard/Pound.svg";
-import CarsStatIcon from "../../assets/Dashboard/Cars.svg";
-import UrgentStatIcon from "../../assets/Dashboard/Urgent.svg";
-import FleetMultiSelectFilter from "../components/FleetMultiSelectFilter";
-import FleetSpinnerLoader from "../components/FleetSpinnerLoader";
-import FleetMissingDocumentsSlider from "../components/FleetMissingDocumentsSlider";
-import FleetAttentionSlider, { type AttentionCard } from "../components/FleetAttentionSlider";
+import FleetNotificationBell from "../../components/FleetNotificationBell";
+import TrendingUp from "../../../assets/Dashboard/TrendingUp.svg";
+import TrendingDown from "../../../assets/Dashboard/TrendingDown.svg";
+import AllTasksIcon from "../../assets/dashboard//AllTasks.svg";
+import OverdueIcon from "../../../assets/Dashboard/Overdue.svg";
+import CriticalIcon from "../../../assets/Dashboard/Critical.svg";
+import PendingFollowupsIcon from "../../../assets/Dashboard/PendingFollowups.svg";
+import MOTNewIcon from "../../assets/dashboard/newicons/MOT.svg";
+import PlateNewIcon from "../../assets/dashboard/newicons/PLATE.svg";
+import RoadFundNewIcon from "../../assets/dashboard/newicons/roadfund.svg";
+import ServicingDueNewIcon from "../../assets/dashboard/newicons/servicingdue.svg";
+import FleetNewIcon from "../../assets/dashboard/newicons/fleet.svg";
+import VehiclesOnHireIcon from "../../assets/dashboard/newicons/vehiclesonhire.svg";
+import MissingDocIcon from "../../assets/dashboard/newicons/awaiting.svg";
+import UrgentNewIcon from "../../assets/dashboard/newicons/urgent.svg";
+import TrendingUpIcon from "../../assets/dashboard/newicons/TrendingUp.svg";
+import TrendingDownIcon from "../../assets/dashboard/newicons/TrendingDown.svg";
+import IncomeNewIcon from "../../assets/dashboard/newicons/income.svg";
+import FileStatIcon from "../../../assets/Dashboard/File.svg";
+import PoundStatIcon from "../../../assets/Dashboard/Pound.svg";
+import CarsStatIcon from "../../../assets/Dashboard/Cars.svg";
+import UrgentStatIcon from "../../../assets/Dashboard/Urgent.svg";
+import FleetMultiSelectFilter from "../../components/FleetMultiSelectFilter";
+import FleetSpinnerLoader from "../../components/FleetSpinnerLoader";
+import FleetMissingDocumentsSlider from "../../components/FleetMissingDocumentsSlider";
+import FleetAttentionSlider, { type AttentionCard } from "../../components/FleetAttentionSlider";
 import {
   getHireTrend, getStats, getVehicleStatus, getWeeklyPayments, getCompliance, getExpiries, getServicingDue, getAttention,
   getMissingDocuments, getOverdueReturns, getOverduePayments, getFleetVehicles,
   type WeeklyPayments, type PaymentSummary, type Attention, type Expiries, type ServicingDue, type MissingDoc, type StatsResponse, type ExpiryCard,
-} from "../services/dashboardService";
-import { listFleetTasks, type FleetTask } from "../services/taskService";
+} from "../../services/dashboardService";
+import { listFleetTasks, type FleetTask } from "../../services/taskService";
 
 // Fleet Dashboard — pure inline Tailwind (same convention as the Claims dashboard).
 // Sample data is hard-coded for now; wire to fleet services when the APIs land.
 
 // ── shared bits ──────────────────────────────────────────────────────────────
-const Card: React.FC<{ span: string; className?: string; children: React.ReactNode }> = ({ span, className = "", children }) => (
+export const Card: React.FC<{ span: string; className?: string; children: React.ReactNode }> = ({ span, className = "", children }) => (
   <div className={`${span} rounded-xl border border-neutral-200 p-5 flex flex-col min-w-0 ${className}`}>{children}</div>
 );
 
 
-const CardHead: React.FC<{ icon?: React.ReactNode; title: string; sub?: string; right?: React.ReactNode; center?: boolean }> = ({ icon, title, sub, right, center }) => (
+export const CardHead: React.FC<{ icon?: React.ReactNode; title: string; sub?: string; right?: React.ReactNode; center?: boolean }> = ({ icon, title, sub, right, center }) => (
   <div className={`flex items-center gap-2.5 mb-4 ${center ? "justify-center" : "justify-between"}`}>
     <div className="flex items-center gap-2.5 min-w-0">
       {icon}
@@ -58,10 +58,10 @@ const CardHead: React.FC<{ icon?: React.ReactNode; title: string; sub?: string; 
 
 
 // ── Hire Trend (WTD/MTD/YTD periods + YoY/MoM comparison) ─────────────────────
-type TrendView = { labels: string[]; vals: number[]; cap: string; cmp?: string };
+export type TrendView = { labels: string[]; vals: number[]; cap: string; cmp?: string };
 // Zero placeholders — shown only until /dashboard/hire-trend returns. Labels/captions
 // keep the axis shape; the bars read 0 rather than inventing a trend.
-const HT_VIEWS: Record<string, TrendView> = {
+export const HT_VIEWS: Record<string, TrendView> = {
   WTD: { labels: ["Mon", "Tue", "Wed", "Thu", "Fri"], vals: [0, 0, 0, 0, 0], cap: "" },
   MTD: { labels: ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"], vals: [0, 0, 0, 0, 0], cap: "" },
   YTD: { labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], vals: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], cap: "" },
@@ -71,23 +71,23 @@ const HT_VIEWS: Record<string, TrendView> = {
   YoY: { labels: [String(new Date().getFullYear() - 1), String(new Date().getFullYear())], vals: [0, 0], cap: "", cmp: "from last year" },
   MoM: { labels: ["Prev", "This"], vals: [0, 0], cap: "", cmp: "from last month" },
 };
-function niceAxis(rawMax: number, steps: number) {
+export function niceAxis(rawMax: number, steps: number) {
   const step = Math.max(1, Math.ceil(Math.max(1, rawMax) / steps));
   const ticks: number[] = [];
   for (let i = 0; i <= steps; i++) ticks.push(step * i);
   return { max: step * steps, ticks };
 }
-const chevron = <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5"><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+export const chevron = <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5"><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
 // ── Hire-trend Custom compare (Year vs Year / Month vs Month) — mirrors the
 // Claims dashboard's CustomCompare, re-themed neutral for Fleet. ──────────────
-const PICKER_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const fmtCmp = (type: "year" | "month", v: string) => {
+export const PICKER_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const fmtCmp = (type: "year" | "month", v: string) => {
   if (type === "year") return v || "—";
   const [y, m] = (v || "").split("-");
   return y && m ? `${PICKER_MONTHS[parseInt(m) - 1]} ${y}` : "—";
 };
-const GridPicker: React.FC<{ mode: "year" | "month"; value: string; onPick: (v: string) => void }> = ({ mode, value, onPick }) => {
+export const GridPicker: React.FC<{ mode: "year" | "month"; value: string; onPick: (v: string) => void }> = ({ mode, value, onPick }) => {
   const now = new Date();
   const parsedYear = (() => { const y = parseInt((value || "").slice(0, 4)); return Number.isFinite(y) && y > 1970 ? y : now.getFullYear(); })();
   const parsedMonth = mode === "month" ? parseInt((value || "").split("-")[1] || "0") : 0;
@@ -144,7 +144,7 @@ const GridPicker: React.FC<{ mode: "year" | "month"; value: string; onPick: (v: 
     </div>
   );
 };
-const CustomCompare: React.FC<{
+export const CustomCompare: React.FC<{
   type: "year" | "month"; a: string; b: string;
   onType: (t: "year" | "month") => void; onA: (v: string) => void; onB: (v: string) => void;
 }> = ({ type, a, b, onType, onA, onB }) => {
@@ -178,8 +178,8 @@ const CustomCompare: React.FC<{
   );
 };
 
-const HT_STATUS_OPTS = [{ label: "All Statuses", value: "" }, { label: "On Hire", value: "on_hire" }, { label: "Off Hire", value: "off_hire" }];
-const HireTrend: React.FC = () => {
+export const HT_STATUS_OPTS = [{ label: "All Statuses", value: "" }, { label: "On Hire", value: "on_hire" }, { label: "Off Hire", value: "off_hire" }];
+export const HireTrend: React.FC = () => {
   const [period, setPeriod] = useState("WTD");
   const [mode, setMode] = useState("");
   const [status, setStatus] = useState("");
@@ -336,7 +336,7 @@ const HireTrend: React.FC = () => {
 
 // ── Vehicle Status Distribution (128 Total donut + legend) ────────────────────
 // Colour per status label — presentation stays here; counts come live from the API.
-const VEH_COLORS: Record<string, string> = {
+export const VEH_COLORS: Record<string, string> = {
   Available: "#86efac",        // green-300
   "On Hire": "#93c5fd",        // blue-300
   "In Service": "#d8b4fe",     // purple-300 (not in the mockup's 6 — kept distinct)
@@ -349,7 +349,7 @@ const VEH_COLORS: Record<string, string> = {
 // The donut legend mirrors the Vehicle Details availability dropdown. On Hire is
 // the dashboard label for live on-hire vehicles; Off Fleet is the dashboard label for
 // off-hire vehicles.
-const VEH_ALWAYS_LEGEND: { l: string; c: string }[] = [
+export const VEH_ALWAYS_LEGEND: { l: string; c: string }[] = [
   { l: "Available", c: VEH_COLORS.Available },
   { l: "On Hire", c: VEH_COLORS["On Hire"] },
   { l: "In Service", c: VEH_COLORS["In Service"] },
@@ -359,9 +359,9 @@ const VEH_ALWAYS_LEGEND: { l: string; c: string }[] = [
   { l: "Awaiting Plating", c: VEH_COLORS["Awaiting Plating"] },
   { l: "Awaiting De Fleet", c: VEH_COLORS["Awaiting De Fleet"] },
 ];
-const VEH_FALLBACK_COLORS = ["#c7d2fe", "#fde68a", "#99f6e4", "#fecaca", "#a1a1aa"];
-const VEH_SEG = VEH_ALWAYS_LEGEND.map(({ l, c }) => ({ l, v: 0, c }));
-const normaliseVehicleStatusLabel = (label: string) => {
+export const VEH_FALLBACK_COLORS = ["#c7d2fe", "#fde68a", "#99f6e4", "#fecaca", "#a1a1aa"];
+export const VEH_SEG = VEH_ALWAYS_LEGEND.map(({ l, c }) => ({ l, v: 0, c }));
+export const normaliseVehicleStatusLabel = (label: string) => {
   const cleaned = label.trim().replace(/[_-]/g, " ").replace(/\s+/g, " ");
   const lower = cleaned.toLowerCase();
   if (lower === "on hire" || lower === "weekly hire") return "On Hire";
@@ -370,7 +370,7 @@ const normaliseVehicleStatusLabel = (label: string) => {
   const known = VEH_ALWAYS_LEGEND.find((x) => x.l.toLowerCase() === lower);
   return known?.l || cleaned;
 };
-const mapVehicleSegments = (segments: { label: string; value: number }[]) => {
+export const mapVehicleSegments = (segments: { label: string; value: number }[]) => {
   const totals = new Map(VEH_ALWAYS_LEGEND.map(({ l }) => [l, 0]));
   segments.forEach((s) => {
     const label = normaliseVehicleStatusLabel(s.label);
@@ -382,7 +382,7 @@ const mapVehicleSegments = (segments: { label: string; value: number }[]) => {
     c: VEH_COLORS[l] ?? VEH_FALLBACK_COLORS[i % VEH_FALLBACK_COLORS.length],
   }));
 };
-const VehicleDonut: React.FC<{ side?: string; context?: string; span?: string }> = ({ side, context, span }) => {
+export const VehicleDonut: React.FC<{ side?: string; context?: string; span?: string }> = ({ side, context, span }) => {
   // Live vehicle-status distribution; falls back to VEH_SEG placeholders.
   const [seg, setSeg] = useState<{ l: string; v: number; c: string }[] | null>(null);
   const [hover, setHover] = useState<number | null>(null); // hovered arc → its count shows in the centre
@@ -433,21 +433,20 @@ const VehicleDonut: React.FC<{ side?: string; context?: string; span?: string }>
   return (
     <Card span={span ?? (side === "vehicles" ? "col-span-12 lg:col-span-8" : "col-span-12 lg:col-span-5")} className={span ? "" : (side === "vehicles" ? "lg:ml-6" : "")}>
       <CardHead title="Vehicle Status Distribution" />
-      <div className="flex-1 flex flex-col items-center justify-center gap-8 py-2">
-        <svg viewBox="0 0 160 160" className="w-[200px] h-[200px] shrink-0">
+      <div className="flex-1 flex flex-col items-center justify-center gap-10 py-2">
+        <svg viewBox="0 0 160 160" className="w-[300px] h-[300px] max-w-full shrink-0">
           <circle cx="80" cy="80" r={r} fill="none" stroke="#f1f1f1" strokeWidth="22" />
           {arcs}
-          {hover != null && data[hover] && (
-            <g style={{ pointerEvents: "none" }}>
-              <text x="80" y="79" textAnchor="middle" fontSize="26" fontWeight="700" fill="#111827">{data[hover].v}</text>
-              <text x="80" y="95" textAnchor="middle" fontSize="7.5" fontWeight="500" fill="#6b7280">{data[hover].l}</text>
-            </g>
-          )}
+          {/* Centre shows the total by default, and the hovered segment's value on hover */}
+          <g style={{ pointerEvents: "none" }}>
+            <text x="80" y="78" textAnchor="middle" fontSize="20" fontWeight="700" fill="#111827">
+              {hover != null && data[hover] ? data[hover].v : actualTotal}
+            </text>
+            <text x="80" y="93" textAnchor="middle" fontSize="7.5" fontWeight="500" fill="#6b7280">
+              {hover != null && data[hover] ? data[hover].l : "Total Fleet"}
+            </text>
+          </g>
         </svg>
-        <div className="flex flex-col items-center gap-0.5">
-          <div className="text-black text-2xl font-weight-600 leading-6">{actualTotal} Vehicles</div>
-          <div className="text-neutral-500 text-sm font-weight-500">Total Fleet</div>
-        </div>
         {data.length === 0 ? (
           <div className="text-neutral-400 text-sm">No vehicles in the fleet yet.</div>
         ) : (
@@ -467,18 +466,18 @@ const VehicleDonut: React.FC<{ side?: string; context?: string; span?: string }>
 };
 
 // ── Attention Required (ditto the Claims dashboard "Attention Required") ───────
-const ATTENTION = [
+export const ATTENTION = [
   { value: 6, label: "Overdue Returns", note: "Vehicles past expected return date", tint: "bg-red-100 border-red-100", icon: OverdueIcon },
   { value: 4, label: "Missing Documents", note: "Vehicles missing required documents", tint: "bg-yellow-100 border-yellow-100", icon: MissingDocIcon },
   { value: 3, label: "Overdue Payments", note: "Hire payments past their due date", tint: "bg-red-100 border-red-100", icon: OverdueIcon },
 ] as const;
-const ATTENTION_KEY: Record<string, keyof Attention> = {
+export const ATTENTION_KEY: Record<string, keyof Attention> = {
   "Overdue Returns": "overdue_returns",
   "Missing Documents": "missing_documents",
   "Overdue Payments": "overdue_payments",
 };
-type AttentionTile = "Overdue Returns" | "Missing Documents" | "Overdue Payments";
-const AttentionRequired: React.FC<{ side: "skyline" | "vehicles"; context?: string }> = ({ side, context }) => {
+export type AttentionTile = "Overdue Returns" | "Missing Documents" | "Overdue Payments";
+export const AttentionRequired: React.FC<{ side: "skyline" | "vehicles"; context?: string }> = ({ side, context }) => {
   const [live, setLive] = useState<Attention | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false); // full-screen overlay while a tile's rows load
   const [open, setOpen] = useState<AttentionTile | null>(null);
@@ -563,18 +562,18 @@ const AttentionRequired: React.FC<{ side: "skyline" | "vehicles"; context?: stri
 };
 
 // ── Task Management (ditto the Claims dashboard "Tasks Details") ──────────────
-type Task = { t: string; due: string; od?: boolean };
-type TaskCol = { count: number; label: string; icon: string; iconBg: string; border: string; tasks: Task[] };
+export type Task = { t: string; due: string; od?: boolean };
+export type TaskCol = { count: number; label: string; icon: string; iconBg: string; border: string; tasks: Task[] };
 // Empty skeleton shown before live tasks load / when there are none — the four
 // columns at 0, no demo tasks (real counts come from buildTaskCols on the API data).
-const TASK_COLS: TaskCol[] = [
-  { count: 0, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [] },
+export const TASK_COLS: TaskCol[] = [
+  { count: 0, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-blue-100", border: "border-blue-200", tasks: [] },
   { count: 0, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: [] },
   { count: 0, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: [] },
   { count: 0, label: "Pending Followups", icon: PendingFollowupsIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: [] },
 ];
 // Map a live task to the card's { t, due, od } shape (matches the dummy format).
-const fmtTask = (t: FleetTask): Task => {
+export const fmtTask = (t: FleetTask): Task => {
   const reg = t.vehicle_registration ? ` - ${t.vehicle_registration}` : "";
   let due = "";
   if (t.due_date) {
@@ -589,7 +588,7 @@ const fmtTask = (t: FleetTask): Task => {
 };
 // Derive the four dashboard columns from the live task list. A task can appear in
 // several columns (an overdue Pending task shows under All, Overdue and Pending).
-const buildTaskCols = (tasks: FleetTask[]): TaskCol[] => {
+export const buildTaskCols = (tasks: FleetTask[]): TaskCol[] => {
   const pick = (list: FleetTask[]) => list.slice(0, 6).map(fmtTask);
   const active = tasks.filter((t) => !["Completed", "Rejected"].includes(t.status || ""));
   // Mutually exclusive: an overdue task shows only under Overdue, so nothing is
@@ -601,13 +600,13 @@ const buildTaskCols = (tasks: FleetTask[]): TaskCol[] => {
   // Overdue / Awaiting / Pending tasks live under their own headings.
   const uncovered = active.filter((t) => !t.is_overdue && (t.status || "") !== "Awaiting Response" && (t.status || "") !== "Pending");
   return [
-    { count: active.length, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(uncovered) },
+    { count: active.length, label: "All Tasks", icon: AllTasksIcon, iconBg: "bg-blue-100", border: "border-blue-200", tasks: pick(uncovered) },
     { count: overdue.length, label: "Overdue Tasks", icon: OverdueIcon, iconBg: "bg-red-100", border: "border-red-200", tasks: pick(overdue) },
     { count: awaiting.length, label: "Awaiting Response", icon: CriticalIcon, iconBg: "bg-yellow-100", border: "border-amber-200", tasks: pick(awaiting) },
     { count: pending.length, label: "Pending Followups", icon: PendingFollowupsIcon, iconBg: "bg-neutral-100", border: "border-neutral-300", tasks: pick(pending) },
   ];
 };
-const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
+export const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
   // Live tasks (all users in the tenant) for this dashboard's module (skyline /
   // vehicles); falls back to the TASK_COLS placeholders if none / unreachable.
   const [cols, setCols] = useState<TaskCol[] | null>(null);
@@ -661,32 +660,35 @@ const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
 // ── Top stat cards (icons + backgrounds taken from the Claims dashboard) ───────
 // ── Fleet Performance (3 headline metrics, live from /dashboard/stats) ─────────
 // Claim-side stat-card icons, recoloured to a dark black-grey (they ship blue).
-const FP_ICON_FILTER = { filter: "brightness(0) invert(0.2)" } as const;
-const FP_URGENT_ICON_FILTER = {
+export const FP_ICON_FILTER = { filter: "brightness(0) invert(0.2)" } as const;
+export const FP_URGENT_ICON_FILTER = {
   filter: "brightness(0) saturate(100%) invert(36%) sepia(95%) saturate(2285%) hue-rotate(337deg) brightness(97%) contrast(93%)",
 } as const;
-const FP_META: Record<string, { icon: React.ReactNode; bar: string }> = {
+export const FP_META: Record<string, { icon: React.ReactNode; bar: string }> = {
   vehicles_on_hire: { icon: <img src={FileStatIcon} alt="" className="w-4 h-4" style={FP_ICON_FILTER} />, bar: "bg-neutral-700" },
   net_income: { icon: <img src={PoundStatIcon} alt="" className="w-4 h-4" style={FP_ICON_FILTER} />, bar: "bg-emerald-500" },
   fleet_availability: { icon: <img src={CarsStatIcon} alt="" className="w-4 h-4" style={FP_ICON_FILTER} />, bar: "bg-violet-500" },
   urgent_alerts: { icon: <img src={UrgentStatIcon} alt="" className="w-4 h-4" style={FP_URGENT_ICON_FILTER} />, bar: "bg-red-500" },
 };
 // Order the Fleet Performance cards, urgent alerts last.
-const FP_ORDER = ["vehicles_on_hire", "net_income", "fleet_availability", "urgent_alerts"];
+export const FP_ORDER = ["vehicles_on_hire", "net_income", "fleet_availability", "urgent_alerts"];
 // ── Skyline Operations (matches the Claims dashboard's Skyline Operations) ─────
-type SkyKey = "available" | "hire" | "off" | "repair" | "sale";
-type SkyVehicle = { registration: string; model: string; statusKey: SkyKey; statusLabel: string; hireInfo?: string; customer?: string; reference?: string; offHiredToday?: boolean };
+export type SkyKey = "available" | "hire" | "off" | "repair" | "sale" | "other";
+export type SkyVehicle = { registration: string; model: string; statusKey: SkyKey; statusLabel: string; hireInfo?: string; customer?: string; reference?: string; offHiredToday?: boolean };
 // The "Off Hire" chip is a *daily* filter: it selects vehicles off-hired today (which are
 // now Available, shown with their Available tag), not a status. Every other chip matches statusKey.
-const skyMatches = (v: SkyVehicle, key: string) => (key === "off" ? !!v.offHiredToday : v.statusKey === key);
-const SKY_STATUS_STYLE: Record<SkyKey, string> = {
+// "Off Hire" is a daily event, not a status: an off-hired vehicle reads Available,
+// so the Off Hire chip selects Available vehicles off-hired *today*. Every other chip
+// matches the vehicle's status key.
+export const skyMatches = (v: SkyVehicle, key: string) => (key === "off" ? !!v.offHiredToday : v.statusKey === key);
+export const SKY_STATUS_STYLE: Record<SkyKey, string> = {
   available: "bg-green-100 text-green-700", hire: "bg-neutral-100 text-neutral-800",
   off: "bg-teal-100 text-teal-700", repair: "bg-orange-100 text-orange-500",
-  sale: "bg-pink-100 text-pink-700",
+  sale: "bg-pink-100 text-pink-700", other: "bg-neutral-100 text-neutral-700",
 };
 // Status badge colours for the vehicle cards, mirroring the donut's VEH_COLORS hues
 // (each is the -100/-700 pairing of the same family the donut uses at -300).
-const VEH_BADGE: Record<string, string> = {
+export const VEH_BADGE: Record<string, string> = {
   "Available": "bg-green-100 text-green-700",
   "On Hire": "bg-blue-100 text-blue-700",
   "In Service": "bg-purple-100 text-purple-700",
@@ -696,7 +698,7 @@ const VEH_BADGE: Record<string, string> = {
   "Awaiting Plating": "bg-amber-100 text-amber-700",
   "Awaiting De Fleet": "bg-sky-100 text-sky-700",
 };
-const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
+export const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
   <div className="flex min-h-32 flex-1 items-start justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-4">
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
@@ -716,11 +718,12 @@ const SkyVehicleCard: React.FC<{ v: SkyVehicle }> = ({ v }) => (
 );
 // Right-side drawer showing every vehicle card (opened by "View All Vehicles").
 // Self-contained Registration + Status filters and a 4-up card grid (figma design).
-const SLIDER_STATUS_OPTS = [
+export const SLIDER_STATUS_OPTS = [
   { label: "Available", value: "available" }, { label: "On Hire", value: "hire" },
   { label: "Off Hire", value: "off" }, { label: "In Repair", value: "repair" }, { label: "For Sale", value: "sale" },
+  { label: "Others", value: "other" },
 ];
-const SkylineVehiclesSlider: React.FC<{
+export const SkylineVehiclesSlider: React.FC<{
   vehicles: SkyVehicle[]; // full list; the slider filters it by its own controls
   summary: { label: string; value: number; statusKey: string; className: string }[];
   title: string; // side-aware heading (CAMS Vehicles / Skyline Vehicles)
@@ -774,7 +777,7 @@ const SkylineVehiclesSlider: React.FC<{
     </div>
   );
 };
-const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
+export const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
   const [regSel, setRegSel] = useState<string[]>([]);
   const [statusSel, setStatusSel] = useState<string[]>([]);
   const [dateSel, setDateSel] = useState<string[]>([]);
@@ -797,7 +800,7 @@ const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
     setter((s) => (s.includes(val) ? s.filter((x) => x !== val) : [...s, val]));
   const regOptions = data.map((v) => ({ label: v.registration, value: v.registration }));
-  const statusOptions = [{ label: "Available", value: "available" }, { label: "On Hire", value: "hire" }, { label: "Off Hire", value: "off" }, { label: "In Repair", value: "repair" }, { label: "For Sale", value: "sale" }];
+  const statusOptions = [{ label: "Available", value: "available" }, { label: "On Hire", value: "hire" }, { label: "Off Hire", value: "off" }, { label: "In Repair", value: "repair" }, { label: "For Sale", value: "sale" }, { label: "Others", value: "other" }];
   const dateOptions = [{ label: "Today", value: "today" }, { label: "1 Week", value: "1w" }, { label: "1 Month", value: "1m" }];
   // Counts derived from the actual vehicle list so the total, the status chips and
   // the "View All" slider always reconcile.
@@ -808,13 +811,17 @@ const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
     { label: "Off Hire", value: countBy("off"), statusKey: "off", className: "bg-teal-100 text-teal-700" },
     { label: "In Repair", value: countBy("repair"), statusKey: "repair", className: "bg-orange-100 text-orange-500" },
     { label: "For Sale", value: countBy("sale"), statusKey: "sale", className: "bg-pink-100 text-pink-700" },
+    { label: "Others", value: countBy("other"), statusKey: "other", className: "bg-neutral-100 text-neutral-700" },
   ];
   const filtered = data.filter((v) => (!regSel.length || regSel.includes(v.registration)) && (!statusSel.length || statusSel.some((k) => skyMatches(v, k))));
   const visible = filtered.slice(0, 8);
   return (
     <section className="col-span-12 w-full rounded-lg border border-neutral-200 px-4 py-6 min-w-0">
       <div className="flex flex-col gap-10">
-        <h2 className="text-xl font-weight-600 leading-5 text-black">{vehLabel}</h2>
+        <div className="flex justify-between items-center gap-3">
+          <h2 className="text-xl font-weight-600 leading-5 text-black">{vehLabel}</h2>
+          <button type="button" onClick={() => setSliderOpen(true)} className="h-8 px-3 py-2 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-700 text-sm leading-4 hover:bg-neutral-50">View All Vehicles</button>
+        </div>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
@@ -834,7 +841,7 @@ const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
                   key={item.label}
                   type="button"
                   onClick={() => toggle(setStatusSel, item.statusKey)}
-                  className={`rounded p-3 text-sm font-weight-400 font-normal leading-4 transition ${item.className} ${statusSel.includes(item.statusKey) ? "ring-2 ring-offset-1 ring-neutral-400" : statusSel.length ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
+                  className={`rounded p-3 text-sm font-weight-400 font-normal leading-4 transition ${VEH_BADGE[item.label] ?? item.className} ${statusSel.includes(item.statusKey) ? "ring-2 ring-offset-1 ring-neutral-400" : statusSel.length ? "opacity-50 hover:opacity-100" : "hover:opacity-80"}`}
                 >
                   {item.label} {item.value}
                 </button>
@@ -848,11 +855,6 @@ const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
               {visible.map((v, i) => <SkyVehicleCard key={`${v.registration}-${i}`} v={v} />)}
             </div>
           )}
-          {filtered.length > 8 && (
-            <div className="flex justify-center pt-4">
-              <button type="button" onClick={() => setSliderOpen(true)} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black">View All Vehicles</button>
-            </div>
-          )}
         </div>
       </div>
       {sliderOpen && <SkylineVehiclesSlider vehicles={data} summary={summaryItems} title={vehLabel} onClose={() => setSliderOpen(false)} />}
@@ -861,14 +863,15 @@ const SkylineOperations: React.FC<{ context?: string }> = ({ context }) => {
 };
 
 // ── Weekly Payment Schedule ───────────────────────────────────────────────────
-const WP_FALLBACK_SUMMARY: PaymentSummary = {
+export const WP_FALLBACK_SUMMARY: PaymentSummary = {
   total: "£0", overdue: "£0", due_today: "£0", received: "£0",
   by_day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => ({ day, amount: 0, overdue: 0 })),
 };
 
 // "Received v/s Overdue" weekly area chart (green = received, red = overdue).
-const WeeklyPaymentGraph: React.FC<{ data: { day: string; amount: number; overdue: number }[] }> = ({ data }) => {
-  const days = data.length ? data : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => ({ day, amount: 0, overdue: 0 }));
+export const WeeklyPaymentGraph: React.FC<{ data: { day: string; amount: number; overdue: number }[] }> = ({ data }) => {
+  // Weekdays only — Sat/Sun dropped from the schedule graph.
+  const days = (data.length ? data : ["Mon", "Tue", "Wed", "Thu", "Fri"].map((day) => ({ day, amount: 0, overdue: 0 }))).slice(0, 5);
   const received = days.map((d) => d.amount);
   const overdue = days.map((d) => d.overdue);
   // Nice y-axis with headroom: the top gridline always sits above the peak so the
@@ -906,6 +909,14 @@ const WeeklyPaymentGraph: React.FC<{ data: { day: string; amount: number; overdu
     return d;
   };
   const area = (vals: number[]) => `${smooth(vals)} L 100 100 L 0 100 Z`;
+  // Tooltip shown just above a hovered dot (not a full-column hover, not pinned to the top).
+  const tip = (i: number) => (
+    <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 hidden group-hover:block whitespace-nowrap rounded-md bg-white border border-neutral-200 px-2 py-1.5 text-[10px] leading-tight text-neutral-700 shadow-lg">
+      <div className="font-weight-600 mb-0.5 text-neutral-900">{days[i].day.slice(0, 3).toUpperCase()}</div>
+      <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Received £{received[i].toLocaleString()}</div>
+      <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />Overdue £{overdue[i].toLocaleString()}</div>
+    </div>
+  );
   return (
     <div className="flex-1 min-h-0 flex flex-col" style={{ minHeight: 280 }}>
       <div className="flex-1 min-h-0 flex">
@@ -926,18 +937,18 @@ const WeeklyPaymentGraph: React.FC<{ data: { day: string; amount: number; overdu
             <path d={smooth(received)} fill="none" stroke="#22c55e" strokeWidth="2" vectorEffect="non-scaling-stroke" />
             <path d={smooth(overdue)} fill="none" stroke="#ef4444" strokeWidth="2" vectorEffect="non-scaling-stroke" />
           </svg>
-          {/* round data dots (kept in HTML so non-uniform SVG scaling can't squash them) */}
-          {received.map((v, i) => v > 0 && <span key={`g${i}`} className="absolute w-1.5 h-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-green-500 ring-2 ring-white" style={{ left: `${X(i)}%`, top: `${Y(v)}%` }} />)}
-          {overdue.map((v, i) => v > 0 && <span key={`r${i}`} className="absolute w-1.5 h-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-500 ring-2 ring-white" style={{ left: `${X(i)}%`, top: `${Y(v)}%` }} />)}
-          {/* per-day hover columns → guide line + tooltip with both amounts */}
-          {days.map((d, i) => (
-            <div key={`h${i}`} className="group absolute inset-y-0" style={{ left: `${X(i)}%`, width: `${100 / n}%`, transform: "translateX(-50%)" }}>
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-1 z-10 hidden group-hover:block whitespace-nowrap rounded-md bg-white border border-neutral-200 px-2 py-1.5 text-[10px] leading-tight text-neutral-700 shadow-lg">
-                <div className="font-weight-600 mb-0.5 text-neutral-900">{d.day.slice(0, 3).toUpperCase()}</div>
-                <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Received £{received[i].toLocaleString()}</div>
-                <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />Overdue £{overdue[i].toLocaleString()}</div>
-              </div>
-            </div>
+          {/* round data dots — each is its own hover target (16px hit area, small visible dot) */}
+          {received.map((v, i) => v > 0 && (
+            <span key={`g${i}`} className="group absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer" style={{ left: `${X(i)}%`, top: `${Y(v)}%`, width: 16, height: 16 }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 ring-2 ring-white" />
+              {tip(i)}
+            </span>
+          ))}
+          {overdue.map((v, i) => v > 0 && (
+            <span key={`r${i}`} className="group absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer" style={{ left: `${X(i)}%`, top: `${Y(v)}%`, width: 16, height: 16 }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 ring-2 ring-white" />
+              {tip(i)}
+            </span>
           ))}
         </div>
       </div>
@@ -948,7 +959,7 @@ const WeeklyPaymentGraph: React.FC<{ data: { day: string; amount: number; overdu
     </div>
   );
 };
-const WeeklyPayment: React.FC = () => {
+export const WeeklyPayment: React.FC = () => {
   const [live, setLive] = useState<WeeklyPayments | null>(null);
   const [tab, setTab] = useState<string>("all");
   const [sliderOpen, setSliderOpen] = useState(false); // "View All" opens a right-side slider
@@ -964,8 +975,8 @@ const WeeklyPayment: React.FC = () => {
   };
   const t = live?.tabs;
   const tabs: [string, string, number][] = [
-    ["all", "All", t?.all ?? 0], ["overdue", "Overdue", t?.overdue ?? 0], ["due_today", "Due Today", t?.due_today ?? 0],
-    ["due_this_week", "Due This Week", t?.due_this_week ?? 0], ["received_today", "Received", t?.received_today ?? 0],
+    ["all", "All", t?.all ?? 0], ["overdue", "Overdue", t?.overdue ?? 0], ["received_today", "Received", t?.received_today ?? 0],
+    ["due_today", "Due Today", t?.due_today ?? 0], ["due_this_week", "Due This Week", t?.due_this_week ?? 0],
   ];
   const shown = (rowsByTab[tab] ?? []).slice(0, 5);
   return (
@@ -973,7 +984,10 @@ const WeeklyPayment: React.FC = () => {
       <div className="flex flex-col lg:flex-row gap-10">
         {/* Left — schedule list */}
         <div className="flex-1 min-w-0 flex flex-col gap-4">
-          <h2 className="text-black text-xl font-weight-600 leading-5">Weekly Payment Schedule</h2>
+          <div className="flex justify-between items-center gap-3">
+            <h2 className="text-black text-xl font-weight-600 leading-5">Weekly Payment Schedule</h2>
+            <button type="button" onClick={() => setSliderOpen(true)} className="h-8 px-3 py-2 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-700 text-sm leading-4 hover:bg-neutral-50">View All</button>
+          </div>
           <div className="flex flex-wrap gap-3">
             {tabs.map(([k, label, count]) => (
               <button key={k} type="button" onClick={() => setTab(k)}
@@ -985,10 +999,7 @@ const WeeklyPayment: React.FC = () => {
           <div className="flex flex-col gap-3">
             {shown.length === 0 ? (
               <div className="py-10 text-center text-xs text-neutral-400">No payments here.</div>
-            ) : shown.map((r, i) => <WPPaymentCard key={i} r={r} hoverPreview />)}
-          </div>
-          <div className="flex justify-center pt-1">
-            <button type="button" onClick={() => setSliderOpen(true)} className="inline-flex h-8 items-center justify-center rounded bg-neutral-900 px-3 py-2 text-sm font-weight-400 font-normal leading-4 text-white transition hover:bg-black">View All</button>
+            ) : shown.map((r, i) => <WPPaymentCard key={i} r={r} />)}
           </div>
         </div>
         {/* Right — Received v/s Overdue graph */}
@@ -1012,13 +1023,13 @@ const WeeklyPayment: React.FC = () => {
 
 // Four compliance cards (MOT / Plate / Road Fund / Servicing Due), each Overdue /
 // Due Today / Due in 7 Days / Due in 30 Days from the live expiry buckets.
-const VM_COMPLIANCE: { key: keyof Expiries; title: string; icon: string; ring: string; head: string }[] = [
+export const VM_COMPLIANCE: { key: keyof Expiries; title: string; icon: string; ring: string; head: string }[] = [
   { key: "mot", title: "MOT", icon: MOTNewIcon, ring: "outline-blue-200", head: "bg-blue-100" },
   { key: "plate", title: "Plate", icon: PlateNewIcon, ring: "outline-yellow-300", head: "bg-yellow-100" },
   { key: "road_fund", title: "Road Fund", icon: RoadFundNewIcon, ring: "outline-green-300", head: "bg-green-100" },
   { key: "service", title: "Servicing Due", icon: ServicingDueNewIcon, ring: "outline-purple-400", head: "bg-purple-200" },
 ];
-const ServicingDuePopup: React.FC<{
+export const ServicingDuePopup: React.FC<{
   row: (string | [string, string])[];
   onClose: () => void;
   hover?: boolean; // hover mode: transparent + click-through, so the row keeps hover
@@ -1106,7 +1117,7 @@ const ServicingDuePopup: React.FC<{
     </div>
   );
   };
-const RoadFundExpiryPopup: React.FC<{
+export const RoadFundExpiryPopup: React.FC<{
   row: (string | [string, string])[];
   bucket: { label: string; tone: string };
   onClose: () => void;
@@ -1226,7 +1237,7 @@ const RoadFundExpiryPopup: React.FC<{
     </div>
   );
 };
-  const MOTExpiryPopup: React.FC<{
+export const MOTExpiryPopup: React.FC<{
   row: (string | [string, string])[];
   bucket: { label: string; tone: string };
   onClose: () => void;
@@ -1358,7 +1369,7 @@ const RoadFundExpiryPopup: React.FC<{
     </div>
   );
 };
-const VMComplianceCards: React.FC<{ context?: string }> = ({ context }) => {
+export const VMComplianceCards: React.FC<{ context?: string }> = ({ context }) => {
   const [data, setData] = useState<Expiries | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -1396,10 +1407,10 @@ const VMComplianceCards: React.FC<{ context?: string }> = ({ context }) => {
 
 // Fleet Performance — two cards (Fleet Utilization + Urgent Alerts) with a trend
 // arrow and a period-over-period delta badge.
-const vmTrend = (up: boolean) => (
+export const vmTrend = (up: boolean) => (
   <img src={up ? TrendingUpIcon : TrendingDownIcon} alt="" className="w-12 h-12 object-contain" />
 );
-const VMFleetPerformance: React.FC<{ period: string; context?: string }> = ({ period, context }) => {
+export const VMFleetPerformance: React.FC<{ period: string; context?: string }> = ({ period, context }) => {
   const [live, setLive] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(false); // full-screen spinner while the period refetch runs (like Hire Trend)
   useEffect(() => {
@@ -1449,8 +1460,8 @@ const VMFleetPerformance: React.FC<{ period: string; context?: string }> = ({ pe
 };
 
 // Servicing Due — mileage list with All / Overdue / within-500 / within-1000 tabs.
-type ServTab = "all" | "overdue" | "within_500" | "within_1000";
-const ServicingRow: React.FC<{
+export type ServTab = "all" | "overdue" | "within_500" | "within_1000";
+export const ServicingRow: React.FC<{
   r: (string | [string, string])[];
   onClick?: () => void;
   onHoverIn?: () => void;
@@ -1501,13 +1512,13 @@ const ServicingRow: React.FC<{
     </button>
   );
 };
-const servicingRowsByTab = (data: ServicingDue | null): Record<ServTab, (string | [string, string])[][]> => ({
+export const servicingRowsByTab = (data: ServicingDue | null): Record<ServTab, (string | [string, string])[][]> => ({
   all: data ? [...data.rows.overdue, ...data.rows.within_500, ...data.rows.within_1000] : [],
   overdue: data?.rows.overdue ?? [],
   within_500: data?.rows.within_500 ?? [],
   within_1000: data?.rows.within_1000 ?? [],
 });
-const ServicingTabsRow: React.FC<{ data: ServicingDue | null; tab: ServTab; setTab: (t: ServTab) => void }> = ({ data, tab, setTab }) => {
+export const ServicingTabsRow: React.FC<{ data: ServicingDue | null; tab: ServTab; setTab: (t: ServTab) => void }> = ({ data, tab, setTab }) => {
   const tt = data?.tabs;
   const tabs: [ServTab, string, number][] = [
     ["all", "All", tt ? tt.overdue + tt.within_500 + tt.within_1000 : 0],
@@ -1526,7 +1537,7 @@ const ServicingTabsRow: React.FC<{ data: ServicingDue | null; tab: ServTab; setT
     </div>
   );
 };
-const ServicingDueSlider: React.FC<{ data: ServicingDue | null; onClose: () => void }> = ({ data, onClose }) => {
+export const ServicingDueSlider: React.FC<{ data: ServicingDue | null; onClose: () => void }> = ({ data, onClose }) => {
   const [tab, setTab] = useState<ServTab>("all");
   const shown = servicingRowsByTab(data)[tab];
   return (
@@ -1548,13 +1559,10 @@ const ServicingDueSlider: React.FC<{ data: ServicingDue | null; onClose: () => v
     </div>
   );
 };
-const VMServicingDue: React.FC<{ context?: string }> = ({ context }) => {
+export const VMServicingDue: React.FC<{ context?: string }> = ({ context }) => {
   const [data, setData] = useState<ServicingDue | null>(null);
   const [tab, setTab] = useState<ServTab>("all");
   const [sliderOpen, setSliderOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<
-    (string | [string, string])[] | null
-  >(null);
   useEffect(() => {
     let cancelled = false;
     getServicingDue(context).then((r) => { if (!cancelled) setData(r); });
@@ -1587,22 +1595,10 @@ const VMServicingDue: React.FC<{ context?: string }> = ({ context }) => {
           shown
             .slice(0, 6)
             .map((r, i) => (
-              <ServicingRow
-                key={i}
-                r={r}
-                onHoverIn={() => setSelectedService(r)}
-                onHoverOut={() => setSelectedService(null)}
-              />
+              <ServicingRow key={i} r={r} />
             ))
         )}
       </div>
-      {selectedService && (
-        <ServicingDuePopup
-          row={selectedService}
-          onClose={() => setSelectedService(null)}
-          hover
-        />
-      )}
       {sliderOpen && (
         <ServicingDueSlider data={data} onClose={() => setSliderOpen(false)} />
       )}
@@ -1611,20 +1607,20 @@ const VMServicingDue: React.FC<{ context?: string }> = ({ context }) => {
 };
 
 // Expiry sections (replace the carousel): MOT + Road Fund as lists, Plate as cards.
-const VM_EXP_BUCKETS: { key: "expired" | "today" | "d7" | "d30"; label: string; tone: string }[] = [
+export const VM_EXP_BUCKETS: { key: "expired" | "today" | "d7" | "d30"; label: string; tone: string }[] = [
   { key: "expired", label: "Expired", tone: "red" },
   { key: "today", label: "Due Today", tone: "gray" },
   { key: "d7", label: "Due in 7 Days", tone: "yellow" },
   { key: "d30", label: "Due in 30 Days", tone: "blue" },
 ];
-const EXP_TONE: Record<string, string> = {
+export const EXP_TONE: Record<string, string> = {
   red: "bg-red-100 text-red-500", gray: "bg-neutral-100 text-neutral-700",
   yellow: "bg-yellow-100 text-yellow-600", blue: "bg-blue-100 text-blue-500",
   orange: "bg-orange-100 text-orange-500", violet: "bg-violet-100 text-violet-600",
 };
 // One outlined-card row for an expiry item (reg + hire status + bucket badge + date).
 // Shared by the MOT / Road Fund dashboard sections and their sliders.
-const ExpiryRow: React.FC<{
+export const ExpiryRow: React.FC<{
   r: (string | [string, string])[];
   bucket: { label: string; tone: string };
   onClick?: () => void;
@@ -1634,6 +1630,11 @@ const ExpiryRow: React.FC<{
   const reg = r[0] as string;
   const dateStr = r[1] as string;
   const status = (r[5] as string) || "";
+  // Driver only applies while on hire (slot 3 is the driver; otherwise "—").
+  const driver = (r[3] as string) || "";
+  const customer = status.trim().toLowerCase() === "on hire" && driver && driver !== "—" ? driver : "—";
+  // Show the ACTUAL remaining (e.g. "5 days") from the row, not the bucket label ("7 Days").
+  const remaining = (Array.isArray(r[2]) ? r[2] : ["", bucket.tone]) as [string, string];
 
   return (
     <button
@@ -1658,22 +1659,25 @@ const ExpiryRow: React.FC<{
 
         <span
           className={`shrink-0 px-2 py-1 rounded-sm text-xs whitespace-nowrap ${
-            EXP_TONE[bucket.tone]
+            EXP_TONE[remaining[1]] ?? EXP_TONE[bucket.tone]
           }`}
         >
-          {bucket.label}
+          {remaining[0] || bucket.label}
         </span>
       </div>
 
       <span className="text-neutral-500 text-xs">
         Expiry Date: {dateStr}
       </span>
+      <span className="text-neutral-500 text-xs">
+        Customer: {customer}
+      </span>
     </button>
   );
 };
 // Drawer opened by an expiry section's "View All Vehicles" — tabs + Vehicle Status
 // filter + full list of outlined rows.
-const ExpiryListSlider: React.FC<{ title: string; card?: ExpiryCard; onClose: () => void }> = ({ title, card, onClose }) => {
+export const ExpiryListSlider: React.FC<{ title: string; card?: ExpiryCard; onClose: () => void }> = ({ title, card, onClose }) => {
   const [tab, setTab] = useState<string>("all");
   const [statusSel, setStatusSel] = useState<string[]>([]);
  
@@ -1713,7 +1717,7 @@ const ExpiryListSlider: React.FC<{ title: string; card?: ExpiryCard; onClose: ()
     </div>
   );
 };
-const VMExpiryTabs = ({ tab, setTab, tabs, total }: { tab: string; setTab: (t: string) => void; tabs: ExpiryCard["tabs"]; total: number }) => {
+export const VMExpiryTabs = ({ tab, setTab, tabs, total }: { tab: string; setTab: (t: string) => void; tabs: ExpiryCard["tabs"]; total: number }) => {
   const pills: [string, string, number][] = [["all", "All", total], ...VM_EXP_BUCKETS.map((b) => [b.key, b.label, tabs[b.key]] as [string, string, number])];
   return (
     <div className="flex flex-wrap gap-3">
@@ -1726,13 +1730,9 @@ const VMExpiryTabs = ({ tab, setTab, tabs, total }: { tab: string; setTab: (t: s
     </div>
   );
 };
-const VMExpiryList: React.FC<{ title: string; card?: ExpiryCard }> = ({ title, card }) => {
+export const VMExpiryList: React.FC<{ title: string; card?: ExpiryCard }> = ({ title, card }) => {
   const [tab, setTab] = useState<string>("all");
   const [sliderOpen, setSliderOpen] = useState(false);
-   const [selectedRow, setSelectedRow] = useState<{
-     r: (string | [string, string])[];
-     b: { label: string; tone: string };
-   } | null>(null);
   const tabs = card?.tabs ?? { expired: 0, today: 0, d7: 0, d30: 0 };
   const total = tabs.expired + tabs.today + tabs.d7 + tabs.d30;
   const flat = card ? VM_EXP_BUCKETS.flatMap((b) => (card.rows[b.key] || []).map((r) => ({ r, b }))) : [];
@@ -1764,13 +1764,7 @@ const VMExpiryList: React.FC<{ title: string; card?: ExpiryCard }> = ({ title, c
           </div>
         ) : (
           shown.map(({ r, b }, i) => (
-            <ExpiryRow
-              key={i}
-              r={r}
-              bucket={b}
-              onHoverIn={() => setSelectedRow({ r, b })}
-              onHoverOut={() => setSelectedRow(null)}
-            />
+            <ExpiryRow key={i} r={r} bucket={b} />
           ))
         )}
       </div>
@@ -1781,46 +1775,28 @@ const VMExpiryList: React.FC<{ title: string; card?: ExpiryCard }> = ({ title, c
           onClose={() => setSliderOpen(false)}
         />
       )}
-
-      {title === "MOT Expiry" && selectedRow && (
-        <MOTExpiryPopup
-          row={selectedRow.r}
-          bucket={selectedRow.b}
-          onClose={() => setSelectedRow(null)}
-          hover
-        />
-      )}
-
-      {title === "Road Fund Expiry" && selectedRow && (
-        <RoadFundExpiryPopup
-          row={selectedRow.r}
-          bucket={selectedRow.b}
-          onClose={() => setSelectedRow(null)}
-          hover
-        />
-      )}
     </div>
   );
 };
 // Plate uses its own Expired / Upcoming / Urgent categories + shows the licensing
 // authority (backend now returns it in row[3], and "make model" in row[4]).
-const PLATE_CATS: { key: string; label: string; tone: string; buckets: ("expired" | "today" | "d7" | "d30")[] }[] = [
+export const PLATE_CATS: { key: string; label: string; tone: string; buckets: ("expired" | "today" | "d7" | "d30")[] }[] = [
   { key: "expired", label: "Expired", tone: "bg-red-100 text-red-500", buckets: ["expired"] },
   { key: "upcoming", label: "Upcoming", tone: "bg-blue-100 text-blue-500", buckets: ["d30"] },
   { key: "urgent", label: "Urgent", tone: "bg-orange-100 text-orange-500", buckets: ["today", "d7"] },
 ];
-type PlateRow = { r: (string | [string, string])[]; cat: typeof PLATE_CATS[number] };
-const platePartition = (card?: ExpiryCard): PlateRow[] => {
+export type PlateRow = { r: (string | [string, string])[]; cat: typeof PLATE_CATS[number] };
+export const platePartition = (card?: ExpiryCard): PlateRow[] => {
   if (!card) return [];
   const out: PlateRow[] = [];
   PLATE_CATS.forEach((cat) => cat.buckets.forEach((bk) => (card.rows[bk] || []).forEach((r) => out.push({ r, cat }))));
   return out;
 };
-const plateCounts = (card?: ExpiryCard) => {
+export const plateCounts = (card?: ExpiryCard) => {
   const t = card?.tabs ?? { expired: 0, today: 0, d7: 0, d30: 0 };
   return { total: t.expired + t.today + t.d7 + t.d30, expired: t.expired, upcoming: t.d30, urgent: t.today + t.d7 };
 };
-const PlateCard: React.FC<{ row: PlateRow }> = ({ row }) => {
+export const PlateCard: React.FC<{ row: PlateRow }> = ({ row }) => {
   const { r, cat } = row;
   const reg = r[0] as string, dateStr = r[1] as string, authority = r[3] as string, model = (r[4] as string) || "";
   return (
@@ -1839,7 +1815,7 @@ const PlateCard: React.FC<{ row: PlateRow }> = ({ row }) => {
     </div>
   );
 };
-const PlateChips: React.FC<{ card?: ExpiryCard; sel: string; onSel: (k: string) => void }> = ({ card, sel, onSel }) => {
+export const PlateChips: React.FC<{ card?: ExpiryCard; sel: string; onSel: (k: string) => void }> = ({ card, sel, onSel }) => {
   const c = plateCounts(card);
   const chips: [string, string, number, string][] = [
     ["expired", "Expired", c.expired, "bg-red-100 text-red-500"],
@@ -1857,7 +1833,7 @@ const PlateChips: React.FC<{ card?: ExpiryCard; sel: string; onSel: (k: string) 
     </div>
   );
 };
-const PlateExpirySlider: React.FC<{ card?: ExpiryCard; onClose: () => void }> = ({ card, onClose }) => {
+export const PlateExpirySlider: React.FC<{ card?: ExpiryCard; onClose: () => void }> = ({ card, onClose }) => {
   const [regSel, setRegSel] = useState<string[]>([]);
   const [authSel, setAuthSel] = useState<string[]>([]);
   const [catSel, setCatSel] = useState<string>("");
@@ -1898,7 +1874,7 @@ const PlateExpirySlider: React.FC<{ card?: ExpiryCard; onClose: () => void }> = 
     </div>
   );
 };
-const VMPlateExpiry: React.FC<{ card?: ExpiryCard }> = ({ card }) => {
+export const VMPlateExpiry: React.FC<{ card?: ExpiryCard }> = ({ card }) => {
   const [sel, setSel] = useState<string>("");
   const [sliderOpen, setSliderOpen] = useState(false);
   const all = platePartition(card);
@@ -1926,7 +1902,7 @@ const VMPlateExpiry: React.FC<{ card?: ExpiryCard }> = ({ card }) => {
     </div>
   );
 };
-const VMExpiryZone: React.FC<{ context?: string }> = ({ context }) => {
+export const VMExpiryZone: React.FC<{ context?: string }> = ({ context }) => {
   const [data, setData] = useState<Expiries | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -1939,7 +1915,9 @@ const VMExpiryZone: React.FC<{ context?: string }> = ({ context }) => {
         <VMExpiryList title="MOT Expiry" card={data?.mot} />
         <VMExpiryList title="Road Fund Expiry" card={data?.road_fund} />
       </div>
-      <VMPlateExpiry card={data?.plate} />
+      <div className="flex flex-col lg:flex-row gap-5">
+        <VMExpiryList title="Plate Expiry" card={data?.plate} />
+      </div>
     </div>
   );
 };
@@ -1947,18 +1925,18 @@ const VMExpiryZone: React.FC<{ context?: string }> = ({ context }) => {
 // ── Skyline hire dashboard (figma redesign) ───────────────────────────────────
 // Four stat cards (Vehicles on Hire / Net Income / Fleet Utilization / Urgent
 // Alerts) in the new card style — icon + trend + value + delta badge.
-const SK_STAT_ICONBG: Record<string, string> = {
+export const SK_STAT_ICONBG: Record<string, string> = {
   vehicles_on_hire: "bg-blue-100", net_income: "bg-neutral-100",
   fleet_availability: "bg-blue-100", urgent_alerts: "bg-red-100",
 };
 // New per-card icons (added as the client supplies them); falls back to FP_META otherwise.
-const SK_STAT_ICON: Record<string, string> = {
+export const SK_STAT_ICON: Record<string, string> = {
   vehicles_on_hire: VehiclesOnHireIcon,
   fleet_availability: FleetNewIcon,
   urgent_alerts: UrgentNewIcon,
   net_income: IncomeNewIcon,
 };
-const SkylineFleetStats: React.FC<{ period: string }> = ({ period }) => {
+export const SkylineFleetStats: React.FC<{ period: string }> = ({ period }) => {
   const [live, setLive] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(false); // full-screen spinner while the period refetch runs (like Hire Trend)
   useEffect(() => {
@@ -2000,12 +1978,12 @@ const SkylineFleetStats: React.FC<{ period: string }> = ({ period }) => {
 };
 
 // Weekly Payment Schedule slider — card rows opened by the section's "View All".
-const WP_TONE: Record<string, string> = {
+export const WP_TONE: Record<string, string> = {
   red: "bg-red-100 text-red-500", gray: "bg-blue-100 text-blue-500", blue: "bg-blue-100 text-blue-500",
   yellow: "bg-yellow-100 text-yellow-700", green: "bg-green-100 text-green-700",
 };
 // Full-detail preview shown while hovering a payment row on the dashboard (not the slider).
-const WPPaymentPreview: React.FC<{ reg: string; cust: string; hireStatus: string; status: [string, string]; dueDate: string; weekly: string; balance: string }> = ({ reg, cust, hireStatus, status, dueDate, weekly, balance }) => (
+export const WPPaymentPreview: React.FC<{ reg: string; cust: string; hireStatus: string; status: [string, string]; dueDate: string; weekly: string; balance: string }> = ({ reg, cust, hireStatus, status, dueDate, weekly, balance }) => (
   <div className="w-[440px] max-w-[92vw] px-5 pt-5 pb-6 bg-white rounded-lg shadow-2xl border border-neutral-200 flex flex-col gap-3">
     <div className="text-black text-xl font-weight-600 leading-5">Weekly Payment Schedule</div>
     <div className="h-px bg-neutral-100 w-full" />
@@ -2032,7 +2010,7 @@ const WPPaymentPreview: React.FC<{ reg: string; cust: string; hireStatus: string
     </div>
   </div>
 );
-const WPPaymentCard: React.FC<{ r: (string | [string, string])[]; hoverPreview?: boolean }> = ({ r, hoverPreview }) => {
+export const WPPaymentCard: React.FC<{ r: (string | [string, string])[]; hoverPreview?: boolean }> = ({ r, hoverPreview }) => {
   const reg = r[0] as string, cust = r[1] as string, weekly = r[2] as string, balance = r[3] as string, dueDate = r[4] as string;
   const status = r[5] as [string, string];
   const hireStatus = (r[6] as string) || "—";
@@ -2062,7 +2040,7 @@ const WPPaymentCard: React.FC<{ r: (string | [string, string])[]; hoverPreview?:
     </div>
   );
 };
-const WeeklyPaymentSlider: React.FC<{ data: WeeklyPayments | null; onClose: () => void }> = ({ data, onClose }) => {
+export const WeeklyPaymentSlider: React.FC<{ data: WeeklyPayments | null; onClose: () => void }> = ({ data, onClose }) => {
   const [tab, setTab] = useState<string>("all");
   const rowsByTab: Record<string, (string | [string, string])[][]> = {
     all: data?.rows.all ?? [], overdue: data?.rows.overdue ?? [], due_today: data?.rows.due_today ?? [],
@@ -2070,8 +2048,8 @@ const WeeklyPaymentSlider: React.FC<{ data: WeeklyPayments | null; onClose: () =
   };
   const t = data?.tabs;
   const tabs: [string, string, number][] = [
-    ["all", "All", t?.all ?? 0], ["overdue", "Overdue", t?.overdue ?? 0], ["due_today", "Due Today", t?.due_today ?? 0],
-    ["due_this_week", "Due This Week", t?.due_this_week ?? 0], ["received_today", "Received", t?.received_today ?? 0],
+    ["all", "All", t?.all ?? 0], ["overdue", "Overdue", t?.overdue ?? 0], ["received_today", "Received", t?.received_today ?? 0],
+    ["due_today", "Due Today", t?.due_today ?? 0], ["due_this_week", "Due This Week", t?.due_this_week ?? 0],
   ];
   const shown = rowsByTab[tab] ?? [];
   return (
@@ -2101,11 +2079,10 @@ const WeeklyPaymentSlider: React.FC<{ data: WeeklyPayments | null; onClose: () =
   );
 };
 
-const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles"; context?: string }> = ({ side = "skyline", context }) => {
-  // Full-screen loader while the dashboard's data loads (same as the other screens).
+
+// ── Shared dashboard shell: top bar + first-load spinner + centred content. ────
+export const DashboardShell: React.FC<{ side?: "skyline" | "vehicles"; context?: string; children: React.ReactNode }> = ({ side = "skyline", context, children }) => {
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState("MTD"); // global period (drives Fleet Performance)
-  // On VM the tasks/calendar are scoped per side (vehicles_cams / vehicles_skyline).
   const taskModule = context ? `vehicles_${context}` : side === "vehicles" ? "vehicles" : "skyline";
   useEffect(() => {
     let cancelled = false;
@@ -2116,59 +2093,18 @@ const FleetDashboard: React.FC<{ side?: "skyline" | "vehicles"; context?: string
     ]).finally(() => {
       if (!cancelled) setLoading(false);
     });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [side, taskModule, context]);
   return (
     <div className="min-h-screen bg-white text-neutral-900 font-['Stack_Sans_Headline']">
       {loading && <FleetSpinnerLoader />}
-      {/* Top bar */}
       <div className="sticky top-0 z-20 h-[80px] px-7 border-b border-[#eee] bg-white flex items-center justify-between">
         <span className="text-neutral-900 text-2xl font-weight-600 leading-6">Dashboard</span>
         <FleetNotificationBell module={taskModule} />
       </div>
-
-      {/* Content */}
       <div className="flex flex-col items-center">
-        <div className="w-full max-w-[1440px] px-7 pt-6 pb-14">
-          {side === "vehicles" ? (
-            /* ── Vehicle Management dashboard — figma redesign ── */
-            <div className="flex flex-col gap-10">
-              <VMComplianceCards context={context} />
-              <VMFleetPerformance period={period} context={context} />
-              <div className="flex flex-col lg:flex-row gap-5">
-                <VehicleDonut side="vehicles" context={context} span="flex-1 min-w-0" />
-                <VMServicingDue context={context} />
-              </div>
-              <TaskManagement module={taskModule} />
-              <VMExpiryZone context={context} />
-              <SkylineOperations context={context} />
-            </div>
-          ) : (
-            /* ── Skyline hire dashboard — figma redesign ── */
-            <div className="flex flex-col gap-10">
-              <div className="flex justify-between items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="rounded outline outline-1 -outline-offset-1 outline-neutral-900 inline-flex items-center gap-1">
-                    {[{ v: "TDY", l: "Today" }, { v: "WTD", l: "WTD" }, { v: "MTD", l: "MTD" }, { v: "YTD", l: "YTD" }].map(({ v, l }) => (
-                      <button key={v} type="button" onClick={() => setPeriod(v)} className={`px-4 py-2 rounded text-sm leading-4 transition ${period === v ? "bg-neutral-900 text-white" : "text-neutral-700 hover:text-neutral-900"}`}>{l}</button>
-                    ))}
-                  </div>
-                </div>
-                <button type="button" className="px-10 py-4 bg-neutral-900 rounded text-white text-base font-weight-500 leading-4 hover:bg-black">Add Hire</button>
-              </div>
-              <SkylineFleetStats period={period} />
-              <AttentionRequired side={side} context={context} />
-              <HireTrend />
-              <WeeklyPayment />
-              <TaskManagement module={taskModule} />
-            </div>
-          )}
-        </div>
+        <div className="w-full max-w-[1440px] px-7 pt-6 pb-14">{children}</div>
       </div>
     </div>
   );
 };
-
-export default FleetDashboard;

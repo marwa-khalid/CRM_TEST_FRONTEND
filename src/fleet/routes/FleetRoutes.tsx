@@ -4,7 +4,7 @@ import AddNewHire from "../pages/AddNewHire/AddNewHire";
 import FleetActivityLog from "../pages/FleetActivityLog";
 import FleetDocumentLibrary from "../pages/FleetDocumentLibrary";
 import FleetList from "../pages/FleetList";
-import FleetDashboard from "../pages/FleetDashboard";
+import FleetDashboard from "../pages/dashboards/FleetDashboard";
 import FleetMap from "../pages/FleetMap";
 import FleetShell from "../components/FleetShell";
 import FleetTasks from "../pages/FleetTasks";

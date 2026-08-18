@@ -29,27 +29,34 @@ const PAGE_SIZE = 10;
 
 const normReg = (s?: string | null) => (s || "").replace(/\s+/g, "").toUpperCase();
 
-// A registered vehicle's live status: on hire (from the shared register's is_active
-// flag), in repair (from its own Vehicle Details status), otherwise available.
-type VStatus = "on_hire" | "in_repair" | "for_sale" | "available";
-const STATUS_LABEL: Record<VStatus, string> = {
-  on_hire: "On Hire",
-  in_repair: "In Repair",
-  for_sale: "For Sale",
-  available: "Available",
+// The listing shows the vehicle's chosen Vehicle Status (the Availability Options dropdown)
+// directly, using the same palette as the VM dashboard donut/badges (VEH_BADGE / VEH_COLORS
+// in fleet/pages/dashboards/common.tsx). Keys are the canonical status labels.
+const STATUS_BADGE: Record<string, string> = {
+  "Available": "bg-green-100 text-green-700",
+  "On Hire": "bg-blue-100 text-blue-700",
+  "In Service": "bg-purple-100 text-purple-700",
+  "In Repair": "bg-orange-100 text-orange-600",
+  "For Sale": "bg-pink-100 text-pink-700",
+  "Off Hire": "bg-red-100 text-red-600",
+  "Awaiting Plating": "bg-amber-100 text-amber-700",
+  "Awaiting De Fleet": "bg-sky-100 text-sky-700",
 };
-const STATUS_BADGE: Record<VStatus, string> = {
-  on_hire: "bg-neutral-100 text-neutral-700",
-  in_repair: "bg-[#ffe9d8] text-[#ff7402]",
-  for_sale: "bg-pink-100 text-pink-700",
-  available: "bg-[#d9ffd9] text-[#159215]",
+const STATUS_OPTIONS = Object.keys(STATUS_BADGE).map((l) => ({ value: l, label: l }));
+// Canonical status label from a raw vehicle_status value (mirror of the dashboard's
+// normaliseVehicleStatusLabel): e.g. "weekly_hire" → "On Hire", "off_fleet" → "Off Hire".
+const normaliseStatus = (raw: string): string => {
+  const lower = raw.trim().replace(/[_-]/g, " ").replace(/\s+/g, " ").toLowerCase();
+  if (lower === "on hire" || lower === "weekly hire") return "On Hire";
+  if (lower === "off hire" || lower === "off fleet") return "Off Hire";
+  if (lower === "in service") return "In Service";
+  if (lower === "in repair") return "In Repair";
+  if (lower === "for sale") return "For Sale";
+  if (lower === "awaiting plating") return "Awaiting Plating";
+  if (lower === "awaiting de fleet") return "Awaiting De Fleet";
+  if (lower === "available") return "Available";
+  return raw.trim(); // unknown/custom value → show as entered
 };
-const STATUS_OPTIONS = [
-  { value: "on_hire", label: "On Hire" },
-  { value: "in_repair", label: "In Repair" },
-  { value: "for_sale", label: "For Sale" },
-  { value: "available", label: "Available" },
-];
 
 const GRID =
   "grid-cols-[32px_minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(120px,1fr)_minmax(110px,0.9fr)_minmax(120px,0.9fr)_36px]";
@@ -169,18 +176,20 @@ const VehicleManagementList: React.FC = () => {
     return s;
   }, [register]);
 
-  const statusOf = (v: VehicleRecord): VStatus => {
-    const st = (v.vehicle_status || "").toLowerCase().replace(/_/g, " ");
-    // On hire either by the vehicle's own status or by being on a live hire (the
-    // shared register). Same precedence the dashboard donut uses, so they agree.
-    if (st === "weekly hire" || st === "on hire" || (v.registration_number && activeRegs.has(normReg(v.registration_number)))) return "on_hire";
-    if (st.includes("repair")) return "in_repair";
-    if (st.includes("sale")) return "for_sale";
-    return "available";
+  // The listing status = the chosen Vehicle Status (the dropdown value), shown verbatim. A
+  // vehicle on a live hire is stored "weekly_hire" and self-heals back to Available when the
+  // hire ends, so the stored status is authoritative. Only when a record has NO stored status
+  // do we fall back to the shared-register live-hire flag (so a brand-new record already on a
+  // hire still reads On Hire); a stale is_active flag can never override a chosen status.
+  const statusLabelOf = (v: VehicleRecord): string => {
+    const raw = (v.vehicle_status || "").trim();
+    if (raw) return normaliseStatus(raw);
+    if (v.registration_number && activeRegs.has(normReg(v.registration_number))) return "On Hire";
+    return "Available";
   };
 
   const stats = useMemo<StatConfig[]>(() => {
-    const bySt = (s: VStatus) => vehicles.filter((v) => statusOf(v) === s);
+    const bySt = (label: string) => vehicles.filter((v) => statusLabelOf(v) === label);
     // "vs last month" = vehicles added this month vs last month (by created_at),
     // same basis as the Skyline hire list. 100% when there was nothing last month.
     const thisKey = monthKey(new Date());
@@ -194,10 +203,10 @@ const VehicleManagementList: React.FC = () => {
       });
       return l === 0 ? (t > 0 ? 100 : 0) : Math.round(((t - l) / l) * 100);
     };
-    const onHire = bySt("on_hire");
-    const inRepair = bySt("in_repair");
-    const forSale = bySt("for_sale");
-    const available = bySt("available");
+    const onHire = bySt("On Hire");
+    const inRepair = bySt("In Repair");
+    const forSale = bySt("For Sale");
+    const available = bySt("Available");
     return [
       { title: "Total Vehicles", value: vehicles.length, icon: VehiclesIcon, tile: "bg-[#eee]", trendPct: trendFor(vehicles), darkIcon: true },
       { title: "On Hire", value: onHire.length, icon: CheckIcon, tile: "bg-[#eee]", trendPct: trendFor(onHire), darkIcon: true },
@@ -227,7 +236,7 @@ const VehicleManagementList: React.FC = () => {
           .toLowerCase();
         if (!hay.includes(query.trim().toLowerCase())) return false;
       }
-      if (statusSel.length && !statusSel.includes(statusOf(v))) return false;
+      if (statusSel.length && !statusSel.includes(statusLabelOf(v))) return false;
       if (transmissionSel.length && !transmissionSel.includes((v.transmission || "").trim())) return false;
       return true;
     });
@@ -307,7 +316,7 @@ const VehicleManagementList: React.FC = () => {
         v.make || "",
         v.model || "",
         v.transmission || "",
-        STATUS_LABEL[statusOf(v)],
+        statusLabelOf(v),
         fmtDateAdded(v.created_at),
       ]),
     ];
@@ -392,12 +401,12 @@ const VehicleManagementList: React.FC = () => {
             <div className="flex items-center gap-2 flex-wrap">
               {statusSel.map((v) => (
                 <span key={`st-${v}`} className="flex items-center gap-2 pl-3 pr-2 py-1.5 bg-white rounded-full border border-neutral-200 text-sm text-neutral-700">
-                  {STATUS_LABEL[v as VStatus]}
+                  {v}
                   <button
                     type="button"
                     onClick={() => setStatusSel((s) => s.filter((x) => x !== v))}
                     className="text-neutral-400 hover:text-neutral-700"
-                    aria-label={`Remove ${STATUS_LABEL[v as VStatus]} filter`}
+                    aria-label={`Remove ${v} filter`}
                   >
                     <X size={14} />
                   </button>
@@ -458,7 +467,7 @@ const VehicleManagementList: React.FC = () => {
                 </div>
               ) : (
                 pageItems.map((v) => {
-                  const st = statusOf(v);
+                  const st = statusLabelOf(v);
                   return (
                     <div key={v.id} className={`grid ${GRID} gap-2 px-4 py-3 items-center text-sm border-t border-[#eee] hover:bg-neutral-50`}>
                       <Checkbox checked={selected.has(v.id)} onChange={() => toggleOne(v.id)} label={`Select ${v.registration_number || "vehicle"}`} />
@@ -469,8 +478,8 @@ const VehicleManagementList: React.FC = () => {
                       <span className="text-neutral-700 truncate">{v.model || "—"}</span>
                       <span className="text-neutral-700 truncate">{v.transmission || "—"}</span>
                       <span>
-                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${STATUS_BADGE[st]}`}>
-                          {STATUS_LABEL[st]}
+                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${STATUS_BADGE[st] ?? "bg-neutral-100 text-neutral-700"}`}>
+                          {st}
                         </span>
                       </span>
                       <span className="text-neutral-700 truncate">{fmtDateAdded(v.created_at)}</span>

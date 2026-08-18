@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import FleetNotificationBell from "../../components/FleetNotificationBell";
 import TrendingUp from "../../../assets/Dashboard/TrendingUp.svg";
 import TrendingDown from "../../../assets/Dashboard/TrendingDown.svg";
@@ -621,6 +622,10 @@ export const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
     };
   }, [module]);
   const data = cols ?? TASK_COLS;
+  const navigate = useNavigate();
+  // Skyline tasks live at /fleet/tasks; each vehicle side at /vehicle-management/<ctx>/tasks
+  // — the same module→route mapping the notification bell uses.
+  const tasksRoute = module === "skyline" ? "/fleet/tasks" : `/vehicle-management/${module.replace("vehicles_", "")}/tasks`;
   return (
     <div className="col-span-12">
       <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-4">Task Management</h2>
@@ -653,6 +658,9 @@ export const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
         </div>
       ))}
     </div>
+      <div className="flex justify-end pt-4">
+        <button type="button" onClick={() => navigate(tasksRoute)} className="h-9 px-4 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-700 text-sm font-weight-500 leading-4 hover:bg-neutral-50">View All</button>
+      </div>
   </div>
   );
 };
@@ -985,10 +993,9 @@ export const WeeklyPayment: React.FC = () => {
     ["all", "All", t?.all ?? 0], ["overdue", "Overdue", t?.overdue ?? 0], ["received_today", "Received", t?.received_today ?? 0],
     ["due_today", "Due Today", t?.due_today ?? 0], ["due_this_week", "Due This Week", t?.due_this_week ?? 0],
   ];
-  // Overdue rows (previous weeks' backlog) are listed in the "View All" slider only — the
-  // main card stays focused on this week. The Overdue tab still shows its count.
-  const isOverdueRow = (r: (string | [string, string])[]) => Array.isArray(r[5]) && (r[5] as [string, string])[1] === "red";
-  const shown = (tab === "overdue" ? [] : (rowsByTab[tab] ?? []).filter((r) => !isOverdueRow(r))).slice(0, 5);
+  // "All" already excludes previous-week overdue backlog (the backend keeps that to the
+  // Overdue tab), so each tab just shows its own rows — first 5 here, the rest in "View All".
+  const shown = (rowsByTab[tab] ?? []).slice(0, 5);
   return (
     <Card span="col-span-12">
       <div className="flex flex-col lg:flex-row gap-10">
@@ -1008,7 +1015,7 @@ export const WeeklyPayment: React.FC = () => {
           </div>
           <div className="flex flex-col gap-3">
             {shown.length === 0 ? (
-              <div className="py-10 text-center text-xs text-neutral-400">{tab === "overdue" ? 'Overdue payments are listed under "View All".' : "No payments here."}</div>
+              <div className="py-10 text-center text-xs text-neutral-400">No payments here.</div>
             ) : shown.map((r, i) => <WPPaymentCard key={i} r={r} />)}
           </div>
         </div>
@@ -2061,7 +2068,13 @@ export const WeeklyPaymentSlider: React.FC<{ data: WeeklyPayments | null; onClos
     ["all", "All", t?.all ?? 0], ["overdue", "Overdue", t?.overdue ?? 0], ["received_today", "Received", t?.received_today ?? 0],
     ["due_today", "Due Today", t?.due_today ?? 0], ["due_this_week", "Due This Week", t?.due_this_week ?? 0],
   ];
-  const shown = rowsByTab[tab] ?? [];
+  // "All" shows this week's schedule in date order (already chronological from the backend),
+  // then previous-week overdue backlog appended at the very end. Other tabs show their rows.
+  const keyOf = (r: (string | [string, string])[]) => `${r[0]}|${r[4]}`;
+  const allRows = rowsByTab.all ?? [];
+  const currentKeys = new Set(allRows.map(keyOf));
+  const prevOverdue = (rowsByTab.overdue ?? []).filter((r) => !currentKeys.has(keyOf(r)));
+  const shown = tab === "all" ? [...allRows, ...prevOverdue] : (rowsByTab[tab] ?? []);
   return (
     <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
       <div className="flex-1 bg-black/30" onClick={onClose} />

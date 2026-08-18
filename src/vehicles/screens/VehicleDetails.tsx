@@ -59,7 +59,7 @@ const EMPTY: Form = {
   registrationNumber: "", make: "", model: "", manufacturer: "", variant: "",
   numberOfDoors: "", numberOfSeats: "", bodyType: "", fuelType: "", transmission: "",
   engineSizeCc: "", v5cDocumentReference: "", chassisNumber: "",
-  dateOfFirstRegistration: "", dateDelivered: "", vehicleStatus: "", depotBranch: "",
+  dateOfFirstRegistration: "", dateDelivered: "", vehicleStatus: "available", depotBranch: "",
 };
 
 const TO_BACKEND: Record<keyof Form, string> = {
@@ -152,7 +152,7 @@ const VehicleDetails: React.FC = () => {
       chassisNumber: vehicle.chassis_number || "",
       dateOfFirstRegistration: vehicle.date_of_first_registration || "",
       dateDelivered: vehicle.date_delivered || "",
-      vehicleStatus: vehicle.vehicle_status || "",
+      vehicleStatus: vehicle.vehicle_status || "available",
       depotBranch: vehicle.depot_branch || "",
     });
   }, [vehicle]);

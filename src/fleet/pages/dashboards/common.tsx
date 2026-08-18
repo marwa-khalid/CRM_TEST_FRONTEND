@@ -628,7 +628,10 @@ export const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
   const tasksRoute = module === "skyline" ? "/fleet/tasks" : `/vehicle-management/${module.replace("vehicles_", "")}/tasks`;
   return (
     <div className="col-span-12">
-      <h2 className="text-neutral-900 text-[20px] font-weight-600 mb-4">Task Management</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-neutral-900 text-[20px] font-weight-600">Task Management</h2>
+        <button type="button" onClick={() => navigate(tasksRoute)} className="h-8 px-3 py-2 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-700 text-sm leading-4 hover:bg-neutral-50">View All</button>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {data.map((col) => (
         <div key={col.label} className="rounded-xl border border-neutral-200 p-4 flex flex-col gap-4 min-w-0">
@@ -658,9 +661,6 @@ export const TaskManagement: React.FC<{ module: string }> = ({ module }) => {
         </div>
       ))}
     </div>
-      <div className="flex justify-end pt-4">
-        <button type="button" onClick={() => navigate(tasksRoute)} className="h-9 px-4 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-900 text-neutral-700 text-sm font-weight-500 leading-4 hover:bg-neutral-50">View All</button>
-      </div>
   </div>
   );
 };

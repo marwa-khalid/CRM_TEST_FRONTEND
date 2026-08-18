@@ -43,8 +43,10 @@ const STATUS_LABEL: Record<string, string> = {
   on_hire: "On Hire", off_hire: "Off Hire", in_repair: "In Repair", available: "Available",
 };
 const STATUS_BADGE: Record<string, string> = {
-  on_hire: "bg-neutral-100 text-neutral-700",
-  off_hire: "bg-teal-100 text-teal-700",
+  // On Hire / Off Hire mirror the VM-side dashboard status badges (VEH_BADGE) so the
+  // pills read the same across the two views: On Hire = blue, Off Hire = red.
+  on_hire: "bg-blue-100 text-blue-700",
+  off_hire: "bg-red-100 text-red-600",
   in_repair: "bg-[#ffe9d8] text-[#ff7402]",
   available: "bg-[#d9ffd9] text-[#159215]",
 };

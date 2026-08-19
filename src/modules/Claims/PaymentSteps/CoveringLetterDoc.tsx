@@ -17,6 +17,7 @@ export type CoveringLetterDocData = {
   dated?: string;
   yourInsured?: string;
   ourClient?: string;
+  billTo?: string;
   incidentDate?: string;
   rows?: ({ label: string } & ColVals)[];
   subTotal?: ColVals;
@@ -26,12 +27,10 @@ export type CoveringLetterDocData = {
   signatory?: string;
 };
 
-const insurerAddress = "Uki\nDirect Line\nPo Box 1368\nLiverpool\nL692BJ";
-
-const NumCells = ({ vals, bold }: { vals: ColVals; bold?: boolean }) => (
+const NumCells = ({ vals, bold, bg }: { vals: ColVals; bold?: boolean; bg?: string }) => (
   <>
     {COLS.map((col) => (
-      <td key={col} className={`${packCell} text-right${bold ? " font-bold" : ""}`}>
+      <td key={col} className={`${packCell} text-center${bold ? " font-bold" : ""}${bg ? ` ${bg}` : ""}`}>
         {m0(vals[col])}
       </td>
     ))}
@@ -53,7 +52,7 @@ const CoveringLetterDoc = ({ data }: { data: CoveringLetterDocData }) => {
   return (
     <DocShell>
       <div className="mt-[22px] ml-10 whitespace-pre-line text-[10px] leading-[1.35]">
-        {insurerAddress}
+        {data.billTo || "—"}
       </div>
 
       <div className="mt-9 ml-10 text-[10px] leading-[1.45]">
@@ -94,23 +93,23 @@ const CoveringLetterDoc = ({ data }: { data: CoveringLetterDocData }) => {
           ))}
           <tr>
             <td className={`${packCell} bg-[#d9d9d9] font-bold`}>Sub Total</td>
-            <NumCells vals={data.subTotal || empty} bold />
+            <NumCells vals={data.subTotal || empty} bold bg="bg-[#d9d9d9]" />
           </tr>
           <tr>
-            <td className={`${packCell} bg-[#d9d9d9] font-bold`}>VAT</td>
-            <NumCells vals={data.vat || empty} bold />
+            <td className={`${packCell} bg-[#a6a6a6] font-bold`}>VAT</td>
+            <NumCells vals={data.vat || empty} bold bg="bg-[#a6a6a6]" />
           </tr>
           <tr>
-            <td className={`${packCell} bg-[#d9d9d9] font-bold`}>TOTAL</td>
-            <NumCells vals={data.total || empty} bold />
+            <td className={`${packCell} bg-[#a6a6a6] font-bold`}>TOTAL</td>
+            <NumCells vals={data.total || empty} bold bg="bg-[#a6a6a6]" />
           </tr>
           <tr>
             <td className={`${packCell} bg-[#d9d9d9] font-bold`}>Valeting Fees Not VAT Applicable</td>
             <NumCells vals={valetingVals} bold />
           </tr>
           <tr>
-            <td className={`${packCell} bg-[#d9d9d9] font-bold`}>TOTAL</td>
-            <NumCells vals={finalTotal} bold />
+            <td className={`${packCell} bg-[#a6a6a6] font-bold`}>TOTAL</td>
+            <NumCells vals={finalTotal} bold bg="bg-[#a6a6a6]" />
           </tr>
         </tbody>
       </table>

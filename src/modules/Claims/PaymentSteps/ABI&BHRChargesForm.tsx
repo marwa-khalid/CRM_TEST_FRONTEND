@@ -161,10 +161,13 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     getThirdPartyInsurer(claimId)
       .then((res: any) => {
         const insurer = res?.data?.third_party_insurer;
+        const thirdParty = res?.data?.third_party;
         setPolicyNumber(res?.data?.policy_number || "");
         setInsurerName(thirdPartyInsurerName(insurer));
         setInsurerBillTo(thirdPartyInsurerBillTo(insurer));
         setInsurerReference(res?.data?.insurer_reference || "");
+        // Your Insured = Third Party name (first section); Bill To stays the TP insurer above.
+        setThirdPartyName(fullName(thirdParty?.first_name, thirdParty?.surname));
       })
       .catch(() => {});
     getClientByClaimID(claimId)
@@ -233,6 +236,9 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [policyNumber, setPolicyNumber] = useState("");
   const [insurerName, setInsurerName] = useState("");
   const [insurerBillTo, setInsurerBillTo] = useState("");
+  // "Your Insured" on the pack = the Third Party (the at-fault driver the TP insurer covers),
+  // taken from the Third Party Insurer screen's first section (third_party), NOT the insurer.
+  const [thirdPartyName, setThirdPartyName] = useState("");
   const [insurerReference, setInsurerReference] = useState("");
   const [clientName, setClientName] = useState("");
   const [incidentDate, setIncidentDate] = useState("");
@@ -838,7 +844,7 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
           onClose={() => setShowFrontCover(false)}
           prefill={{
             ourReference: caseReference,
-            yourInsured: insurerName,
+            yourInsured: thirdPartyName,
             yourReference: insurerReference,
             policyNumber,
             incidentDate,
@@ -860,7 +866,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             ourReference: caseReference,
             yourReference: insurerReference,
             ourClient: clientName || (selRec as any)?.client_name || "",
-            yourInsured: insurerName,
+            yourInsured: thirdPartyName,
+            billTo: insurerBillTo || insurerName,
             incidentDate,
             dated: String(
               formik.values.payment_pack_raised_date || dateToISO(new Date()),

@@ -10,7 +10,11 @@ export const slash = (ymd?: string) => {
   const [y, m, d] = ymd.slice(0, 10).split("-");
   return y && m && d ? `${d} / ${m} / ${y}` : ymd;
 };
-
+export const fullSlash = (ymd?: string) => {
+  if (!ymd) return "—";
+  const [y, m, d] = ymd.slice(0, 10).split("-");
+  return y && m && d ? `${d}/${m}/${y}` : ymd;
+};
 // DD/MM/YY, matching the old payment-pack document style.
 export const shortSlash = (ymd?: string) => {
   if (!ymd) return "—";
@@ -60,12 +64,12 @@ export const d = (v?: string | number) => {
 // A tall line-height (vs a small fixed leading) is what actually vertical-centers
 // the single line of text when html2canvas rasterises the table for the PDF —
 // `align-middle` alone is not honoured reliably by html2canvas.
-export const cellBase = "border border-black px-1.5 py-1.5 text-black text-[9px] leading-[1.35] align-middle";
-export const headBase = "border border-black px-1.5 py-1.5 bg-[#d9d9d9] text-black text-[9px] font-bold leading-[1.25] align-middle";
+export const cellBase = "border border-[#808080] px-1.5 py-1.5 text-black text-[9px] leading-[1.35] align-middle";
+export const headBase = "border border-[#808080] px-1.5 py-1.5 bg-[#d9d9d9] text-black text-[9px] font-bold leading-[1.25] align-middle";
 export const packPageCls =
   "w-[793.70px] min-h-[1090px] bg-white text-black font-['Arial'] px-[86px] py-[88px] text-[10px] leading-[1.35]";
-export const packHead = "border border-black bg-[#d9d9d9] px-1.5 py-1 text-[9px] font-bold leading-[1.25] align-middle";
-export const packCell = "border border-black px-1.5 py-1.5 text-[9px] leading-[1.35] align-middle";
+export const packHead = "border border-[#808080] bg-[#d9d9d9] px-1.5 py-1 text-[9px] font-bold leading-[1.25] align-middle";
+export const packCell = "border border-[#808080] px-1.5 py-1.5 text-[9px] leading-[1.35] align-middle";
 
 // Shared document chrome --------------------------------------------------------
 

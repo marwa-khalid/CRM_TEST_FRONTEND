@@ -30,6 +30,7 @@ export type CoveringLetterPrefill = {
   yourReference?: string;
   ourClient?: string;
   ourReference?: string;
+  billTo?: string;
   incidentDate?: string;
   // Optional charge cells keyed `${rowKey}_${colKey}`.
   charges?: Record<string, string>;
@@ -129,6 +130,7 @@ const CoveringLetterForm = ({
         dated: prefill.dated,
         yourInsured: f.yourInsured,
         ourClient: f.ourClient,
+        billTo: prefill.billTo,
         incidentDate: f.incidentDate,
         rows: docRows,
         subTotal: docSubTotal,

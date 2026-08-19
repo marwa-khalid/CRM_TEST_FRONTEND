@@ -56,8 +56,9 @@ export interface StatsResponse {
   cards: StatCard[];
 }
 
-// `period` is WTD | MTD | YTD (uppercased for the API). Returns null on failure.
-// Mileage-based: remaining = service_due_mileage − current_mileage. Rows are
+// Mileage-based Servicing Due card. Both mileages come from the vehicle's latest
+// Servicing Details record: current = "Serviced At Mileage", due = "Next Service Due At",
+// so remaining = next_service_due_at − serviced_at_mileage. Rows are
 // [reg, current_mileage, service_due_at, [statusLabel, colour]].
 export interface ServicingDue {
   tabs: { overdue: number; within_500: number; within_1000: number };
@@ -137,9 +138,16 @@ export interface WeeklyPayments {
   // Left-panel roll-up: money by bucket + received-so-far this week + per-weekday chart.
   summary?: PaymentSummary;
 }
+// The viewer's own local date (YYYY-MM-DD), sent with the date-sensitive dashboard fetches
+// so Due Today / Overdue buckets follow whoever is looking — independent of the server's
+// timezone or location.
+export const clientToday = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 export const getWeeklyPayments = async (): Promise<WeeklyPayments | null> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/weekly-payments");
+    const { data } = await fleetApi.get("/fleet/dashboard/weekly-payments", { params: { today: clientToday() } });
     return data as WeeklyPayments;
   } catch {
     return null;
@@ -153,7 +161,7 @@ export interface Compliance {
 // `context` (cams | skyline) scopes compliance to one Vehicle Management side.
 export const getCompliance = async (context?: string): Promise<Compliance | null> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/compliance", { params: { context } });
+    const { data } = await fleetApi.get("/fleet/dashboard/compliance", { params: { context, today: clientToday() } });
     return data as Compliance;
   } catch {
     return null;
@@ -175,7 +183,7 @@ export interface Expiries {
 // `context` (cams | skyline) scopes the expiry cards to one Vehicle Management side.
 export const getExpiries = async (context?: string): Promise<Expiries | null> => {
   try {
-    const { data } = await fleetApi.get("/fleet/dashboard/expiries", { params: { context } });
+    const { data } = await fleetApi.get("/fleet/dashboard/expiries", { params: { context, today: clientToday() } });
     return data as Expiries;
   } catch {
     return null;

@@ -33,6 +33,38 @@ import {
 } from "../../services/dashboardService";
 import { listFleetTasks, type FleetTask } from "../../services/taskService";
 
+// Changes whenever the local calendar day flips (checked every 30s + on tab focus), so
+// time-sensitive buckets (Due Today / Overdue) re-fetch and roll over at midnight without
+// a manual reload. Include the returned key in a fetch effect's dependency array.
+function useDateKey(): string {
+  const [key, setKey] = useState(() => new Date().toDateString());
+  useEffect(() => {
+    let midnightTimer = 0;
+    const sync = () => setKey((prev) => {
+      const now = new Date().toDateString();
+      return prev === now ? prev : now;
+    });
+    // Fire exactly at the next local midnight (+2s so the clock has flipped), then reschedule.
+    const scheduleMidnight = () => {
+      const now = new Date();
+      const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 2);
+      midnightTimer = window.setTimeout(() => { sync(); scheduleMidnight(); }, next.getTime() - now.getTime());
+    };
+    scheduleMidnight();
+    const id = window.setInterval(sync, 30000); // safety net (throttled/backgrounded tabs, clock changes)
+    const onVisible = () => { if (document.visibilityState === "visible") sync(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", sync);
+    return () => {
+      window.clearTimeout(midnightTimer);
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", sync);
+    };
+  }, []);
+  return key;
+}
+
 // Fleet Dashboard — pure inline Tailwind (same convention as the Claims dashboard).
 // Sample data is hard-coded for now; wire to fleet services when the APIs land.
 
@@ -735,10 +767,14 @@ export const SkylineVehiclesSlider: React.FC<{
   vehicles: SkyVehicle[]; // full list; the slider filters it by its own controls
   summary: { label: string; value: number; statusKey: string; className: string }[];
   title: string; // side-aware heading (CAMS Vehicles / Skyline Vehicles)
+  // Filters selected on the section carry into the slider (it opens pre-filtered
+  // to the same Registration/Status selection the user already made).
+  initialRegSel?: string[];
+  initialStatusSel?: string[];
   onClose: () => void;
-}> = ({ vehicles, summary, title, onClose }) => {
-  const [regSel, setRegSel] = useState<string[]>([]);
-  const [statusSel, setStatusSel] = useState<string[]>([]);
+}> = ({ vehicles, summary, title, initialRegSel = [], initialStatusSel = [], onClose }) => {
+  const [regSel, setRegSel] = useState<string[]>(initialRegSel);
+  const [statusSel, setStatusSel] = useState<string[]>(initialStatusSel);
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) =>
     setter((s) => (s.includes(val) ? s.filter((x) => x !== val) : [...s, val]));
   const regOptions = vehicles.map((v) => ({ label: v.registration, value: v.registration }));
@@ -865,7 +901,7 @@ export const SkylineOperations: React.FC<{ context?: string }> = ({ context }) =
           )}
         </div>
       </div>
-      {sliderOpen && <SkylineVehiclesSlider vehicles={data} summary={summaryItems} title={vehLabel} onClose={() => setSliderOpen(false)} />}
+      {sliderOpen && <SkylineVehiclesSlider vehicles={data} summary={summaryItems} title={vehLabel} initialRegSel={regSel} initialStatusSel={statusSel} onClose={() => setSliderOpen(false)} />}
     </section>
   );
 };
@@ -978,11 +1014,12 @@ export const WeeklyPayment: React.FC = () => {
   const [live, setLive] = useState<WeeklyPayments | null>(null);
   const [tab, setTab] = useState<string>("all");
   const [sliderOpen, setSliderOpen] = useState(false); // "View All" opens a right-side slider
+  const dateKey = useDateKey();
   useEffect(() => {
     let cancelled = false;
     getWeeklyPayments().then((r) => { if (!cancelled) setLive(r); });
     return () => { cancelled = true; };
-  }, []);
+  }, [dateKey]);
   const summary = live?.summary ?? WP_FALLBACK_SUMMARY;
   const rowsByTab: Record<string, (string | [string, string])[][]> = {
     all: live?.rows.all ?? [], overdue: live?.rows.overdue ?? [], due_today: live?.rows.due_today ?? [],
@@ -1388,11 +1425,12 @@ export const MOTExpiryPopup: React.FC<{
 };
 export const VMComplianceCards: React.FC<{ context?: string }> = ({ context }) => {
   const [data, setData] = useState<Expiries | null>(null);
+  const dateKey = useDateKey();
   useEffect(() => {
     let cancelled = false;
     getExpiries(context).then((r) => { if (!cancelled) setData(r); });
     return () => { cancelled = true; };
-  }, [context]);
+  }, [context, dateKey]);
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
       {VM_COMPLIANCE.map((c) => {
@@ -1413,7 +1451,7 @@ export const VMComplianceCards: React.FC<{ context?: string }> = ({ context }) =
               {rows.map(([label, val, danger]) => (
                 <div key={label} className="flex justify-between items-start">
                   <span className={`text-sm font-weight-500 ${danger ? "text-red-500" : "text-neutral-700"}`}>{label}</span>
-                  <span className="text-neutral-700 text-base font-weight-600 tabular-nums">{val}</span>
+                  <span className={`text-base font-weight-600 tabular-nums ${danger ? "text-red-500" : "text-neutral-700"}`}>{val}</span>
                 </div>
               ))}
             </div>
@@ -1507,8 +1545,10 @@ export const ServicingRow: React.FC<{
           {reg}
         </span>
 
-        <div className="grid grid-cols-2 gap-2 text-xs text-neutral-700">
-          <span className="whitespace-nowrap">
+        {/* Give "Current" a fixed width so "Due at" sits just to its right (near it),
+            landing at the same x on every card instead of at the old 50% column. */}
+        <div className="flex gap-2 text-xs text-neutral-700">
+          <span className="whitespace-nowrap w-32 shrink-0">
             Current:{" "}
             <span className="font-weight-600">{cur} mi</span>
           </span>
@@ -2006,11 +2046,12 @@ export const VMPlateExpiry: React.FC<{ card?: ExpiryCard }> = ({ card }) => {
 };
 export const VMExpiryZone: React.FC<{ context?: string }> = ({ context }) => {
   const [data, setData] = useState<Expiries | null>(null);
+  const dateKey = useDateKey();
   useEffect(() => {
     let cancelled = false;
     getExpiries(context).then((r) => { if (!cancelled) setData(r); });
     return () => { cancelled = true; };
-  }, [context]);
+  }, [context, dateKey]);
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col lg:flex-row gap-5">
@@ -2081,7 +2122,7 @@ export const SkylineFleetStats: React.FC<{ period: string }> = ({ period }) => {
 
 // Weekly Payment Schedule slider — card rows opened by the section's "View All".
 export const WP_TONE: Record<string, string> = {
-  red: "bg-red-100 text-red-500", gray: "bg-neutral-100 text-neutral-700", blue: "bg-blue-100 text-blue-500",
+  red: "bg-red-100 text-red-500", gray: "bg-blue-100 text-blue-500", blue: "bg-blue-100 text-blue-500",
   yellow: "bg-yellow-100 text-yellow-700", green: "bg-green-100 text-green-700",
 };
 // Full-detail preview shown while hovering a payment row on the dashboard (not the slider).

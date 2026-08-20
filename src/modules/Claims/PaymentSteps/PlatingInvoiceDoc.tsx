@@ -140,9 +140,9 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
                 </th>
               ))
             ) : (
-              /* SINGLE VEHICLE AMOUNT HEADER */
+              /* SINGLE VEHICLE AMOUNT HEADER — right-aligned to match its values */
               <th className={`${invoiceHead} w-[175px]`}>
-                <div className={invoiceHeadInner}>Amount</div>
+                <div className="min-h-[30px] px-1.5 flex items-center justify-end text-right">Amount</div>
               </th>
             )}
           </tr>
@@ -162,7 +162,7 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
             {multi ? (
               vehicles.map((vehicle, index) => (
                 <td key={`mot-${index}`} className={invoiceCell}>
-                  <div className={`${invoiceCellInner} justify-end text-right`}>
+                  <div className={`${invoiceCellInner} justify-center text-center`}>
                     {m(vehicle.privateHireMot)}
                   </div>
                 </td>
@@ -189,7 +189,7 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
             {multi ? (
               vehicles.map((vehicle, index) => (
                 <td key={`plating-${index}`} className={invoiceCell}>
-                  <div className={`${invoiceCellInner} justify-end text-right`}>
+                  <div className={`${invoiceCellInner} justify-center text-center`}>
                     {m(vehicle.privateHirePlatingCosts)}
                   </div>
                 </td>
@@ -211,10 +211,12 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
               className="border-l border-r border-b border-[#808080] bg-[#d9d9d9] p-0 text-[9px] font-bold"
               colSpan={multi ? vehicles.length : 1}
             >
-              <div className="h-[50px] px-[8px] flex items-center">
-                <span className="flex-1 text-right pr-[20px]">Total</span>
+              {/* Multi-vehicle: centre Total + value under the vehicle columns.
+                  Single: keep it right-aligned (matches the right Amount column). */}
+              <div className={`h-[50px] px-[8px] flex items-center ${multi ? "justify-center gap-2" : ""}`}>
+                <span className={multi ? "whitespace-nowrap" : "flex-1 text-right pr-[20px]"}>Total</span>
 
-                <span className="w-[65px] text-right whitespace-nowrap">
+                <span className={`${multi ? "" : "w-[65px]"} text-right whitespace-nowrap`}>
                   {gbp(data.total || 0)}
                 </span>
               </div>

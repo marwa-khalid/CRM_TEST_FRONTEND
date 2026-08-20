@@ -83,9 +83,11 @@ const SingleSignOn = () => {
             One Smart Platform
           </h1>
 
-          <p className="relative w-[431px] text-white text-[24px] font-weight-600 leading-[24px] break-words">
-            Centralized CRM to track, process, and resolve claims smarter
-          </p>
+          <div className="flex flex-col items-start gap-1">
+            <p className="text-white text-[24px] font-weight-600 leading-[24px]">Complete Control.</p>
+            <p className="text-white text-[24px] font-weight-600 leading-[24px]">Better Outcomes.</p>
+            <p className="text-white text-[24px] font-weight-600 leading-[24px]">Faster Claims.</p>
+          </div>
         </div>
 
         <div
@@ -177,7 +179,7 @@ const SingleSignOn = () => {
 
               <div
                 className="flex flex-col items-start justify-start self-stretch gap-6 p-4 rounded-lg outline outline-1 outline-[#A3CFFF] -outline-offset-1 bg-white cursor-pointer"
-                onClick={() => navigate("/fleet")}
+                onClick={() => navigate("/fleet/dashboard")}
               >
                 <div className="flex items-center justify-between self-stretch">
                   <div className="flex items-center gap-2">
@@ -203,59 +205,42 @@ const SingleSignOn = () => {
                 </div>
               </div>
 
-              {/* Vehicle Management — CAMS (Claims cars). */}
-              <div
-                className="flex flex-col items-start justify-start self-stretch gap-6 p-4 rounded-lg outline outline-1 outline-[#A3CFFF] -outline-offset-1 bg-white cursor-pointer"
-                onClick={() => navigate("/vehicle-management/cams")}
-              >
-                <div className="flex items-center justify-between self-stretch">
-                  <div className="flex items-center gap-2">
-                    <img src={Fleet} alt="" className="w-8 h-8" />
-                    <div className="text-neutral-900 font-weight-600 text-black text-[12px]">
-                      VEHICLES · CAMS
-                    </div>
+              {/* Vehicle Management — one card, two sub-modules (Skyline / CAMS-NA). */}
+              <div className="flex flex-col items-start justify-start self-stretch gap-6 p-4 rounded-lg outline outline-1 outline-[#A3CFFF] -outline-offset-1 bg-white">
+                <div className="flex items-center gap-3">
+                  <img src={Fleet} alt="" className="w-8 h-8" />
+                  <div className="flex flex-col items-start gap-1">
+                    <h3 className="text-black text-[16px] font-weight-600 leading-4 font-['Stack_Sans_Headline']">
+                      Vehicle Management
+                    </h3>
+                    <p className="text-[#888888] text-[12px] font-weight-400 leading-relaxed">
+                      Select the module you want to navigate to
+                    </p>
                   </div>
-                  <img src={ArrowRight} alt="" />
                 </div>
 
-                <div className="flex flex-col items-start gap-3">
-                  <h3 className="text-black text-[16px] font-weight-600 font-weight-[500] leading-4 font-['Stack_Sans_Headline']">
-                    Vehicle Management &ndash; CAMS
-                  </h3>
-                  <p className="text-[#888888] text-[12px] font-weight-400 leading-relaxed">
-                    Register and manage the vehicle pool for Claims (CAMS) hires.
-                    <br />
-                    Track availability, licensing, servicing and current hire in
-                    one place.
-                  </p>
-                </div>
-              </div>
-
-              {/* Vehicle Management — Skyline cars. */}
-              <div
-                className="flex flex-col items-start justify-start self-stretch gap-6 p-4 rounded-lg outline outline-1 outline-[#A3CFFF] -outline-offset-1 bg-white cursor-pointer"
-                onClick={() => navigate("/vehicle-management/skyline")}
-              >
-                <div className="flex items-center justify-between self-stretch">
-                  <div className="flex items-center gap-2">
-                    <img src={Fleet} alt="" className="w-8 h-8" />
-                    <div className="text-neutral-900 font-weight-600 text-black text-[12px]">
-                      VEHICLES · SKYLINE
-                    </div>
+                <div className="flex flex-col items-start gap-4 self-stretch">
+                  <div
+                    className="w-full flex justify-between items-center cursor-pointer"
+                    onClick={() => navigate("/vehicle-management/skyline/dashboard")}
+                  >
+                    <span className="text-neutral-900 text-sm font-weight-600 font-['Stack_Sans_Headline']">
+                      Skyline
+                    </span>
+                    <img src={ArrowRight} alt="" />
                   </div>
-                  <img src={ArrowRight} alt="" />
-                </div>
 
-                <div className="flex flex-col items-start gap-3">
-                  <h3 className="text-black text-[16px] font-weight-600 font-weight-[500] leading-4 font-['Stack_Sans_Headline']">
-                    Vehicle Management &ndash; Skyline
-                  </h3>
-                  <p className="text-[#888888] text-[12px] font-weight-400 leading-relaxed">
-                    Register and manage the vehicle pool for Skyline hires.
-                    <br />
-                    Track availability, licensing, servicing and current hire in
-                    one place.
-                  </p>
+                  <div className="w-full h-px bg-neutral-100" />
+
+                  <div
+                    className="w-full flex justify-between items-center cursor-pointer"
+                    onClick={() => navigate("/vehicle-management/cams/dashboard")}
+                  >
+                    <span className="text-neutral-900 text-sm font-weight-600 font-['Stack_Sans_Headline']">
+                      CAMS/NA
+                    </span>
+                    <img src={ArrowRight} alt="" />
+                  </div>
                 </div>
               </div>
             </div>

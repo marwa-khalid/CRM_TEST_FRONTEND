@@ -16,7 +16,6 @@ import ForgotPassword2 from './modules/Login/ForgotPassword2';
 import ResetPassword from './modules/Login/ResetPassword';
 import ResetPassword2 from './modules/Login/ResetPassword2';
 import SingleSignOn from './modules/Login/SingleSignOn';
-import SingleSignOn2 from './modules/Login/SingleSignOn2';
 import EmailTemplates1 from './modules/Login/EmailTemplates1';
 import EmailTemplates2 from './modules/Login/EmailTemplates2';
 import EmailTemplates3 from './modules/Login/EmailTemplates3';
@@ -75,7 +74,6 @@ const AppInner: React.FC = () => {
         <Route path="/auth/reset-password2" element={<ResetPassword2 />} />
         <Route path="/account-locked" element={<AccountLocked />} />
         <Route path="/single-signon" element={<SingleSignOn />} />
-        <Route path="/single-signon2" element={<SingleSignOn2 />} />
         <Route path="/email-templates1" element={<EmailTemplates1 />} />
         <Route path="/email-templates2" element={<EmailTemplates2 />} />
         <Route path="/email-templates3" element={<EmailTemplates3 />} />

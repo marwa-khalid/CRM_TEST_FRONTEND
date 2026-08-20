@@ -6,7 +6,8 @@ import fleetApi from "./fleetApi";
 
 export interface HireTrend {
   labels: string[];
-  values: number[];
+  values: number[]; // On Hire counts per bucket
+  values_off?: number[]; // Off Hire counts per bucket (period views show both, side by side)
   caption: string;
   comparison_note: string | null;
 }

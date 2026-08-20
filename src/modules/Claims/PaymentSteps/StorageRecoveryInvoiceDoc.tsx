@@ -199,7 +199,7 @@ const StorageRecoveryInvoiceDoc = ({
               </th>
 
               <th className={detailHead} style={headStyle}>
-                <div className="h-[27px] flex items-center justify-center text-center">
+                <div className="h-[27px] px-[7px] flex items-center justify-end text-right">
                   Amount
                 </div>
               </th>

@@ -18,6 +18,7 @@ const KIND_LABEL: Record<string, string> = {
   road_tax: "Road Fund Licence",
   plating: "Plate Expiry",
   mot: "MOT Expiry",
+  service: "Service Due",
   driving_licence: "Driving Licence",
   taxi_badge: "Taxi Badge",
 };

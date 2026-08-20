@@ -91,7 +91,7 @@ export const CardHead: React.FC<{ icon?: React.ReactNode; title: string; sub?: s
 
 
 // ── Hire Trend (WTD/MTD/YTD periods + YoY/MoM comparison) ─────────────────────
-export type TrendView = { labels: string[]; vals: number[]; cap: string; cmp?: string };
+export type TrendView = { labels: string[]; vals: number[]; valsOff?: number[]; cap: string; cmp?: string };
 // Zero placeholders — shown only until /dashboard/hire-trend returns. Labels/captions
 // keep the axis shape; the bars read 0 rather than inventing a trend.
 export const HT_VIEWS: Record<string, TrendView> = {
@@ -245,7 +245,7 @@ export const HireTrend: React.FC = () => {
     ).then((r) => {
       if (cancelled) return;
       if (r && r.values?.length) {
-        setLive({ labels: r.labels, vals: r.values, cap: r.caption, cmp: r.comparison_note || undefined });
+        setLive({ labels: r.labels, vals: r.values, valsOff: r.values_off, cap: r.caption, cmp: r.comparison_note || undefined });
       }
     }).finally(() => {
       if (!cancelled) setLoading(false);
@@ -256,12 +256,22 @@ export const HireTrend: React.FC = () => {
   }, [period, mode, status, cmpType, cmpA, cmpB]);
   const v = live ?? HT_VIEWS[mode || period];
   const two = v.vals.length <= 2;
+  // Show two adjacent bars per section (On Hire + Off Hire) whenever the backend
+  // provided a matching off-hire series — period views AND YoY / MoM comparison.
+  const valsOff = v.valsOff ?? [];
+  const showOff = valsOff.length > 0 && valsOff.length === v.vals.length;
   const barW = two ? 84 : Math.round(Math.min(64, Math.max(36, 360 / v.vals.length))); // wider when fewer bars
-  const ax = niceAxis(Math.max(...v.vals), 4);
+  const ax = niceAxis(Math.max(...v.vals, ...(showOff ? valsOff : [])), 4);
   const Y = (x: number) => 100 - (x / ax.max) * 100;
   const total = v.vals.reduce((a, b) => a + b, 0);
-  const pct = v.vals[0] ? ((v.vals[1] - v.vals[0]) / v.vals[0]) * 100 : 0;
-  const up = pct >= 0;
+  const totalOff = (v.valsOff ?? []).reduce((a, b) => a + b, 0);
+  const prevV = v.vals[0] ?? 0;
+  const curV = v.vals[1] ?? 0;
+  const pct = prevV ? ((curV - prevV) / prevV) * 100 : 0;
+  const up = curV >= prevV;
+  // From a zero baseline the % is mathematically undefined, so use the standard
+  // convention: growth from nothing = +100% (the ▲/▼ arrow shows up vs down).
+  const pctLabel = prevV ? `${Math.abs(pct).toFixed(1)}%` : (curV ? "100.0%" : "0.0%");
   const segBtn = (active: boolean) => `px-4 py-1.5 rounded text-[13px] leading-none ${active ? "bg-neutral-900 text-white" : "text-zinc-500"}`;
 
   return (
@@ -334,7 +344,9 @@ export const HireTrend: React.FC = () => {
         </div>
         <span className="ml-auto inline-flex items-center gap-1.5 bg-neutral-100 text-neutral-700 rounded-full px-4 py-2 text-[13px] whitespace-nowrap">
           {mode
-            ? (<><span className={`inline-flex items-center gap-1 font-weight-700 ${up ? "text-green-600" : "text-red-500"}`}><img src={up ? TrendingUp : TrendingDown} alt="" className="w-3.5 h-3.5" />{Math.abs(pct).toFixed(1) + "%"}</span> {v.cmp}</>)
+            ? (<><span className={`inline-flex items-center gap-1 font-weight-700 ${up ? "text-green-600" : "text-red-500"}`}><img src={up ? TrendingUp : TrendingDown} alt="" className="w-3.5 h-3.5" />{pctLabel}</span> {v.cmp}</>)
+            : showOff
+            ? (<><b className="text-neutral-900 font-weight-700 tabular-nums">{total}</b> On Hire<span className="mx-1.5 text-neutral-300">·</span><b className="text-neutral-900 font-weight-700 tabular-nums">{totalOff}</b> Off Hire</>)
             : (<><b className="text-neutral-900 font-weight-700 tabular-nums">{total}</b> Hires</>)}
         </span>
       </div>
@@ -346,12 +358,35 @@ export const HireTrend: React.FC = () => {
           {ax.ticks.map((t, i) => <div key={i} className="absolute left-0 right-0 border-t border-dashed border-neutral-200" style={{ top: Y(t).toFixed(1) + "%" }} />)}
           <div className={`absolute inset-0 flex items-end px-2 ${two ? "gap-[60px] justify-center" : "gap-3"}`}>
             {v.vals.map((val, i) => {
-              const h = Math.max(1, (val / ax.max) * 100);
-              const isCmp = two && i === 0;
+              const h = Math.max(val > 0 ? 1 : 0, (val / ax.max) * 100);
+              if (!showOff) {
+                const isCmp = two && i === 0;
+                return (
+                  <div key={i} className={`h-full flex items-end justify-center relative group ${two ? "flex-none" : "flex-1"}`}>
+                    <div className={`relative rounded-t ${isCmp ? "bg-neutral-200" : "bg-neutral-400 group-hover:bg-neutral-500"}`} style={{ height: h.toFixed(1) + "%", width: `${barW}px` }}>
+                      <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{`${val} ${val === 1 ? "hire" : "hires"}`}</div>
+                    </div>
+                  </div>
+                );
+              }
+              // Period view: adjacent On Hire (dark) + Off Hire (light) grey bars per
+              // bucket. Both keep a small stub even at 0 so the empty bar stays visible
+              // and hoverable (its tooltip then shows 0).
+              const off = valsOff[i] ?? 0;
+              const hOn = Math.max(2, (val / ax.max) * 100);
+              const hOff = Math.max(2, (off / ax.max) * 100);
               return (
-                <div key={i} className={`h-full flex items-end justify-center relative group ${two ? "flex-none" : "flex-1"}`}>
-                  <div className={`relative rounded-t ${isCmp ? "bg-neutral-200" : "bg-neutral-400 group-hover:bg-neutral-500"}`} style={{ height: h.toFixed(1) + "%", width: `${barW}px` }}>
-                    <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{`${val} ${val === 1 ? "hire" : "hires"}`}</div>
+                <div key={i} className={`h-full flex items-end justify-center gap-1 ${two ? "flex-none w-[84px]" : "flex-1 min-w-0"}`}>
+                  {/* Off Hire (light) on the left, On Hire (dark) on the right. */}
+                  <div className={`relative h-full flex-1 flex items-end group ${two ? "max-w-[38px]" : "max-w-[30px]"}`}>
+                    <div className="w-full relative rounded-t bg-neutral-300 group-hover:bg-neutral-400 transition-colors" style={{ height: hOff.toFixed(1) + "%" }}>
+                      <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{`Off Hire: ${off}`}</div>
+                    </div>
+                  </div>
+                  <div className={`relative h-full flex-1 flex items-end group ${two ? "max-w-[38px]" : "max-w-[30px]"}`}>
+                    <div className="w-full relative rounded-t bg-neutral-500 group-hover:bg-neutral-600 transition-colors" style={{ height: hOn.toFixed(1) + "%" }}>
+                      <div className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-white border border-neutral-200 rounded-lg px-2.5 py-1 text-[11px] whitespace-nowrap shadow opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">{`On Hire: ${val}`}</div>
+                    </div>
                   </div>
                 </div>
               );
@@ -363,6 +398,12 @@ export const HireTrend: React.FC = () => {
         {v.labels.map((l, i) => <span key={i} className={`text-center text-[10px] text-neutral-400 ${two ? "flex-none w-[84px]" : "flex-1"}`}>{l}</span>)}
       </div>
       <div className="text-center text-[11px] text-neutral-400 mt-2 tabular-nums">{v.cap}</div>
+      {showOff && (
+        <div className="flex items-center justify-center gap-4 mt-2 text-[11px] text-neutral-500">
+          <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-neutral-300" />Off Hire</span>
+          <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-neutral-500" />On Hire</span>
+        </div>
+      )}
     </Card>
   );
 };
@@ -1598,8 +1639,10 @@ export const ServicingTabsRow: React.FC<{ data: ServicingDue | null; tab: ServTa
     </div>
   );
 };
-export const ServicingDueSlider: React.FC<{ data: ServicingDue | null; onClose: () => void }> = ({ data, onClose }) => {
-  const [tab, setTab] = useState<ServTab>("all");
+export const ServicingDueSlider: React.FC<{ data: ServicingDue | null; initialTab?: ServTab; onClose: () => void }> = ({ data, initialTab = "all", onClose }) => {
+  // Own copy of the tab, seeded from the card's selection — changing it here never
+  // touches the card behind the slider.
+  const [tab, setTab] = useState<ServTab>(initialTab);
   const shown = servicingRowsByTab(data)[tab];
   return (
     <div className="fixed inset-0 z-[60] flex justify-end font-['Stack_Sans_Headline']">
@@ -1661,7 +1704,7 @@ export const VMServicingDue: React.FC<{ context?: string }> = ({ context }) => {
         )}
       </div>
       {sliderOpen && (
-        <ServicingDueSlider data={data} onClose={() => setSliderOpen(false)} />
+        <ServicingDueSlider data={data} initialTab={tab} onClose={() => setSliderOpen(false)} />
       )}
     </div>
   );
@@ -1670,13 +1713,14 @@ export const VMServicingDue: React.FC<{ context?: string }> = ({ context }) => {
 // Expiry sections (replace the carousel): MOT + Road Fund as lists, Plate as cards.
 export const VM_EXP_BUCKETS: { key: "expired" | "today" | "d7" | "d30"; label: string; tone: string }[] = [
   { key: "expired", label: "Expired", tone: "red" },
-  { key: "today", label: "Due Today", tone: "gray" },
+  { key: "today", label: "Due Today", tone: "blue" },
   { key: "d7", label: "Due in 7 Days", tone: "yellow" },
-  { key: "d30", label: "Due in 30 Days", tone: "blue" },
+  { key: "d30", label: "Due in 30 Days", tone: "purple" },
 ];
 export const EXP_TONE: Record<string, string> = {
   red: "bg-red-100 text-red-500", gray: "bg-neutral-100 text-neutral-700",
   yellow: "bg-yellow-100 text-yellow-600", blue: "bg-blue-100 text-blue-500",
+  purple: "bg-purple-200 text-violet-800",
   orange: "bg-orange-100 text-orange-500", violet: "bg-violet-100 text-violet-600",
 };
 const EXP_MONTHS: Record<string, number> = {
@@ -1720,10 +1764,25 @@ const expiryDaysLabel = (dateStr: string, fallback: string, fallbackTone: string
   const days = Math.ceil((expiry.getTime() - today.getTime()) / 86400000);
   const count = Math.abs(days);
   return {
-    label: `${count} Day${count === 1 ? "" : "s"} ${days < 0 ? "Overdue" : "Remaining"}`,
+    // Due today (0 days) needs no "0 Days Remaining" line — the "Due Today" pill says it.
+    label: days === 0 ? "" : `${count} Day${count === 1 ? "" : "s"} ${days < 0 ? "Overdue" : "Remaining"}`,
     overdue: days < 0,
   };
 };
+// Plain status-coloured text (no pill) for the MOT / Road Fund rows — each hire
+// status in its own colour (matching the vehicle-status donut hues), never a flat blue.
+export const EXP_STATUS_TEXT: Record<string, string> = {
+  "Available": "text-green-600",
+  "On Hire": "text-blue-600",
+  "Off Hire": "text-red-600",
+  "In Service": "text-purple-600",
+  "In Repair": "text-orange-500",
+  "For Sale": "text-pink-600",
+  "Awaiting Plating": "text-amber-600",
+  "Awaiting De Fleet": "text-teal-600",
+};
+export const expStatusTextClass = (s: string) => EXP_STATUS_TEXT[normaliseVehicleStatusLabel(s)] ?? "text-neutral-600";
+
 type ExpiryRowVariant = "default" | "statusCard";
 // One outlined-card row for an expiry item (reg + hire status + bucket badge + date).
 // Shared by the MOT / Road Fund dashboard sections and their sliders.
@@ -1761,7 +1820,7 @@ export const ExpiryRow: React.FC<{
               </span>
 
               {status && (
-                <span className="text-blue-500 text-xs font-weight-600 shrink-0">
+                <span className={`text-xs font-weight-600 shrink-0 ${expStatusTextClass(status)}`}>
                   {status}
                 </span>
               )}
@@ -1783,8 +1842,9 @@ export const ExpiryRow: React.FC<{
               {bucket.label}
             </span>
 
+            {/* Keep the line even when empty (due-today) so the cards stay aligned. */}
             <span className={`text-xs whitespace-nowrap ${remainingDays.overdue ? "text-red-500" : "text-neutral-500"}`}>
-              {remainingDays.label}
+              {remainingDays.label || " "}
             </span>
           </div>
         </div>
@@ -1837,8 +1897,9 @@ export const ExpiryRow: React.FC<{
 };
 // Drawer opened by an expiry section's "View All Vehicles" — tabs + Vehicle Status
 // filter + full list of outlined rows.
-export const ExpiryListSlider: React.FC<{ title: string; card?: ExpiryCard; rowVariant?: ExpiryRowVariant; onClose: () => void }> = ({ title, card, rowVariant, onClose }) => {
-  const [tab, setTab] = useState<string>("all");
+export const ExpiryListSlider: React.FC<{ title: string; card?: ExpiryCard; rowVariant?: ExpiryRowVariant; initialTab?: string; onClose: () => void }> = ({ title, card, rowVariant, initialTab = "all", onClose }) => {
+  // Own tab copy, seeded from the section's selection; changing it here leaves the card untouched.
+  const [tab, setTab] = useState<string>(initialTab);
   const [statusSel, setStatusSel] = useState<string[]>([]);
  
   const tabs = card?.tabs ?? { expired: 0, today: 0, d7: 0, d30: 0 };
@@ -1933,6 +1994,7 @@ export const VMExpiryList: React.FC<{ title: string; card?: ExpiryCard; rowVaria
           title={title}
           card={card}
           rowVariant={rowVariant}
+          initialTab={tab}
           onClose={() => setSliderOpen(false)}
         />
       )}
@@ -1947,6 +2009,9 @@ export const PlateCard: React.FC<{ row: PlateBucketRow }> = ({ row }) => {
   const reg = r[0] as string, dateStr = r[1] as string, authority = r[3] as string, model = (r[4] as string) || "";
   const authorityLabel = authority && authority !== "—" ? authority : "—";
   const expiryClass = bucket.key === "expired" ? "text-red-500" : "text-neutral-500";
+  // Remaining-days text, same as the MOT / Road Fund rows.
+  const remaining = (Array.isArray(r[2]) ? r[2] : [(r[2] as string) || "", bucket.tone]) as [string, string];
+  const remainingDays = expiryDaysLabel(dateStr, remaining[0], remaining[1] ?? bucket.tone);
 
   return (
     <div className="h-full p-4 rounded-lg outline outline-1 -outline-offset-1 outline-neutral-200 flex flex-col justify-between items-start gap-5">
@@ -1962,9 +2027,17 @@ export const PlateCard: React.FC<{ row: PlateBucketRow }> = ({ row }) => {
           )}
         </div>
 
-        <span className={`shrink-0 px-2 py-1 rounded-sm text-xs font-normal whitespace-nowrap ${EXP_TONE[bucket.tone] ?? EXP_TONE.gray}`}>
-          {bucket.label}
-        </span>
+        {/* Status pill with the remaining-days text directly beneath it (as on MOT / Road Fund). */}
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className={`px-2 py-1 rounded-sm text-xs font-normal whitespace-nowrap ${EXP_TONE[bucket.tone] ?? EXP_TONE.gray}`}>
+            {bucket.label}
+          </span>
+          {remainingDays.label && (
+            <span className={`text-xs whitespace-nowrap ${remainingDays.overdue ? "text-red-500" : "text-neutral-500"}`}>
+              {remainingDays.label}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col items-start gap-2">
@@ -1978,8 +2051,9 @@ export const PlateCard: React.FC<{ row: PlateBucketRow }> = ({ row }) => {
     </div>
   );
 };
-export const PlateExpirySlider: React.FC<{ card?: ExpiryCard; onClose: () => void }> = ({ card, onClose }) => {
-  const [tab, setTab] = useState<string>("all");
+export const PlateExpirySlider: React.FC<{ card?: ExpiryCard; initialTab?: string; onClose: () => void }> = ({ card, initialTab = "all", onClose }) => {
+  // Own tab copy, seeded from the section; changing it here leaves the card untouched.
+  const [tab, setTab] = useState<string>(initialTab);
   const [statusSel, setStatusSel] = useState<string[]>([]);
   const tabs = card?.tabs ?? { expired: 0, today: 0, d7: 0, d30: 0 };
   const total = tabs.expired + tabs.today + tabs.d7 + tabs.d30;
@@ -2040,7 +2114,7 @@ export const VMPlateExpiry: React.FC<{ card?: ExpiryCard }> = ({ card }) => {
           {shown.map((row, i) => <PlateCard key={i} row={row} />)}
         </div>
       )}
-      {sliderOpen && <PlateExpirySlider card={card} onClose={() => setSliderOpen(false)} />}
+      {sliderOpen && <PlateExpirySlider card={card} initialTab={tab} onClose={() => setSliderOpen(false)} />}
     </div>
   );
 };

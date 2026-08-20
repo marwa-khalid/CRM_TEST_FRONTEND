@@ -192,7 +192,7 @@ const CreditHireInvoiceDoc = ({ data }: { data: CreditHireDocData }) => {
             </th>
 
             <th
-              className={`${chargeHead} border-r border-[#808080] text-center w-[29%]`}
+              className={`${chargeHead} border-r border-[#808080] text-right w-[29%]`}
             >
               Amount £
             </th>
@@ -225,7 +225,7 @@ const CreditHireInvoiceDoc = ({ data }: { data: CreditHireDocData }) => {
                   {charge.days ? d(charge.days) : ""}
                 </td>
 
-                <td className={`${cellCls} ${topBorder} text-right`}>
+                <td className={`${cellCls} ${topBorder} text-center`}>
                   {charge.rate ? m(charge.rate) : ""}
                 </td>
 

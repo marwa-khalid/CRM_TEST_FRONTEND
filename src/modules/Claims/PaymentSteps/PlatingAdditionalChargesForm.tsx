@@ -123,6 +123,24 @@ const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
     formik.setFieldValue("total_plating_cost", (fee + mot).toFixed(2));
   }, [formik.values.private_hire_plating_fee, formik.values.private_hire_mot_cost]);
 
+  // Automatic vs Estate are mutually exclusive: a claim uses one or the other,
+  // never both. The active one is whichever currently holds a value; ticking a
+  // box pre-fills it with 5 (still editable) and clears the other.
+  const DEFAULT_CHARGE = "5.00";
+  const chargeType: "" | "automatic" | "estate" =
+    String(formik.values.automatic).trim() !== "" ? "automatic"
+    : String(formik.values.estate).trim() !== "" ? "estate"
+    : "";
+  const toggleChargeType = (type: "automatic" | "estate") => {
+    if (chargeType === type) {
+      formik.setFieldValue(type, ""); // untick → clear, neither selected
+      return;
+    }
+    // Select this one, pre-fill 5, and clear the other so only one is ever set.
+    formik.setFieldValue("automatic", type === "automatic" ? DEFAULT_CHARGE : "");
+    formik.setFieldValue("estate", type === "estate" ? DEFAULT_CHARGE : "");
+  };
+
   return (
     <div className="w-full mt-3 flex flex-col justify-start items-start gap-6 bg-white font-['Stack_Sans_Headline']">
       {loading && <SpinnerLoader />}
@@ -181,6 +199,8 @@ const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
         </h2>
         <div className="self-stretch h-px bg-neutral-100" />
 
+        {/* Automatic OR Estate — tick one (mutually exclusive); it pre-fills 5 and
+            stays editable, and the other is cleared/disabled. */}
         <div className="w-full grid grid-cols-2 gap-5">
           <CurrencyInput
             label="Automatic"
@@ -188,6 +208,8 @@ const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
             value={formik.values.automatic}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
+            disabled={chargeType !== "automatic"}
+            checkbox={{ checked: chargeType === "automatic", onToggle: () => toggleChargeType("automatic") }}
             error={formik.touched.automatic && formik.errors.automatic as string}
           />
           <CurrencyInput
@@ -196,6 +218,8 @@ const PlatingChargesSection = ({ paymentFormRef, claimId }: any) => {
             value={formik.values.estate}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
+            disabled={chargeType !== "estate"}
+            checkbox={{ checked: chargeType === "estate", onToggle: () => toggleChargeType("estate") }}
             error={formik.touched.estate && formik.errors.estate as string}
           />
         </div>
@@ -236,6 +260,7 @@ interface CurrencyInputProps {
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   disabled?: boolean;
   error?: string | false;
+  checkbox?: { checked: boolean; onToggle: () => void };
 }
 
 const CurrencyInput: React.FC<CurrencyInputProps> = ({
@@ -246,10 +271,18 @@ const CurrencyInput: React.FC<CurrencyInputProps> = ({
   onBlur,
   disabled,
   error,
+  checkbox,
 }) => {
   return (
     <div className="flex flex-col justify-start items-start gap-2">
-      <label className="self-stretch text-neutral-700 text-sm font-weight-400 font-['Stack_Sans_Headline']">
+      <label
+        className={`self-stretch text-neutral-700 text-sm font-weight-400 font-['Stack_Sans_Headline'] flex items-center gap-2 ${checkbox ? "cursor-pointer select-none mb-2" : ""}`}
+        onClick={checkbox ? () => checkbox.onToggle() : undefined}
+      >
+        {checkbox && (
+          /* Same custom checkbox as "Client's Claim in Validation" on Third Party Insurer. */
+          <span className={`w-5 h-5 rounded shrink-0 ${checkbox.checked ? "bg-blue-600 border-[6px] border-blue-200" : "bg-neutral-300"}`} />
+        )}
         {label}
       </label>
       <div

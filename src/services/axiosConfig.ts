@@ -61,7 +61,6 @@ const PUBLIC_PATHS = [
   "/auth/reset-password2",
   "/account-locked",
   "/single-signon",
-  "/single-signon2",
   "/email-templates1",
   "/email-templates2",
   "/email-templates3",

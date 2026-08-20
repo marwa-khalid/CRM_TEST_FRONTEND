@@ -93,8 +93,9 @@ interface StatConfig {
   tile: string;
   trendPct: number;
   darkIcon?: boolean; // force a coloured icon SVG to black (neutral tiles)
+  iconFilter?: string; // custom CSS filter to tint the icon (takes precedence over darkIcon)
 }
-const StatCard: React.FC<StatConfig> = ({ title, value, icon, tile, trendPct, darkIcon }) => {
+const StatCard: React.FC<StatConfig> = ({ title, value, icon, tile, trendPct, darkIcon, iconFilter }) => {
   const positive = trendPct >= 0;
   const badge =
     trendPct > 0
@@ -106,7 +107,7 @@ const StatCard: React.FC<StatConfig> = ({ title, value, icon, tile, trendPct, da
     <div className="flex-1 min-w-0 p-4 rounded-lg border border-[#ccc] bg-white flex flex-col gap-3">
       <div className="flex items-center gap-4">
         <div className={`p-3 rounded-sm flex items-center justify-center ${tile}`}>
-          <img src={icon} alt="" className="w-5 h-5" style={darkIcon ? { filter: "brightness(0)" } : undefined} />
+          <img src={icon} alt="" className="w-5 h-5" style={iconFilter ? { filter: iconFilter } : darkIcon ? { filter: "brightness(0)" } : undefined} />
         </div>
         <img src={positive ? RiseIcon : FallIcon} alt="" className="w-12 h-12 object-contain" />
       </div>
@@ -209,7 +210,7 @@ const VehicleManagementList: React.FC = () => {
     const available = bySt("Available");
     return [
       { title: "Total Vehicles", value: vehicles.length, icon: VehiclesIcon, tile: "bg-[#eee]", trendPct: trendFor(vehicles), darkIcon: true },
-      { title: "On Hire", value: onHire.length, icon: CheckIcon, tile: "bg-[#eee]", trendPct: trendFor(onHire), darkIcon: true },
+      { title: "On Hire", value: onHire.length, icon: CheckIcon, tile: "bg-blue-100", trendPct: trendFor(onHire), iconFilter: "brightness(0) saturate(100%) invert(28%) sepia(97%) saturate(1765%) hue-rotate(213deg) brightness(97%) contrast(101%)" },
       { title: "In Repair", value: inRepair.length, icon: ProgressIcon, tile: "bg-[#fff1d7]", trendPct: trendFor(inRepair) },
       { title: "For Sale", value: forSale.length, icon: TagIcon, tile: "bg-[#fce7f3]", trendPct: trendFor(forSale) },
       { title: "Available", value: available.length, icon: CheckCircleIcon, tile: "bg-[#d9ffd9]", trendPct: trendFor(available) },

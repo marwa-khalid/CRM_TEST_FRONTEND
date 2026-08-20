@@ -211,12 +211,12 @@ const PlatingInvoiceDoc = ({ data }: { data: PlatingInvoiceDocData }) => {
               className="border-l border-r border-b border-[#808080] bg-[#d9d9d9] p-0 text-[9px] font-bold"
               colSpan={multi ? vehicles.length : 1}
             >
-              {/* Multi-vehicle: centre Total + value under the vehicle columns.
-                  Single: keep it right-aligned (matches the right Amount column). */}
-              <div className={`h-[50px] px-[8px] flex items-center ${multi ? "justify-center gap-2" : ""}`}>
-                <span className={multi ? "whitespace-nowrap" : "flex-1 text-right pr-[20px]"}>Total</span>
+              {/* Multi-vehicle: Total and its value each centred in their own half,
+                  so they sit under the two vehicle columns. Single: right-aligned. */}
+              <div className="h-[50px] px-[8px] flex items-center">
+                <span className={multi ? "flex-1 text-center whitespace-nowrap" : "flex-1 text-right pr-[20px]"}>Total</span>
 
-                <span className={`${multi ? "" : "w-[65px]"} text-right whitespace-nowrap`}>
+                <span className={multi ? "flex-1 text-center whitespace-nowrap" : "w-[65px] text-right whitespace-nowrap"}>
                   {gbp(data.total || 0)}
                 </span>
               </div>

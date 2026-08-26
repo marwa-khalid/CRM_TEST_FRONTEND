@@ -1,9 +1,37 @@
 import fleetApi from "./fleetApi";
+import { logFleetHistoryDocument } from "./fleetHistory";
 
 export type GeneratedDocumentKey =
   | "raise_hire_documentation"
   | "raise_authority_letter"
   | "raise_vehicle_inspection_sheet";
+
+const cleanDocName = (filename: string) => filename.replace(/\.[^.]+$/, "").trim() || filename;
+
+// Log each generated hire document to the hire's History as a Send Letter (SL)
+// record — mirrors the legacy Skyline history (Hire Agreement, Rental Agreement,
+// Vehicle Inspection Sheet, Permission Letter …). Best-effort; never blocks download.
+export const logGeneratedDocumentsToHistory = async (
+  hireId: number,
+  documentKey: GeneratedDocumentKey,
+  vehicleId?: number,
+): Promise<void> => {
+  try {
+    const files = await getGeneratedDocumentFiles(hireId, documentKey, vehicleId);
+    await Promise.all(
+      files.map((f) =>
+        logFleetHistoryDocument("fleet_hire", hireId, f, {
+          details: cleanDocName(f.name),
+          actionType: "send_letter",
+          subject: cleanDocName(f.name),
+          fileName: f.name,
+        }).catch(() => {}),
+      ),
+    );
+  } catch {
+    /* best-effort — logging must never break the download */
+  }
+};
 
 export interface GeneratedDocumentFile {
   key: string;
@@ -58,6 +86,7 @@ export const downloadGeneratedDocumentBundle = async (
     );
     const filename = filenameFromDisposition(res.headers["content-disposition"]) || file.filename;
     downloadBlob(res.data as Blob, filename);
+    void logGeneratedDocumentsToHistory(hireId, documentKey, vehicleId);
     return filename;
   }
 
@@ -67,6 +96,7 @@ export const downloadGeneratedDocumentBundle = async (
   });
   const filename = filenameFromDisposition(res.headers["content-disposition"]) || "generated-documents.zip";
   downloadBlob(res.data as Blob, filename);
+  void logGeneratedDocumentsToHistory(hireId, documentKey, vehicleId);
   return filename;
 };
 

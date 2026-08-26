@@ -1,6 +1,8 @@
-import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Routes, Route, Navigate, useParams, useNavigate } from "react-router-dom";
 import AddNewHire from "../pages/AddNewHire/AddNewHire";
+import FleetHistory from "../pages/FleetHistory/FleetHistory";
+import { getHire } from "../services/hireService";
 import FleetActivityLog from "../pages/FleetActivityLog";
 import FleetDocumentLibrary from "../pages/FleetDocumentLibrary";
 import FleetList from "../pages/FleetList";
@@ -27,8 +29,36 @@ const FleetRoutes: React.FC = () => (
     <Route path="document-library" element={<FleetDocumentLibrary />} />
     <Route path="hire/new" element={<AddNewHire />} />
     <Route path="hire/:hireId" element={<AddNewHire />} />
+    <Route path="hire/:hireId/history" element={<HireHistoryRoute />} />
     <Route path="*" element={<Navigate to="/fleet" replace />} />
   </Routes>
 );
+
+// A fleet hire's History section (scope = fleet_hire). Emails are matched on the
+// HIRE reference (e.g. SK70) — that's what Skyline correspondence quotes — and the
+// title mirrors the legacy screen: "SK70 (Mr Mohammed Hussain)".
+const HireHistoryRoute: React.FC = () => {
+  const { hireId } = useParams();
+  const navigate = useNavigate();
+  const [ref, setRef] = useState("");
+  const [hirer, setHirer] = useState("");
+  useEffect(() => {
+    if (hireId) {
+      getHire(Number(hireId))
+        .then((h) => { setRef(h?.fleet_reference || ""); setHirer(h?.driver_name || ""); })
+        .catch(() => {});
+    }
+  }, [hireId]);
+  const title = ref ? (hirer ? `${ref} (${hirer})` : ref) : `Hire #${hireId || ""}`;
+  return (
+    <FleetHistory
+      scope="fleet_hire"
+      id={hireId || ""}
+      title={title}
+      emailReference={ref}
+      onBack={() => navigate(`/fleet/hire/${hireId}`)}
+    />
+  );
+};
 
 export default FleetRoutes;

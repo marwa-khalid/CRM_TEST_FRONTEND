@@ -67,7 +67,7 @@ const PUBLIC_PATHS = [
   "/send-mail",
 ];
 
-const isPublicPath = (path: string) =>
+export const isPublicPath = (path: string) =>
   path === "/" ||
   path.startsWith("/questionnaire/") ||
   PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`));

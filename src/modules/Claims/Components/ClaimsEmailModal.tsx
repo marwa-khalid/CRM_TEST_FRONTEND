@@ -15,15 +15,32 @@ interface ClaimsEmailModalProps {
   html: string;
   subject?: string;
   to?: string;
+  /** Predetermined attachments (display-only; the caller already sends these). */
   attachments?: ClaimsEmailAttachment[];
+  /** When true, the user can attach extra files; they come back in onSend's 5th arg. */
+  allowAttach?: boolean;
+  /** Hide the To field (e.g. a reply that always goes back to the sender). */
+  hideTo?: boolean;
+  sendLabel?: string;
   sending?: boolean;
-  /** Called with the (possibly edited) HTML + recipients + subject + cc on Send. */
-  onSend: (editedHtml: string, to: string, subject: string, cc: string) => void | Promise<void>;
+  /** Called with the (possibly edited) HTML + recipients + subject + cc + any
+   *  user-added files on Send. */
+  onSend: (editedHtml: string, to: string, subject: string, cc: string, files: File[]) => void | Promise<void>;
 }
 
 // Split "a@x.com; b@y.com" into individual addresses.
 const parseEmails = (s: string) =>
   (s || "").split(/[;,\s]+/).map((e) => e.trim()).filter((e) => e.includes("@"));
+
+// Flatten the edited iframe HTML to plain text — for send endpoints that take a
+// plain-text message and HTML-escape it themselves (payment pack, documents,
+// Graph reply/forward comment). Block boundaries and <br> become newlines.
+export const htmlToPlainText = (html: string): string => {
+  const doc = new DOMParser().parseFromString(html || "", "text/html");
+  doc.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+  doc.querySelectorAll("div, p, tr, li").forEach((el) => el.append("\n"));
+  return (doc.body.textContent || "").replace(/\n{3,}/g, "\n\n").trim();
+};
 
 // Regions hidden in the browser preview but restored verbatim on send, so the
 // sent email is never changed: the cid: logo (shows as a broken image in the
@@ -72,15 +89,20 @@ export const ClaimsEmailModal = ({
   subject,
   to,
   attachments = [],
+  allowAttach = false,
+  hideTo = false,
+  sendLabel,
   sending = false,
   onSend,
 }: ClaimsEmailModalProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [recipients, setRecipients] = useState<string[]>([]);
   const [toInput, setToInput] = useState("");
   const [cc, setCc] = useState("");
   const [showCc, setShowCc] = useState(false);
   const [subjectValue, setSubjectValue] = useState("");
+  const [addedFiles, setAddedFiles] = useState<File[]>([]);
 
   // Swap each hidden region for a marker for display; keep the originals so we
   // can restore them on send (the sent email is unchanged).
@@ -102,6 +124,7 @@ export const ClaimsEmailModal = ({
       setCc("");
       setShowCc(false);
       setSubjectValue(String(subject || ""));
+      setAddedFiles([]);
     }
   }, [isOpen, to, subject]);
 
@@ -165,7 +188,7 @@ export const ClaimsEmailModal = ({
 
   const handleSend = () => {
     const all = [...recipients, ...parseEmails(toInput)];
-    onSend(readEditedHtml(), all.join(", "), subjectValue, cc.trim());
+    onSend(readEditedHtml(), all.join(", "), subjectValue, cc.trim(), addedFiles);
   };
 
   return createPortal(
@@ -189,6 +212,7 @@ export const ClaimsEmailModal = ({
 
         <div className="p-6 flex flex-col gap-4 overflow-y-auto">
           {/* To (pills) + Add Cc */}
+          {!hideTo && (
           <div className="flex items-end gap-3">
             <div className="flex-1 flex flex-col gap-2 min-w-0">
               <span className="text-neutral-700 text-sm font-medium">To</span>
@@ -229,6 +253,7 @@ export const ClaimsEmailModal = ({
               {showCc ? "Hide Cc" : "Add Cc"}
             </button>
           </div>
+          )}
 
           {showCc && (
             <div className="flex flex-col gap-2">
@@ -292,6 +317,50 @@ export const ClaimsEmailModal = ({
               ))}
             </div>
           )}
+
+          {/* User-added file attachments */}
+          {allowAttach && (
+            <div className="flex flex-col gap-2">
+              {addedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {addedFiles.map((f, i) => (
+                    <span key={`${f.name}-${i}`} className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-sm">
+                      <span className="max-w-[180px] truncate">{f.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setAddedFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="text-blue-400 hover:text-red-500 leading-none"
+                        aria-label={`Remove ${f.name}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-2 text-blue-600 text-sm font-medium w-fit"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+                Attach files
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const picked = Array.from(e.target.files || []);
+                  if (picked.length) setAddedFiles((prev) => [...prev, ...picked]);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -310,7 +379,7 @@ export const ClaimsEmailModal = ({
             disabled={sending}
             className="px-6 py-3 rounded bg-blue-600 text-white text-base font-medium hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {sending ? "Sending…" : "Send"}
+            {sending ? "Sending…" : (sendLabel || "Send")}
           </button>
         </div>
       </div>

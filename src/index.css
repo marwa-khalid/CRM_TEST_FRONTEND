@@ -4,6 +4,11 @@
 
 body {
   	@apply leading-[normal] m-0;
+  	/* Match Figma's text weight everywhere — without this, macOS subpixel
+  	   rendering makes text look bolder than the design. */
+  	-webkit-font-smoothing: antialiased;
+  	-moz-osx-font-smoothing: grayscale;
+  	text-rendering: optimizeLegibility;
 }
 @layer base { *, *::before, *::after { border-width: 0; } }
 

@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronLeft, Printer, Download, Mail } from "lucide-react";
+import { toast } from "react-toastify";
 import html2pdf from "html2pdf.js";
-import PackEmailModal from "./PackEmailModal";
+import { ClaimsEmailModal, htmlToPlainText } from "../Components/ClaimsEmailModal";
+import { sendPaymentPackEmail } from "../../../services/ABIBHRCharges/ABIBHRCharges";
 import { CustomDatePicker } from "../Components/DatePicker";
 import Vector6 from "../../../assets/AutoClaim_icon/Vector-6.svg";
+import { logCaseHistoryDocument } from "../../../services/CaseHistory/caseHistory";
 
 // Shared UI for the editable "Payment Pack: …" full-screen forms (Credit Hire
 // Invoice, ABI Hire Breakdown, …). One top bar + field set, reused per screen.
@@ -44,9 +47,22 @@ export const PackScreen = ({
   const docRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<"" | "print" | "download" | "email">("");
   const [pdf, setPdf] = useState<{ url: string; name: string; blob: Blob } | null>(null);
+  const [emailSending, setEmailSending] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const downloadRef = useRef<HTMLDivElement>(null);
 
-  // "Payment Pack: Credit Hire Invoice" -> "Payment-Pack-Credit-Hire-Invoice.pdf"
-  const fileName = `${title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}.pdf`;
+  // Close the PDF/Word chooser on an outside click.
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (downloadRef.current && !downloadRef.current.contains(e.target as Node)) setDownloadOpen(false); };
+    if (downloadOpen) document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [downloadOpen]);
+
+  // "Payment Pack: Credit Hire Invoice" -> "PP-Credit-Hire-Invoice"
+  const baseName = `PP-${title.replace(/^payment pack:\s*/i, "").trim()}`
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-|-$/g, "");
+  const fileName = `${baseName}.pdf`;
 
   // When a dedicated print document is supplied, render THAT to PDF (with no
   // extra page margin — the doc has its own). Otherwise fall back to the form.
@@ -56,11 +72,46 @@ export const PackScreen = ({
   const buildBlob = async (): Promise<Blob> =>
     await html2pdf().set(pdfOpts()).from(pdfTarget()).output("blob");
 
-  const handleDownload = async () => {
+  // Word (.doc) via the Word-compatible HTML wrapper — opens in Word, no library.
+  const buildDocBlob = (): Blob => {
+    const inner = pdfTarget()?.innerHTML || "";
+    const html =
+      '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+      'xmlns:w="urn:schemas-microsoft-com:office:word" ' +
+      'xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">' +
+      "<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View>" +
+      "<w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->" +
+      `<title>${title}</title></head><body>${inner}</body></html>`;
+    return new Blob(["﻿", html], { type: "application/msword" });
+  };
+
+  // "Payment Pack: Storage & Recovery Invoice" -> "PP - Storage & Recovery Invoice"
+  const historyLabel = `PP - ${title.replace(/^payment pack:\s*/i, "").trim()}`;
+
+  const runDownload = async (format: "pdf" | "word") => {
     if (busy) return;
+    setDownloadOpen(false);
     setBusy("download");
     try {
-      await html2pdf().set(pdfOpts()).from(pdfTarget()).save();
+      const blob = format === "pdf" ? await buildBlob() : buildDocBlob();
+      const name = format === "pdf" ? fileName : `${baseName}.doc`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      // Log it to Case History as a Send Letter (SL) record with the file attached.
+      if (claimId) {
+        logCaseHistoryDocument(claimId, blob, {
+          details: historyLabel,
+          actionType: "send_letter",
+          subject: historyLabel,
+          fileName: name,
+        }).catch((e) => console.error("Case History PP log failed:", e));
+      }
     } finally {
       setBusy("");
     }
@@ -103,6 +154,30 @@ export const PackScreen = ({
     setPdf(null);
   };
 
+  const sendPackEmail = async (editedHtml: string, to: string, subject: string, cc: string) => {
+    if (!pdf) return;
+    if (!to.trim()) { toast.warn("Please enter a recipient email address."); return; }
+    if (!claimId) { toast.error("Claim id is missing for this payment pack email."); return; }
+    const payload = new FormData();
+    payload.append("to_email", to.trim());
+    payload.append("cc_email", cc.trim());
+    payload.append("subject", subject.trim());
+    payload.append("body", htmlToPlainText(editedHtml));
+    payload.append("document_name", pdf.name);
+    payload.append("attachment", new File([pdf.blob], pdf.name, { type: "application/pdf" }));
+    try {
+      setEmailSending(true);
+      const response = await sendPaymentPackEmail(claimId, payload);
+      toast.success("Payment pack email sent.");
+      onEmailSent?.(response.data?.payment_pack_sent_date);
+      closeEmail();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.detail || "Failed to send payment pack email.");
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[200] bg-white overflow-auto font-['Stack_Sans_Headline']">
       <div className="sticky top-0 z-10 bg-white px-10 py-5 shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center">
@@ -117,9 +192,17 @@ export const PackScreen = ({
             <button type="button" title="Print" onClick={handlePrint} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
               <Printer size={22} />
             </button>
-            <button type="button" title="Download" onClick={handleDownload} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
-              <Download size={22} />
-            </button>
+            <div className="relative" ref={downloadRef}>
+              <button type="button" title="Download" onClick={() => setDownloadOpen((o) => !o)} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
+                <Download size={22} />
+              </button>
+              {downloadOpen && (
+                <div className="absolute right-0 top-full mt-2 z-40 w-44 bg-white rounded-md shadow-[0px_4px_16px_0px_rgba(0,0,0,0.16)] py-1 flex flex-col">
+                  <button type="button" onClick={() => runDownload("pdf")} className="px-4 py-2.5 text-left text-sm text-neutral-700 hover:bg-blue-50">Download as PDF</button>
+                  <button type="button" onClick={() => runDownload("word")} className="px-4 py-2.5 text-left text-sm text-neutral-700 hover:bg-blue-50">Download as Word</button>
+                </div>
+              )}
+            </div>
             <button type="button" title="Email" onClick={handleEmail} disabled={!!busy} className="hover:text-blue-600 disabled:opacity-40">
               <Mail size={22} />
             </button>
@@ -143,12 +226,16 @@ export const PackScreen = ({
       )}
 
       {pdf && (
-        <PackEmailModal
-          claimId={claimId}
-          subject={emailSubject || title}
-          attachment={pdf}
+        <ClaimsEmailModal
+          isOpen={!!pdf}
           onClose={closeEmail}
-          onSent={onEmailSent}
+          title="Send Email"
+          html={'<div style="font-family:Arial,sans-serif;font-size:14px;color:#111827"><p>Please find attached the payment pack document.</p></div>'}
+          subject={emailSubject || title}
+          to=""
+          attachments={[{ name: pdf.name, content_type: "application/pdf" }]}
+          sending={emailSending}
+          onSend={sendPackEmail}
         />
       )}
     </div>

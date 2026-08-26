@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, Check, Mail } from "lucide-react";
 import { toast } from "react-toastify";
-import EmailAttachmentModal from "./EmailAttachmentModal";
+import { ClaimsEmailModal, htmlToPlainText } from "../Components/ClaimsEmailModal";
 import PhotosIcon from "../../../assets/case_activity/photos.svg";
 import AIReportIcon from "../../../assets/case_activity/ai_report.svg";
 import UserUploadsIcon from "../../../assets/case_activity/user_uploads.svg";
@@ -24,6 +24,7 @@ import {
   getClaimPhotos,
   getAllDocumentLibrary,
   getDocumentPresignedUrl,
+  sendDocumentLibraryEmail,
 } from "../../../services/DocumentLibrary/DocumentLibrary";
 import DocumentLibrarySlider from "./DocumentLibrarySlider";
 import { getCaseActivityPresignedUrl } from "../../../services/HistoryActivities/HistoryActivities";
@@ -81,6 +82,7 @@ const DocumentsLibrary = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string | number>>(new Set());
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const [sliderInitialTab, setSliderInitialTab] = useState<
     "File Preview" | "Meta Data" | "Version History" | "Audit Log"
   >("File Preview");
@@ -378,16 +380,32 @@ Regards`;
       />
 
       {isEmailModalOpen && (
-        <EmailAttachmentModal
-          attachments={selectedPhotos}
+        <ClaimsEmailModal
+          isOpen={isEmailModalOpen}
           onClose={() => setIsEmailModalOpen(false)}
-          onRemoveAttachment={(id) =>
-            setSelectedPhotoIds((prev) => {
-              const next = new Set(prev);
-              next.delete(id);
-              return next;
-            })
-          }
+          title="Send Email"
+          html={'<div style="font-family:Arial,sans-serif;font-size:14px;color:#111827"><p>Please find the attached documents.</p></div>'}
+          subject=""
+          to=""
+          attachments={selectedPhotos.map((p) => ({ name: p.file_name }))}
+          sending={emailSending}
+          onSend={async (editedHtml, to, subject, cc) => {
+            if (!to.trim()) { toast.warn("Please enter a recipient email address."); return; }
+            const files = selectedPhotos
+              .map((a) => ({ s3_key: a.s3_key || String(a.id), file_name: a.file_name }))
+              .filter((a) => a.s3_key);
+            if (files.length === 0) { toast.warn("No attachments selected to send."); return; }
+            try {
+              setEmailSending(true);
+              await sendDocumentLibraryEmail({ to, cc, subject, body: htmlToPlainText(editedHtml), attachments: files });
+              toast.success("Email sent.");
+              setIsEmailModalOpen(false);
+            } catch (err: any) {
+              toast.error(err?.response?.data?.detail || "Failed to send email. Please try again.");
+            } finally {
+              setEmailSending(false);
+            }
+          }}
         />
       )}
       <DocumentLibrarySlider

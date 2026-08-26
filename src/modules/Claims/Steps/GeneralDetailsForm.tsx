@@ -494,14 +494,22 @@ useEffect(() => {
               />
             </div>
 
-            {/* 2. Handler — always the logged-in user (non-editable). */}
+            {/* 2. Handler — defaults to the current handler but stays editable. */}
             <div className="flex flex-col gap-2">
               <label className="text-neutral-700 text-[14px] font-weight-500">
                 Handler
               </label>
-              <div className="h-[52px] px-5 bg-gray-50 rounded border border-gray-200 flex items-center text-gray-500">
-                <span>{loggedInName || "—"}</span>
-              </div>
+              <Select
+                options={handlerOptions}
+                value={handlerOptions.find((o) => o.value === formik.values.handler_id) || null}
+                placeholder="Select Handler"
+                styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
+                onChange={(val) => formik.setFieldValue("handler_id", val?.value ?? null)}
+                components={{
+                  DropdownIndicator: BlueDropdownIndicator,
+                  IndicatorSeparator: () => null,
+                }}
+              />
             </div>
 
             {/* 3. Target Debt */}

@@ -1,8 +1,10 @@
-import React from "react";
-import { Routes, Route, Navigate, useParams } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Routes, Route, Navigate, useParams, useNavigate } from "react-router-dom";
 import VehicleManagementShell from "./components/VehicleManagementShell";
 import VehicleManagementList from "./pages/VehicleManagementList";
 import VehicleManagementRecord from "./pages/VehicleManagementRecord";
+import { getVehicleRecord } from "./services/vehicleRecordService";
+import FleetHistory from "../fleet/pages/FleetHistory/FleetHistory";
 // Tasks, Calendar & Dashboard reuse the Skyline components (imported one-way from
 // Fleet), scoped to the current side via module="vehicles_<context>".
 import FleetTasks from "../fleet/pages/FleetTasks";
@@ -29,6 +31,26 @@ const VMCalendar: React.FC = () => {
   const { context } = useParams();
   return <FleetTasksCalendar module={`vehicles_${context}`} />;
 };
+// A VM vehicle's History section (scope = vm_cams | vm_skyline). The title shows the
+// vehicle's registration number (matching the record edit screen), not a raw id.
+const VMHistoryRoute: React.FC = () => {
+  const { context, recordId } = useParams();
+  const navigate = useNavigate();
+  const scope = context === "cams" ? "vm_cams" : "vm_skyline";
+  const [reg, setReg] = useState("");
+  useEffect(() => {
+    if (recordId) getVehicleRecord(Number(recordId)).then((v) => setReg(v?.registration_number || "")).catch(() => {});
+  }, [recordId]);
+  return (
+    <FleetHistory
+      scope={scope}
+      id={recordId || ""}
+      title={reg || `Vehicle ${recordId || ""}`}
+      emailReference={reg}
+      onBack={() => navigate(`/vehicle-management/${context}/${recordId}`)}
+    />
+  );
+};
 
 const VehicleManagementRoutes: React.FC = () => (
   <Routes>
@@ -42,6 +64,7 @@ const VehicleManagementRoutes: React.FC = () => (
       {/* The vehicle-file editor is a full-screen wizard, outside the shell. */}
       <Route path="new" element={<VehicleManagementRecord />} />
       <Route path=":recordId" element={<VehicleManagementRecord />} />
+      <Route path=":recordId/history" element={<VMHistoryRoute />} />
     </Route>
     {/* Legacy /vehicle-management (no side chosen) → default to Skyline. */}
     <Route path="*" element={<Navigate to="/vehicle-management/skyline" replace />} />

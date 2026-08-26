@@ -1,5 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { isPublicPath } from './services/axiosConfig';
 import LoginPage from './modules/Login/login';
 import ClaimListingPage from "./modules/Dashboard/ClaimListingPage";
 import MainLayout from './Layout/layout';
@@ -28,6 +29,7 @@ import Step1Witness from './modules/Claims/Questionnaire/WitnessStep1';
 import Step2Questions from './modules/Claims/Questionnaire/WitnessStep2';
 import Step3SketchPreview from './modules/Claims/Questionnaire/WitnessStep3';
 import CaseActivityStream from './modules/Claims/CaseActivity/CaseActivityStream';
+import CaseHistory from './modules/Claims/CaseActivity/CaseHistory';
 import DocumentLibrary from './modules/Claims/DocumentsLibrary/DocumentsLibrary';
 import Step4Signature from './modules/Claims/Questionnaire/WitnessStep4';
 import { useInactivityTimer } from './hooks/useInactivityTimer';
@@ -39,9 +41,18 @@ const AppInner: React.FC = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [sessionExpired, setSessionExpired] = useState(false);
-  const { user, logout } = useCurrentUser();
+  const { user, loading, logout } = useCurrentUser();
 
   const isAuthenticated = !!user;
+
+  // No authenticated user on a protected page → send them to login instead of
+  // rendering a broken "User / ?" shell. Waits for the /auth/me check to resolve
+  // (loading) so we never bounce a valid session mid-load.
+  useEffect(() => {
+    if (!loading && !user && !isPublicPath(pathname)) {
+      navigate("/login", { replace: true });
+    }
+  }, [loading, user, pathname, navigate]);
 
   const handleExpire = useCallback(async () => {
     try {
@@ -82,6 +93,7 @@ const AppInner: React.FC = () => {
         <Route path="/add-claim/:claimId?" element={<AddClaimPage />} />
         <Route path="/canvas" element={<AccidentSketch />} />
         <Route path="/case-activity" element={<CaseActivityStream />} />
+        <Route path="/case-history" element={<CaseHistory />} />
         <Route path="/document-library" element={<DocumentLibrary />} />
         <Route path="/settings" element={<AccountSettings />} />
         <Route path="/example1" element={<ClaimsCalendar />} />

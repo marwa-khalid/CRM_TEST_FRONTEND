@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, History } from "lucide-react";
+import { FileText, History, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ArrowBack from "../assets/icons/ArrowBack.svg";
 
@@ -12,9 +12,12 @@ interface Props {
   onBeforeNavigate?: () => Promise<void>;
   saving?: boolean;
   hireId?: number | null;
+  // Optional override for the "View History" link (e.g. VM vehicle records route
+  // to their own history). Falls back to the fleet hire history when omitted.
+  onHistory?: () => void | Promise<void>;
 }
 
-const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext, onBeforeNavigate, saving, hireId }) => {
+const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext, onBeforeNavigate, saving, hireId, onHistory }) => {
   const navigate = useNavigate();
   const openFleetPage = async (page: "activity" | "document-library") => {
     if (!hireId) return;
@@ -50,6 +53,19 @@ const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext, on
         >
           <FileText size={14} />
           Documents Library
+        </button>
+        <button
+          type="button"
+          disabled={!hireId && !onHistory}
+          onClick={async () => {
+            await onBeforeNavigate?.();
+            if (onHistory) return void onHistory();
+            if (hireId) navigate(`/fleet/hire/${hireId}/history`);
+          }}
+          className={`flex items-center gap-1 text-xs font-semibold ${(hireId || onHistory) ? "text-neutral-900 hover:underline cursor-pointer" : "text-neutral-300 cursor-not-allowed"}`}
+        >
+          <Clock size={14} />
+          View History
         </button>
       </div>
       <div className="flex items-center gap-5">

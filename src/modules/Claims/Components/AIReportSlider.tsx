@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Download, FileText, Printer, Mail } from "lucide-react";
 import Select from "react-select";
 import { customStyles, BlueDropdownIndicator } from "../Steps/GeneralDetailsForm";
-import EmailAttachmentModal from "../DocumentsLibrary/EmailAttachmentModal";
+import { toast } from "react-toastify";
+import { ClaimsEmailModal, htmlToPlainText } from "./ClaimsEmailModal";
+import { sendDocumentLibraryEmail } from "../../../services/DocumentLibrary/DocumentLibrary";
 import { getCaseActivityPresignedUrl } from "../../../services/HistoryActivities/HistoryActivities";
 import { parseServerDate } from "../../../utils/serverDate";
 
@@ -375,6 +377,7 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
   const handleSave = () => onSaveToClaim?.({ decisions, notes, vehicleStatus });
 
   const [emailOpen, setEmailOpen] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const reportPdfUrl = reportData?.report_pdf_url || reportData?.pdf_report_url || "";
   const reportPdfS3Key = reportData?.report_pdf_s3_key || "";
 
@@ -734,17 +737,34 @@ const AIDamageReportSlider: React.FC<SliderProps> = ({
       </div>
 
       {emailOpen && (
-        <EmailAttachmentModal
-          attachments={[
-            {
-              id: "ai-report",
-              file_url: reportPdfUrl,
-              file_name: "AI Damage Report.pdf",
-              s3_key: reportPdfS3Key,
-            },
-          ]}
+        <ClaimsEmailModal
+          isOpen={emailOpen}
           onClose={() => setEmailOpen(false)}
-          onRemoveAttachment={() => setEmailOpen(false)}
+          title="Send Email"
+          html={'<div style="font-family:Arial,sans-serif;font-size:14px;color:#111827"><p>Please find the attached AI Damage Report.</p></div>'}
+          subject="AI Damage Report"
+          to=""
+          attachments={[{ name: "AI Damage Report.pdf", content_type: "application/pdf" }]}
+          sending={emailSending}
+          onSend={async (editedHtml, to, subject, cc) => {
+            if (!to.trim()) { toast.warn("Please enter a recipient email address."); return; }
+            const s3_key = reportPdfS3Key || reportPdfUrl;
+            if (!s3_key) { toast.warn("No report attachment to send."); return; }
+            try {
+              setEmailSending(true);
+              await sendDocumentLibraryEmail({
+                to, cc, subject,
+                body: htmlToPlainText(editedHtml),
+                attachments: [{ s3_key, file_name: "AI Damage Report.pdf" }],
+              });
+              toast.success("Email sent.");
+              setEmailOpen(false);
+            } catch (err: any) {
+              toast.error(err?.response?.data?.detail || "Failed to send email. Please try again.");
+            } finally {
+              setEmailSending(false);
+            }
+          }}
         />
       )}
     </>

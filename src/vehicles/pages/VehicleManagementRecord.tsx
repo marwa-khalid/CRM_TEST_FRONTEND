@@ -232,6 +232,7 @@ const VehicleManagementRecord: React.FC = () => {
         onBeforeNavigate={flushAll}
         saving={saving}
         hireId={null}
+        onHistory={id ? () => navigate(`/vehicle-management/${context}/${id}/history`) : undefined}
       />
       <div className="px-10 py-10 flex items-start gap-10">
         <FleetStepper

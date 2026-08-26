@@ -47,6 +47,7 @@ const VMHistoryRoute: React.FC = () => {
       id={recordId || ""}
       title={reg || `Vehicle ${recordId || ""}`}
       emailReference={reg}
+      backLabel="Back to Vehicle Details"
       onBack={() => navigate(`/vehicle-management/${context}/${recordId}`)}
     />
   );

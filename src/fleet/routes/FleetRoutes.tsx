@@ -56,6 +56,8 @@ const HireHistoryRoute: React.FC = () => {
       id={hireId || ""}
       title={title}
       emailReference={ref}
+      correspondentName={hirer}
+      backLabel="Back to Hire Details"
       onBack={() => navigate(`/fleet/hire/${hireId}`)}
     />
   );

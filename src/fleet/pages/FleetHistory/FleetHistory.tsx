@@ -2,12 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, Paperclip, ExternalLink } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetMultiSelectFilter from "../../components/FleetMultiSelectFilter";
+import { FleetDateField } from "../../components/fields";
+import { getFleetUsers } from "../../services/userService";
 import PdfLogo from "../../../assets/FileTypes/PDF.svg";
 import DocLogo from "../../../assets/FileTypes/DOC.svg";
 import ExcelLogo from "../../../assets/FileTypes/Excel.svg";
 import CsvLogo from "../../../assets/FileTypes/CSV.svg";
 import PptLogo from "../../../assets/FileTypes/PPT.svg";
 import PngLogo from "../../../assets/FileTypes/PNG.svg";
+import SendLetterIcon from "../../../assets/HistorySection/SendLetter.svg";
+import SendEmailIcon from "../../../assets/HistorySection/SendEmail.svg";
+import IncomingCallIcon from "../../../assets/HistorySection/IncomingCall.svg";
+import OutgoingCallIcon from "../../../assets/HistorySection/OutgoingCall.svg";
+import NotesIcon from "../../../assets/HistorySection/Notes.svg";
+import DiaryIcon from "../../../assets/HistorySection/Diary.svg";
 import {
   getFleetHistory,
   getFleetHistoryFilters,
@@ -24,14 +32,14 @@ import {
 } from "../../services/fleetHistory";
 
 // ── Action-type presentation (abbreviation + label) ──────────────────────────
-const ACTION_META: Record<CaseHistoryActionType, { abbr: string; label: string }> = {
-  send_letter: { abbr: "SL", label: "Send Letter" },
-  send_email: { abbr: "SE", label: "Send Email" },
-  incoming_email: { abbr: "IE", label: "Incoming Email" },
-  incoming_call: { abbr: "IC", label: "Incoming Call" },
-  outgoing_call: { abbr: "OC", label: "Outgoing Call" },
-  note: { abbr: "NT", label: "Notes" },
-  diary: { abbr: "DY", label: "Diary" },
+const ACTION_META: Record<CaseHistoryActionType, { abbr: string; label: string; icon: string }> = {
+  send_letter: { abbr: "SL", label: "Send Letter", icon: SendLetterIcon },
+  send_email: { abbr: "SE", label: "Send Email", icon: SendEmailIcon },
+  incoming_email: { abbr: "IE", label: "Incoming Email", icon: SendEmailIcon },
+  incoming_call: { abbr: "IC", label: "Incoming Call", icon: IncomingCallIcon },
+  outgoing_call: { abbr: "OC", label: "Outgoing Call", icon: OutgoingCallIcon },
+  note: { abbr: "NT", label: "Notes", icon: NotesIcon },
+  diary: { abbr: "DY", label: "Diary", icon: DiaryIcon },
 };
 const CREATE_ORDER: CaseHistoryActionType[] = [
   "send_letter", "send_email", "incoming_call", "outgoing_call", "note", "diary",
@@ -111,41 +119,68 @@ const Spinner = () => (
   </div>
 );
 
-// ── History card ─────────────────────────────────────────────────────────────
-const HistoryCard = ({ r, active, onClick }: { r: FleetHistoryRecord; active: boolean; onClick: () => void }) => {
-  const meta = r.action_type ? ACTION_META[r.action_type] : null;
-  const atts = attachmentsOf(r).length;
+// Action badge (black pill, white icon + abbreviation) — used on cards + detail.
+const ActionBadge = ({ type }: { type: CaseHistoryActionType | null }) => {
+  if (!type) return null;
+  const meta = ACTION_META[type];
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full text-left p-5 rounded-lg outline outline-1 -outline-offset-1 transition ${active ? "bg-neutral-50 outline-neutral-300" : "bg-transparent outline-neutral-100 hover:outline-neutral-200"}`}
-    >
-      <div className="flex justify-between items-center gap-3">
-        <span className="text-sm text-neutral-500">{fmtPosted(r.posted_at)}</span>
-        <span className="flex items-center gap-2 shrink-0">
-          {atts > 0 && (
-            <span className="inline-flex items-center gap-1 text-neutral-400 text-xs">
-              <Paperclip className="w-3.5 h-3.5" />{atts}
-            </span>
-          )}
-          {meta && (
-            <span className="px-3 py-1.5 bg-neutral-900 rounded-sm text-white text-xs" title={meta.label}>{meta.abbr}</span>
-          )}
-        </span>
-      </div>
-      {(r.correspondent || r.handler) && (
-        <div className="mt-2 text-xs text-neutral-500 flex flex-wrap gap-x-4">
-          {r.correspondent && <span>Correspondent: <span className="text-neutral-700">{r.correspondent}</span></span>}
-          {r.handler && <span>Handler: <span className="text-neutral-700">{r.handler}</span></span>}
-        </div>
-      )}
-      <div className={`mt-2 text-neutral-700 text-sm ${isEmail(r) ? "truncate" : ""}`}>
-        {isEmail(r) ? (r.subject || "(No subject)") : (r.details || "—")}
-      </div>
-    </button>
+    <span className="shrink-0 px-3 py-1.5 bg-neutral-900 rounded-sm inline-flex items-center gap-2 whitespace-nowrap" title={meta.label}>
+      <img src={meta.icon} alt="" className="w-4 h-4" style={{ filter: "brightness(0) invert(1)" }} />
+      <span className="text-white text-xs">{meta.abbr}</span>
+    </span>
   );
 };
+const AttachmentClip = ({ count }: { count: number }) => {
+  if (!count) return null;
+  return (
+    <span className="relative inline-flex items-center justify-center text-neutral-500 shrink-0" title={`${count} attachment${count === 1 ? "" : "s"}`}>
+      <Paperclip className="w-4 h-4" />
+      <span className="absolute -top-2 -right-2 min-w-[15px] h-[15px] px-1 rounded-full bg-neutral-900 text-white text-[9px] leading-none inline-flex items-center justify-center">{count}</span>
+    </span>
+  );
+};
+const PeopleLines = ({ r }: { r: FleetHistoryRecord }) => {
+  if (!r.correspondent && !r.handler) return null;
+  return (
+    <div className="flex flex-col gap-0.5 text-xs">
+      {r.correspondent && <div className="text-neutral-500">Correspondent: <span className="text-neutral-700">{r.correspondent}</span></div>}
+      {r.handler && <div className="text-neutral-500">Handler: <span className="text-neutral-700">{r.handler}</span></div>}
+    </div>
+  );
+};
+
+// ── History card ─────────────────────────────────────────────────────────────
+const HistoryCard = ({ r, active, onClick }: { r: FleetHistoryRecord; active: boolean; onClick: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`w-full text-left p-4 rounded-sm outline outline-1 -outline-offset-1 flex flex-col gap-2 transition ${active ? "bg-neutral-50 outline-neutral-300" : "bg-transparent outline-neutral-100 hover:outline-neutral-200"}`}
+  >
+    <div className="flex justify-between items-center gap-3">
+      <div className="text-sm">
+        <span className="text-neutral-500">Posted: </span>
+        <span className="text-neutral-700">{fmtPosted(r.posted_at)}</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {!isDoc(r) && <AttachmentClip count={attachmentsOf(r).length} />}
+        <ActionBadge type={r.action_type} />
+      </div>
+    </div>
+    <PeopleLines r={r} />
+    <div className="self-stretch pt-2.5 border-t border-neutral-200">
+      {isDoc(r) && attachmentsOf(r)[0] ? (
+        <div className="flex items-center gap-2.5">
+          <img src={fileTypeLogo(attachmentsOf(r)[0].name)} alt="" className="w-5 h-5 shrink-0 object-contain" />
+          <span className="text-neutral-700 text-sm truncate">{attachmentsOf(r)[0].name}</span>
+        </div>
+      ) : (
+        <div className={`text-neutral-700 text-sm ${isEmail(r) ? "truncate" : ""}`}>
+          {isEmail(r) ? (r.subject || "(No subject)") : (r.details || "—")}
+        </div>
+      )}
+    </div>
+  </button>
+);
 
 // ── Detail pane ──────────────────────────────────────────────────────────────
 const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
@@ -168,7 +203,7 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
     }
   };
 
-  const shell = "flex-1 min-w-0 basis-0 min-h-[calc(100vh-220px)] px-8 py-6 bg-white rounded-lg outline outline-1 -outline-offset-1 outline-neutral-300 flex flex-col gap-4";
+  const shell = "flex-1 min-w-0 basis-0 min-h-[calc(100vh-220px)] px-10 py-6 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-300 flex flex-col gap-4";
   if (!r) {
     return (
       <div className={shell}>
@@ -185,10 +220,8 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
       <div className="flex justify-between items-center gap-3">
         <div className="text-black text-xl font-semibold">Record Detail</div>
         <div className="flex items-center gap-2 shrink-0">
-          {attachmentsOf(r).length > 0 && (
-            <span className="inline-flex items-center gap-1 text-neutral-400 text-xs"><Paperclip className="w-4 h-4" />{attachmentsOf(r).length}</span>
-          )}
-          {meta && <span className="px-4 py-2 bg-neutral-900 rounded-sm text-white text-xs" title={meta.label}>{meta.abbr}</span>}
+          <AttachmentClip count={attachmentsOf(r).length} />
+          <ActionBadge type={r.action_type} />
         </div>
       </div>
       <div className="h-px bg-neutral-200 w-full" />
@@ -238,14 +271,16 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
 
 // ── Add Record slide-over (lean form covering the 6 types) ───────────────────
 const AddRecordForm = ({
-  actionType, onClose, onSubmit,
+  actionType, onClose, onSubmit, handlerOptions, defaultCorrespondent,
 }: {
   actionType: CaseHistoryActionType;
   onClose: () => void;
   onSubmit: (payload: { correspondent?: string; handler?: string; subject?: string; details?: string; posted_at?: string }) => Promise<void>;
+  handlerOptions: string[];
+  defaultCorrespondent?: string;
 }) => {
   const meta = ACTION_META[actionType];
-  const [correspondent, setCorrespondent] = useState("");
+  const [correspondent, setCorrespondent] = useState(defaultCorrespondent || "");
   const [handler, setHandler] = useState("");
   const [subject, setSubject] = useState("");
   const [details, setDetails] = useState("");
@@ -280,7 +315,12 @@ const AddRecordForm = ({
         </div>
         <div className="p-6 flex flex-col gap-4 overflow-y-auto">
           <Field label="Correspondent"><input value={correspondent} onChange={(e) => setCorrespondent(e.target.value)} placeholder="Who the activity is with" className={inputCls} /></Field>
-          <Field label="Handler"><input value={handler} onChange={(e) => setHandler(e.target.value)} placeholder="Who recorded it" className={inputCls} /></Field>
+          <Field label="Handler">
+            <select value={handler} onChange={(e) => setHandler(e.target.value)} className={`${inputCls} appearance-none cursor-pointer`}>
+              <option value="">Select handler</option>
+              {handlerOptions.map((h) => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </Field>
           {showSubject && <Field label="Subject"><input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" className={inputCls} /></Field>}
           <Field label={actionType === "note" ? "Note" : "Details"}>
             <textarea value={details} onChange={(e) => setDetails(e.target.value)} rows={8} placeholder="Write the details…" className={`${inputCls} resize-none`} />
@@ -297,17 +337,22 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 
 // ── Main component ───────────────────────────────────────────────────────────
 const FleetHistory = ({
-  scope, id, title, onBack, emailReference,
+  scope, id, title, onBack, backLabel, emailReference, correspondentName,
 }: {
   scope: FleetHistoryScope;
   id: number | string;
   title: string;
   onBack?: () => void;
+  backLabel?: string;
   // The vehicle registration — mailbox emails that mention it appear in this history.
   emailReference?: string;
+  // For Skyline hires the correspondent is the driver (hirer) name — used as the
+  // correspondent on fetched emails and as the default on new records.
+  correspondentName?: string;
 }) => {
   const [records, setRecords] = useState<FleetHistoryRecord[]>([]);
   const [emails, setEmails] = useState<FleetHistoryRecord[]>([]);
+  const [allHandlers, setAllHandlers] = useState<string[]>([]);
   const [filterOptions, setFilterOptions] = useState<FleetHistoryFilterOptions>({ correspondents: [], handlers: [], action_types: [] });
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -320,31 +365,43 @@ const FleetHistory = ({
   const [actionTypes, setActionTypes] = useState<string[]>([]);
   const [correspondents, setCorrespondents] = useState<string[]>([]);
   const [handlers, setHandlers] = useState<string[]>([]);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
-      const rows = await getFleetHistory(scope, id, { search, action_type: actionTypes, correspondent: correspondents, handler: handlers });
+      const rows = await getFleetHistory(scope, id, { search, action_type: actionTypes, correspondent: correspondents, handler: handlers, date_from: dateFrom || undefined, date_to: dateTo || undefined });
       setRecords(rows);
     } finally {
       setLoading(false);
     }
-  }, [scope, id, search, actionTypes, correspondents, handlers]);
+  }, [scope, id, search, actionTypes, correspondents, handlers, dateFrom, dateTo]);
 
   useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); }, [load]);
+  useEffect(() => { getFleetUsers().then((u) => setAllHandlers(u.map((x) => x.name).filter(Boolean))).catch(() => {}); }, []);
   useEffect(() => {
     if (!id) return;
     getFleetHistoryFilters(scope, id).then(setFilterOptions).catch(() => {});
-    getFleetHistoryEmails(scope, id, emailReference).then(setEmails).catch(() => {});
-  }, [scope, id, emailReference]);
+    getFleetHistoryEmails(scope, id, emailReference)
+      .then((list) => setEmails(
+        // Skyline hires: the correspondent is the hirer/driver, not the raw email.
+        correspondentName ? list.map((e) => ({ ...e, correspondent: correspondentName })) : list,
+      ))
+      .catch(() => {});
+  }, [scope, id, emailReference, correspondentName]);
 
   const merged = useMemo(() => {
     const term = search.trim().toLowerCase();
+    const from = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+    const to = dateTo ? new Date(`${dateTo}T23:59:59`) : null;
     const emailsF = emails.filter((e) => {
       if (actionTypes.length && !(e.action_type && actionTypes.includes(e.action_type))) return false;
       if (correspondents.length && !(e.correspondent && correspondents.includes(e.correspondent))) return false;
       if (handlers.length && !(e.handler && handlers.includes(e.handler))) return false;
+      if (from && (!e.posted_at || new Date(e.posted_at) < from)) return false;
+      if (to && (!e.posted_at || new Date(e.posted_at) > to)) return false;
       if (term) {
         const hay = `${e.subject || ""} ${e.details || ""} ${e.correspondent || ""} ${e.handler || ""}`.toLowerCase();
         if (!hay.includes(term)) return false;
@@ -361,16 +418,17 @@ const FleetHistory = ({
       return true;
     });
     return [...records, ...emailsD].sort((a, b) => (b.posted_at ? new Date(b.posted_at).getTime() : 0) - (a.posted_at ? new Date(a.posted_at).getTime() : 0));
-  }, [records, emails, search, actionTypes, correspondents, handlers]);
+  }, [records, emails, search, actionTypes, correspondents, handlers, dateFrom, dateTo]);
 
   useEffect(() => { if (merged.length && !merged.some((r) => r.id === selectedId)) setSelectedId(merged[0].id); }, [merged, selectedId]);
-  useEffect(() => { setPage(1); }, [search, actionTypes, correspondents, handlers]);
+  useEffect(() => { setPage(1); }, [search, actionTypes, correspondents, handlers, dateFrom, dateTo]);
 
   const selected = merged.find((r) => r.id === selectedId) || null;
   const totalPages = Math.max(1, Math.ceil(merged.length / PAGE_SIZE));
   const pageRecords = merged.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const handlerOptions = Array.from(new Set([...filterOptions.handlers]));
+  // Every handler is available — not just those already on a record.
+  const handlerOptions = Array.from(new Set([...allHandlers, ...filterOptions.handlers]));
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -416,24 +474,30 @@ const FleetHistory = ({
       {loading && records.length === 0 && <Spinner />}
       {importing && <Spinner />}
 
-      <header className="px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex items-center gap-4 sticky top-0 z-20">
-        {onBack && <button type="button" onClick={onBack} className="text-neutral-700 hover:text-black"><ChevronLeft size={22} /></button>}
-        <h1 className="text-neutral-900 text-2xl font-semibold">History — {title}</h1>
-      </header>
-
-      <div className="px-10 py-6 flex flex-col gap-5">
-        {/* Add Record pills */}
+      <header className="px-10 py-5 bg-white shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center gap-6 sticky top-0 z-20">
+        <div className="flex flex-col gap-1 shrink-0">
+          {onBack && (
+            <button type="button" onClick={onBack} className="flex items-center gap-1 text-neutral-400 text-xs font-semibold hover:text-neutral-700">
+              <ChevronLeft size={16} /> {backLabel || "Back"}
+            </button>
+          )}
+          <h1 className="text-neutral-900 text-2xl font-semibold leading-6">History — {title}</h1>
+        </div>
+        {/* Add Record pills — in the header */}
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {CREATE_ORDER.map((t) => (
             <button key={t} type="button" onClick={() => setAddType(t)} className="px-3 py-2 rounded-sm bg-neutral-900 text-white text-xs inline-flex items-center gap-1.5 hover:bg-black">
-              <span className="font-semibold">{ACTION_META[t].abbr}</span> {ACTION_META[t].label}
+              <img src={ACTION_META[t].icon} alt="" className="w-4 h-4" style={{ filter: "brightness(0) invert(1)" }} />
+              {ACTION_META[t].label}
             </button>
           ))}
         </div>
+      </header>
 
+      <div className="px-10 py-6 flex flex-col gap-5">
         {/* Search + filters — same widgets as the VM / Skyline listing. */}
         <div className="flex flex-wrap items-center gap-6">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search history…" className="w-[420px] max-w-full px-5 py-3 rounded-lg border border-neutral-200 text-sm outline-none focus:border-neutral-400" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search history" className="w-[491px] max-w-full h-12 px-5 rounded bg-white border border-neutral-200 outline-none text-sm text-neutral-900 placeholder:text-neutral-400 font-light focus:border-neutral-400" />
           <FleetMultiSelectFilter
             label="Action Type"
             options={ALL_TYPES.map((t) => ({ value: t, label: `${ACTION_META[t].abbr} - ${ACTION_META[t].label}` }))}
@@ -455,12 +519,19 @@ const FleetHistory = ({
             onToggle={(v) => setHandlers((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]))}
             onClear={() => setHandlers([])}
           />
+          <div className="flex items-end gap-3 ml-auto">
+            <div className="w-44"><FleetDateField label="Date From" value={dateFrom} onChange={setDateFrom} /></div>
+            <div className="w-44"><FleetDateField label="Date To" value={dateTo} onChange={setDateTo} /></div>
+            {(dateFrom || dateTo) && (
+              <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} className="h-12 text-neutral-400 hover:text-neutral-700 text-sm">Clear</button>
+            )}
+          </div>
         </div>
 
         {/* Body: list + detail (50/50) */}
-        <div className="flex items-start gap-6">
+        <div className="flex items-stretch gap-6">
           <div
-            className={`flex-1 min-w-0 basis-0 flex flex-col gap-3 relative rounded-lg transition ${dragOver ? "outline outline-2 outline-dashed outline-neutral-500" : ""}`}
+            className={`flex-1 min-w-0 basis-0 min-h-[calc(100vh-220px)] flex flex-col gap-3 relative rounded-lg transition ${dragOver ? "outline outline-2 outline-dashed outline-neutral-500" : ""}`}
             onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
             onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
             onDrop={handleDrop}
@@ -471,7 +542,7 @@ const FleetHistory = ({
               : pageRecords.map((r) => <HistoryCard key={String(r.id)} r={r} active={r.id === selectedId} onClick={() => setSelectedId(r.id)} />)}
 
             {merged.length > 0 && (
-              <div className="flex items-center justify-between flex-wrap gap-3 pt-2">
+              <div className="sticky bottom-0 mt-auto bg-white border-t border-neutral-100 flex items-center justify-between flex-wrap gap-3 pt-3 pb-2">
                 <div className="text-neutral-500 text-sm">
                   Showing {merged.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, merged.length)} of {merged.length} Entries
                 </div>
@@ -487,7 +558,7 @@ const FleetHistory = ({
         </div>
       </div>
 
-      {addType && <AddRecordForm actionType={addType} onClose={() => setAddType(null)} onSubmit={createRecord} />}
+      {addType && <AddRecordForm actionType={addType} onClose={() => setAddType(null)} onSubmit={createRecord} handlerOptions={handlerOptions} defaultCorrespondent={correspondentName} />}
     </div>
   );
 };

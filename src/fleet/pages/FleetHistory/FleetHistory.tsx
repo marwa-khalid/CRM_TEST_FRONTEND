@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, Paperclip, ExternalLink } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetMultiSelectFilter from "../../components/FleetMultiSelectFilter";
-import { FleetDateField } from "../../components/fields";
+import { FleetDateField, FleetSelect, FleetTextInput, FleetCreatableSelect } from "../../components/fields";
 import { getFleetUsers } from "../../services/userService";
 import PdfLogo from "../../../assets/FileTypes/PDF.svg";
 import DocLogo from "../../../assets/FileTypes/DOC.svg";
@@ -19,11 +19,14 @@ import DiaryIcon from "../../../assets/HistorySection/Diary.svg";
 import {
   getFleetHistory,
   getFleetHistoryFilters,
+  getFleetCorrespondents,
   getFleetHistoryEmails,
   createFleetHistory,
   importFleetHistoryEmail,
   openFleetAttachment,
   fetchFleetAttachment,
+  getFleetAttachmentPages,
+  type FleetAttachmentPreview,
   type FleetHistoryScope,
   type FleetHistoryRecord,
   type FleetHistoryFilterOptions,
@@ -48,7 +51,7 @@ const ALL_TYPES: CaseHistoryActionType[] = [
   "send_letter", "send_email", "incoming_email", "incoming_call", "outgoing_call", "note", "diary",
 ];
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 8;
 
 // ── Small helpers ────────────────────────────────────────────────────────────
 const fmtPosted = (iso: string | null): string => {
@@ -186,9 +189,26 @@ const HistoryCard = ({ r, active, onClick }: { r: FleetHistoryRecord; active: bo
 const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
   const [preview, setPreview] = useState<{ url: string; type: string; name: string } | null>(null);
   const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
+  const [docPages, setDocPages] = useState<FleetAttachmentPreview | null>(null);
+  const [docLoading, setDocLoading] = useState(false);
   const rid = r?.id;
   useEffect(() => { setPreview(null); }, [rid]);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
+
+  // Document records: auto-load rendered page images / Word-HTML (like claims).
+  useEffect(() => {
+    let alive = true;
+    setDocPages(null);
+    if (r && isDoc(r) && attachmentsOf(r)[0]?.url) {
+      setDocLoading(true);
+      getFleetAttachmentPages(r.id, 0)
+        .then((p) => { if (alive) setDocPages(p); })
+        .catch(() => {})
+        .finally(() => { if (alive) setDocLoading(false); });
+    }
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rid]);
 
   const openInline = async (a: FleetHistoryAttachment, i: number) => {
     if (!a.url) return;
@@ -213,35 +233,62 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
       </div>
     );
   }
-  const meta = r.action_type ? ACTION_META[r.action_type] : null;
+  const doc = isDoc(r);
   return (
     <div className={shell}>
-      {loadingIdx !== null && <Spinner />}
-      <div className="flex justify-between items-center gap-3">
-        <div className="text-black text-xl font-semibold">Record Detail</div>
-        <div className="flex items-center gap-2 shrink-0">
-          <AttachmentClip count={attachmentsOf(r).length} />
-          <ActionBadge type={r.action_type} />
+      {(loadingIdx !== null || docLoading) && <Spinner />}
+      {/* Header: document records show the file name; others show "Record Detail". */}
+      {doc ? (
+        <div className="text-black text-xl font-semibold truncate">Attachment : {attachmentsOf(r)[0]?.name || "Document"}</div>
+      ) : (
+        <div className="flex justify-between items-center gap-3">
+          <div className="text-black text-xl font-semibold">Record Detail</div>
+          <div className="flex items-center gap-2 shrink-0">
+            <AttachmentClip count={attachmentsOf(r).length} />
+            <ActionBadge type={r.action_type} />
+          </div>
         </div>
-      </div>
+      )}
       <div className="h-px bg-neutral-200 w-full" />
-      <div className="text-sm"><span className="text-neutral-500">Posted: </span><span className="text-neutral-700">{fmtPosted(r.posted_at)}</span></div>
-      {(r.correspondent || r.handler) && (
-        <div className="text-sm text-neutral-500 flex flex-wrap gap-x-6 gap-y-1">
-          {r.correspondent && <span>Correspondent: <span className="text-neutral-700">{r.correspondent}</span></span>}
-          {r.handler && <span>Handler: <span className="text-neutral-700">{r.handler}</span></span>}
+      {!doc && (
+        <>
+          <div className="text-sm"><span className="text-neutral-500">Posted: </span><span className="text-neutral-700">{fmtPosted(r.posted_at)}</span></div>
+          {(r.correspondent || r.handler) && (
+            <div className="text-sm text-neutral-500 flex flex-wrap gap-x-6 gap-y-1">
+              {r.correspondent && <span>Correspondent: <span className="text-neutral-700">{r.correspondent}</span></span>}
+              {r.handler && <span>Handler: <span className="text-neutral-700">{r.handler}</span></span>}
+            </div>
+          )}
+          {r.subject && <div className="text-neutral-700 text-sm">Subject : <span className="font-semibold">{r.subject}</span></div>}
+          <div className="pt-2.5 border-t border-neutral-200 min-h-28">
+            {isEmail(r) && (r.payload as { body_html?: string } | null)?.body_html
+              ? <div className="text-sm text-neutral-700 leading-relaxed break-words overflow-x-auto [&_img]:max-w-full [&_table]:max-w-full [&_a]:text-neutral-900 [&_a]:underline"
+                  dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml((r.payload as { body_html?: string }).body_html || "") }} />
+              : <div className="text-neutral-700 text-sm whitespace-pre-wrap">{isEmail(r) ? emailBodyText(r) : (r.details || "—")}</div>}
+          </div>
+        </>
+      )}
+      {/* Document preview — rendered pages / Word-HTML / image. */}
+      {doc && (
+        <div className="flex flex-col items-center gap-2">
+          {docPages?.type === "pdf" && docPages.pages?.map((pg) => (
+            <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded" />
+          ))}
+          {docPages?.type === "image" && docPages.url && (
+            <img src={docPages.url} alt={docPages.file_name || ""} className="w-full h-auto object-contain rounded" />
+          )}
+          {docPages?.type === "html" && docPages.html && (
+            <div className="w-full overflow-x-auto">
+              <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
+                dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
+            </div>
+          )}
+          {!docLoading && docPages?.type === "unsupported" && (
+            <div className="py-8 text-sm text-neutral-400">Preview not available — use the open-in-new-tab option.</div>
+          )}
         </div>
       )}
-      {!isDoc(r) && r.subject && <div className="text-neutral-700 text-sm">Subject : <span className="font-semibold">{r.subject}</span></div>}
-      {!isDoc(r) && (
-        <div className="pt-2.5 border-t border-neutral-200 min-h-28">
-          {isEmail(r) && (r.payload as { body_html?: string } | null)?.body_html
-            ? <div className="text-sm text-neutral-700 leading-relaxed break-words overflow-x-auto [&_img]:max-w-full [&_table]:max-w-full [&_a]:text-neutral-900 [&_a]:underline"
-                dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml((r.payload as { body_html?: string }).body_html || "") }} />
-            : <div className="text-neutral-700 text-sm whitespace-pre-wrap">{isEmail(r) ? emailBodyText(r) : (r.details || "—")}</div>}
-        </div>
-      )}
-      {attachmentsOf(r).length > 0 && (
+      {!doc && attachmentsOf(r).length > 0 && (
         <div className="flex flex-col gap-2 pt-2">
           <div className="text-neutral-500 text-xs uppercase tracking-wide">Attachments ({attachmentsOf(r).length})</div>
           {attachmentsOf(r).map((a, i) => (
@@ -254,7 +301,7 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
           ))}
         </div>
       )}
-      {preview && (
+      {!doc && preview && (
         <div className="flex flex-col gap-2 pt-2">
           <div className="flex items-center justify-between">
             <span className="text-neutral-700 text-sm font-semibold truncate">{preview.name}</span>
@@ -271,12 +318,13 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
 
 // ── Add Record slide-over (lean form covering the 6 types) ───────────────────
 const AddRecordForm = ({
-  actionType, onClose, onSubmit, handlerOptions, defaultCorrespondent,
+  actionType, onClose, onSubmit, handlerOptions, correspondentOptions = [], defaultCorrespondent,
 }: {
   actionType: CaseHistoryActionType;
   onClose: () => void;
   onSubmit: (payload: { correspondent?: string; handler?: string; subject?: string; details?: string; posted_at?: string }) => Promise<void>;
   handlerOptions: string[];
+  correspondentOptions?: string[];
   defaultCorrespondent?: string;
 }) => {
   const meta = ACTION_META[actionType];
@@ -314,14 +362,24 @@ const AddRecordForm = ({
           </div>
         </div>
         <div className="p-6 flex flex-col gap-4 overflow-y-auto">
-          <Field label="Correspondent"><input value={correspondent} onChange={(e) => setCorrespondent(e.target.value)} placeholder="Who the activity is with" className={inputCls} /></Field>
-          <Field label="Handler">
-            <select value={handler} onChange={(e) => setHandler(e.target.value)} className={`${inputCls} appearance-none cursor-pointer`}>
-              <option value="">Select handler</option>
-              {handlerOptions.map((h) => <option key={h} value={h}>{h}</option>)}
-            </select>
-          </Field>
-          {showSubject && <Field label="Subject"><input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" className={inputCls} /></Field>}
+          <FleetCreatableSelect
+            label="Correspondent"
+            placeholder="Select or type an email"
+            value={correspondent}
+            options={correspondentOptions.map((c) => ({ value: c, label: c }))}
+            onChange={setCorrespondent}
+            menuPortal
+            unsorted
+          />
+          <FleetSelect
+            label="Handler"
+            placeholder="Select handler"
+            value={handler}
+            options={handlerOptions.map((h) => ({ value: h, label: h }))}
+            onChange={setHandler}
+            menuPortal
+          />
+          {showSubject && <FleetTextInput label="Subject" value={subject} onChange={setSubject} placeholder="Subject" />}
           <Field label={actionType === "note" ? "Note" : "Details"}>
             <textarea value={details} onChange={(e) => setDetails(e.target.value)} rows={8} placeholder="Write the details…" className={`${inputCls} resize-none`} />
           </Field>
@@ -353,6 +411,8 @@ const FleetHistory = ({
   const [records, setRecords] = useState<FleetHistoryRecord[]>([]);
   const [emails, setEmails] = useState<FleetHistoryRecord[]>([]);
   const [allHandlers, setAllHandlers] = useState<string[]>([]);
+  const [corrOptions, setCorrOptions] = useState<string[]>([]);
+  const [corrDefault, setCorrDefault] = useState<string>("");
   const [filterOptions, setFilterOptions] = useState<FleetHistoryFilterOptions>({ correspondents: [], handlers: [], action_types: [] });
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -383,14 +443,15 @@ const FleetHistory = ({
   useEffect(() => { getFleetUsers().then((u) => setAllHandlers(u.map((x) => x.name).filter(Boolean))).catch(() => {}); }, []);
   useEffect(() => {
     if (!id) return;
+    getFleetCorrespondents(scope, id).then((c) => { setCorrOptions(c.options); setCorrDefault(c.default || ""); }).catch(() => {});
+  }, [scope, id]);
+  useEffect(() => {
+    if (!id) return;
     getFleetHistoryFilters(scope, id).then(setFilterOptions).catch(() => {});
-    getFleetHistoryEmails(scope, id, emailReference)
-      .then((list) => setEmails(
-        // Skyline hires: the correspondent is the hirer/driver, not the raw email.
-        correspondentName ? list.map((e) => ({ ...e, correspondent: correspondentName })) : list,
-      ))
-      .catch(() => {});
-  }, [scope, id, emailReference, correspondentName]);
+    // Each fetched email already carries its own correspondent (the other party's
+    // email), so we don't override it — correspondentName only seeds new records.
+    getFleetHistoryEmails(scope, id, emailReference).then(setEmails).catch(() => {});
+  }, [scope, id, emailReference]);
 
   const merged = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -429,6 +490,10 @@ const FleetHistory = ({
 
   // Every handler is available — not just those already on a record.
   const handlerOptions = Array.from(new Set([...allHandlers, ...filterOptions.handlers]));
+  // Correspondent default + options: VM-CAMS gives the claim's client email (default)
+  // + Third Party emails; Skyline/fleet give the hirer's driver email (correspondentName).
+  const effectiveCorrDefault = corrDefault || correspondentName || "";
+  const effectiveCorrOptions = corrOptions.length ? corrOptions : (correspondentName ? [correspondentName] : []);
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -558,7 +623,7 @@ const FleetHistory = ({
         </div>
       </div>
 
-      {addType && <AddRecordForm actionType={addType} onClose={() => setAddType(null)} onSubmit={createRecord} handlerOptions={handlerOptions} defaultCorrespondent={correspondentName} />}
+      {addType && <AddRecordForm actionType={addType} onClose={() => setAddType(null)} onSubmit={createRecord} handlerOptions={handlerOptions} correspondentOptions={effectiveCorrOptions} defaultCorrespondent={effectiveCorrDefault} />}
     </div>
   );
 };

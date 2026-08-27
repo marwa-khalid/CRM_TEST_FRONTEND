@@ -14,6 +14,7 @@ import * as Yup from "yup";
 import { toast } from "react-toastify";
 import { useParams } from "react-router-dom";
 import { useCurrentUser } from "../../../context/AuthContext";
+import { useAssignees } from "../../TaskManagement/useAssignees";
 // Assets & Icons
 import Vector5 from "../../../assets/AutoClaim_icon/Vector-5.svg";
 import Vector9 from "../../../assets/AutoClaim_icon/Vector-9.svg";
@@ -137,7 +138,7 @@ export const customStyles: StylesConfig<any, false> = {
 // the backend `ClaimUpdate` schema so untouched columns are never sent.
 const AUTOSAVE_FIELDS = [
   "claim_type_id",
-  "handler_id",
+  "handler_name",
   "target_debt_id",
   "case_status_id",
   "source_id",
@@ -167,6 +168,7 @@ const GeneralDetailsForm = ({ formRef, claimId, onClaimCreated }: any) => {
   // The handler & claim entrant are always the logged-in user (non-editable).
   const { user } = useCurrentUser();
   const loggedInName = user?.name || user?.email || "";
+  const assignees = useAssignees();
   const [fileClosedOn, setFileClosedOn] = useState<any>(null);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closureReason, setClosureReason] = useState("");
@@ -228,13 +230,20 @@ useEffect(() => {
     },
     { value: 4, label: "Others" },
   ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
-  const handlerOptions = [
-    { value:1, label: "Imran Dean" },
+  // Handler = same people list as Task Management's "Assigned To" (real users +
+  // samples). Value is the NAME; the backend resolves it to a handler_id.
+  const handlerOptions = assignees
+    .map((name) => ({ value: name, label: name }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  // Staff Member Name still binds to source_staff_user_id (an id FK), so it keeps
+  // the id-based handler lookup.
+  const staffOptions = [
+    { value: 1, label: "Imran Dean" },
     { value: 2, label: "Ruby Uddin" },
-    { value:3, label: "Hina Sadaf" },
+    { value: 3, label: "Hina Sadaf" },
     { value: 4, label: "Akeel Rehman" },
     { value: 5, label: "Alex Berwick" },
-    { value:6, label: "Gary Fellows" },
+    { value: 6, label: "Gary Fellows" },
   ].sort((a, b) => String(a.label).localeCompare(String(b.label)));
 
   const findUsOptions = [
@@ -261,6 +270,8 @@ useEffect(() => {
        const up = (v: any) => (typeof v === "string" && v ? v.toUpperCase() : v);
        const formData= {
           ...res,
+          // Handler is chosen/stored by name; seed it from the resolved label.
+          handler_name: res.handler || "",
           non_fault_accident: up(res.non_fault_accident),
           any_passengers: up(res.any_passengers),
           client_injured: up(res.client_injured),
@@ -286,6 +297,7 @@ useEffect(() => {
       id: claimId || 0,
       claim_type_id: null,
       handler_id: null,
+      handler_name: "",
       is_locked: false,
       target_debt_id: null,
       source_id: null,
@@ -501,10 +513,10 @@ useEffect(() => {
               </label>
               <Select
                 options={handlerOptions}
-                value={handlerOptions.find((o) => o.value === formik.values.handler_id) || null}
+                value={handlerOptions.find((o) => o.value === formik.values.handler_name) || null}
                 placeholder="Select Handler"
                 styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
-                onChange={(val) => formik.setFieldValue("handler_id", val?.value ?? null)}
+                onChange={(val) => formik.setFieldValue("handler_name", val?.value ?? null)}
                 components={{
                   DropdownIndicator: BlueDropdownIndicator,
                   IndicatorSeparator: () => null,
@@ -568,8 +580,8 @@ useEffect(() => {
                 <Select
                   placeholder="Select Staff Member..."
                   styles={customStyles} menuPlacement="bottom" onMenuOpen={scrollSelectIntoView}
-                  options={handlerOptions}
-                  value={handlerOptions.find(
+                  options={staffOptions}
+                  value={staffOptions.find(
                     (option) =>
                       option.value === formik.values.source_staff_user_id,
                   )} // Controlled from step1Data

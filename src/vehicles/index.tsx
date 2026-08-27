@@ -4,6 +4,7 @@ import VehicleManagementShell from "./components/VehicleManagementShell";
 import VehicleManagementList from "./pages/VehicleManagementList";
 import VehicleManagementRecord from "./pages/VehicleManagementRecord";
 import { getVehicleRecord } from "./services/vehicleRecordService";
+import { getHire } from "../fleet/services/hireService";
 import FleetHistory from "../fleet/pages/FleetHistory/FleetHistory";
 // Tasks, Calendar & Dashboard reuse the Skyline components (imported one-way from
 // Fleet), scoped to the current side via module="vehicles_<context>".
@@ -38,8 +39,21 @@ const VMHistoryRoute: React.FC = () => {
   const navigate = useNavigate();
   const scope = context === "cams" ? "vm_cams" : "vm_skyline";
   const [reg, setReg] = useState("");
+  const [driver, setDriver] = useState("");
   useEffect(() => {
-    if (recordId) getVehicleRecord(Number(recordId)).then((v) => setReg(v?.registration_number || "")).catch(() => {});
+    if (!recordId) return;
+    getVehicleRecord(Number(recordId))
+      .then((v) => {
+        setReg(v?.registration_number || "");
+        // On hire → correspondent defaults to the current hirer/driver's EMAIL (the
+        // person on the Current Hire Details screen); off hire → empty, user types.
+        if (v?.hire_id) {
+          getHire(v.hire_id).then((h) => setDriver(h?.driver_email || "")).catch(() => setDriver(""));
+        } else {
+          setDriver("");
+        }
+      })
+      .catch(() => {});
   }, [recordId]);
   return (
     <FleetHistory
@@ -47,6 +61,7 @@ const VMHistoryRoute: React.FC = () => {
       id={recordId || ""}
       title={reg || `Vehicle ${recordId || ""}`}
       emailReference={reg}
+      correspondentName={driver}
       backLabel="Back to Vehicle Details"
       onBack={() => navigate(`/vehicle-management/${context}/${recordId}`)}
     />

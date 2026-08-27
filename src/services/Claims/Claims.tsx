@@ -1,6 +1,7 @@
 import axiosInstance from "../axiosConfig";
 
 export interface ClaimFormPayload {
+  handler_name?: string | null;
   claim_type_id: number;
   handler_id: number;
   target_debt_id: number;
@@ -36,6 +37,7 @@ export const ClaimsApi = {
       const response = await axiosInstance.post("/claims", {
         claim_type_id: payload.claim_type_id,
         handler_id: payload.handler_id,
+        handler_name: payload.handler_name,
         target_debt_id: payload.target_debt_id,
         source_id: payload.source_id,
         source_staff_user_id: payload.source_staff_user_id,
@@ -116,6 +118,7 @@ export const ClaimsApi = {
       const response = await axiosInstance.put(`/claims/${claimId}`, {
         claim_type_id: payload.claim_type_id,
         handler_id: payload.handler_id,
+        handler_name: payload.handler_name,
         target_debt_id: payload.target_debt_id,
         source_id: payload.source_id,
         source_staff_user_id: payload.source_staff_user_id,

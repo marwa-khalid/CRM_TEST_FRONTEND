@@ -42,10 +42,16 @@ const HireHistoryRoute: React.FC = () => {
   const navigate = useNavigate();
   const [ref, setRef] = useState("");
   const [hirer, setHirer] = useState("");
+  const [driverEmail, setDriverEmail] = useState("");
   useEffect(() => {
     if (hireId) {
       getHire(Number(hireId))
-        .then((h) => { setRef(h?.fleet_reference || ""); setHirer(h?.driver_name || ""); })
+        .then((h) => {
+          setRef(h?.fleet_reference || "");
+          setHirer(h?.driver_name || "");
+          // Correspondent defaults to the hirer's driver email (on hire); empty otherwise.
+          setDriverEmail(h?.driver_email || "");
+        })
         .catch(() => {});
     }
   }, [hireId]);
@@ -56,7 +62,7 @@ const HireHistoryRoute: React.FC = () => {
       id={hireId || ""}
       title={title}
       emailReference={ref}
-      correspondentName={hirer}
+      correspondentName={driverEmail}
       backLabel="Back to Hire Details"
       onBack={() => navigate(`/fleet/hire/${hireId}`)}
     />

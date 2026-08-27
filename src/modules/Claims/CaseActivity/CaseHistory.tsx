@@ -17,18 +17,19 @@ import HistoryActionForm from "./HistoryActionForm";
 import {
   getCaseHistory,
   getCaseHistoryFilters,
-  getTenantUsers,
   getCaseHistoryEmails,
   openEmailAttachment,
   fetchCaseAttachment,
   getCaseAttachmentPages,
   importCaseHistoryEmail,
   type CaseAttachmentPreview,
+  // getTenantUsers replaced by useAssignees (same list as Task Management).
   type CaseHistoryRecord,
   type CaseHistoryActionType,
   type CaseHistoryFilterOptions,
   type CaseHistoryAttachment,
 } from "../../../services/CaseHistory/caseHistory";
+import { useAssignees } from "../../TaskManagement/useAssignees";
 import SendLetterIcon from "../../../assets/HistorySection/SendLetter.svg";
 import SendEmailIcon from "../../../assets/HistorySection/SendEmail.svg";
 import IncomingCallIcon from "../../../assets/HistorySection/IncomingCall.svg";
@@ -385,11 +386,20 @@ const RecordDetail = ({ r, onCreateNew, onEmailAction }: { r: CaseHistoryRecord 
     );
   }
   const meta = r.action_type ? ACTION_META[r.action_type] : null;
-  const docOnly = isDocRecord(r);
   return (
-    <div className={`flex-1 min-w-0 min-h-[calc(100vh-200px)] bg-white rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 flex flex-col ${docOnly ? "p-2 gap-0" : "px-10 py-6 gap-4"}`}>
-      {loadingIdx !== null && <SpinnerLoader />}
-      {/* PP / document records: no header — just the document preview. */}
+    <div className="flex-1 min-w-0 min-h-[calc(100vh-200px)] bg-white rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 flex flex-col px-10 py-6 gap-4">
+      {(loadingIdx !== null || docLoading) && <SpinnerLoader />}
+      {/* PP / document records: header shows the document name. */}
+      {isDocRecord(r) && (
+        <>
+          <div className="self-stretch flex justify-between items-start">
+            <div className="text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5">
+              Attachment : {attachmentsOf(r)[0]?.name || "Document"}
+            </div>
+          </div>
+          <div className="h-px bg-neutral-200 w-full" />
+        </>
+      )}
       {!isDocRecord(r) && (
         <>
           <div className="flex justify-between items-center gap-3">
@@ -487,24 +497,36 @@ const RecordDetail = ({ r, onCreateNew, onEmailAction }: { r: CaseHistoryRecord 
           </div>
         )}
 
-        {/* PP / document records: rendered page images (Document Library style). */}
+        {/* PP / document records: rendered page images (Document Library style).
+            The document name is shown in the pane header above. */}
         {isDocRecord(r) && (
-          <div className="flex flex-col items-center gap-2">
-            {docLoading && <div className="py-10 text-sm text-neutral-400">Loading preview…</div>}
-            {docPages?.type === "pdf" && docPages.pages?.map((pg) => (
-              <img
-                key={pg.page}
-                src={pg.image}
-                alt={`Page ${pg.page}`}
-                className="w-full h-auto object-contain bg-white rounded"
-              />
-            ))}
-            {docPages?.type === "image" && docPages.url && (
-              <img src={docPages.url} alt={docPages.file_name || ""} className="w-full h-auto object-contain rounded" />
-            )}
-            {!docLoading && docPages?.type === "unsupported" && (
-              <div className="py-8 text-sm text-neutral-400">Preview not available — use “Open in a new tab”.</div>
-            )}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col items-center gap-2">
+              {docPages?.type === "pdf" && docPages.pages?.map((pg) => (
+                <img
+                  key={pg.page}
+                  src={pg.image}
+                  alt={`Page ${pg.page}`}
+                  className="w-full h-auto object-contain bg-white rounded"
+                />
+              ))}
+              {docPages?.type === "image" && docPages.url && (
+                <img src={docPages.url} alt={docPages.file_name || ""} className="w-full h-auto object-contain rounded" />
+              )}
+              {docPages?.type === "html" && docPages.html && (
+                // Word/HTML: cap every element to the pane width, shrink tables/fonts,
+                // and let anything still too wide scroll rather than overflow the page.
+                <div className="w-full overflow-x-auto">
+                  <div
+                    className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
+                    dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }}
+                  />
+                </div>
+              )}
+              {!docLoading && docPages?.type === "unsupported" && (
+                <div className="py-8 text-sm text-neutral-400">Preview not available — use “Open in a new tab”.</div>
+              )}
+            </div>
           </div>
         )}
 
@@ -565,7 +587,7 @@ const CaseHistory = () => {
   const [selectedId, setSelectedId] = useState<number | string | null>(null);
   const [emails, setEmails] = useState<CaseHistoryRecord[]>([]);
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 8;
   const [addType, setAddType] = useState<CaseHistoryActionType | null>(null);
   const [emailModal, setEmailModal] = useState<{ mode: "reply" | "forward"; record: CaseHistoryRecord } | null>(null);
   const [emailSending, setEmailSending] = useState(false);
@@ -583,7 +605,7 @@ const CaseHistory = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [filterOptions, setFilterOptions] = useState<CaseHistoryFilterOptions>({ correspondents: [], handlers: [], action_types: [] });
-  const [users, setUsers] = useState<string[]>([]);
+  const users = useAssignees();
 
   const load = useCallback(async () => {
     if (!claimId) return;
@@ -613,7 +635,6 @@ const CaseHistory = () => {
       getCaseHistoryFilters(claimId).then(setFilterOptions).catch(() => {});
       getCaseHistoryEmails(claimId).then(setEmails).catch(() => {});
     }
-    getTenantUsers().then((list) => setUsers(list.map((u) => u.name).filter(Boolean))).catch(() => {});
   }, [claimId]);
 
   // Handler filter lists every tenant user (plus any handler already on records),

@@ -150,9 +150,10 @@ export const fetchCaseAttachment = async (
 };
 
 export interface CaseAttachmentPreview {
-  type: "pdf" | "image" | "unsupported";
+  type: "pdf" | "image" | "html" | "unsupported";
   file_name?: string;
   url?: string; // for images (data URI)
+  html?: string; // for Word/HTML documents
   pages?: { page: number; image: string }[]; // for PDFs (data URIs)
 }
 

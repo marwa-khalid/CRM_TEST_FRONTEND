@@ -85,6 +85,21 @@ export const getFleetHistory = async (
   return Array.isArray(data) ? data : [];
 };
 
+// Correspondent options for the Add Record field: for VM-CAMS, the linked claim's
+// client email (default) + Third Party emails. Empty for Skyline (driver email is
+// supplied from the hire).
+export const getFleetCorrespondents = async (
+  scope: FleetHistoryScope,
+  id: number | string,
+): Promise<{ default: string | null; options: string[] }> => {
+  try {
+    const { data } = await fleetApi.get(`${base(scope, id)}/correspondents`);
+    return { default: data?.default ?? null, options: Array.isArray(data?.options) ? data.options : [] };
+  } catch {
+    return { default: null, options: [] };
+  }
+};
+
 export const getFleetHistoryFilters = async (
   scope: FleetHistoryScope,
   id: number | string,
@@ -167,4 +182,22 @@ export const fetchFleetAttachment = async (
   const res = await fleetApi.get(url, { responseType: "blob" });
   const blob = res.data as Blob;
   return { url: URL.createObjectURL(blob), type: blob.type || "" };
+};
+
+export interface FleetAttachmentPreview {
+  type: "pdf" | "image" | "html" | "unsupported";
+  file_name?: string;
+  url?: string;
+  html?: string;
+  pages?: { page: number; image: string }[];
+}
+
+// Rendered page images / Word-HTML for a stored attachment (same endpoint as
+// claims), so the fleet detail pane can preview documents like the Document Library.
+export const getFleetAttachmentPages = async (
+  recordId: number | string,
+  index: number,
+): Promise<FleetAttachmentPreview> => {
+  const { data } = await fleetApi.get(`/case-history/${recordId}/attachment/${index}/pages`);
+  return data as FleetAttachmentPreview;
 };

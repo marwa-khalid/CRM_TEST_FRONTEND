@@ -201,11 +201,14 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
   useEffect(() => {
     let alive = true;
     setDocPages(null);
-    if (r && isDoc(r) && attachmentsOf(r)[0]?.url) {
+    // The preview endpoint renders from the record id + attachment index, so it does
+    // NOT need the attachment's url (which can be null when only the S3 key is stored).
+    // Fetch whenever the record is a document with an attachment.
+    if (r && isDoc(r) && attachmentsOf(r).length > 0) {
       setDocLoading(true);
       getFleetAttachmentPages(r.id, 0)
         .then((p) => { if (alive) setDocPages(p); })
-        .catch(() => {})
+        .catch(() => { if (alive) setDocPages({ type: "unsupported", pages: [] }); })
         .finally(() => { if (alive) setDocLoading(false); });
     }
     return () => { alive = false; };

@@ -363,11 +363,13 @@ const RecordDetail = ({ r, onCreateNew, onEmailAction }: { r: CaseHistoryRecord 
   useEffect(() => {
     let alive = true;
     setDocPages(null);
-    if (r && isDocRecord(r) && attachmentsOf(r)[0]?.url) {
+    // The preview endpoint renders from the record id + attachment index, so it does
+    // NOT need the attachment's url (which can be null when only the S3 key is stored).
+    if (r && isDocRecord(r) && attachmentsOf(r).length > 0) {
       setDocLoading(true);
       getCaseAttachmentPages(r.id, 0)
         .then((p) => { if (alive) setDocPages(p); })
-        .catch(() => { /* keep the download row as fallback */ })
+        .catch(() => { if (alive) setDocPages({ type: "unsupported", pages: [] }); })
         .finally(() => { if (alive) setDocLoading(false); });
     }
     return () => { alive = false; };

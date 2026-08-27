@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 
 // Fleet's own hand-built calendar — same UX as the Claims custom DatePicker
 // (day / month / year views with ‹ › nav), but in the black / white / grey
@@ -45,6 +45,17 @@ export const FleetCalendar = ({
 
   // Reveal the popup if it opens partly off-screen.
   const rootRef = useRef<HTMLDivElement>(null);
+  // When the field sits near the right edge (e.g. the "Date To" filter), a
+  // left-anchored panel spills off-screen — flip it to right-anchored. Measured
+  // before paint (useLayoutEffect) so there's no visible jump.
+  const [alignRight, setAlignRight] = useState(false);
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const viewportW = window.innerWidth || document.documentElement.clientWidth;
+    if (rect.right > viewportW - 8) setAlignRight(true);
+  }, []);
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       const el = rootRef.current;
@@ -65,7 +76,7 @@ export const FleetCalendar = ({
   const CELL = "w-8 h-8 rounded text-xs font-semibold flex items-center justify-center transition-colors";
 
   return (
-    <div ref={rootRef} className="absolute top-14 left-0 z-50 scroll-mb-6">
+    <div ref={rootRef} className={`absolute top-14 z-50 scroll-mb-6 ${alignRight ? "right-0" : "left-0"}`}>
       {view === "days" ? (
         <div className={PANEL}>
           <div className="self-stretch px-2 flex justify-between items-center">

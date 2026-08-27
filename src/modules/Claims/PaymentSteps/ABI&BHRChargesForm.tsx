@@ -24,6 +24,7 @@ import ABIHireBreakdownForm from "./ABIHireBreakdownForm";
 import PlatingInvoiceForm from "./PlatingInvoiceForm";
 import CoveringLetterForm from "./CoveringLetterForm";
 import FrontCoverForm from "./FrontCoverForm";
+import { PackSidebar, PackSidebarContext } from "./paymentPackUi";
 import HirePeriodValidationForm from "./HirePeriodValidationForm";
 import StorageRecoveryInvoiceForm from "./StorageRecoveryInvoiceForm";
 import { useCurrentUser } from "../../../context/AuthContext";
@@ -231,6 +232,10 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   const [showHirePeriod, setShowHirePeriod] = useState(false);
   // Storage and Recovery Invoice editable form screen.
   const [showStorageRecoveryInvoice, setShowStorageRecoveryInvoice] = useState(false);
+  // Which pack document is currently *visible* in the overlay. The show* flags above
+  // stay true once a document has been opened (kept mounted, just hidden), so its
+  // edits survive switching to another document and back.
+  const [activeDoc, setActiveDoc] = useState<string | null>(null);
 
   // Claim data sourced for the documents (read-only).
   const [policyNumber, setPolicyNumber] = useState("");
@@ -792,56 +797,49 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     })),
   };
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── Payment Pack documents — one overlay, one persistent sidebar ─────────────
+  // Each document is a full-screen PackScreen; the sidebar (rendered by PackScreen
+  // via context) lets the user jump between them without closing/reopening. Only
+  // one is ever open at a time, so opening one closes the rest.
+  const PACK_DOCS = [
+    { key: "frontCover", label: "Front Cover Information", show: showFrontCover, setShow: setShowFrontCover },
+    { key: "coveringLetter", label: "Covering Letter", show: showCoveringLetter, setShow: setShowCoveringLetter },
+    { key: "creditHire", label: "Credit Hire Invoice", show: showInvoiceForm, setShow: setShowInvoiceForm },
+    { key: "abi", label: "ABI Hire Breakdown", show: showAbiBreakdown, setShow: setShowAbiBreakdown },
+    { key: "hirePeriod", label: "Hire Period Validation", show: showHirePeriod, setShow: setShowHirePeriod },
+    { key: "plating", label: "Plating Invoice", show: showPlatingInvoice, setShow: setShowPlatingInvoice },
+    { key: "storageRecovery", label: "Storage and Recovery Invoice", show: showStorageRecoveryInvoice, setShow: setShowStorageRecoveryInvoice },
+  ];
+  // Open a document: mount it (if not already) and make it the visible one. Other
+  // opened documents stay mounted (hidden) so their unsaved edits are preserved.
+  const openPackDoc = (key: string) => {
+    PACK_DOCS.find((d) => d.key === key)?.setShow(true);
+    setActiveDoc(key);
+  };
+  // Discard closes the whole overlay and unmounts every document (fresh next time).
+  const closePackDocs = () => {
+    PACK_DOCS.forEach((d) => d.setShow(false));
+    setActiveDoc(null);
+  };
+  const packSidebar = activeDoc ? (
+    <PackSidebar
+      docs={PACK_DOCS.map(({ key, label }) => ({ key, label }))}
+      active={activeDoc}
+      onSelect={openPackDoc}
+    />
+  ) : null;
 
   return (
     <div className="w-full mt-3 flex flex-col justify-start items-start gap-6 bg-white font-['Stack_Sans_Headline']">
       {loading && <SpinnerLoader />}
 
-      {showInvoiceForm && (
-        <CreditHireInvoiceForm
-          claimId={claimId}
-          onEmailSent={handlePaymentPackEmailSent}
-          onClose={() => setShowInvoiceForm(false)}
-          prefills={creditHirePrefills}
-        />
-      )}
-
-      {showAbiBreakdown && (
-        <ABIHireBreakdownForm
-          claimId={claimId}
-          onEmailSent={handlePaymentPackEmailSent}
-          onClose={() => setShowAbiBreakdown(false)}
-          vehicleGroups={
-            packVehicles.map((v) => (v as any).category).filter(Boolean) as string[]
-          }
-          prefills={abiPrefills}
-        />
-      )}
-
-      {showPlatingInvoice && (
-        <PlatingInvoiceForm
-          claimId={claimId}
-          onEmailSent={handlePaymentPackEmailSent}
-          onClose={() => setShowPlatingInvoice(false)}
-          prefills={platingPrefills}
-        />
-      )}
-
-      {showStorageRecoveryInvoice && (
-        <StorageRecoveryInvoiceForm
-          claimId={claimId}
-          onEmailSent={handlePaymentPackEmailSent}
-          onClose={() => setShowStorageRecoveryInvoice(false)}
-          prefill={storageRecoveryPrefill}
-        />
-      )}
-
+      <PackSidebarContext.Provider value={packSidebar}>
       {showFrontCover && (
+        <div hidden={activeDoc !== "frontCover"}>
         <FrontCoverForm
           claimId={claimId}
           onEmailSent={handlePaymentPackEmailSent}
-          onClose={() => setShowFrontCover(false)}
+          onClose={closePackDocs}
           prefill={{
             ourReference: caseReference,
             yourInsured: thirdPartyName,
@@ -855,13 +853,15 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             ).slice(0, 10),
           }}
         />
+        </div>
       )}
 
       {showCoveringLetter && (
+        <div hidden={activeDoc !== "coveringLetter"}>
         <CoveringLetterForm
           claimId={claimId}
           onEmailSent={handlePaymentPackEmailSent}
-          onClose={() => setShowCoveringLetter(false)}
+          onClose={closePackDocs}
           prefill={{
             ourReference: caseReference,
             yourReference: insurerReference,
@@ -878,13 +878,40 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             charges: coveringCharges,
           }}
         />
+        </div>
+      )}
+
+      {showInvoiceForm && (
+        <div hidden={activeDoc !== "creditHire"}>
+        <CreditHireInvoiceForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
+          onClose={closePackDocs}
+          prefills={creditHirePrefills}
+        />
+        </div>
+      )}
+
+      {showAbiBreakdown && (
+        <div hidden={activeDoc !== "abi"}>
+        <ABIHireBreakdownForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
+          onClose={closePackDocs}
+          vehicleGroups={
+            packVehicles.map((v) => (v as any).category).filter(Boolean) as string[]
+          }
+          prefills={abiPrefills}
+        />
+        </div>
       )}
 
       {showHirePeriod && (
+        <div hidden={activeDoc !== "hirePeriod"}>
         <HirePeriodValidationForm
           claimId={claimId}
           onEmailSent={handlePaymentPackEmailSent}
-          onClose={() => setShowHirePeriod(false)}
+          onClose={closePackDocs}
           prefill={{
             ourReference: caseReference,
             yourReference: insurerReference,
@@ -893,7 +920,31 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             ).slice(0, 10),
           }}
         />
+        </div>
       )}
+
+      {showPlatingInvoice && (
+        <div hidden={activeDoc !== "plating"}>
+        <PlatingInvoiceForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
+          onClose={closePackDocs}
+          prefills={platingPrefills}
+        />
+        </div>
+      )}
+
+      {showStorageRecoveryInvoice && (
+        <div hidden={activeDoc !== "storageRecovery"}>
+        <StorageRecoveryInvoiceForm
+          claimId={claimId}
+          onEmailSent={handlePaymentPackEmailSent}
+          onClose={closePackDocs}
+          prefill={storageRecoveryPrefill}
+        />
+        </div>
+      )}
+      </PackSidebarContext.Provider>
 
       <div className="w-full flex items-center justify-between">
         <h1 className="text-black text-2xl font-weight-600 leading-6">
@@ -902,12 +953,11 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         <div className="relative" ref={packMenuRef}>
           <button
             type="button"
-            onClick={() => {
-              setShowPackModal((v) => {
-                const shouldOpen = !v;
-                if (shouldOpen) void ensurePaymentPackRaisedDate();
-                return shouldOpen;
-              });
+            onClick={async () => {
+              // Open the pack overlay straight away at the first document; the
+              // sidebar handles moving between the rest.
+              await ensurePaymentPackRaisedDate();
+              openPackDoc(PACK_DOCS[0].key);
             }}
             disabled={isGenerating}
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-100 disabled:bg-blue-100 text-blue-500 text-sm font-weight-500 rounded transition-all"
@@ -943,85 +993,6 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
             )}
           </button>
 
-          {/* Anchored dropdown — lists what the Payment Pack contains. */}
-          {showPackModal && (
-            <div className="absolute right-0 top-full mt-2 z-50 p-6 bg-white rounded-lg shadow-xl inline-flex flex-col gap-3 min-w-[300px] border border-slate-100 font-['Stack_Sans_Headline']">
-              {[
-                {
-                  label: "Front Cover Information",
-                  open: () => setShowFrontCover(true),
-                },
-                {
-                  label: "Covering Letter",
-                  open: () => setShowCoveringLetter(true),
-                },
-                {
-                  label: "Credit Hire Invoice",
-                  open: () => setShowInvoiceForm(true),
-                },
-                {
-                  label: "ABI Hire Breakdown",
-                  open: () => setShowAbiBreakdown(true),
-                },
-                {
-                  label: "Hire Period Validation",
-                  open: () => setShowHirePeriod(true),
-                },
-                {
-                  label: "Plating Invoice",
-                  open: () => setShowPlatingInvoice(true),
-                },
-                {
-                  label: "Storage and Recovery Invoice",
-                  open: () => setShowStorageRecoveryInvoice(true),
-                },
-              ].map((item, index, arr) => (
-                <React.Fragment key={item.label}>
-                  <div
-                    className="text-blue-500 text-sm cursor-pointer hover:bg-slate-50 p-1"
-                    onClick={async () => {
-                      await ensurePaymentPackRaisedDate();
-                      setShowPackModal(false);
-                      item.open();
-                    }}
-                  >
-                    {item.label}
-                  </div>
-                  {index < arr.length - 1 && (
-                    <div className="h-px bg-slate-100 w-full" />
-                  )}
-                </React.Fragment>
-              ))}
-
-              {/* Payment Pack Raised Date — drives the debtors age analysis
-                  (days from this date to the settlement date). */}
-              <div className="h-px bg-slate-100 w-full" />
-              {/* <div onClick={(e) => e.stopPropagation()}>
-                <DatePickerField
-                  label="Payment Pack Raised Date"
-                  value={formik.values.payment_pack_raised_date}
-                  onSelect={(d) =>
-                    formik.setFieldValue("payment_pack_raised_date", dateToISO(d))
-                  }
-                  show={showPackDatePicker}
-                  containerRef={packDateRef}
-                  onToggle={() => setShowPackDatePicker((p) => !p)}
-                />
-                <p className="text-[11px] text-neutral-400 mt-1">
-                  Used to age debtors from the settlement date.
-                </p>
-              </div> */}
-              {/* <div className="h-px bg-slate-100 w-full" /> */}
-              {/* <button
-                type="button"
-                onClick={() => { setShowPackModal(false); handleGeneratePaymentPack(); }}
-                disabled={isGenerating}
-                className="mt-1 px-4 py-2 rounded bg-blue-500 text-white text-sm font-weight-500 hover:bg-blue-600 disabled:opacity-60"
-              >
-                Generate All
-              </button> */}
-            </div>
-          )}
         </div>
       </div>
       {/* Section 1: Payment Pack Sent Detail */}

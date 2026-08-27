@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { ChevronLeft, Printer, Download, Mail } from "lucide-react";
 import { toast } from "react-toastify";
 import html2pdf from "html2pdf.js";
@@ -32,6 +32,43 @@ export const fieldInputCls =
 export const readonlyCls =
   "self-stretch px-5 py-4 bg-neutral-50 rounded border border-neutral-200 text-base text-neutral-700 font-light leading-4";
 
+// A persistent left-hand card listing every Payment Pack document, so the user
+// can jump between documents inside the overlay instead of closing and reopening.
+// PackScreen renders it (from context) as a left column beside the document.
+export type PackDocItem = { key: string; label: string };
+export const PackSidebarContext = React.createContext<React.ReactNode>(null);
+
+export const PackSidebar = ({
+  docs, active, onSelect,
+}: {
+  docs: PackDocItem[];
+  active: string;
+  onSelect: (key: string) => void;
+}) => (
+  <div className="w-72 shrink-0 h-full overflow-auto border-r border-neutral-100 bg-white py-8 px-5 font-['Stack_Sans_Headline']">
+    <h3 className="px-3 mb-4 text-black text-lg font-weight-600 leading-6">Payment Pack</h3>
+    <div className="flex flex-col gap-1">
+      {docs.map((d) => {
+        const isActive = d.key === active;
+        return (
+          <button
+            key={d.key}
+            type="button"
+            onClick={() => onSelect(d.key)}
+            className={`w-full text-left px-3 py-2.5 rounded text-sm transition-colors ${
+              isActive
+                ? "bg-blue-50 text-blue-600 font-weight-600"
+                : "text-neutral-700 hover:bg-neutral-50"
+            }`}
+          >
+            {d.label}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
 export const PackScreen = ({
   title, onClose, claimId, emailSubject, renderDoc, onEmailSent, children,
 }: {
@@ -43,6 +80,7 @@ export const PackScreen = ({
   onEmailSent?: (sentDate?: string) => void;
   children: React.ReactNode;
 }) => {
+  const sidebar = useContext(PackSidebarContext); // persistent doc-switcher, if provided
   const bodyRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<"" | "print" | "download" | "email">("");
@@ -179,7 +217,10 @@ export const PackScreen = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-white overflow-auto font-['Stack_Sans_Headline']">
+    <div className="fixed inset-0 z-[200] bg-white flex font-['Stack_Sans_Headline']">
+      {/* Persistent sidebar card — jump between pack documents without going back. */}
+      {sidebar}
+      <div className="flex-1 h-full overflow-auto">
       <div className="sticky top-0 z-10 bg-white px-10 py-5 shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center">
         <div className="flex items-center gap-5">
           <button type="button" onClick={onClose} aria-label="Back" className="text-blue-500 hover:text-blue-600">
@@ -217,6 +258,7 @@ export const PackScreen = ({
         </div>
       </div>
       <div ref={bodyRef} className="w-[788px] max-w-full mx-auto py-10 flex flex-col gap-6">{children}</div>
+      </div>
 
       {/* Off-screen print document — the actual PDF source when provided. */}
       {renderDoc && (

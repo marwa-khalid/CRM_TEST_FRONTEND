@@ -16,6 +16,7 @@ import IncomingCallIcon from "../../../assets/HistorySection/IncomingCall.svg";
 import OutgoingCallIcon from "../../../assets/HistorySection/OutgoingCall.svg";
 import NotesIcon from "../../../assets/HistorySection/Notes.svg";
 import DiaryIcon from "../../../assets/HistorySection/Diary.svg";
+import MovementIcon from "../../assets/listingpage/vehicles.svg";
 import {
   getFleetHistory,
   getFleetHistoryFilters,
@@ -43,12 +44,13 @@ const ACTION_META: Record<CaseHistoryActionType, { abbr: string; label: string; 
   outgoing_call: { abbr: "OC", label: "Outgoing Call", icon: OutgoingCallIcon },
   note: { abbr: "NT", label: "Notes", icon: NotesIcon },
   diary: { abbr: "DY", label: "Diary", icon: DiaryIcon },
+  movement: { abbr: "MO", label: "On / Off Hire", icon: MovementIcon },
 };
 const CREATE_ORDER: CaseHistoryActionType[] = [
   "send_letter", "send_email", "incoming_call", "outgoing_call", "note", "diary",
 ];
 const ALL_TYPES: CaseHistoryActionType[] = [
-  "send_letter", "send_email", "incoming_email", "incoming_call", "outgoing_call", "note", "diary",
+  "send_letter", "send_email", "incoming_email", "incoming_call", "outgoing_call", "note", "diary", "movement",
 ];
 
 const PAGE_SIZE = 8;

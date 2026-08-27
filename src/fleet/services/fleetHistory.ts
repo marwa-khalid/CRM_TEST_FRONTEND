@@ -15,7 +15,8 @@ export type CaseHistoryActionType =
   | "incoming_call"
   | "outgoing_call"
   | "note"
-  | "diary";
+  | "diary"
+  | "movement";
 
 export interface FleetHistoryAttachment {
   name: string;

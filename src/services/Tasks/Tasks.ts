@@ -18,6 +18,9 @@ export interface TaskFilters {
   // When true, drops past-due tasks so the Pending / Awaiting Response cards stay
   // mutually exclusive with the Overdue card.
   exclude_overdue?: boolean;
+  // Comma-separated modules to hide from this list (e.g. Claims excludes
+  // "skyline,vehicles,..."). NULL-module (Claims own) tasks always stay.
+  exclude_modules?: string;
 }
 
 export interface TaskPayload {
@@ -49,7 +52,8 @@ export const listTasks = (params: TaskFilters = {}) =>
 
 export const getTask = (id: number) => axiosInstance.get(`/tasks/${id}`);
 
-export const getTaskStats = () => axiosInstance.get("/tasks/stats");
+export const getTaskStats = (params: { exclude_modules?: string } = {}) =>
+  axiosInstance.get("/tasks/stats", { params: clean(params) });
 
 export const getVehicleOptions = () => axiosInstance.get("/tasks/vehicle-options");
 

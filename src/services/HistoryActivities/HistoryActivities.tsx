@@ -107,12 +107,17 @@ export const replyToEmailGraph = async (
   activity: any,
   comment: string,
   files: File[] = [],
+  claimId?: string | number,
 ) => {
   const formData = new FormData();
 
   formData.append("message_id", activity.meta?.message_id || "");
   formData.append("comment", comment || "");
   formData.append("use_graph", "true");
+  if (claimId) formData.append("claim_id", String(claimId));
+  // Fallbacks for stored records with no live Outlook message id.
+  if (activity?.correspondent) formData.append("to_email", activity.correspondent);
+  if (activity?.subject) formData.append("subject", activity.subject);
 
   files.forEach((file) => {
     formData.append("files", file);
@@ -134,6 +139,7 @@ export const forwardEmailGraph = async (
   comment: string,
   files: File[] = [],
   subject?: string,
+  claimId?: string | number,
 ) => {
   const formData = new FormData();
 
@@ -152,6 +158,7 @@ export const forwardEmailGraph = async (
     subject || activity?.subject || activity?.title || "",
   );
   formData.append("use_graph", "true");
+  if (claimId) formData.append("claim_id", String(claimId));
 
   files.forEach((file) => {
     formData.append("files", file);

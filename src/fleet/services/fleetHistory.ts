@@ -156,6 +156,53 @@ export const logFleetHistoryDocument = async (
   return data as FleetHistoryRecord;
 };
 
+// Reply to a fleet email — sends via the shared send path and logs a Send Email (SE)
+// record on this fleet scope (so it threads with the original).
+export const fleetReplyEmail = async (
+  scope: FleetHistoryScope,
+  id: number | string,
+  record: FleetHistoryRecord,
+  comment: string,
+  files: File[] = [],
+  toEmail?: string,
+  subject?: string,
+): Promise<void> => {
+  const fd = new FormData();
+  fd.append("message_id", ((record.payload as { message_id?: string } | null)?.message_id) || "");
+  fd.append("comment", comment || "");
+  fd.append("scope_type", scope);
+  fd.append("scope_id", String(id));
+  fd.append("to_email", toEmail || record.correspondent || "");
+  fd.append("subject", subject || record.subject || "");
+  files.forEach((f) => fd.append("files", f));
+  await fleetApi.post("/case-activity/email/reply-with-attachments", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
+export const fleetForwardEmail = async (
+  scope: FleetHistoryScope,
+  id: number | string,
+  record: FleetHistoryRecord,
+  toEmail: string,
+  subject: string,
+  comment: string,
+  files: File[] = [],
+): Promise<void> => {
+  const fd = new FormData();
+  const mid = (record.payload as { message_id?: string } | null)?.message_id;
+  if (mid && mid !== "None" && mid !== "null") fd.append("message_id", mid);
+  fd.append("to_email", toEmail || "");
+  fd.append("subject", subject || record.subject || "");
+  fd.append("comment", comment || "");
+  fd.append("scope_type", scope);
+  fd.append("scope_id", String(id));
+  files.forEach((f) => fd.append("files", f));
+  await fleetApi.post("/case-activity/email/forward-with-attachments", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
 export const importFleetHistoryEmail = async (
   scope: FleetHistoryScope,
   id: number | string,

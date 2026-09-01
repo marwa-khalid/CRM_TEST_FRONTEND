@@ -3,7 +3,7 @@ import { ChevronLeft, Paperclip, ExternalLink } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetMultiSelectFilter from "../../components/FleetMultiSelectFilter";
 import { FleetDateField, FleetSelect, FleetTextInput, FleetCreatableSelect } from "../../components/fields";
-import { getFleetUsers } from "../../services/userService";
+import { getFleetUsers, type FleetUser } from "../../services/userService";
 import PdfLogo from "../../../assets/FileTypes/PDF.svg";
 import DocLogo from "../../../assets/FileTypes/DOC.svg";
 import ExcelLogo from "../../../assets/FileTypes/Excel.svg";
@@ -17,6 +17,7 @@ import OutgoingCallIcon from "../../../assets/HistorySection/OutgoingCall.svg";
 import NotesIcon from "../../../assets/HistorySection/Notes.svg";
 import DiaryIcon from "../../../assets/HistorySection/Diary.svg";
 import MovementIcon from "../../assets/listingpage/vehicles.svg";
+import FleetEmailModal from "../../components/FleetEmailModal";
 import {
   getFleetHistory,
   getFleetHistoryFilters,
@@ -24,6 +25,8 @@ import {
   getFleetHistoryEmails,
   createFleetHistory,
   importFleetHistoryEmail,
+  fleetReplyEmail,
+  fleetForwardEmail,
   openFleetAttachment,
   fetchFleetAttachment,
   getFleetAttachmentPages,
@@ -74,6 +77,9 @@ const attachmentsOf = (r: FleetHistoryRecord): FleetHistoryAttachment[] =>
 const sourceOf = (r: FleetHistoryRecord): string =>
   ((r.payload as { source?: string } | null)?.source || "");
 const isEmail = (r: FleetHistoryRecord) => ["email", "imported_email"].includes(sourceOf(r));
+// Reply / Forward are available on every email record (Send Email / Incoming Email).
+const canReplyForward = (r: FleetHistoryRecord) =>
+  r.action_type === "send_email" || r.action_type === "incoming_email";
 const isDoc = (r: FleetHistoryRecord) => sourceOf(r) === "document";
 
 const fileTypeLogo = (name: string): string => {
@@ -155,7 +161,7 @@ const PeopleLines = ({ r }: { r: FleetHistoryRecord }) => {
 };
 
 // ── History card ─────────────────────────────────────────────────────────────
-const HistoryCard = ({ r, active, onClick }: { r: FleetHistoryRecord; active: boolean; onClick: () => void }) => (
+const HistoryCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistoryRecord; active: boolean; onClick: () => void; threadCount?: number }) => (
   <button
     type="button"
     onClick={onClick}
@@ -166,8 +172,11 @@ const HistoryCard = ({ r, active, onClick }: { r: FleetHistoryRecord; active: bo
         <span className="text-neutral-500">Posted: </span>
         <span className="text-neutral-700">{fmtPosted(r.posted_at)}</span>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {!isDoc(r) && <AttachmentClip count={attachmentsOf(r).length} />}
+      <div className="flex items-center gap-4 shrink-0">
+        {threadCount > 1 && (
+          <span title={`${threadCount} messages in this thread`} className="px-2 py-0.5 rounded-full bg-neutral-900 text-white text-xs font-semibold">{threadCount}</span>
+        )}
+        {!isDoc(r) && threadCount <= 1 && <AttachmentClip count={attachmentsOf(r).length} />}
         <ActionBadge type={r.action_type} />
       </div>
     </div>
@@ -187,14 +196,103 @@ const HistoryCard = ({ r, active, onClick }: { r: FleetHistoryRecord; active: bo
   </button>
 );
 
+// Inline preview of one attachment (page images / Excel-grid / Word-HTML), loaded
+// from the record id + attachment index — used in the stacked thread view.
+const AttachmentPreview = ({ recordId, index, name, url }: { recordId: number | string; index: number; name: string; url?: string }) => {
+  const [pages, setPages] = useState<FleetAttachmentPreview | null>(null);
+  const [blob, setBlob] = useState<{ url: string; type: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const isLive = typeof recordId === "string" && recordId.startsWith("email:");
+  useEffect(() => {
+    let alive = true; setLoading(true); setPages(null); setBlob(null);
+    const loadBlob = () => {
+      if (!url) { if (alive) { setPages({ type: "unsupported", pages: [] }); setLoading(false); } return; }
+      fetchFleetAttachment(url)
+        .then(({ url: u, type }) => { if (alive) setBlob({ url: u, type }); })
+        .catch(() => { if (alive) setPages({ type: "unsupported", pages: [] }); })
+        .finally(() => { if (alive) setLoading(false); });
+    };
+    if (isLive) { loadBlob(); return () => { alive = false; }; }
+    getFleetAttachmentPages(recordId, index)
+      .then((p) => {
+        if (!alive) return;
+        if (p.type === "unsupported" && url) loadBlob();
+        else { setPages(p); setLoading(false); }
+      })
+      .catch(() => { if (alive) loadBlob(); });
+    return () => { alive = false; };
+  }, [recordId, index, url]);
+  useEffect(() => () => { if (blob) URL.revokeObjectURL(blob.url); }, [blob]);
+  return (
+    <div className="w-full flex flex-col gap-2">
+      <div className="text-neutral-800 text-sm font-semibold">Attachment : {name}</div>
+      {loading && <Spinner />}
+      {pages?.type === "pdf" && pages.pages?.map((pg) => (
+        <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
+      ))}
+      {pages?.type === "image" && pages.url && (
+        <img src={pages.url} alt={name} className="w-full h-auto object-contain rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
+      )}
+      {pages?.type === "html" && pages.html && (
+        /\.xlsx?$/i.test(pages.file_name || "") ? (
+          <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
+        ) : (
+          <div className="w-full overflow-x-auto">
+            <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
+              dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
+          </div>
+        )
+      )}
+      {blob && (blob.type.startsWith("image/")
+        ? <img src={blob.url} alt={name} className="w-full h-auto object-contain rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
+        : <iframe src={blob.url} title={name} className="w-full h-[600px] rounded outline outline-1 -outline-offset-1 outline-neutral-200 bg-white" />)}
+      {!loading && !blob && pages?.type === "unsupported" && (
+        <div className="text-xs text-neutral-400">Preview not available.</div>
+      )}
+    </div>
+  );
+};
+
+// Attachments shown as line-tabs (file names) when there are 2+, previewing one at a
+// time; a single attachment just shows its preview.
+const AttachmentTabs = ({ atts }: { atts: { recordId: number | string; index: number; name: string; url?: string }[] }) => {
+  const [sel, setSel] = useState(0);
+  if (atts.length === 0) return null;
+  const cur = atts[Math.min(sel, atts.length - 1)];
+  return (
+    <div className="w-full flex flex-col gap-3">
+      {atts.length > 1 && (
+        <div className="flex items-center gap-3 flex-wrap">
+          {atts.map((a, i) => (
+            <button key={i} type="button" onClick={() => setSel(i)}
+              className={`text-sm rounded-sm ${i === sel ? "px-4 py-1 bg-neutral-900 text-white" : "text-neutral-700 hover:underline"}`}>
+              {a.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <AttachmentPreview recordId={cur.recordId} index={cur.index} name={cur.name} url={cur.url} />
+    </div>
+  );
+};
+
 // ── Detail pane ──────────────────────────────────────────────────────────────
-const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
+const ReplyForward = ({ r, onEmailAction }: { r: FleetHistoryRecord; onEmailAction?: (mode: "reply" | "forward", rec: FleetHistoryRecord) => void }) =>
+  canReplyForward(r) && onEmailAction ? (
+    <>
+      <button type="button" onClick={() => onEmailAction("reply", r)} className="px-3 py-1.5 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-800 text-neutral-800 text-xs hover:bg-neutral-50">Reply</button>
+      <button type="button" onClick={() => onEmailAction("forward", r)} className="px-3 py-1.5 rounded-sm outline outline-1 -outline-offset-1 outline-neutral-800 text-neutral-800 text-xs hover:bg-neutral-50">Forward</button>
+    </>
+  ) : null;
+
+const RecordDetail = ({ r, threadMessages, onEmailAction }: { r: FleetHistoryRecord | null; threadMessages?: FleetHistoryRecord[]; onEmailAction?: (mode: "reply" | "forward", rec: FleetHistoryRecord) => void }) => {
   const [preview, setPreview] = useState<{ url: string; type: string; name: string } | null>(null);
   const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
   const [docPages, setDocPages] = useState<FleetAttachmentPreview | null>(null);
   const [docLoading, setDocLoading] = useState(false);
+  const [threadTab, setThreadTab] = useState<"record" | "attachments">("record");
   const rid = r?.id;
-  useEffect(() => { setPreview(null); }, [rid]);
+  useEffect(() => { setPreview(null); setThreadTab("record"); }, [rid]);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
 
   // Document records: auto-load rendered page images / Word-HTML (like claims).
@@ -228,7 +326,7 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
     }
   };
 
-  const shell = "flex-1 min-w-0 basis-0 min-h-[calc(100vh-220px)] px-10 py-6 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-300 flex flex-col gap-4";
+  const shell = "grow-[2] min-w-0 basis-0 min-h-[calc(100vh-220px)] px-10 py-6 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-300 flex flex-col gap-4";
   if (!r) {
     return (
       <div className={shell}>
@@ -238,24 +336,87 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
       </div>
     );
   }
+  // Email thread → stack every message (latest first): heading, then each email's
+  // correspondent + subject + body + attachment previews, spaced like a conversation.
+  if (threadMessages && threadMessages.length > 1) {
+    const threadAtts = threadMessages.flatMap((m) =>
+      attachmentsOf(m).map((a, ai) => ({ recordId: m.id, index: ai, name: a.name, url: a.url })));
+    return (
+      <div className={shell}>
+        {(loadingIdx !== null || docLoading) && <Spinner />}
+        {threadAtts.length > 0 ? (
+          <div className="flex items-start gap-6">
+            <button type="button" onClick={() => setThreadTab("record")} className={`pb-2 text-sm leading-4 border-b ${threadTab === "record" ? "text-neutral-900 border-neutral-900" : "text-neutral-500 border-transparent"}`}>Email Details</button>
+            <button type="button" onClick={() => setThreadTab("attachments")} className={`pb-2 text-sm leading-4 border-b ${threadTab === "attachments" ? "text-neutral-900 border-neutral-900" : "text-neutral-500 border-transparent"}`}>Attachments</button>
+          </div>
+        ) : (
+          <div className="text-black text-xl font-semibold">Record Detail</div>
+        )}
+        <div className="h-px bg-neutral-200 w-full" />
+        {threadAtts.length > 0 && threadTab === "attachments" ? (
+          <div className="overflow-auto">
+            <AttachmentTabs atts={threadAtts} />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-8 overflow-auto">
+            {threadMessages.map((m, i) => (
+              <div key={String(m.id)} className={`flex flex-col gap-2 ${i > 0 ? "pt-6 border-t border-neutral-200" : ""}`}>
+                <div className="flex justify-between items-start gap-3">
+                  <div className="text-sm"><span className="text-neutral-500">Posted: </span><span className="text-neutral-700">{fmtPosted(m.posted_at)}</span></div>
+                  {i === 0 && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <ReplyForward r={m} onEmailAction={onEmailAction} />
+                      <ActionBadge type={m.action_type} />
+                    </div>
+                  )}
+                </div>
+                <PeopleLines r={m} />
+                {m.subject && <div className="text-neutral-700 text-sm">Subject : <span className="font-semibold">{m.subject}</span></div>}
+                <div className="pt-2.5 border-t border-neutral-200 min-h-16">
+                  {(m.payload as { body_html?: string } | null)?.body_html
+                    ? <div className="text-sm text-neutral-700 leading-relaxed break-words overflow-x-auto [&_img]:max-w-full [&_table]:max-w-full [&_a]:text-neutral-900 [&_a]:underline"
+                        dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml((m.payload as { body_html?: string }).body_html || "") }} />
+                    : <div className="text-neutral-700 text-sm whitespace-pre-wrap">{isEmail(m) ? emailBodyText(m) : (m.details || "—")}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
   const doc = isDoc(r);
+  const hasAtts = !doc && attachmentsOf(r).length > 0;
+  const singleAtts = hasAtts ? attachmentsOf(r).map((a, i) => ({ recordId: r.id, index: i, name: a.name, url: a.url })) : [];
   return (
     <div className={shell}>
       {(loadingIdx !== null || docLoading) && <Spinner />}
-      {/* Header: document records show the file name; others show "Record Detail". */}
+      {/* Header: document records show the file name; email/records with attachments
+          show Email Details / Attachments tabs; others show "Record Detail". */}
       {doc ? (
         <div className="text-black text-xl font-semibold truncate">Attachment : {attachmentsOf(r)[0]?.name || "Document"}</div>
+      ) : hasAtts ? (
+        <div className="flex justify-between items-center gap-3">
+          <div className="flex items-start gap-6">
+            <button type="button" onClick={() => setThreadTab("record")} className={`pb-2 text-sm leading-4 border-b ${threadTab === "record" ? "text-neutral-900 border-neutral-900" : "text-neutral-500 border-transparent"}`}>{isEmail(r) ? "Email Details" : "Record Detail"}</button>
+            <button type="button" onClick={() => setThreadTab("attachments")} className={`pb-2 text-sm leading-4 border-b ${threadTab === "attachments" ? "text-neutral-900 border-neutral-900" : "text-neutral-500 border-transparent"}`}>Attachments</button>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ReplyForward r={r} onEmailAction={onEmailAction} />
+            <ActionBadge type={r.action_type} />
+          </div>
+        </div>
       ) : (
         <div className="flex justify-between items-center gap-3">
           <div className="text-black text-xl font-semibold">Record Detail</div>
           <div className="flex items-center gap-2 shrink-0">
-            <AttachmentClip count={attachmentsOf(r).length} />
+            <ReplyForward r={r} onEmailAction={onEmailAction} />
             <ActionBadge type={r.action_type} />
           </div>
         </div>
       )}
       <div className="h-px bg-neutral-200 w-full" />
-      {!doc && (
+      {!doc && (!hasAtts || threadTab === "record") && (
         <>
           <div className="text-sm"><span className="text-neutral-500">Posted: </span><span className="text-neutral-700">{fmtPosted(r.posted_at)}</span></div>
           {(r.correspondent || r.handler) && (
@@ -273,6 +434,12 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
           </div>
         </>
       )}
+      {/* Attachments tab: file-name line-tabs (2+) + the selected attachment's preview. */}
+      {hasAtts && threadTab === "attachments" && (
+        <div className="overflow-auto">
+          <AttachmentTabs atts={singleAtts} />
+        </div>
+      )}
       {/* Document preview — rendered pages / Word-HTML / image. */}
       {doc && (
         <div className="flex flex-col items-center gap-2">
@@ -283,43 +450,26 @@ const RecordDetail = ({ r }: { r: FleetHistoryRecord | null }) => {
             <img src={docPages.url} alt={docPages.file_name || ""} className="w-full h-auto object-contain rounded" />
           )}
           {docPages?.type === "html" && docPages.html && (
-            <div className="w-full overflow-x-auto">
-              <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
-                dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
-            </div>
+            /\.xlsx?$/i.test(docPages.file_name || "") ? (
+              <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
+            ) : (
+              <div className="w-full overflow-x-auto">
+                <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
+                  dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
+              </div>
+            )
           )}
           {!docLoading && docPages?.type === "unsupported" && (
             <div className="py-8 text-sm text-neutral-400">Preview not available — use the open-in-new-tab option.</div>
           )}
         </div>
       )}
-      {!doc && attachmentsOf(r).length > 0 && (
-        <div className="flex flex-col gap-2 pt-2">
-          <div className="text-neutral-500 text-xs uppercase tracking-wide">Attachments ({attachmentsOf(r).length})</div>
-          {attachmentsOf(r).map((a, i) => (
-            <div key={i} className={`flex items-center gap-2.5 px-3 py-2 rounded-sm outline outline-1 -outline-offset-1 ${preview?.name === a.name ? "outline-neutral-300 bg-neutral-50" : "outline-neutral-200 hover:bg-neutral-50"}`}>
-              <img src={fileTypeLogo(a.name)} alt="" className="w-5 h-5 shrink-0 object-contain" />
-              <button type="button" onClick={() => openInline(a, i)} title="Preview here" className="text-sm text-neutral-700 truncate flex-1 text-left">{a.name}</button>
-              {a.size && <span className="text-xs text-neutral-400 shrink-0">{a.size}</span>}
-              <button type="button" onClick={() => openFleetAttachment(a.url)} title="Open in a new tab" className="text-neutral-700 hover:text-black shrink-0"><ExternalLink className="w-4 h-4" /></button>
-            </div>
-          ))}
-        </div>
-      )}
-      {!doc && preview && (
-        <div className="flex flex-col gap-2 pt-2">
-          <div className="flex items-center justify-between">
-            <span className="text-neutral-700 text-sm font-semibold truncate">{preview.name}</span>
-            <button type="button" onClick={() => setPreview(null)} className="text-neutral-400 hover:text-neutral-700 text-xl leading-none px-2">×</button>
-          </div>
-          {preview.type.startsWith("image/")
-            ? <img src={preview.url} alt={preview.name} className="max-w-full rounded-sm outline outline-1 outline-neutral-200" />
-            : <iframe src={preview.url} title={preview.name} className="w-full h-[600px] rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 bg-white" />}
-        </div>
-      )}
     </div>
   );
 };
+
+// Diary action options — same set as the Claims diary form.
+const DIARY_ACTIONS = ["Make a Call", "Send Email", "Letter", "SMS", "Other"];
 
 // ── Add Record slide-over (lean form covering the 6 types) ───────────────────
 const AddRecordForm = ({
@@ -327,7 +477,7 @@ const AddRecordForm = ({
 }: {
   actionType: CaseHistoryActionType;
   onClose: () => void;
-  onSubmit: (payload: { correspondent?: string; handler?: string; subject?: string; details?: string; posted_at?: string }) => Promise<void>;
+  onSubmit: (payload: { correspondent?: string; handler?: string; subject?: string; details?: string; posted_at?: string; payload?: Record<string, unknown> }) => Promise<void>;
   handlerOptions: string[];
   correspondentOptions?: string[];
   defaultCorrespondent?: string;
@@ -339,6 +489,37 @@ const AddRecordForm = ({
   const [details, setDetails] = useState("");
   const [saving, setSaving] = useState(false);
   const showSubject = ["send_letter", "send_email"].includes(actionType);
+  const isDiary = actionType === "diary";
+  // Diary-specific fields (match the Claims diary form).
+  const [diaryAction, setDiaryAction] = useState("");
+  const [assignedUser, setAssignedUser] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("");
+
+  // @-mention tagging in the note/details box (mirrors the Case Activity note box).
+  const [mentionUsers, setMentionUsers] = useState<FleetUser[]>([]);
+  const [mention, setMention] = useState<{ open: boolean; query: string }>({ open: false, query: "" });
+  useEffect(() => {
+    getFleetUsers().then((u) => setMentionUsers(Array.isArray(u) ? u : [])).catch(() => {});
+  }, []);
+  const handleDetailsChange = (value: string) => {
+    setDetails(value);
+    const m = value.match(/@([A-Za-z0-9._-]*)$/); // an @-token at the caret
+    setMention(m ? { open: true, query: m[1] } : { open: false, query: "" });
+  };
+  const insertMention = (u: FleetUser) => {
+    setDetails((prev) => prev.replace(/@([A-Za-z0-9._-]*)$/, `@${u.name} `));
+    setMention({ open: false, query: "" });
+  };
+  const mentionMatches = mention.open
+    ? mentionUsers
+        .filter(
+          (u) =>
+            (u.name || "").toLowerCase().includes(mention.query.toLowerCase()) ||
+            (u.email || "").toLowerCase().includes(mention.query.toLowerCase()),
+        )
+        .slice(0, 6)
+    : [];
 
   const submit = async () => {
     if (saving) return;
@@ -346,9 +527,13 @@ const AddRecordForm = ({
     try {
       await onSubmit({
         correspondent: correspondent.trim() || undefined,
-        handler: handler.trim() || undefined,
+        // For a diary the assigned user is the record's handler (task assignee).
+        handler: (isDiary ? assignedUser.trim() : handler.trim()) || undefined,
         subject: showSubject ? subject.trim() || undefined : undefined,
         details: details.trim() || undefined,
+        payload: isDiary
+          ? { action: diaryAction || null, assigned_to: assignedUser || null, due_date: dueDate || null, due_time: dueTime || null }
+          : undefined,
       });
       onClose();
     } finally {
@@ -376,17 +561,51 @@ const AddRecordForm = ({
             menuPortal
             unsorted
           />
-          <FleetSelect
-            label="Handler"
-            placeholder="Select handler"
-            value={handler}
-            options={handlerOptions.map((h) => ({ value: h, label: h }))}
-            onChange={setHandler}
-            menuPortal
-          />
+          {!isDiary && (
+            <FleetSelect
+              label="Handler"
+              placeholder="Select handler"
+              value={handler}
+              options={handlerOptions.map((h) => ({ value: h, label: h }))}
+              onChange={setHandler}
+              menuPortal
+            />
+          )}
+          {isDiary && (
+            <>
+              <FleetSelect label="Action" placeholder="Select action" value={diaryAction} options={DIARY_ACTIONS.map((a) => ({ value: a, label: a }))} onChange={setDiaryAction} menuPortal />
+              <FleetSelect label="Assigned User" placeholder="Select user" value={assignedUser} options={handlerOptions.map((h) => ({ value: h, label: h }))} onChange={setAssignedUser} menuPortal />
+              <div className="flex gap-4">
+                <div className="flex-1"><FleetDateField label="Due Date" value={dueDate} onChange={setDueDate} /></div>
+                <div className="flex-1"><FleetTextInput label="Due Time" value={dueTime} onChange={setDueTime} placeholder="HH:MM" /></div>
+              </div>
+            </>
+          )}
           {showSubject && <FleetTextInput label="Subject" value={subject} onChange={setSubject} placeholder="Subject" />}
           <Field label={actionType === "note" ? "Note" : "Details"}>
-            <textarea value={details} onChange={(e) => setDetails(e.target.value)} rows={8} placeholder="Write the details…" className={`${inputCls} resize-none`} />
+            <div className="relative">
+              <textarea value={details} onChange={(e) => handleDetailsChange(e.target.value)} rows={8} placeholder="Write the details… type @ to tag someone" className={`${inputCls} resize-none`} />
+              {mention.open && mentionMatches.length > 0 && (
+                <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-56 overflow-auto bg-white border border-neutral-200 rounded-lg shadow-xl">
+                  {mentionMatches.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => insertMention(u)}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-neutral-50"
+                    >
+                      <span className="w-7 h-7 rounded-full bg-neutral-900 text-white text-xs font-semibold flex items-center justify-center shrink-0">
+                        {(u.name || "?").charAt(0).toUpperCase()}
+                      </span>
+                      <span className="flex flex-col min-w-0">
+                        <span className="text-sm text-neutral-900 font-medium truncate">@{u.name}</span>
+                        <span className="text-xs text-neutral-400 truncate">{u.email}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </Field>
         </div>
       </div>
@@ -423,6 +642,8 @@ const FleetHistory = ({
   const [importing, setImporting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedId, setSelectedId] = useState<number | string | null>(null);
+  const [emailModal, setEmailModal] = useState<{ mode: "reply" | "forward"; record: FleetHistoryRecord } | null>(null);
+  const [emailSending, setEmailSending] = useState(false);
   const [addType, setAddType] = useState<CaseHistoryActionType | null>(null);
   const [page, setPage] = useState(1);
 
@@ -486,12 +707,43 @@ const FleetHistory = ({
     return [...records, ...emailsD].sort((a, b) => (b.posted_at ? new Date(b.posted_at).getTime() : 0) - (a.posted_at ? new Date(a.posted_at).getTime() : 0));
   }, [records, emails, search, actionTypes, correspondents, handlers, dateFrom, dateTo]);
 
+  // Group email records into conversation threads (by conversation_id, else the
+  // normalized subject); non-email records stay standalone. Newest thread first.
+  const groups = useMemo(() => {
+    const isEmailRec = (r: FleetHistoryRecord) =>
+      r.action_type === "send_email" || r.action_type === "incoming_email";
+    const timeOf = (r: FleetHistoryRecord) => (r.posted_at ? new Date(r.posted_at).getTime() : 0);
+    const threadKey = (r: FleetHistoryRecord) => {
+      const cid = (r.payload as { conversation_id?: string } | null)?.conversation_id;
+      if (cid) return `conv:${cid}`;
+      const subj = (r.subject || "")
+        .replace(/^(?:\s*(re|fw|fwd|aw|wg)\s*:\s*)+/i, "")
+        .replace(/\s+/g, " ").trim().toLowerCase();
+      return subj ? `subj:${subj}` : `id:${r.id}`;
+    };
+    const map = new Map<string, FleetHistoryRecord[]>();
+    const order: string[] = [];
+    for (const r of merged) {
+      const key = isEmailRec(r) ? threadKey(r) : `single:${r.id}`;
+      if (!map.has(key)) { map.set(key, []); order.push(key); }
+      map.get(key)!.push(r);
+    }
+    return order
+      .map((key) => {
+        const messages = map.get(key)!.slice().sort((a, b) => timeOf(b) - timeOf(a));
+        return { key, messages, latest: messages[0], count: messages.length };
+      })
+      .sort((a, b) => (b.latest.posted_at ? new Date(b.latest.posted_at).getTime() : 0)
+                    - (a.latest.posted_at ? new Date(a.latest.posted_at).getTime() : 0));
+  }, [merged]);
+
   useEffect(() => { if (merged.length && !merged.some((r) => r.id === selectedId)) setSelectedId(merged[0].id); }, [merged, selectedId]);
   useEffect(() => { setPage(1); }, [search, actionTypes, correspondents, handlers, dateFrom, dateTo]);
 
   const selected = merged.find((r) => r.id === selectedId) || null;
-  const totalPages = Math.max(1, Math.ceil(merged.length / PAGE_SIZE));
-  const pageRecords = merged.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const selectedGroup = groups.find((g) => g.messages.some((m) => m.id === selectedId)) || null;
+  const totalPages = Math.max(1, Math.ceil(groups.length / PAGE_SIZE));
+  const pageGroups = groups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Every handler is available — not just those already on a record.
   const handlerOptions = Array.from(new Set([...allHandlers, ...filterOptions.handlers]));
@@ -526,10 +778,10 @@ const FleetHistory = ({
     } finally { setImporting(false); }
   };
 
-  const createRecord = async (payload: { correspondent?: string; handler?: string; subject?: string; details?: string }) => {
+  const createRecord = async (data: { correspondent?: string; handler?: string; subject?: string; details?: string; payload?: Record<string, unknown> }) => {
     if (!addType) return;
     try {
-      const rec = await createFleetHistory(scope, id, { action_type: addType, ...payload });
+      const rec = await createFleetHistory(scope, id, { action_type: addType, ...data });
       toast.success("Record added.");
       setSelectedId(rec.id);
       await load();
@@ -598,23 +850,23 @@ const FleetHistory = ({
           </div>
         </div>
 
-        {/* Body: list + detail (50/50) */}
+        {/* Body: list + detail (60/40) */}
         <div className="flex items-stretch gap-6">
           <div
-            className={`flex-1 min-w-0 basis-0 min-h-[calc(100vh-220px)] flex flex-col gap-3 relative rounded-lg transition ${dragOver ? "outline outline-2 outline-dashed outline-neutral-500" : ""}`}
+            className={`grow-[3] min-w-0 basis-0 min-h-[calc(100vh-220px)] flex flex-col gap-3 relative rounded-lg transition ${dragOver ? "outline outline-2 outline-dashed outline-neutral-500" : ""}`}
             onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
             onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
             onDrop={handleDrop}
           >
             {dragOver && <div className="absolute inset-0 z-10 rounded-lg bg-neutral-100/85 flex items-center justify-center text-neutral-700 text-sm pointer-events-none">Drop the Outlook email (.eml / .msg) here</div>}
-            {merged.length === 0
+            {groups.length === 0
               ? (loading ? null : <div className="py-16 text-center text-sm text-neutral-400">No history records yet.</div>)
-              : pageRecords.map((r) => <HistoryCard key={String(r.id)} r={r} active={r.id === selectedId} onClick={() => setSelectedId(r.id)} />)}
+              : pageGroups.map((g) => <HistoryCard key={g.key} r={g.latest} threadCount={g.count} active={selectedGroup?.key === g.key} onClick={() => setSelectedId(g.latest.id)} />)}
 
-            {merged.length > 0 && (
+            {groups.length > 0 && (
               <div className="sticky bottom-0 mt-auto bg-white border-t border-neutral-100 flex items-center justify-between flex-wrap gap-3 pt-3 pb-2">
                 <div className="text-neutral-500 text-sm">
-                  Showing {merged.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, merged.length)} of {merged.length} Entries
+                  Showing {groups.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, groups.length)} of {groups.length} Entries
                 </div>
                 <div className="flex items-center gap-1">
                   <button type="button" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3 py-1.5 text-sm text-neutral-600 disabled:text-neutral-300 hover:text-black">Previous</button>
@@ -624,11 +876,36 @@ const FleetHistory = ({
               </div>
             )}
           </div>
-          <RecordDetail r={selected} />
+          <RecordDetail r={selected} threadMessages={selectedGroup && selectedGroup.count > 1 ? selectedGroup.messages : undefined} onEmailAction={(mode, record) => setEmailModal({ mode, record })} />
         </div>
       </div>
 
       {addType && <AddRecordForm actionType={addType} onClose={() => setAddType(null)} onSubmit={createRecord} handlerOptions={handlerOptions} correspondentOptions={effectiveCorrOptions} defaultCorrespondent={effectiveCorrDefault} />}
+      {emailModal && (
+        <FleetEmailModal
+          mode={emailModal.mode}
+          record={emailModal.record}
+          sending={emailSending}
+          onClose={() => setEmailModal(null)}
+          onSend={async (to, subject, comment, files) => {
+            setEmailSending(true);
+            try {
+              if (emailModal.mode === "reply") {
+                await fleetReplyEmail(scope, id, emailModal.record, comment, files, to, subject);
+              } else {
+                await fleetForwardEmail(scope, id, emailModal.record, to, subject, comment, files);
+              }
+              toast.success(emailModal.mode === "reply" ? "Reply sent." : "Email forwarded.");
+              setEmailModal(null);
+              await load();
+            } catch {
+              toast.error("Could not send the email. The mailbox may need send permission.");
+            } finally {
+              setEmailSending(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

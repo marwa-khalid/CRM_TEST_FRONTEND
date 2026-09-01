@@ -999,6 +999,10 @@ const ReassignModal = ({
   );
 };
 
+// Modules owned by the other apps — hidden from the Claims Task Management list so
+// only Claims tasks (module NULL / "claims") show. Skyline = fleet, vehicles* = VM.
+const EXCLUDE_MODULES = "skyline,vehicles,vehicles_cams,vehicles_skyline";
+
 const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) => {
   const navigate = useNavigate();
   const assignees = useAssignees();
@@ -1075,17 +1079,19 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
     vehicle_registration: multi.vehicle_registration.join(",") || undefined,
     due_from: dateRange.due_from || undefined,
     due_to: dateRange.due_to || undefined,
+    // Claims Task Management shows Claims tasks only — hide Skyline (fleet) + VM.
+    exclude_modules: EXCLUDE_MODULES,
   });
 
   const fetchOverdue = () => {
-    listTasks({ status: "Overdue", page_size: 50 })
+    listTasks({ status: "Overdue", page_size: 50, exclude_modules: EXCLUDE_MODULES })
       .then(({ data }) => setOverdueTasks(data?.items ?? []))
       .catch(() => setOverdueTasks([]));
   };
 
   const fetchDueToday = () => {
     const today = new Date().toISOString().split("T")[0];
-    listTasks({ due_from: today, due_to: today, page_size: 50 })
+    listTasks({ due_from: today, due_to: today, page_size: 50, exclude_modules: EXCLUDE_MODULES })
       .then(({ data }) =>
         setDueToday(
           (data?.items ?? []).filter(
@@ -1167,7 +1173,7 @@ const Tasks: React.FC<{ initialFilters?: TaskFilters }> = ({ initialFilters }) =
   };
 
   const fetchStats = () => {
-    getTaskStats().then(({ data }) => setStats(data)).catch(() => {});
+    getTaskStats({ exclude_modules: EXCLUDE_MODULES }).then(({ data }) => setStats(data)).catch(() => {});
   };
 
   const fetchTasks = () => {

@@ -7,10 +7,10 @@ import {
   type CaseHistoryActionType,
   type CaseHistoryRecord,
   type CaseCorrespondent,
+  type TenantUser,
 } from "../../../services/CaseHistory/caseHistory";
 import {
   FormShell, LabeledInput, LabeledSelect, LabeledTextArea, LabeledDate, LabeledTime,
-  LabeledUkPhone, normalizeUkPhone,
   RichTextEditor, DiaryFollowUp, EMPTY_DIARY, diaryHasContent, diaryRecordFrom,
   CASE_CORRESPONDENTS, LETTER_TEMPLATES, NOTE_CATEGORIES, CALL_TYPES, DIARY_ACTIONS,
   FieldLabel, type DiaryValue,
@@ -53,6 +53,9 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
   const [to, setTo] = useState("");
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState("");
+  // Cc / Bcc are hidden behind links (like a normal email client) until clicked.
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
   const [subject, setSubject] = useState(actionType === "send_email" && caseReference ? `Re: ${caseReference}` : "");
   const [body, setBody] = useState("");
   const [callType, setCallType] = useState("");
@@ -62,7 +65,6 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
   // Standalone diary
   const [diaryAction, setDiaryAction] = useState("");
   const [assignedUser, setAssignedUser] = useState("");
-  const [diaryTemplate, setDiaryTemplate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
   // Editable generated letter (story: the user can edit before completing).
@@ -76,10 +78,36 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
   const [correspondents, setCorrespondents] = useState<CaseCorrespondent[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // @-mention tagging in the details/note box (mirrors the Case Activity note box).
+  const [mentionUsers, setMentionUsers] = useState<TenantUser[]>([]);
+  const [mention, setMention] = useState<{ open: boolean; query: string }>({ open: false, query: "" });
+
   useEffect(() => {
-    getTenantUsers().then((list) => setUsers(list.map((u) => u.name).filter(Boolean)));
+    getTenantUsers().then((list) => {
+      setMentionUsers(Array.isArray(list) ? list : []);
+      setUsers(list.map((u) => u.name).filter(Boolean));
+    });
     if (claimId) getCaseCorrespondents(claimId).then(setCorrespondents);
   }, [claimId]);
+
+  const handleDetailsChange = (value: string) => {
+    setDetails(value);
+    const m = value.match(/@([A-Za-z0-9._-]*)$/); // an @-token at the caret
+    setMention(m ? { open: true, query: m[1] } : { open: false, query: "" });
+  };
+  const insertMention = (u: TenantUser) => {
+    setDetails((prev) => prev.replace(/@([A-Za-z0-9._-]*)$/, `@${u.name} `));
+    setMention({ open: false, query: "" });
+  };
+  const mentionMatches = mention.open
+    ? mentionUsers
+        .filter(
+          (u) =>
+            (u.name || "").toLowerCase().includes(mention.query.toLowerCase()) ||
+            (u.email || "").toLowerCase().includes(mention.query.toLowerCase()),
+        )
+        .slice(0, 6)
+    : [];
 
   // Correspondent options = third-party emails (fall back to roles if none captured).
   const correspondentEmails = correspondents.map((c) => c.email).filter(Boolean) as string[];
@@ -90,20 +118,28 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
   // Outgoing call: selecting a correspondent auto-fills its phone number.
   const pickOutgoingCorrespondent = (v: string) => {
     setCorrespondent(v);
-    if (phoneByEmail[v]) setPhoneNumber(normalizeUkPhone(phoneByEmail[v]));
+    if (phoneByEmail[v]) setPhoneNumber(phoneByEmail[v]); // keep the number as stored (e.g. 0734080118)
   };
 
-  // Default the History Details to the selected phrase for INCOMING calls only
-  // (outgoing calls should not auto-populate).
+  // Strip the leading abbreviation (e.g. "CL - Call to Client" → "Call to Client").
+  const callTypeText = (ct: string) => (ct || "").replace(/^\s*[A-Za-z]+\s*-\s*/, "").trim();
+
+  // Set the History Details to the selected call type's text for INCOMING and
+  // OUTGOING calls, updating whenever the call type changes. A note the user typed
+  // themselves (text that isn't one of the call-type phrases) is preserved.
   useEffect(() => {
-    if (actionType === "incoming_call" && callType && !details.trim()) {
-      setDetails(callType);
-    }
+    if ((actionType !== "incoming_call" && actionType !== "outgoing_call") || !callType) return;
+    const cur = details.trim();
+    const isAutoFilled = cur === "" || CALL_TYPES.some((ct) => callTypeText(ct) === cur);
+    if (isAutoFilled) setDetails(callTypeText(callType));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [callType]);
 
   const preview = useMemo(() => {
     const who = correspondent || "[Correspondent]";
+    if (template === "Accident Report Form") {
+      return `Dear ${who},\n\nRe: Case Reference – ${caseReference || "—"}\n\nPlease find enclosed the Accident Report Form, pre-filled with the details we hold for this case. Kindly review, complete any outstanding sections, sign and return it to us at your earliest convenience.\n\nYours sincerely,\n${handlerName || "—"}`;
+    }
     const tmpl = template ? `: ${template}` : "";
     return `Dear ${who},\n\nRe: Case Reference – ${caseReference || "—"}\n\n[Letter body will be generated here based on selected template${tmpl}...]\n\nYours sincerely,\n${handlerName || "—"}`;
   }, [correspondent, template, caseReference, handlerName]);
@@ -142,12 +178,12 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
       case "incoming_call":
         return {
           action_type: "incoming_call" as const, correspondent: correspondent || null, handler, subject: null,
-          details: details || callType, payload: { call_type: callType },
+          details: details || callTypeText(callType), payload: { call_type: callType },
         };
       case "outgoing_call":
         return {
           action_type: "outgoing_call" as const, correspondent: correspondent || null, handler, subject: null,
-          details, payload: { call_type: callType, phone_number: phoneNumber },
+          details: details || callTypeText(callType), payload: { call_type: callType, phone_number: phoneNumber },
         };
       case "note":
         return {
@@ -158,7 +194,7 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
         return {
           action_type: "diary" as const, correspondent: correspondent || null, handler,
           subject: diaryAction ? `Diary: ${diaryAction}` : "Diary",
-          details, payload: { action: diaryAction, assigned_to: assignedUser, template: diaryTemplate, due_date: dueDate, due_time: dueTime },
+          details, payload: { action: diaryAction, assigned_to: assignedUser, due_date: dueDate, due_time: dueTime },
         };
     }
   };
@@ -183,8 +219,30 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
     }
   };
 
-  const historyDetailsField = (label = "History Details") => (
-    <LabeledTextArea label={label} value={details} onChange={setDetails} placeholder="Enter Details" />
+  const historyDetailsField = (label = "Details") => (
+    <div className="relative">
+      <LabeledTextArea label={label} value={details} onChange={handleDetailsChange} placeholder="Enter Details — type @ to tag someone" />
+      {mention.open && mentionMatches.length > 0 && (
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-56 overflow-auto bg-white border border-neutral-200 rounded-lg shadow-xl">
+          {mentionMatches.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              onClick={() => insertMention(u)}
+              className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-blue-50"
+            >
+              <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-500 text-xs font-weight-600 flex items-center justify-center shrink-0">
+                {(u.name || "?").charAt(0).toUpperCase()}
+              </span>
+              <span className="flex flex-col min-w-0">
+                <span className="text-sm text-blue-500 font-weight-500 truncate">@{u.name}</span>
+                <span className="text-xs text-neutral-400 truncate">{u.email}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -211,9 +269,17 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
       {actionType === "send_email" && (
         <div className="w-full max-w-[556px] flex flex-col gap-6">
           <LabeledSelect label="Template" value={template} onChange={setTemplate} options={LETTER_TEMPLATES} placeholder="No template" />
-          <LabeledInput label="To" value={to} onChange={setTo} placeholder="recipient@email.com" />
-          <LabeledInput label="CC" value={cc} onChange={setCc} />
-          <LabeledInput label="BCC" value={bcc} onChange={setBcc} />
+          <div className="flex flex-col gap-1.5">
+            <LabeledInput label="To" value={to} onChange={setTo} placeholder="recipient@email.com" />
+            {(!showCc || !showBcc) && (
+              <div className="flex gap-4 pl-1">
+                {!showCc && <button type="button" onClick={() => setShowCc(true)} className="text-sm text-blue-500 hover:underline">Add Cc</button>}
+                {!showBcc && <button type="button" onClick={() => setShowBcc(true)} className="text-sm text-blue-500 hover:underline">Add Bcc</button>}
+              </div>
+            )}
+          </div>
+          {showCc && <LabeledInput label="CC" value={cc} onChange={setCc} placeholder="cc@email.com" />}
+          {showBcc && <LabeledInput label="BCC" value={bcc} onChange={setBcc} placeholder="bcc@email.com" />}
           <LabeledInput label="Subject" value={subject} onChange={setSubject} />
           {historyDetailsField()}
           <div className="flex flex-col gap-3">
@@ -236,7 +302,7 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
         <div className="w-full max-w-[556px] flex flex-col gap-6">
           <LabeledSelect label="Correspondent" value={correspondent} onChange={pickOutgoingCorrespondent} options={corrOptions} />
           <LabeledSelect label="Call Type" value={callType} onChange={setCallType} options={CALL_TYPES} />
-          <LabeledUkPhone label="Phone Number" value={phoneNumber} onChange={setPhoneNumber} />
+          <LabeledInput label="Phone Number" value={phoneNumber} onChange={setPhoneNumber} placeholder="0734080118" />
           {historyDetailsField()}
         </div>
       )}
@@ -254,7 +320,6 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
           <LabeledSelect label="Action" value={diaryAction} onChange={setDiaryAction} options={DIARY_ACTIONS} />
           <LabeledSelect label="Assigned User" value={assignedUser} onChange={setAssignedUser} options={users} />
           <LabeledSelect label="Correspondent" value={correspondent} onChange={setCorrespondent} options={corrOptions} />
-          <LabeledSelect label="Template" value={diaryTemplate} onChange={setDiaryTemplate} options={LETTER_TEMPLATES} placeholder="No template" />
           <div className="flex flex-col sm:flex-row gap-5">
             <div className="flex-1"><LabeledDate label="Due Date" value={dueDate} onChange={setDueDate} /></div>
             <div className="flex-1"><LabeledTime label="Due Time" value={dueTime} onChange={setDueTime} /></div>

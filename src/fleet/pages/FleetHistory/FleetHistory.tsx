@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCurrentUser } from "../../../context/AuthContext";
 import { ChevronLeft, Paperclip, ExternalLink, User, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetMultiSelectFilter from "../../components/FleetMultiSelectFilter";
@@ -37,6 +38,16 @@ import {
   type FleetHistoryAttachment,
   type CaseHistoryActionType,
   type CorrespondentOption,
+  getHistoryUsers,
+  getScopeNotes,
+  createScopeNote,
+  replyScopeNote,
+  editScopeNote,
+  editScopeReply,
+  deleteScopeNote,
+  deleteScopeReply,
+  type HistoryNote,
+  type HistoryUser,
 } from "../../services/fleetHistory";
 
 // ── Action-type presentation (abbreviation + label) ──────────────────────────
@@ -372,6 +383,222 @@ const AttachmentTabs = ({ atts }: { atts: { recordId: number | string; index: nu
   );
 };
 
+// ── History notes (threaded comments + @-mention tagging) ────────────────────
+// The same feature as the claim-side Case History notes, so all three history
+// screens match. Kept self-contained in fleet (talks to the backend via fleetApi).
+const activityRefFor = (r: FleetHistoryRecord): string => {
+  const mid = (r.payload as { message_id?: string } | null)?.message_id;
+  const raw = String((typeof r.id === "string" && mid) ? mid : r.id);
+  return `chist-${raw.replace(/[^A-Za-z0-9]/g, "")}`;
+};
+const noteInitials = (name?: string): string => {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "U";
+  return ((parts[0][0] || "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+};
+const renderNoteText = (html?: string) => {
+  const clean = sanitizeEmailHtml(html || "");
+  try {
+    const doc = new DOMParser().parseFromString(clean, "text/html");
+    const walk = (el: Node) => {
+      [...el.childNodes].forEach((c) => {
+        if (c.nodeType === 3) {
+          const t = c.textContent || "";
+          if (/@[A-Za-z0-9._-]+/.test(t)) {
+            const span = doc.createElement("span");
+            span.innerHTML = t.replace(/@([A-Za-z0-9._-]+)/g, '<span class="text-neutral-900 font-semibold">@$1</span>');
+            c.parentNode?.replaceChild(span, c);
+          }
+        } else if (c.nodeType === 1) walk(c);
+      });
+    };
+    walk(doc.body);
+    return { __html: doc.body.innerHTML };
+  } catch {
+    return { __html: clean };
+  }
+};
+const NoteMentionBox = ({ value, onChange, users, placeholder, autoFocus }: { value: string; onChange: (v: string) => void; users: HistoryUser[]; placeholder: string; autoFocus?: boolean }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [mention, setMention] = useState<{ open: boolean; query: string }>({ open: false, query: "" });
+  const matches = mention.open
+    ? users.filter((u) => (u.name || "").toLowerCase().includes(mention.query.toLowerCase()) || (u.email || "").toLowerCase().includes(mention.query.toLowerCase())).slice(0, 6)
+    : [];
+  useEffect(() => { if (ref.current && ref.current.innerHTML !== (value || "")) ref.current.innerHTML = value || ""; }, [value]);
+  useEffect(() => { if (autoFocus) ref.current?.focus(); }, [autoFocus]);
+  const emit = () => { const el = ref.current; onChange(el && (el.textContent || "").trim() ? el.innerHTML : ""); };
+  const exec = (cmd: string) => { ref.current?.focus(); try { document.execCommand(cmd, false); } catch { /* ignore */ } emit(); };
+  const detect = () => {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !sel.anchorNode) { setMention({ open: false, query: "" }); return; }
+    const m = (sel.anchorNode.textContent || "").slice(0, sel.anchorOffset).match(/@([A-Za-z0-9._-]*)$/);
+    setMention(m ? { open: true, query: m[1] } : { open: false, query: "" });
+  };
+  const pick = (u: HistoryUser) => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && sel.anchorNode && sel.anchorNode.nodeType === 3) {
+      const node = sel.anchorNode; const off = sel.anchorOffset; const full = node.textContent || "";
+      const m = full.slice(0, off).match(/@([A-Za-z0-9._-]*)$/);
+      if (m) {
+        const start = off - m[0].length;
+        node.textContent = full.slice(0, start) + `@${u.name} ` + full.slice(off);
+        const range = document.createRange();
+        range.setStart(node, start + `@${u.name} `.length); range.collapse(true);
+        sel.removeAllRanges(); sel.addRange(range);
+      }
+    }
+    setMention({ open: false, query: "" }); emit(); ref.current?.focus();
+  };
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-1 px-2 py-1 rounded-t border border-b-0 border-neutral-200 bg-neutral-50">
+        {([
+          { cmd: "bold", label: "B", cls: "font-bold" },
+          { cmd: "italic", label: "I", cls: "italic font-serif" },
+          { cmd: "underline", label: "U", cls: "underline" },
+          { cmd: "insertUnorderedList", label: "•", cls: "text-lg leading-none" },
+        ] as const).map((b) => (
+          <button key={b.cmd} type="button" onMouseDown={(e) => { e.preventDefault(); exec(b.cmd); }}
+            className={`w-6 h-6 rounded text-xs text-neutral-600 hover:bg-neutral-200 flex items-center justify-center ${b.cls}`}>{b.label}</button>
+        ))}
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={() => { emit(); detect(); }}
+        onKeyUp={detect}
+        data-ph={placeholder}
+        className="min-h-[60px] w-full px-3 py-2 text-sm rounded-b border border-neutral-200 focus:outline-none focus:border-neutral-500 overflow-auto empty:before:content-[attr(data-ph)] empty:before:text-neutral-300"
+      />
+      {matches.length > 0 && (
+        <div className="absolute z-40 left-0 right-0 bottom-full mb-1 max-h-52 overflow-auto bg-white rounded-lg border border-neutral-200 shadow-xl">
+          {matches.map((u) => (
+            <button key={u.email || u.name} type="button" onMouseDown={(e) => { e.preventDefault(); pick(u); }} className="w-full text-left px-3 py-2 hover:bg-neutral-50 flex items-center gap-2.5">
+              <span className="w-7 h-7 rounded-full bg-neutral-200 text-neutral-700 text-xs font-semibold flex items-center justify-center shrink-0">{noteInitials(u.name)}</span>
+              <span className="min-w-0"><span className="block text-sm text-neutral-800 truncate">{u.name}</span><span className="block text-xs text-neutral-400 truncate">{u.email}</span></span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+const NoteMenu = ({ children }: { children: ReactNode }) => (
+  <div className="relative shrink-0">
+    <button type="button" className="peer w-6 h-6 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 text-lg leading-none flex items-center justify-center">⋮</button>
+    <div className="hidden peer-hover:flex hover:flex absolute right-0 top-full z-30 flex-col bg-white rounded shadow-[0px_4px_16px_0px_rgba(0,0,0,0.12)] border border-neutral-100 py-1 min-w-[120px]">{children}</div>
+  </div>
+);
+const noteMenuItem = "px-3 py-1.5 text-left text-sm hover:bg-neutral-50 whitespace-nowrap";
+
+const FleetNotes = ({ scope, id, activityRef }: { scope: FleetHistoryScope; id: number | string; activityRef: string }) => {
+  const { user } = useCurrentUser();
+  const [notes, setNotes] = useState<HistoryNote[]>([]);
+  const [users, setUsers] = useState<HistoryUser[]>([]);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [editNoteId, setEditNoteId] = useState<number | null>(null);
+  const [editNoteText, setEditNoteText] = useState("");
+  const [editReplyId, setEditReplyId] = useState<number | null>(null);
+  const [editReplyText, setEditReplyText] = useState("");
+  const load = useCallback(() => {
+    setLoading(true);
+    getScopeNotes(activityRef).then(setNotes).catch(() => setNotes([])).finally(() => setLoading(false));
+  }, [activityRef]);
+  useEffect(() => { load(); setReplyingTo(null); setText(""); setEditNoteId(null); setEditReplyId(null); }, [load]);
+  useEffect(() => { getHistoryUsers().then(setUsers).catch(() => {}); }, []);
+  const mine = (uid?: number) => user?.id != null && uid != null && Number(uid) === Number(user.id);
+  const run = async (fn: () => Promise<unknown>, err: string) => {
+    setBusy(true);
+    try { await fn(); load(); } catch { toast.error(err); } finally { setBusy(false); }
+  };
+  const addNote = () => text.trim() && run(async () => { await createScopeNote(scope, id, activityRef, text.trim()); setText(""); }, "Could not add the note.");
+  const sendReply = (nid: number) => replyText.trim() && run(async () => { await replyScopeNote(nid, replyText.trim()); setReplyText(""); setReplyingTo(null); }, "Could not post the reply.");
+  const saveNote = (nid: number) => editNoteText.trim() && run(async () => { await editScopeNote(nid, editNoteText.trim()); setEditNoteId(null); }, "Could not update the note.");
+  const saveReply = (rid: number) => editReplyText.trim() && run(async () => { await editScopeReply(rid, editReplyText.trim()); setEditReplyId(null); }, "Could not update the reply.");
+  const delNote = (nid: number) => window.confirm("Delete this note?") && run(() => deleteScopeNote(nid), "Could not delete the note.");
+  const delReply = (rid: number) => window.confirm("Delete this reply?") && run(() => deleteScopeReply(rid), "Could not delete the reply.");
+  const btn = "px-4 py-1.5 rounded-sm bg-neutral-900 text-white text-xs font-semibold hover:bg-black disabled:opacity-50";
+  const cancel = "px-3 py-1.5 rounded-sm text-neutral-500 text-xs hover:bg-neutral-100";
+
+  return (
+    <div className="mt-5 pt-4 border-t border-neutral-200 flex flex-col gap-3">
+      {busy && <Spinner />}
+      <div className="flex items-center gap-2">
+        <div className="text-neutral-800 text-sm font-semibold">Notes</div>
+        {loading && <span className="w-3.5 h-3.5 rounded-full border-2 border-neutral-300 border-t-neutral-500 animate-spin" />}
+      </div>
+      <NoteMentionBox value={text} onChange={setText} users={users} placeholder="Add a note… type @ to tag someone" />
+      <div className="flex justify-end"><button type="button" onClick={addNote} disabled={busy || !text.trim()} className={btn}>Add Note</button></div>
+      {notes.map((n) => (
+        <div key={n.id} className="rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 p-3 flex flex-col gap-2">
+          <div className="flex justify-between items-center gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-7 h-7 rounded-full bg-neutral-200 text-neutral-700 text-xs font-semibold flex items-center justify-center shrink-0">{noteInitials(n.createdByName)}</span>
+              <div className="min-w-0">
+                <div className="text-sm text-black font-semibold truncate">{n.createdByName || "User"}</div>
+                {n.createdByRole && <div className="text-xs text-neutral-500 truncate">{n.createdByRole}</div>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-neutral-400 whitespace-nowrap">{fmtPosted(n.createdAt)}</span>
+              {editNoteId !== n.id && (
+                <NoteMenu>
+                  <button type="button" onClick={() => { setReplyingTo(replyingTo === n.id ? null : n.id); setReplyText(""); }} className={`${noteMenuItem} text-neutral-800`}>Reply</button>
+                  {mine(n.createdById) && <button type="button" onClick={() => { setEditNoteId(n.id); setEditNoteText(n.text || ""); }} className={`${noteMenuItem} text-neutral-700`}>Edit</button>}
+                  {mine(n.createdById) && <button type="button" onClick={() => delNote(n.id)} className={`${noteMenuItem} text-red-500`}>Delete</button>}
+                </NoteMenu>
+              )}
+            </div>
+          </div>
+          {editNoteId === n.id ? (
+            <div className="flex flex-col gap-2">
+              <NoteMentionBox value={editNoteText} onChange={setEditNoteText} users={users} placeholder="Edit note" autoFocus />
+              <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditNoteId(null)} className={cancel}>Cancel</button><button type="button" onClick={() => saveNote(n.id)} disabled={busy} className={btn}>Save</button></div>
+            </div>
+          ) : (
+            <div className="text-sm text-neutral-700 leading-relaxed" dangerouslySetInnerHTML={renderNoteText(n.text)} />
+          )}
+          {(n.replies || []).map((rp) => (
+            <div key={rp.id} className="ml-4 pl-3 border-l-2 border-neutral-100 flex flex-col gap-1">
+              <div className="flex justify-between items-center gap-3">
+                <span className="text-xs text-black font-semibold truncate">{rp.createdByName || "User"}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-neutral-400 whitespace-nowrap">{fmtPosted(rp.createdAt)}</span>
+                  {mine(rp.createdById) && editReplyId !== rp.id && (
+                    <NoteMenu>
+                      <button type="button" onClick={() => { setEditReplyId(rp.id); setEditReplyText(rp.text || ""); }} className={`${noteMenuItem} text-neutral-700`}>Edit</button>
+                      <button type="button" onClick={() => delReply(rp.id)} className={`${noteMenuItem} text-red-500`}>Delete</button>
+                    </NoteMenu>
+                  )}
+                </div>
+              </div>
+              {editReplyId === rp.id ? (
+                <div className="flex flex-col gap-2">
+                  <NoteMentionBox value={editReplyText} onChange={setEditReplyText} users={users} placeholder="Edit reply" autoFocus />
+                  <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditReplyId(null)} className={cancel}>Cancel</button><button type="button" onClick={() => saveReply(rp.id)} disabled={busy} className={btn}>Save</button></div>
+                </div>
+              ) : (
+                <div className="text-sm text-neutral-700 leading-relaxed" dangerouslySetInnerHTML={renderNoteText(rp.text)} />
+              )}
+            </div>
+          ))}
+          {replyingTo === n.id && (
+            <div className="ml-4 flex flex-col gap-2">
+              <NoteMentionBox value={replyText} onChange={setReplyText} users={users} placeholder="Write a reply… @ to tag" autoFocus />
+              <div className="flex justify-end gap-2"><button type="button" onClick={() => { setReplyingTo(null); setReplyText(""); }} className={cancel}>Cancel</button><button type="button" onClick={() => sendReply(n.id)} disabled={busy || !replyText.trim()} className={btn}>Reply</button></div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // ── Detail pane ──────────────────────────────────────────────────────────────
 const ReplyForward = ({ r, onEmailAction }: { r: FleetHistoryRecord; onEmailAction?: (mode: "reply" | "forward", rec: FleetHistoryRecord) => void }) =>
   canReplyForward(r) && onEmailAction ? (
@@ -381,7 +608,7 @@ const ReplyForward = ({ r, onEmailAction }: { r: FleetHistoryRecord; onEmailActi
     </>
   ) : null;
 
-const RecordDetail = ({ r, threadMessages, onEmailAction }: { r: FleetHistoryRecord | null; threadMessages?: FleetHistoryRecord[]; onEmailAction?: (mode: "reply" | "forward", rec: FleetHistoryRecord) => void }) => {
+const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: FleetHistoryRecord | null; scope: FleetHistoryScope; id: number | string; threadMessages?: FleetHistoryRecord[]; onEmailAction?: (mode: "reply" | "forward", rec: FleetHistoryRecord) => void }) => {
   const [preview, setPreview] = useState<{ url: string; type: string; name: string } | null>(null);
   const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
   const [docPages, setDocPages] = useState<FleetAttachmentPreview | null>(null);
@@ -458,6 +685,7 @@ const RecordDetail = ({ r, threadMessages, onEmailAction }: { r: FleetHistoryRec
         {threadAtts.length > 0 && threadTab === "attachments" ? (
           <AttachmentTabs atts={threadAtts} />
         ) : (
+          <>
           <div className="flex flex-col">
             {threadMessages.map((m, i) => {
               const p = (m.payload as { from_name?: string; from_email?: string; to?: string[] } | null) || {};
@@ -485,6 +713,8 @@ const RecordDetail = ({ r, threadMessages, onEmailAction }: { r: FleetHistoryRec
               );
             })}
           </div>
+          {threadMessages[0] && <FleetNotes scope={scope} id={id} activityRef={activityRefFor(threadMessages[0])} />}
+          </>
         )}
       </div>
     );
@@ -536,6 +766,7 @@ const RecordDetail = ({ r, threadMessages, onEmailAction }: { r: FleetHistoryRec
                   dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(stripQuotedReply((r.payload as { body_html?: string }).body_html || "")) }} />
               : <div className="text-neutral-700 text-sm whitespace-pre-wrap">{isEmail(r) ? emailBodyText(r) : (r.details || "—")}</div>}
           </div>
+          <FleetNotes scope={scope} id={id} activityRef={activityRefFor(r)} />
         </>
       )}
       {/* Attachments tab: file-name line-tabs (2+) + the selected attachment's preview. */}
@@ -686,9 +917,9 @@ const AddRecordForm = ({
           {showSubject && <FleetTextInput label="Subject" value={subject} onChange={setSubject} placeholder="Subject" />}
           <Field label={actionType === "note" ? "Note" : "Details"}>
             <div className="relative">
-              <textarea value={details} onChange={(e) => handleDetailsChange(e.target.value)} rows={8} placeholder="Write the details… type @ to tag someone" className={`${inputCls} resize-none`} />
+              <textarea value={details} onChange={(e) => handleDetailsChange(e.target.value)} rows={6} placeholder="Write the details… type @ to tag someone" className={`${inputCls} resize-none`} />
               {mention.open && mentionMatches.length > 0 && (
-                <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-56 overflow-auto bg-white border border-neutral-200 rounded-lg shadow-xl">
+                <div className="absolute z-50 left-0 right-0 bottom-full mb-1 max-h-56 overflow-auto bg-white border border-neutral-200 rounded-lg shadow-xl">
                   {mentionMatches.map((u) => (
                     <button
                       key={u.id}
@@ -1025,7 +1256,7 @@ const FleetHistory = ({
               </div>
             )}
           </div>
-          <RecordDetail r={selected} threadMessages={selectedGroup && selectedGroup.count > 1 ? selectedGroup.messages : undefined} onEmailAction={(mode, record) => setEmailModal({ mode, record })} />
+          <RecordDetail r={selected} scope={scope} id={id} threadMessages={selectedGroup && selectedGroup.count > 1 ? selectedGroup.messages : undefined} onEmailAction={(mode, record) => setEmailModal({ mode, record })} />
         </div>
       </div>
 

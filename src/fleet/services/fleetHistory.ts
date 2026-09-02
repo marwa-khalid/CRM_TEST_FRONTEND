@@ -254,3 +254,42 @@ export const getFleetAttachmentPages = async (
   const { data } = await fleetApi.get(`/case-history/${recordId}/attachment/${index}/pages`);
   return data as FleetAttachmentPreview;
 };
+
+// ── History notes (threaded comments + @-mention tagging) ────────────────────
+// Same feature as the claim-side Case History notes. Fetch/create scoped to a
+// fleet-hire or VM record (claim_id NULL server-side); reply/edit/delete reuse the
+// generic note endpoints. Kept here so fleet stays self-contained (no Claims imports).
+export interface HistoryNote {
+  id: number; text: string; createdAt: string;
+  createdByName: string; createdByRole?: string; createdById?: number;
+  replies?: HistoryNote[];
+}
+export interface HistoryUser { id: number; name: string; email: string }
+const noteForm = (field: "note" | "reply", value: string) => {
+  const fd = new FormData(); fd.append(field, value); return fd;
+};
+const mp = { headers: { "Content-Type": "multipart/form-data" } };
+
+export const getHistoryUsers = async (): Promise<HistoryUser[]> => {
+  try { const { data } = await fleetApi.get(`/users`); return Array.isArray(data) ? data : []; }
+  catch { return []; }
+};
+export const getScopeNotes = async (activityRef: string): Promise<HistoryNote[]> => {
+  try { const { data } = await fleetApi.get(`/case-history/notes/${activityRef}`); return Array.isArray(data) ? data : []; }
+  catch { return []; }
+};
+export const createScopeNote = async (scope: FleetHistoryScope, id: number | string, activityRef: string, note: string): Promise<void> => {
+  const fd = noteForm("note", note); fd.append("activity_ref", activityRef);
+  await fleetApi.post(`/case-history/notes/${scope}/${id}`, fd, mp);
+};
+export const replyScopeNote = async (noteId: number, reply: string): Promise<void> => {
+  await fleetApi.post(`/case-activity/notes/${noteId}/reply`, noteForm("reply", reply), mp);
+};
+export const editScopeNote = async (noteId: number, note: string): Promise<void> => {
+  await fleetApi.put(`/case-activity/notes/${noteId}`, noteForm("note", note), mp);
+};
+export const editScopeReply = async (replyId: number, reply: string): Promise<void> => {
+  await fleetApi.put(`/case-activity/note-replies/${replyId}`, noteForm("reply", reply), mp);
+};
+export const deleteScopeNote = async (noteId: number): Promise<void> => { await fleetApi.delete(`/case-activity/notes/${noteId}`); };
+export const deleteScopeReply = async (replyId: number): Promise<void> => { await fleetApi.delete(`/case-activity/note-replies/${replyId}`); };

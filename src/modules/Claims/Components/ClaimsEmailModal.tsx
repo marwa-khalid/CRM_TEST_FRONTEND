@@ -153,6 +153,14 @@ export const ClaimsEmailModal = ({
     return edited;
   };
 
+  // --- Rich-text toolbar (Bold / Italic / Underline / List), like Case Activity ---
+  const exec = (cmd: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    iframeRef.current?.contentWindow?.focus();
+    try { doc.execCommand(cmd, false); } catch { /* ignore */ }
+  };
+
   // --- Recipient pills ---
   const commitToInput = () => {
     const parts = parseEmails(toInput);
@@ -284,10 +292,28 @@ export const ClaimsEmailModal = ({
           {/* Message (editable, isolated iframe) */}
           <div className="flex flex-col gap-2">
             <span className="text-neutral-700 text-sm font-medium">Message</span>
+            <div className="flex items-center gap-1 px-2 py-1.5 rounded-t border border-b-0 border-neutral-200 bg-neutral-50">
+              {([
+                { cmd: "bold", label: "B", cls: "font-bold" },
+                { cmd: "italic", label: "I", cls: "italic font-serif" },
+                { cmd: "underline", label: "U", cls: "underline" },
+                { cmd: "insertUnorderedList", label: "•", cls: "text-lg leading-none" },
+              ] as const).map((b) => (
+                <button
+                  key={b.cmd}
+                  type="button"
+                  title={b.cmd === "insertUnorderedList" ? "Bulleted list" : b.cmd[0].toUpperCase() + b.cmd.slice(1)}
+                  onMouseDown={(e) => { e.preventDefault(); exec(b.cmd); }}
+                  className={`w-7 h-7 rounded text-sm text-neutral-700 hover:bg-neutral-200 flex items-center justify-center ${b.cls}`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
             <iframe
               ref={iframeRef}
               title="Email preview"
-              className="w-full h-[300px] rounded border border-neutral-200 bg-white focus-within:border-blue-500"
+              className="w-full h-[300px] rounded-b border border-neutral-200 bg-white focus-within:border-blue-500 -mt-2"
             />
           </div>
 

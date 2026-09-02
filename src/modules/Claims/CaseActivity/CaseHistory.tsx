@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ChevronLeft, ChevronDown, Paperclip, ExternalLink, ChevronsLeft, ChevronsRight } from "lucide-react";
@@ -41,7 +41,9 @@ import ForwardIcon from "../../../assets/case_activity/forward.svg";
 import { ClaimsEmailModal, htmlToPlainText } from "../Components/ClaimsEmailModal";
 // Reuse Case Activity's Outlook email send flow — reply/forward go through the same
 // Graph endpoints (the whole email feature will eventually live here, not there).
-import { replyToEmailGraph, forwardEmailGraph } from "../../../services/HistoryActivities/HistoryActivities";
+import { replyToEmailGraph, forwardEmailGraph, getActivityNotes } from "../../../services/HistoryActivities/HistoryActivities";
+import axiosInstance from "../../../services/axiosConfig";
+import { getUsers, type SystemUser } from "../../../services/Notifications/Notifications";
 
 // ── Action-type presentation (abbreviation + label + icon) ───────────────────
 // abbr shows alone on the listing/detail badges; "abbr - label" in the filter.
@@ -351,19 +353,22 @@ const HistoryCard = ({
     </div>
     <PeopleLines r={r} />
     <div className="self-stretch pt-2.5 border-t border-neutral-200">
-      {isDocRecord(r) && attachmentsOf(r)[0] ? (
-        // PP / document record: show the file logo + name on the card.
-        <div className="flex items-center gap-2.5">
-          <img src={fileTypeLogo(attachmentsOf(r)[0].name)} alt="" className="w-5 h-5 shrink-0 object-contain" />
-          <span className="text-neutral-700 text-sm font-['Stack_Sans_Headline'] truncate">
-            {attachmentsOf(r)[0].name}
-          </span>
-        </div>
-      ) : (
-        <div className={`text-neutral-700 text-sm font-['Stack_Sans_Headline'] ${emailSource(r) ? "truncate" : ""}`}>
-          {emailSource(r) ? (r.subject || "(No subject)") : (r.details || "—")}
-        </div>
-      )}
+      {/* The detail text below the divider sits on a light-blue background. */}
+      <div className="bg-blue-50 rounded-md px-3 py-2">
+        {isDocRecord(r) && attachmentsOf(r)[0] ? (
+          // PP / document record: show the file logo + name on the card.
+          <div className="flex items-center gap-2.5">
+            <img src={fileTypeLogo(attachmentsOf(r)[0].name)} alt="" className="w-5 h-5 shrink-0 object-contain" />
+            <span className="text-neutral-700 text-sm font-['Stack_Sans_Headline'] truncate">
+              {attachmentsOf(r)[0].name}
+            </span>
+          </div>
+        ) : (
+          <div className={`text-neutral-700 text-sm font-['Stack_Sans_Headline'] ${emailSource(r) ? "truncate" : ""}`}>
+            {emailSource(r) ? (r.subject || "(No subject)") : (r.details || "—")}
+          </div>
+        )}
+      </div>
     </div>
     {/* Records with attachments list their file names (no clip/count). */}
     {!isDocRecord(r) && attachmentsOf(r).length > 0 && (
@@ -465,8 +470,273 @@ const AttachmentTabs = ({ atts }: { atts: { recordId: number | string; index: nu
   );
 };
 
+// A stable notes key for a history record so notes persist across reloads: stored
+// rows use their id; live Outlook emails use their Graph message id.
+const activityRefFor = (r: CaseHistoryRecord): string => {
+  const mid = (r.payload as { message_id?: string } | null)?.message_id;
+  const raw = String((typeof r.id === "string" && mid) ? mid : r.id);
+  // Keep it URL-safe (Graph message ids contain / + = which break the path).
+  return `chist-${raw.replace(/[^A-Za-z0-9]/g, "")}`;
+};
+const noteInitials = (name?: string): string => {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "U";
+  return ((parts[0][0] || "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+};
+// Render a note's rich HTML safely (sanitized) and paint @mentions blue — the
+// highlight is applied to text nodes only so it never breaks the formatting tags.
+const renderNoteText = (html?: string) => {
+  const clean = sanitizeEmailHtml(html || "");
+  try {
+    const doc = new DOMParser().parseFromString(clean, "text/html");
+    const walk = (el: Node) => {
+      [...el.childNodes].forEach((c) => {
+        if (c.nodeType === 3) {
+          const t = c.textContent || "";
+          if (/@[A-Za-z0-9._-]+/.test(t)) {
+            const span = doc.createElement("span");
+            span.innerHTML = t.replace(/@([A-Za-z0-9._-]+)/g, '<span class="text-blue-500 font-weight-600">@$1</span>');
+            c.parentNode?.replaceChild(span, c);
+          }
+        } else if (c.nodeType === 1) walk(c);
+      });
+    };
+    walk(doc.body);
+    return { __html: doc.body.innerHTML };
+  } catch {
+    return { __html: clean };
+  }
+};
+// ⋮ three-dot actions menu (Reply / Edit / Delete), like the Case Activity notes.
+const ActionsMenu = ({ children }: { children: ReactNode }) => (
+  <div className="relative shrink-0">
+    <button type="button" className="peer w-6 h-6 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 text-lg leading-none flex items-center justify-center">⋮</button>
+    <div className="hidden peer-hover:flex hover:flex absolute right-0 top-full z-30 flex-col bg-white rounded shadow-[0px_4px_16px_0px_rgba(0,0,0,0.12)] border border-neutral-100 py-1 min-w-[120px]">
+      {children}
+    </div>
+  </div>
+);
+const menuItemCls = "px-3 py-1.5 text-left text-sm hover:bg-neutral-50 whitespace-nowrap";
+
+// ── History notes (threaded comments + @-mention tagging) ────────────────────
+// Reuses the Case Activity note endpoints, keyed by a per-record activity ref, so
+// each email / record gets its own note thread with real @mention notifications.
+type HistoryNote = { id: number; text: string; createdAt: string; createdByName: string; createdByRole?: string; createdById?: number; replies?: HistoryNote[] };
+// Rich note editor: a formatting toolbar (Bold / Italic / Underline / List) over a
+// contentEditable box with @-mention tagging — the same editing feel as the reply/
+// forward composer. Emits HTML; the parent only resets it externally (clear / edit).
+const MentionBox = ({
+  value, onChange, users, placeholder, autoFocus,
+}: { value: string; onChange: (v: string) => void; users: SystemUser[]; placeholder: string; autoFocus?: boolean }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [mention, setMention] = useState<{ open: boolean; query: string }>({ open: false, query: "" });
+  const matches = mention.open
+    ? users.filter((u) => (u.name || "").toLowerCase().includes(mention.query.toLowerCase()) || (u.email || "").toLowerCase().includes(mention.query.toLowerCase())).slice(0, 6)
+    : [];
+  // Sync only on EXTERNAL value changes (reset to "" / edit) — never mid-typing.
+  useEffect(() => { if (ref.current && ref.current.innerHTML !== (value || "")) ref.current.innerHTML = value || ""; }, [value]);
+  useEffect(() => { if (autoFocus) ref.current?.focus(); }, [autoFocus]);
+  const emit = () => { const el = ref.current; onChange(el && (el.textContent || "").trim() ? el.innerHTML : ""); };
+  const exec = (cmd: string) => { ref.current?.focus(); try { document.execCommand(cmd, false); } catch { /* ignore */ } emit(); };
+  const detect = () => {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !sel.anchorNode) { setMention({ open: false, query: "" }); return; }
+    const m = (sel.anchorNode.textContent || "").slice(0, sel.anchorOffset).match(/@([A-Za-z0-9._-]*)$/);
+    setMention(m ? { open: true, query: m[1] } : { open: false, query: "" });
+  };
+  const pick = (u: SystemUser) => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && sel.anchorNode && sel.anchorNode.nodeType === 3) {
+      const node = sel.anchorNode; const off = sel.anchorOffset; const full = node.textContent || "";
+      const m = full.slice(0, off).match(/@([A-Za-z0-9._-]*)$/);
+      if (m) {
+        const start = off - m[0].length;
+        node.textContent = full.slice(0, start) + `@${u.name} ` + full.slice(off);
+        const range = document.createRange();
+        range.setStart(node, start + `@${u.name} `.length); range.collapse(true);
+        sel.removeAllRanges(); sel.addRange(range);
+      }
+    }
+    setMention({ open: false, query: "" }); emit(); ref.current?.focus();
+  };
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-1 px-2 py-1 rounded-t border border-b-0 border-neutral-200 bg-neutral-50">
+        {([
+          { cmd: "bold", label: "B", cls: "font-bold" },
+          { cmd: "italic", label: "I", cls: "italic font-serif" },
+          { cmd: "underline", label: "U", cls: "underline" },
+          { cmd: "insertUnorderedList", label: "•", cls: "text-lg leading-none" },
+        ] as const).map((b) => (
+          <button key={b.cmd} type="button" onMouseDown={(e) => { e.preventDefault(); exec(b.cmd); }}
+            className={`w-6 h-6 rounded text-xs text-neutral-600 hover:bg-neutral-200 flex items-center justify-center ${b.cls}`}>{b.label}</button>
+        ))}
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={() => { emit(); detect(); }}
+        onKeyUp={detect}
+        data-ph={placeholder}
+        className="min-h-[60px] w-full px-3 py-2 text-sm rounded-b border border-neutral-200 focus:outline-none focus:border-blue-300 overflow-auto empty:before:content-[attr(data-ph)] empty:before:text-neutral-300"
+      />
+      {matches.length > 0 && (
+        <div className="absolute z-40 left-0 right-0 bottom-full mb-1 max-h-52 overflow-auto bg-white rounded-lg border border-neutral-200 shadow-xl">
+          {matches.map((u) => (
+            <button key={u.email || u.name} type="button" onMouseDown={(e) => { e.preventDefault(); pick(u); }} className="w-full text-left px-3 py-2 hover:bg-neutral-50 flex items-center gap-2.5">
+              <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-500 text-xs font-weight-600 flex items-center justify-center shrink-0">{noteInitials(u.name)}</span>
+              <span className="min-w-0"><span className="block text-sm text-neutral-800 truncate">{u.name}</span><span className="block text-xs text-neutral-400 truncate">{u.email}</span></span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const HistoryNotes = ({ claimId, activityRef }: { claimId: number; activityRef: string }) => {
+  const { user } = useCurrentUser();
+  const [notes, setNotes] = useState<HistoryNote[]>([]);
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [editNoteId, setEditNoteId] = useState<number | null>(null);
+  const [editNoteText, setEditNoteText] = useState("");
+  const [editReplyId, setEditReplyId] = useState<number | null>(null);
+  const [editReplyText, setEditReplyText] = useState("");
+  const load = useCallback(() => {
+    setLoading(true);
+    getActivityNotes(activityRef).then((d) => setNotes(Array.isArray(d) ? d : [])).catch(() => setNotes([])).finally(() => setLoading(false));
+  }, [activityRef]);
+  useEffect(() => { load(); setReplyingTo(null); setText(""); setEditNoteId(null); setEditReplyId(null); }, [load]);
+  useEffect(() => { getUsers().then(({ data }) => setUsers(Array.isArray(data) ? data : [])).catch(() => {}); }, []);
+  const mine = (id?: number) => user?.id != null && id != null && Number(id) === Number(user.id);
+
+  const call = async (fn: () => Promise<unknown>, err: string) => {
+    setBusy(true);
+    try { await fn(); load(); } catch { toast.error(err); } finally { setBusy(false); }
+  };
+  const submitNote = () => {
+    if (!text.trim() || !claimId) return;
+    call(async () => {
+      const fd = new FormData(); fd.append("note", text.trim());
+      await axiosInstance.post(`/case-activity/claims/${claimId}/activities/${activityRef}/notes`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setText("");
+    }, "Could not add the note.");
+  };
+  const submitReply = (noteId: number) => {
+    if (!replyText.trim()) return;
+    call(async () => {
+      const fd = new FormData(); fd.append("reply", replyText.trim());
+      await axiosInstance.post(`/case-activity/notes/${noteId}/reply`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setReplyText(""); setReplyingTo(null);
+    }, "Could not post the reply.");
+  };
+  const saveNoteEdit = (id: number) => editNoteText.trim() && call(async () => {
+    const fd = new FormData(); fd.append("note", editNoteText.trim());
+    await axiosInstance.put(`/case-activity/notes/${id}`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+    setEditNoteId(null);
+  }, "Could not update the note.");
+  const saveReplyEdit = (id: number) => editReplyText.trim() && call(async () => {
+    const fd = new FormData(); fd.append("reply", editReplyText.trim());
+    await axiosInstance.put(`/case-activity/note-replies/${id}`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+    setEditReplyId(null);
+  }, "Could not update the reply.");
+  const removeNote = (id: number) => window.confirm("Delete this note?") && call(() => axiosInstance.delete(`/case-activity/notes/${id}`), "Could not delete the note.");
+  const removeReply = (id: number) => window.confirm("Delete this reply?") && call(() => axiosInstance.delete(`/case-activity/note-replies/${id}`), "Could not delete the reply.");
+
+  return (
+    <div className="mt-5 pt-4 border-t border-neutral-200 flex flex-col gap-3">
+      {busy && <SpinnerLoader />}
+      <div className="flex items-center gap-2">
+        <div className="text-neutral-800 text-sm font-semibold font-['Stack_Sans_Headline']">Notes</div>
+        {loading && <span className="w-3.5 h-3.5 rounded-full border-2 border-neutral-300 border-t-neutral-500 animate-spin" />}
+      </div>
+      <MentionBox value={text} onChange={setText} users={users} placeholder="Add a note… type @ to tag someone" />
+      <div className="flex justify-end">
+        <button type="button" onClick={submitNote} disabled={busy || !text.trim()}
+          className="px-4 py-1.5 rounded-sm bg-blue-600 text-white text-xs font-weight-600 hover:bg-blue-700 disabled:opacity-50">Add Note</button>
+      </div>
+      {notes.map((n) => (
+        <div key={n.id} className="rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 p-3 flex flex-col gap-2">
+          <div className="flex justify-between items-center gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-500 text-xs font-weight-600 flex items-center justify-center shrink-0">{noteInitials(n.createdByName)}</span>
+              <div className="min-w-0">
+                <div className="text-sm text-black font-weight-500 truncate">{n.createdByName || "User"}</div>
+                {n.createdByRole && <div className="text-xs text-neutral-500 truncate">{n.createdByRole}</div>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-neutral-400 whitespace-nowrap">{fmtPosted(n.createdAt)}</span>
+              {editNoteId !== n.id && (
+                <ActionsMenu>
+                  <button type="button" onClick={() => { setReplyingTo(replyingTo === n.id ? null : n.id); setReplyText(""); }} className={`${menuItemCls} text-blue-500`}>Reply</button>
+                  {mine(n.createdById) && <button type="button" onClick={() => { setEditNoteId(n.id); setEditNoteText(n.text || ""); }} className={`${menuItemCls} text-neutral-700`}>Edit</button>}
+                  {mine(n.createdById) && <button type="button" onClick={() => removeNote(n.id)} className={`${menuItemCls} text-red-500`}>Delete</button>}
+                </ActionsMenu>
+              )}
+            </div>
+          </div>
+          {editNoteId === n.id ? (
+            <div className="flex flex-col gap-2">
+              <MentionBox value={editNoteText} onChange={setEditNoteText} users={users} placeholder="Edit note" autoFocus />
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setEditNoteId(null)} className="px-3 py-1.5 rounded-sm text-neutral-500 text-xs hover:bg-neutral-100">Cancel</button>
+                <button type="button" onClick={() => saveNoteEdit(n.id)} disabled={busy} className="px-4 py-1.5 rounded-sm bg-blue-600 text-white text-xs font-weight-600 hover:bg-blue-700 disabled:opacity-50">Save</button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-neutral-700 leading-relaxed" dangerouslySetInnerHTML={renderNoteText(n.text)} />
+          )}
+          {(n.replies || []).map((rp) => (
+            <div key={rp.id} className="ml-4 pl-3 border-l-2 border-neutral-100 flex flex-col gap-1">
+              <div className="flex justify-between items-center gap-3">
+                <span className="text-xs text-black font-weight-600 truncate">{rp.createdByName || "User"}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-neutral-400 whitespace-nowrap">{fmtPosted(rp.createdAt)}</span>
+                  {mine(rp.createdById) && editReplyId !== rp.id && (
+                    <ActionsMenu>
+                      <button type="button" onClick={() => { setEditReplyId(rp.id); setEditReplyText(rp.text || ""); }} className={`${menuItemCls} text-neutral-700`}>Edit</button>
+                      <button type="button" onClick={() => removeReply(rp.id)} className={`${menuItemCls} text-red-500`}>Delete</button>
+                    </ActionsMenu>
+                  )}
+                </div>
+              </div>
+              {editReplyId === rp.id ? (
+                <div className="flex flex-col gap-2">
+                  <MentionBox value={editReplyText} onChange={setEditReplyText} users={users} placeholder="Edit reply" autoFocus />
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => setEditReplyId(null)} className="px-3 py-1.5 rounded-sm text-neutral-500 text-xs hover:bg-neutral-100">Cancel</button>
+                    <button type="button" onClick={() => saveReplyEdit(rp.id)} disabled={busy} className="px-4 py-1.5 rounded-sm bg-blue-600 text-white text-xs font-weight-600 hover:bg-blue-700 disabled:opacity-50">Save</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-neutral-700 leading-relaxed" dangerouslySetInnerHTML={renderNoteText(rp.text)} />
+              )}
+            </div>
+          ))}
+          {replyingTo === n.id && (
+            <div className="ml-4 flex flex-col gap-2">
+              <MentionBox value={replyText} onChange={setReplyText} users={users} placeholder="Write a reply… @ to tag" autoFocus />
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => { setReplyingTo(null); setReplyText(""); }} className="px-3 py-1.5 rounded-sm text-neutral-500 text-xs hover:bg-neutral-100">Cancel</button>
+                <button type="button" onClick={() => submitReply(n.id)} disabled={busy || !replyText.trim()} className="px-4 py-1.5 rounded-sm bg-blue-600 text-white text-xs font-weight-600 hover:bg-blue-700 disabled:opacity-50">Reply</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // ── Record Detail pane (right column) ────────────────────────────────────────
-const RecordDetail = ({ r, onCreateNew, onEmailAction, threadMessages, onSelectMessage }: { r: CaseHistoryRecord | null; onCreateNew: (t: CaseHistoryActionType) => void; onEmailAction: (mode: "reply" | "forward", r: CaseHistoryRecord) => void; threadMessages?: CaseHistoryRecord[]; onSelectMessage?: (id: number | string) => void }) => {
+const RecordDetail = ({ r, claimId, onCreateNew, onEmailAction, threadMessages, onSelectMessage }: { r: CaseHistoryRecord | null; claimId?: number | null; onCreateNew: (t: CaseHistoryActionType) => void; onEmailAction: (mode: "reply" | "forward", r: CaseHistoryRecord) => void; threadMessages?: CaseHistoryRecord[]; onSelectMessage?: (id: number | string) => void }) => {
   // Inline document preview (Payment Pack PDFs, email attachments) — shown right
   // here in the detail pane rather than a new tab.
   const [preview, setPreview] = useState<{ url: string; type: string; name: string } | null>(null);
@@ -591,6 +861,7 @@ const RecordDetail = ({ r, onCreateNew, onEmailAction, threadMessages, onSelectM
         {threadAtts.length > 0 && detailTab === "attachments" ? (
           <AttachmentTabs atts={threadAtts} />
         ) : (
+          <>
           <div className="flex flex-col">
             {threadMessages.map((m, i) => {
               const p = (m.payload as { from_name?: string; from_email?: string; to?: string[] } | null) || {};
@@ -612,6 +883,8 @@ const RecordDetail = ({ r, onCreateNew, onEmailAction, threadMessages, onSelectM
               );
             })}
           </div>
+          {threadMessages[0] && claimId && <HistoryNotes claimId={claimId} activityRef={activityRefFor(threadMessages[0])} />}
+          </>
         )}
       </div>
     );
@@ -705,6 +978,7 @@ const RecordDetail = ({ r, onCreateNew, onEmailAction, threadMessages, onSelectM
                 </div>
               )}
             </div>
+            {r && claimId && <HistoryNotes claimId={claimId} activityRef={activityRefFor(r)} />}
           </>
         )}
 
@@ -1111,6 +1385,7 @@ const CaseHistory = () => {
           </div>
           <RecordDetail
             r={selected}
+            claimId={claimId}
             threadMessages={selectedGroup && selectedGroup.count > 1 ? selectedGroup.messages : undefined}
             onSelectMessage={setSelectedId}
             onCreateNew={(t) => setAddType(t)}

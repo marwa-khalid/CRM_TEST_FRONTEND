@@ -87,6 +87,14 @@ const FleetEmailModal: React.FC<Props> = ({
   const [sending, setSending] = useState(false);
   const [attaching, setAttaching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  // Rich-text toolbar (Bold / Italic / Underline / List), like Case Activity.
+  const exec = (cmd: string) => {
+    editorRef.current?.focus();
+    try { document.execCommand(cmd, false); } catch { /* ignore */ }
+    setBody(editorRef.current?.innerHTML || "");
+  };
 
   // Reset the form each time the modal is (re)opened.
   const openedRef = useRef(false);
@@ -96,6 +104,8 @@ const FleetEmailModal: React.FC<Props> = ({
       setRecipients(parseEmails(defaultTo)); setToInput(""); setCc(""); setShowCc(false);
       setSubject(defaultSubject); setBody(defaultBody);
       setFiles(initialFiles); setSending(false);
+      // Seed the editor's content (it's uncontrolled — we only read it back on send).
+      requestAnimationFrame(() => { if (editorRef.current) editorRef.current.innerHTML = defaultBody || ""; });
     } else if (!open) {
       openedRef.current = false;
     }
@@ -260,12 +270,31 @@ const FleetEmailModal: React.FC<Props> = ({
               <span className="text-neutral-700 text-sm font-medium">
                 Message
               </span>
-              <textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="Write your message here..."
-                rows={6}
-                className="px-5 py-4 bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200 text-base text-neutral-900 placeholder:text-neutral-300 focus:outline-neutral-900 resize-none"
+              <div className="flex items-center gap-1 px-2 py-1.5 rounded-t border border-b-0 border-neutral-200 bg-neutral-50">
+                {([
+                  { cmd: "bold", label: "B", cls: "font-bold" },
+                  { cmd: "italic", label: "I", cls: "italic font-serif" },
+                  { cmd: "underline", label: "U", cls: "underline" },
+                  { cmd: "insertUnorderedList", label: "•", cls: "text-lg leading-none" },
+                ] as const).map((b) => (
+                  <button
+                    key={b.cmd}
+                    type="button"
+                    title={b.cmd === "insertUnorderedList" ? "Bulleted list" : b.cmd[0].toUpperCase() + b.cmd.slice(1)}
+                    onMouseDown={(e) => { e.preventDefault(); exec(b.cmd); }}
+                    className={`w-7 h-7 rounded text-sm text-neutral-700 hover:bg-neutral-200 flex items-center justify-center ${b.cls}`}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={() => setBody(editorRef.current?.innerHTML || "")}
+                data-ph="Write your message here..."
+                className="min-h-[150px] px-5 py-4 -mt-2 bg-white rounded-b border border-neutral-200 text-base text-neutral-900 focus:outline-none focus:border-neutral-900 overflow-auto [&:empty]:before:content-[attr(data-ph)] [&:empty]:before:text-neutral-300"
               />
             </div>
           )}

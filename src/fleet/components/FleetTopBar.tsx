@@ -1,7 +1,8 @@
 import React from "react";
-import { FileText, History, Clock } from "lucide-react";
+import { FileText, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ArrowBack from "../assets/icons/ArrowBack.svg";
+import HistoryIcon from "../../assets/HistorySection/History.svg";
 
 interface Props {
   title: string;
@@ -64,8 +65,8 @@ const FleetTopBar: React.FC<Props> = ({ title, onBack, onDiscard, onSaveNext, on
           }}
           className={`flex items-center gap-1 text-xs font-semibold ${(hireId || onHistory) ? "text-neutral-900 hover:underline cursor-pointer" : "text-neutral-300 cursor-not-allowed"}`}
         >
-          <Clock size={14} />
-          View History
+          <img src={HistoryIcon} alt="" className="w-3.5 h-3.5" style={{ filter: "brightness(0)" }} />
+          {onHistory ? "Vehicle History" : "Fleet History"}
         </button>
       </div>
       <div className="flex items-center gap-5">

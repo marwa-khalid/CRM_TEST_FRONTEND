@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"; // Import navigation hook
 import Vector from "../../../assets/AutoClaim_icon/Vector.svg";
 import Vector4 from "../../../assets/AutoClaim_icon/Vector-4.svg";
 import FileIcon from '../../../assets/case_activity/file.svg'
-import ClockIcon from '../../../assets/Dashboard/Clock.svg'
+import HistoryIcon from '../../../assets/HistorySection/History.svg'
 import { useCaseReference } from "../../../hooks/useCaseReference";
 
 const Header = ({
@@ -59,14 +59,9 @@ const Header = ({
           className="ActivityLogContainer flex justify-start items-center gap-1 cursor-pointer group"
           onClick={() => navigate(`/case-history${claimQuery}`)}
         >
-          <img
-            src={ClockIcon}
-            alt=""
-            className="w-4 h-4"
-            style={{ filter: "brightness(0) saturate(100%) invert(41%) sepia(93%) saturate(1352%) hue-rotate(200deg) brightness(97%) contrast(101%)" }}
-          />
+          <img src={HistoryIcon} alt="" className="w-4 h-4" />
           <div className="ActivityLogText text-blue-300 text-xs font-weight-600 font-['Stack_Sans_Headline'] group-hover:underline">
-            View History
+            Claim History
           </div>
         </div>
       </div>

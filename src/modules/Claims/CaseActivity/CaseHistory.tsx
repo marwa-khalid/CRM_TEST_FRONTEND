@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { ChevronLeft, ChevronDown, Paperclip, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronDown, Paperclip, ExternalLink, ChevronsLeft, ChevronsRight } from "lucide-react";
 import PdfLogo from "../../../assets/FileTypes/PDF.svg";
 import DocLogo from "../../../assets/FileTypes/DOC.svg";
 import ExcelLogo from "../../../assets/FileTypes/Excel.svg";
@@ -138,14 +138,36 @@ const sanitizeEmailHtml = (html = ""): string => {
   return doc.body.innerHTML;
 };
 
+// Strip the quoted reply history from an email body so each message in a thread
+// shows only its own new text (otherwise every reply repeats the whole conversation).
+const stripQuotedReply = (html = ""): string => {
+  if (!html) return "";
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    // Gmail wraps the whole history in .gmail_quote; other clients use blockquote.
+    doc.querySelectorAll(".gmail_quote, .gmail_quote_container, blockquote, .moz-cite-prefix, .yahoo_quoted").forEach((el) => el.remove());
+    // Outlook: drop the reply marker (+ preceding <hr>) and everything after it.
+    doc.querySelectorAll('[id*="appendonsend"], [id*="divRplyFwdMsg"]').forEach((marker) => {
+      let prev = marker.previousElementSibling;
+      while (prev && prev.tagName === "HR") { const p = prev.previousElementSibling; prev.remove(); prev = p; }
+      let node: ChildNode | null = marker;
+      while (node) { const next = node.nextSibling; node.remove(); node = next; }
+    });
+    const out = doc.body.innerHTML.trim();
+    return out || html; // if we stripped everything, keep the original
+  } catch {
+    return html;
+  }
+};
+
 // Render the original email design (HTML) when present, else the cleaned text.
 const EmailBodyView = ({ r }: { r: CaseHistoryRecord }) => {
   const html = (r.payload as { body_html?: string } | null)?.body_html || "";
   if (html && /<[a-z][\s\S]*>/i.test(html)) {
     return (
       <div
-        className="text-sm text-neutral-700 leading-relaxed break-words overflow-x-auto [&_img]:max-w-full [&_table]:max-w-full [&_a]:text-blue-600 [&_a]:underline"
-        dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(html) }}
+        className="text-sm text-neutral-700 leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_a]:text-blue-600 [&_a]:underline"
+        dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(stripQuotedReply(html)) }}
       />
     );
   }
@@ -217,15 +239,25 @@ const fileIcon = (name: string) => (
   <img src={fileTypeLogo(name)} alt="" className="w-5 h-5 shrink-0 object-contain" />
 );
 
+// Correspondent and Handler often resolve to the same person on emails (handler =
+// the sender's name, correspondent = the sender's email), so don't show both.
+const samePerson = (a?: string | null, b?: string | null): boolean => {
+  if (!a || !b) return false;
+  const x = a.trim().toLowerCase(), y = b.trim().toLowerCase();
+  return x === y || x.split("@")[0] === y.split("@")[0];
+};
+
 // ── Correspondent / Handler lines ────────────────────────────────────────────
 const PeopleLines = ({ r }: { r: CaseHistoryRecord }) => (
   <div className="flex flex-col items-start gap-1">
     <div className="text-neutral-700 text-sm font-['Stack_Sans_Headline']">
       Correspondent : <span className="font-semibold">{r.correspondent || "—"}</span>
     </div>
-    <div className="text-neutral-700 text-sm font-['Stack_Sans_Headline']">
-      Handler : <span className="font-semibold">{r.handler || "—"}</span>
-    </div>
+    {r.handler && !samePerson(r.correspondent, r.handler) && (
+      <div className="text-neutral-700 text-sm font-['Stack_Sans_Headline']">
+        Handler : <span className="font-semibold">{r.handler}</span>
+      </div>
+    )}
   </div>
 );
 
@@ -337,7 +369,10 @@ const HistoryCard = ({
     {!isDocRecord(r) && attachmentsOf(r).length > 0 && (
       <div className="self-stretch pt-2.5 flex items-center flex-wrap gap-x-4 gap-y-1">
         {attachmentsOf(r).map((a, i) => (
-          <span key={i} className="text-blue-500 text-sm font-['Stack_Sans_Headline'] truncate max-w-[220px]">{a.name}</span>
+          <span key={i} className="inline-flex items-center gap-1.5 max-w-[220px] text-blue-500 text-sm font-['Stack_Sans_Headline']">
+            <img src={fileTypeLogo(a.name)} alt="" className="w-4 h-4 shrink-0 object-contain" />
+            <span className="truncate">{a.name}</span>
+          </span>
         ))}
       </div>
     )}
@@ -374,7 +409,6 @@ const AttachmentPreview = ({ recordId, index, name, url }: { recordId: number | 
   useEffect(() => () => { if (blob) URL.revokeObjectURL(blob.url); }, [blob]);
   return (
     <div className="w-full flex flex-col gap-2">
-      <div className="text-neutral-700 text-sm font-semibold font-['Stack_Sans_Headline']">Attachment : {name}</div>
       {loading && <SpinnerLoader />}
       {pages?.type === "pdf" && pages.pages?.map((pg) => (
         <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
@@ -410,14 +444,20 @@ const AttachmentTabs = ({ atts }: { atts: { recordId: number | string; index: nu
   const cur = atts[Math.min(sel, atts.length - 1)];
   return (
     <div className="w-full flex flex-col gap-3">
-      {atts.length > 1 && (
+      {atts.length > 1 ? (
         <div className="flex items-center gap-3 flex-wrap">
           {atts.map((a, i) => (
             <button key={i} type="button" onClick={() => setSel(i)}
-              className={`text-sm font-['Stack_Sans_Headline'] rounded-sm ${i === sel ? "px-4 py-1 bg-blue-100 text-blue-500" : "text-blue-500 hover:underline"}`}>
+              className={`inline-flex items-center gap-1.5 text-sm font-['Stack_Sans_Headline'] rounded-sm ${i === sel ? "px-4 py-1 bg-blue-100 text-blue-500" : "text-blue-500 hover:underline"}`}>
+              <img src={fileTypeLogo(a.name)} alt="" className="w-4 h-4 shrink-0 object-contain" />
               {a.name}
             </button>
           ))}
+        </div>
+      ) : (
+        <div className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-800 font-['Stack_Sans_Headline']">
+          <img src={fileTypeLogo(cur.name)} alt="" className="w-4 h-4 shrink-0 object-contain" />
+          {cur.name}
         </div>
       )}
       <AttachmentPreview recordId={cur.recordId} index={cur.index} name={cur.name} url={cur.url} />
@@ -481,7 +521,7 @@ const RecordDetail = ({ r, onCreateNew, onEmailAction, threadMessages, onSelectM
 
   if (!r) {
     return (
-      <div className="grow-[2] basis-0 min-w-0 min-h-[calc(100vh-200px)] px-10 py-6 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 flex flex-col gap-4">
+      <div className="grow-[2] basis-0 min-w-0 min-h-0 h-full overflow-y-auto scrollbar-hide px-10 py-6 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 flex flex-col gap-4">
         <div className="text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5">Record Detail</div>
         <div className="h-px bg-neutral-200 w-full" />
         <div className="flex-1 flex items-center justify-center text-sm text-neutral-400">
@@ -524,63 +564,60 @@ const RecordDetail = ({ r, onCreateNew, onEmailAction, threadMessages, onSelectM
     const threadAtts = threadMessages.flatMap((m) =>
       attachmentsOf(m).map((a, ai) => ({ recordId: m.id, index: ai, name: a.name, url: a.url })));
     return (
-      <div className="grow-[2] basis-0 min-w-0 min-h-[calc(100vh-200px)] bg-white rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 flex flex-col px-10 py-6 gap-4">
+      <div className="grow-[2] basis-0 min-w-0 min-h-0 h-full overflow-y-auto scrollbar-hide bg-white rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 flex flex-col px-10 py-6 gap-4">
         {(loadingIdx !== null || docLoading) && <SpinnerLoader />}
-        {threadAtts.length > 0 ? (
-          <div className="flex items-start gap-6">
-            <button type="button" onClick={() => setDetailTab("record")} className={`pb-2 text-sm leading-4 border-b ${detailTab === "record" ? "text-neutral-900 border-blue-500" : "text-blue-500 border-transparent"}`}>Email Details</button>
-            <button type="button" onClick={() => setDetailTab("attachments")} className={`pb-2 text-sm leading-4 border-b ${detailTab === "attachments" ? "text-neutral-900 border-blue-500" : "text-blue-500 border-transparent"}`}>Attachments</button>
-          </div>
-        ) : (
-          <div className="text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5">Record Detail</div>
-        )}
+        {/* Header row: tabs on the left, Reply / Forward (latest message) on the right. */}
+        <div className="flex justify-between items-center gap-3">
+          {threadAtts.length > 0 ? (
+            <div className="flex items-start gap-6">
+              <button type="button" onClick={() => setDetailTab("record")} className={`pb-2 text-sm leading-4 border-b ${detailTab === "record" ? "text-neutral-900 border-blue-500" : "text-blue-500 border-transparent"}`}>Email Details</button>
+              <button type="button" onClick={() => setDetailTab("attachments")} className={`pb-2 text-sm leading-4 border-b ${detailTab === "attachments" ? "text-neutral-900 border-blue-500" : "text-blue-500 border-transparent"}`}>Attachments</button>
+            </div>
+          ) : (
+            <div className="text-black text-xl font-semibold font-['Stack_Sans_Headline'] leading-5">Record Detail</div>
+          )}
+          {threadMessages[0] && canReplyForward(threadMessages[0]) && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button type="button" onClick={() => onEmailAction("reply", threadMessages[0])} className="px-3 py-1.5 rounded-sm outline outline-1 -outline-offset-1 outline-blue-500 inline-flex items-center gap-1.5 hover:bg-blue-50">
+                <img src={ReplyIcon} alt="" className="w-3.5 h-3.5" /><span className="text-blue-500 text-xs">Reply</span>
+              </button>
+              <button type="button" onClick={() => onEmailAction("forward", threadMessages[0])} className="px-3 py-1.5 rounded-sm outline outline-1 -outline-offset-1 outline-blue-500 inline-flex items-center gap-1.5 hover:bg-blue-50">
+                <img src={ForwardIcon} alt="" className="w-3.5 h-3.5" /><span className="text-blue-500 text-xs">Forward</span>
+              </button>
+            </div>
+          )}
+        </div>
         <div className="h-px bg-neutral-200 w-full" />
         {threadAtts.length > 0 && detailTab === "attachments" ? (
-          <div className="overflow-auto">
-            <AttachmentTabs atts={threadAtts} />
-          </div>
+          <AttachmentTabs atts={threadAtts} />
         ) : (
-          <div className="flex flex-col gap-8 overflow-auto">
-            {threadMessages.map((m, i) => (
-              <div key={String(m.id)} className={`flex flex-col gap-2 ${i > 0 ? "pt-6 border-t border-neutral-200" : ""}`}>
-                <div className="flex justify-between items-start gap-3">
-                  <div className="text-sm font-['Stack_Sans_Headline']">
-                    <span className="text-neutral-500">Posted: </span>
-                    <span className="text-neutral-700">{fmtPosted(m.posted_at)}</span>
+          <div className="flex flex-col">
+            {threadMessages.map((m, i) => {
+              const p = (m.payload as { from_name?: string; from_email?: string; to?: string[] } | null) || {};
+              const from = p.from_name && p.from_email ? `${p.from_name} <${p.from_email}>` : (p.from_name || p.from_email || m.correspondent || "—");
+              const to = Array.isArray(p.to) ? p.to.filter(Boolean).join(", ") : "";
+              return (
+                <div key={String(m.id)} className={`py-4 ${i > 0 ? "border-t border-neutral-200" : "pt-0"}`}>
+                  {/* Details, then body — one after another down the thread. */}
+                  <div className="flex flex-col gap-0.5 text-sm font-['Stack_Sans_Headline']">
+                    <div><span className="text-neutral-500">From: </span><span className="text-neutral-800">{from}</span></div>
+                    {to && <div><span className="text-neutral-500">To: </span><span className="text-neutral-800">{to}</span></div>}
+                    {m.subject && <div><span className="text-neutral-500">Subject: </span><span className="text-neutral-800">{m.subject}</span></div>}
+                    {m.correspondent && <div><span className="text-neutral-500">Correspondent: </span><span className="text-neutral-800">{m.correspondent}</span></div>}
+                    {m.handler && !samePerson(m.correspondent, m.handler) && <div><span className="text-neutral-500">Handler: </span><span className="text-neutral-800">{m.handler}</span></div>}
+                    <div className="text-xs text-neutral-400 pt-0.5">{fmtPosted(m.posted_at)}</div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {/* Reply / Forward act on the latest message of the thread only. */}
-                    {i === 0 && canReplyForward(m) && (
-                      <>
-                        <button type="button" onClick={() => onEmailAction("reply", m)} className="px-3 py-1.5 rounded-sm outline outline-1 -outline-offset-1 outline-blue-500 inline-flex items-center gap-1.5 hover:bg-blue-50">
-                          <img src={ReplyIcon} alt="" className="w-3.5 h-3.5" /><span className="text-blue-500 text-xs">Reply</span>
-                        </button>
-                        <button type="button" onClick={() => onEmailAction("forward", m)} className="px-3 py-1.5 rounded-sm outline outline-1 -outline-offset-1 outline-blue-500 inline-flex items-center gap-1.5 hover:bg-blue-50">
-                          <img src={ForwardIcon} alt="" className="w-3.5 h-3.5" /><span className="text-blue-500 text-xs">Forward</span>
-                        </button>
-                      </>
-                    )}
-                    {i === 0 && <ActionBadge type={m.action_type} />}
-                  </div>
+                  <div className="mt-3 text-sm text-neutral-700 leading-relaxed"><EmailBodyView r={m} /></div>
                 </div>
-                <PeopleLines r={m} />
-                {m.subject && (
-                  <div className="text-neutral-700 text-sm font-['Stack_Sans_Headline']">
-                    Subject : <span className="font-semibold">{m.subject}</span>
-                  </div>
-                )}
-                <div className="pt-2.5 border-t border-neutral-200 min-h-16">
-                  <EmailBodyView r={m} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
     );
   }
   return (
-    <div className="grow-[2] basis-0 min-w-0 min-h-[calc(100vh-200px)] bg-white rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 flex flex-col px-10 py-6 gap-4">
+    <div className="grow-[2] basis-0 min-w-0 min-h-0 h-full overflow-y-auto scrollbar-hide bg-white rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 flex flex-col px-10 py-6 gap-4">
       {(loadingIdx !== null || docLoading) && <SpinnerLoader />}
       {/* PP / document records: header shows the document name. */}
       {isDocRecord(r) && (
@@ -673,9 +710,7 @@ const RecordDetail = ({ r, onCreateNew, onEmailAction, threadMessages, onSelectM
 
         {/* Attachments tab: file-name line-tabs (2+) + the selected attachment's preview. */}
         {hasAtts && detailTab === "attachments" && (
-          <div className="overflow-auto">
-            <AttachmentTabs atts={attachmentsOf(r).map((a, i) => ({ recordId: r.id, index: i, name: a.name, url: a.url }))} />
-          </div>
+          <AttachmentTabs atts={attachmentsOf(r).map((a, i) => ({ recordId: r.id, index: i, name: a.name, url: a.url }))} />
         )}
 
         {/* PP / document records: rendered page images (Document Library style).
@@ -719,6 +754,8 @@ const CaseHistory = () => {
   const [selectedId, setSelectedId] = useState<number | string | null>(null);
   const [emails, setEmails] = useState<CaseHistoryRecord[]>([]);
   const [page, setPage] = useState(1);
+  // Expand the detail pane to full width (hides the listing) so a whole document reads wide.
+  const [expanded, setExpanded] = useState(false);
   const PAGE_SIZE = 8;
   const [addType, setAddType] = useState<CaseHistoryActionType | null>(null);
   const [emailModal, setEmailModal] = useState<{ mode: "reply" | "forward"; record: CaseHistoryRecord } | null>(null);
@@ -821,12 +858,13 @@ const CaseHistory = () => {
     const isEmail = (r: CaseHistoryRecord) =>
       r.action_type === "send_email" || r.action_type === "incoming_email";
     const timeOf = (r: CaseHistoryRecord) => (r.posted_at ? new Date(r.posted_at).getTime() : 0);
+    // One thread per Outlook conversation (its conversationId); if that's missing,
+    // fall back to the normalized subject. Non-email records stay standalone.
     const threadKey = (r: CaseHistoryRecord) => {
       const cid = (r.payload as { conversation_id?: string } | null)?.conversation_id;
       if (cid) return `conv:${cid}`;
       const subj = (r.subject || "")
-        .replace(/^(?:\s*(re|fw|fwd|aw|wg)\s*:\s*)+/i, "")
-        .replace(/\s+/g, " ").trim().toLowerCase();
+        .replace(/^(?:\s*(re|fw|fwd|aw|wg)\s*:\s*)+/i, "").replace(/\s+/g, " ").trim().toLowerCase();
       return subj ? `subj:${subj}` : `id:${r.id}`;
     };
     const map = new Map<string, CaseHistoryRecord[]>();
@@ -841,8 +879,7 @@ const CaseHistory = () => {
         const messages = map.get(key)!.slice().sort((a, b) => timeOf(b) - timeOf(a));
         return { key, messages, latest: messages[0], count: messages.length };
       })
-      .sort((a, b) => (b.latest.posted_at ? new Date(b.latest.posted_at).getTime() : 0)
-                    - (a.latest.posted_at ? new Date(a.latest.posted_at).getTime() : 0));
+      .sort((a, b) => timeOf(b.latest) - timeOf(a.latest));
   }, [merged]);
 
   // Default the Record Detail pane to the current (newest) record.
@@ -878,9 +915,12 @@ const CaseHistory = () => {
     setAddType(t);
   };
 
-  const handleCreated = (rec: CaseHistoryRecord) => {
+  const handleCreated = async (rec: CaseHistoryRecord) => {
+    // Refresh first, THEN select — so the new record is already in the list when the
+    // "default to newest" effect runs (otherwise it clobbers the selection back).
+    await load();
     setSelectedId(rec.id);
-    load();
+    setPage(1); // the new record is newest → page 1, so it's visible
     if (claimId) getCaseHistoryFilters(claimId).then(setFilterOptions).catch(() => {});
   };
 
@@ -935,7 +975,7 @@ const CaseHistory = () => {
   };
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-white font-['Stack_Sans_Headline']">
+    <div className="flex flex-col w-full h-screen overflow-hidden bg-white font-['Stack_Sans_Headline']">
       {((loading && records.length === 0) || filterBusy) && <SpinnerLoader />}
       {importing && <SpinnerLoader />}
 
@@ -967,7 +1007,7 @@ const CaseHistory = () => {
         </div>
       </header>
 
-      <div className="p-10 flex flex-col gap-6">
+      <div className="p-10 flex flex-col gap-6 flex-1 min-h-0">
         {/* Filter bar */}
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div className="flex flex-wrap items-center gap-8">
@@ -1006,9 +1046,18 @@ const CaseHistory = () => {
         </div>
 
         {/* Body: list + detail */}
-        <div className="flex justify-between items-start gap-6">
+        <div className="relative flex justify-between items-stretch gap-6 flex-1 min-h-0">
+          {/* Expand handle in the detail pane's top-right corner: widen to full width and back. */}
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            title={expanded ? "Show listing" : "Expand document view"}
+            className="absolute top-2 right-2 z-30 w-7 h-7 rounded bg-white border border-neutral-200 shadow-sm flex items-center justify-center text-neutral-500 hover:text-blue-600 hover:border-blue-300"
+          >
+            {expanded ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}
+          </button>
           <div
-            className={`grow-[3] min-w-0 basis-0 flex flex-col gap-4 relative rounded-lg transition ${dragOver ? "outline outline-2 outline-dashed outline-blue-400" : ""}`}
+            className={`${expanded ? "hidden" : ""} grow-[3] min-w-0 basis-0 min-h-0 h-full overflow-y-auto scrollbar-hide pr-1 flex flex-col gap-4 relative rounded-lg transition ${dragOver ? "outline outline-2 outline-dashed outline-blue-400" : ""}`}
             onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
             onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
             onDrop={handleDrop}
@@ -1035,7 +1084,7 @@ const CaseHistory = () => {
             )}
 
             {groups.length > 0 && (
-              <div className="flex items-center justify-between flex-wrap gap-3 pt-2">
+              <div className="flex items-center justify-between flex-wrap gap-3 pt-3 pb-1 mt-2 border-t border-neutral-100">
                 <div className="text-neutral-500 text-sm">
                   Showing <span className="font-weight-600 text-neutral-700">{startIdx}</span> to{" "}
                   <span className="font-weight-600 text-neutral-700">{endIdx}</span> of{" "}

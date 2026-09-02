@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Paperclip, ExternalLink } from "lucide-react";
+import { ChevronLeft, Paperclip, ExternalLink, User, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetMultiSelectFilter from "../../components/FleetMultiSelectFilter";
 import { FleetDateField, FleetSelect, FleetTextInput, FleetCreatableSelect } from "../../components/fields";
@@ -36,6 +36,7 @@ import {
   type FleetHistoryFilterOptions,
   type FleetHistoryAttachment,
   type CaseHistoryActionType,
+  type CorrespondentOption,
 } from "../../services/fleetHistory";
 
 // ── Action-type presentation (abbreviation + label) ──────────────────────────
@@ -93,6 +94,14 @@ const fileTypeLogo = (name: string): string => {
   return DocLogo;
 };
 
+// Correspondent and Handler often resolve to the same person on emails (handler =
+// the sender's name, correspondent = the sender's email), so don't show both.
+const samePerson = (a?: string | null, b?: string | null): boolean => {
+  if (!a || !b) return false;
+  const x = a.trim().toLowerCase(), y = b.trim().toLowerCase();
+  return x === y || x.split("@")[0] === y.split("@")[0];
+};
+
 const sanitizeEmailHtml = (html = ""): string => {
   if (!html) return "";
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -106,6 +115,25 @@ const sanitizeEmailHtml = (html = ""): string => {
     });
   });
   return doc.body.innerHTML;
+};
+
+// Strip the quoted reply history so each message in a thread shows only its own text.
+const stripQuotedReply = (html = ""): string => {
+  if (!html) return "";
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    doc.querySelectorAll(".gmail_quote, .gmail_quote_container, blockquote, .moz-cite-prefix, .yahoo_quoted").forEach((el) => el.remove());
+    doc.querySelectorAll('[id*="appendonsend"], [id*="divRplyFwdMsg"]').forEach((marker) => {
+      let prev = marker.previousElementSibling;
+      while (prev && prev.tagName === "HR") { const p = prev.previousElementSibling; prev.remove(); prev = p; }
+      let node: ChildNode | null = marker;
+      while (node) { const next = node.nextSibling; node.remove(); node = next; }
+    });
+    const out = doc.body.innerHTML.trim();
+    return out || html;
+  } catch {
+    return html;
+  }
 };
 
 const emailBodyText = (r: FleetHistoryRecord): string => {
@@ -152,10 +180,11 @@ const AttachmentClip = ({ count }: { count: number }) => {
 };
 const PeopleLines = ({ r }: { r: FleetHistoryRecord }) => {
   if (!r.correspondent && !r.handler) return null;
+  const showHandler = r.handler && !samePerson(r.correspondent, r.handler);
   return (
     <div className="flex flex-col gap-0.5 text-xs">
       {r.correspondent && <div className="text-neutral-500">Correspondent: <span className="text-neutral-700">{r.correspondent}</span></div>}
-      {r.handler && <div className="text-neutral-500">Handler: <span className="text-neutral-700">{r.handler}</span></div>}
+      {showHandler && <div className="text-neutral-500">Handler: <span className="text-neutral-700">{r.handler}</span></div>}
     </div>
   );
 };
@@ -196,6 +225,68 @@ const HistoryCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistoryR
   </button>
 );
 
+// VM listing card, styled like the claims Case Activity timeline: the action-type
+// icon sits in a badge on a vertical line, with the record card attached to it.
+// Same data/fields as HistoryCard — only the listing chrome differs.
+const TimelineCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistoryRecord; active: boolean; onClick: () => void; threadCount?: number }) => {
+  const meta = r.action_type ? ACTION_META[r.action_type] : null;
+  const doc = isDoc(r);
+  const email = isEmail(r);
+  const title = doc ? (attachmentsOf(r)[0]?.name || "Document") : "";
+  // Emails show their subject in the grey box (like other records' details), not as a plain title.
+  const body = doc ? "" : email ? (r.subject || "(No subject)") : (r.details || "");
+  // One person on the card (correspondent, else handler) — like the Case Activity
+  // timeline. Showing both looked like a duplicate (same icon, near-same value).
+  const person = r.correspondent || r.handler || "";
+  return (
+    <div className="relative group">
+      {/* Action icon badge, attached to the line to the card's left. */}
+      <div className={`absolute -left-[53px] top-2 w-10 h-10 flex items-center justify-center rounded-md border shadow-sm ${active ? "bg-neutral-900 border-neutral-900" : "bg-neutral-50 border-neutral-200"}`}>
+        {meta && <img src={meta.icon} alt="" className="w-5 h-5 object-contain" style={{ filter: active ? "brightness(0) invert(1)" : "brightness(0)" }} />}
+      </div>
+      <button
+        type="button"
+        onClick={onClick}
+        className={`w-full text-left bg-white border rounded-lg p-4 shadow-sm transition-all flex flex-col ${active ? "border-neutral-400 shadow-md" : "border-neutral-200 hover:shadow-md hover:border-neutral-300"}`}
+      >
+        {/* Top row: action label chip + title, timestamp on the right. */}
+        <div className="flex justify-between items-start gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {meta && <span className="shrink-0 px-2 py-1 bg-neutral-100 rounded text-xs font-weight-600 text-neutral-700">{meta.label}</span>}
+            {doc ? (
+              <span className="inline-flex items-center gap-2 min-w-0">
+                <img src={fileTypeLogo(title)} alt="" className="w-4 h-4 shrink-0 object-contain" />
+                <span className="text-black text-base font-semibold truncate">{title}</span>
+              </span>
+            ) : title ? (
+              <h3 className="text-black text-base font-semibold truncate">{title}</h3>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {threadCount > 1 && (
+              <span title={`${threadCount} messages in this thread`} className="px-2 py-0.5 rounded-full bg-neutral-900 text-white text-xs font-semibold">{threadCount}</span>
+            )}
+            {!doc && threadCount <= 1 && <AttachmentClip count={attachmentsOf(r).length} />}
+            <span className="text-gray-400 text-sm font-light whitespace-nowrap">{fmtPosted(r.posted_at)}</span>
+          </div>
+        </div>
+
+        {/* Details box (calls / notes / diary / movement). */}
+        {body && (
+          <div className="mt-3 bg-neutral-100 rounded-lg p-3 text-sm text-neutral-700 whitespace-pre-line line-clamp-3">{body}</div>
+        )}
+
+        {/* One person — no Correspondent/Handler labels. */}
+        {person && (
+          <div className="mt-3 flex items-center gap-1.5 text-neutral-600 text-xs">
+            <User size={12} className="text-neutral-400" />{person}
+          </div>
+        )}
+      </button>
+    </div>
+  );
+};
+
 // Inline preview of one attachment (page images / Excel-grid / Word-HTML), loaded
 // from the record id + attachment index — used in the stacked thread view.
 const AttachmentPreview = ({ recordId, index, name, url }: { recordId: number | string; index: number; name: string; url?: string }) => {
@@ -225,7 +316,6 @@ const AttachmentPreview = ({ recordId, index, name, url }: { recordId: number | 
   useEffect(() => () => { if (blob) URL.revokeObjectURL(blob.url); }, [blob]);
   return (
     <div className="w-full flex flex-col gap-2">
-      <div className="text-neutral-800 text-sm font-semibold">Attachment : {name}</div>
       {loading && <Spinner />}
       {pages?.type === "pdf" && pages.pages?.map((pg) => (
         <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
@@ -261,14 +351,20 @@ const AttachmentTabs = ({ atts }: { atts: { recordId: number | string; index: nu
   const cur = atts[Math.min(sel, atts.length - 1)];
   return (
     <div className="w-full flex flex-col gap-3">
-      {atts.length > 1 && (
+      {atts.length > 1 ? (
         <div className="flex items-center gap-3 flex-wrap">
           {atts.map((a, i) => (
             <button key={i} type="button" onClick={() => setSel(i)}
-              className={`text-sm rounded-sm ${i === sel ? "px-4 py-1 bg-neutral-900 text-white" : "text-neutral-700 hover:underline"}`}>
+              className={`inline-flex items-center gap-1.5 text-sm rounded-sm ${i === sel ? "px-4 py-1 bg-neutral-900 text-white" : "text-neutral-700 hover:underline"}`}>
+              <img src={fileTypeLogo(a.name)} alt="" className={`w-4 h-4 shrink-0 object-contain ${i === sel ? "brightness-0 invert" : ""}`} />
               {a.name}
             </button>
           ))}
+        </div>
+      ) : (
+        <div className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-800">
+          <img src={fileTypeLogo(cur.name)} alt="" className="w-4 h-4 shrink-0 object-contain" />
+          {cur.name}
         </div>
       )}
       <AttachmentPreview recordId={cur.recordId} index={cur.index} name={cur.name} url={cur.url} />
@@ -326,7 +422,7 @@ const RecordDetail = ({ r, threadMessages, onEmailAction }: { r: FleetHistoryRec
     }
   };
 
-  const shell = "grow-[2] min-w-0 basis-0 min-h-[calc(100vh-220px)] px-10 py-6 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-300 flex flex-col gap-4";
+  const shell = "grow-[2] min-w-0 basis-0 min-h-0 h-full overflow-y-auto scrollbar-hide px-10 py-6 bg-white rounded-sm outline outline-1 -outline-offset-1 outline-neutral-300 flex flex-col gap-4";
   if (!r) {
     return (
       <div className={shell}>
@@ -344,42 +440,50 @@ const RecordDetail = ({ r, threadMessages, onEmailAction }: { r: FleetHistoryRec
     return (
       <div className={shell}>
         {(loadingIdx !== null || docLoading) && <Spinner />}
-        {threadAtts.length > 0 ? (
-          <div className="flex items-start gap-6">
-            <button type="button" onClick={() => setThreadTab("record")} className={`pb-2 text-sm leading-4 border-b ${threadTab === "record" ? "text-neutral-900 border-neutral-900" : "text-neutral-500 border-transparent"}`}>Email Details</button>
-            <button type="button" onClick={() => setThreadTab("attachments")} className={`pb-2 text-sm leading-4 border-b ${threadTab === "attachments" ? "text-neutral-900 border-neutral-900" : "text-neutral-500 border-transparent"}`}>Attachments</button>
+        {/* Header row: tabs on the left, Reply / Forward (latest message) on the right. */}
+        <div className="flex justify-between items-center gap-3">
+          {threadAtts.length > 0 ? (
+            <div className="flex items-start gap-6">
+              <button type="button" onClick={() => setThreadTab("record")} className={`pb-2 text-sm leading-4 border-b ${threadTab === "record" ? "text-neutral-900 border-neutral-900" : "text-neutral-500 border-transparent"}`}>Email Details</button>
+              <button type="button" onClick={() => setThreadTab("attachments")} className={`pb-2 text-sm leading-4 border-b ${threadTab === "attachments" ? "text-neutral-900 border-neutral-900" : "text-neutral-500 border-transparent"}`}>Attachments</button>
+            </div>
+          ) : (
+            <div className="text-black text-xl font-semibold">Record Detail</div>
+          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {threadMessages[0] && <ReplyForward r={threadMessages[0]} onEmailAction={onEmailAction} />}
           </div>
-        ) : (
-          <div className="text-black text-xl font-semibold">Record Detail</div>
-        )}
+        </div>
         <div className="h-px bg-neutral-200 w-full" />
         {threadAtts.length > 0 && threadTab === "attachments" ? (
-          <div className="overflow-auto">
-            <AttachmentTabs atts={threadAtts} />
-          </div>
+          <AttachmentTabs atts={threadAtts} />
         ) : (
-          <div className="flex flex-col gap-8 overflow-auto">
-            {threadMessages.map((m, i) => (
-              <div key={String(m.id)} className={`flex flex-col gap-2 ${i > 0 ? "pt-6 border-t border-neutral-200" : ""}`}>
-                <div className="flex justify-between items-start gap-3">
-                  <div className="text-sm"><span className="text-neutral-500">Posted: </span><span className="text-neutral-700">{fmtPosted(m.posted_at)}</span></div>
-                  {i === 0 && (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <ReplyForward r={m} onEmailAction={onEmailAction} />
-                      <ActionBadge type={m.action_type} />
-                    </div>
-                  )}
+          <div className="flex flex-col">
+            {threadMessages.map((m, i) => {
+              const p = (m.payload as { from_name?: string; from_email?: string; to?: string[] } | null) || {};
+              const from = p.from_name && p.from_email ? `${p.from_name} <${p.from_email}>` : (p.from_name || p.from_email || m.correspondent || "—");
+              const to = Array.isArray(p.to) ? p.to.filter(Boolean).join(", ") : "";
+              const bodyHtml = (m.payload as { body_html?: string } | null)?.body_html;
+              return (
+                <div key={String(m.id)} className={`py-4 ${i > 0 ? "border-t border-neutral-200" : "pt-0"}`}>
+                  {/* Details, then body — one after another down the thread. */}
+                  <div className="flex flex-col gap-0.5 text-sm">
+                    <div><span className="text-neutral-500">From: </span><span className="text-neutral-800">{from}</span></div>
+                    {to && <div><span className="text-neutral-500">To: </span><span className="text-neutral-800">{to}</span></div>}
+                    {m.subject && <div><span className="text-neutral-500">Subject: </span><span className="text-neutral-800">{m.subject}</span></div>}
+                    {m.correspondent && <div><span className="text-neutral-500">Correspondent: </span><span className="text-neutral-800">{m.correspondent}</span></div>}
+                    {m.handler && !samePerson(m.correspondent, m.handler) && <div><span className="text-neutral-500">Handler: </span><span className="text-neutral-800">{m.handler}</span></div>}
+                    <div className="text-xs text-neutral-400 pt-0.5">{fmtPosted(m.posted_at)}</div>
+                  </div>
+                  <div className="mt-3 text-sm text-neutral-700 leading-relaxed">
+                    {bodyHtml
+                      ? <div className="[&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline"
+                          dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(stripQuotedReply(bodyHtml || "")) }} />
+                      : <div className="whitespace-pre-wrap">{isEmail(m) ? emailBodyText(m) : (m.details || "—")}</div>}
+                  </div>
                 </div>
-                <PeopleLines r={m} />
-                {m.subject && <div className="text-neutral-700 text-sm">Subject : <span className="font-semibold">{m.subject}</span></div>}
-                <div className="pt-2.5 border-t border-neutral-200 min-h-16">
-                  {(m.payload as { body_html?: string } | null)?.body_html
-                    ? <div className="text-sm text-neutral-700 leading-relaxed break-words overflow-x-auto [&_img]:max-w-full [&_table]:max-w-full [&_a]:text-neutral-900 [&_a]:underline"
-                        dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml((m.payload as { body_html?: string }).body_html || "") }} />
-                    : <div className="text-neutral-700 text-sm whitespace-pre-wrap">{isEmail(m) ? emailBodyText(m) : (m.details || "—")}</div>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -422,23 +526,21 @@ const RecordDetail = ({ r, threadMessages, onEmailAction }: { r: FleetHistoryRec
           {(r.correspondent || r.handler) && (
             <div className="text-sm text-neutral-500 flex flex-wrap gap-x-6 gap-y-1">
               {r.correspondent && <span>Correspondent: <span className="text-neutral-700">{r.correspondent}</span></span>}
-              {r.handler && <span>Handler: <span className="text-neutral-700">{r.handler}</span></span>}
+              {r.handler && !samePerson(r.correspondent, r.handler) && <span>Handler: <span className="text-neutral-700">{r.handler}</span></span>}
             </div>
           )}
           {r.subject && <div className="text-neutral-700 text-sm">Subject : <span className="font-semibold">{r.subject}</span></div>}
           <div className="pt-2.5 border-t border-neutral-200 min-h-28">
             {isEmail(r) && (r.payload as { body_html?: string } | null)?.body_html
-              ? <div className="text-sm text-neutral-700 leading-relaxed break-words overflow-x-auto [&_img]:max-w-full [&_table]:max-w-full [&_a]:text-neutral-900 [&_a]:underline"
-                  dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml((r.payload as { body_html?: string }).body_html || "") }} />
+              ? <div className="text-sm text-neutral-700 leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline"
+                  dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(stripQuotedReply((r.payload as { body_html?: string }).body_html || "")) }} />
               : <div className="text-neutral-700 text-sm whitespace-pre-wrap">{isEmail(r) ? emailBodyText(r) : (r.details || "—")}</div>}
           </div>
         </>
       )}
       {/* Attachments tab: file-name line-tabs (2+) + the selected attachment's preview. */}
       {hasAtts && threadTab === "attachments" && (
-        <div className="overflow-auto">
-          <AttachmentTabs atts={singleAtts} />
-        </div>
+        <AttachmentTabs atts={singleAtts} />
       )}
       {/* Document preview — rendered pages / Word-HTML / image. */}
       {doc && (
@@ -479,7 +581,7 @@ const AddRecordForm = ({
   onClose: () => void;
   onSubmit: (payload: { correspondent?: string; handler?: string; subject?: string; details?: string; posted_at?: string; payload?: Record<string, unknown> }) => Promise<void>;
   handlerOptions: string[];
-  correspondentOptions?: string[];
+  correspondentOptions?: CorrespondentOption[];
   defaultCorrespondent?: string;
 }) => {
   const meta = ACTION_META[actionType];
@@ -556,7 +658,7 @@ const AddRecordForm = ({
             label="Correspondent"
             placeholder="Select or type an email"
             value={correspondent}
-            options={correspondentOptions.map((c) => ({ value: c, label: c }))}
+            options={correspondentOptions}
             onChange={setCorrespondent}
             menuPortal
             unsorted
@@ -635,7 +737,7 @@ const FleetHistory = ({
   const [records, setRecords] = useState<FleetHistoryRecord[]>([]);
   const [emails, setEmails] = useState<FleetHistoryRecord[]>([]);
   const [allHandlers, setAllHandlers] = useState<string[]>([]);
-  const [corrOptions, setCorrOptions] = useState<string[]>([]);
+  const [corrOptions, setCorrOptions] = useState<CorrespondentOption[]>([]);
   const [corrDefault, setCorrDefault] = useState<string>("");
   const [filterOptions, setFilterOptions] = useState<FleetHistoryFilterOptions>({ correspondents: [], handlers: [], action_types: [] });
   const [loading, setLoading] = useState(false);
@@ -643,9 +745,10 @@ const FleetHistory = ({
   const [dragOver, setDragOver] = useState(false);
   const [selectedId, setSelectedId] = useState<number | string | null>(null);
   const [emailModal, setEmailModal] = useState<{ mode: "reply" | "forward"; record: FleetHistoryRecord } | null>(null);
-  const [emailSending, setEmailSending] = useState(false);
   const [addType, setAddType] = useState<CaseHistoryActionType | null>(null);
   const [page, setPage] = useState(1);
+  // Expand the detail pane to full width (hides the listing) to read a whole document wide.
+  const [expanded, setExpanded] = useState(false);
 
   const [search, setSearch] = useState("");
   const [actionTypes, setActionTypes] = useState<string[]>([]);
@@ -713,12 +816,13 @@ const FleetHistory = ({
     const isEmailRec = (r: FleetHistoryRecord) =>
       r.action_type === "send_email" || r.action_type === "incoming_email";
     const timeOf = (r: FleetHistoryRecord) => (r.posted_at ? new Date(r.posted_at).getTime() : 0);
+    // One thread per Outlook conversation (its conversationId); if that's missing,
+    // fall back to the normalized subject. Non-email records stay standalone.
     const threadKey = (r: FleetHistoryRecord) => {
       const cid = (r.payload as { conversation_id?: string } | null)?.conversation_id;
       if (cid) return `conv:${cid}`;
       const subj = (r.subject || "")
-        .replace(/^(?:\s*(re|fw|fwd|aw|wg)\s*:\s*)+/i, "")
-        .replace(/\s+/g, " ").trim().toLowerCase();
+        .replace(/^(?:\s*(re|fw|fwd|aw|wg)\s*:\s*)+/i, "").replace(/\s+/g, " ").trim().toLowerCase();
       return subj ? `subj:${subj}` : `id:${r.id}`;
     };
     const map = new Map<string, FleetHistoryRecord[]>();
@@ -733,8 +837,7 @@ const FleetHistory = ({
         const messages = map.get(key)!.slice().sort((a, b) => timeOf(b) - timeOf(a));
         return { key, messages, latest: messages[0], count: messages.length };
       })
-      .sort((a, b) => (b.latest.posted_at ? new Date(b.latest.posted_at).getTime() : 0)
-                    - (a.latest.posted_at ? new Date(a.latest.posted_at).getTime() : 0));
+      .sort((a, b) => timeOf(b.latest) - timeOf(a.latest));
   }, [merged]);
 
   useEffect(() => { if (merged.length && !merged.some((r) => r.id === selectedId)) setSelectedId(merged[0].id); }, [merged, selectedId]);
@@ -744,13 +847,30 @@ const FleetHistory = ({
   const selectedGroup = groups.find((g) => g.messages.some((m) => m.id === selectedId)) || null;
   const totalPages = Math.max(1, Math.ceil(groups.length / PAGE_SIZE));
   const pageGroups = groups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const startIdx = groups.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endIdx = Math.min(page * PAGE_SIZE, groups.length);
+  const pageNumbers = useMemo(() => {
+    const out: (number | "...")[] = [];
+    if (totalPages <= 9) { for (let i = 1; i <= totalPages; i++) out.push(i); return out; }
+    out.push(1);
+    const start = Math.max(2, page - 2), end = Math.min(totalPages - 1, page + 2);
+    if (start > 2) out.push("...");
+    for (let i = start; i <= end; i++) out.push(i);
+    if (end < totalPages - 1) out.push("...");
+    out.push(totalPages);
+    return out;
+  }, [totalPages, page]);
+  // Vehicle Management gets the Case Activity timeline listing; fleet hire keeps cards.
+  const isVM = scope === "vm_cams" || scope === "vm_skyline";
 
   // Every handler is available — not just those already on a record.
   const handlerOptions = Array.from(new Set([...allHandlers, ...filterOptions.handlers]));
   // Correspondent default + options: VM-CAMS gives the claim's client email (default)
   // + Third Party emails; Skyline/fleet give the hirer's driver email (correspondentName).
   const effectiveCorrDefault = corrDefault || correspondentName || "";
-  const effectiveCorrOptions = corrOptions.length ? corrOptions : (correspondentName ? [correspondentName] : []);
+  const effectiveCorrOptions: CorrespondentOption[] = corrOptions.length
+    ? corrOptions
+    : (correspondentName ? [{ label: correspondentName, value: correspondentName }] : []);
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -783,8 +903,11 @@ const FleetHistory = ({
     try {
       const rec = await createFleetHistory(scope, id, { action_type: addType, ...data });
       toast.success("Record added.");
-      setSelectedId(rec.id);
+      // Refresh first, THEN select — otherwise the "default to newest" effect
+      // clobbers the selection because the new record isn't in the list yet.
       await load();
+      setSelectedId(rec.id);
+      setPage(1); // the new record is newest → page 1, so it's visible
       getFleetHistoryFilters(scope, id).then(setFilterOptions).catch(() => {});
     } catch {
       toast.error("Could not add the record.");
@@ -792,7 +915,7 @@ const FleetHistory = ({
   };
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-white font-['Stack_Sans_Headline']">
+    <div className="flex flex-col w-full h-screen overflow-hidden bg-white font-['Stack_Sans_Headline']">
       {loading && records.length === 0 && <Spinner />}
       {importing && <Spinner />}
 
@@ -816,7 +939,7 @@ const FleetHistory = ({
         </div>
       </header>
 
-      <div className="px-10 py-6 flex flex-col gap-5">
+      <div className="px-10 py-6 flex flex-col gap-5 flex-1 min-h-0">
         {/* Search + filters — same widgets as the VM / Skyline listing. */}
         <div className="flex flex-wrap items-center gap-6">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search history" className="w-[491px] max-w-full h-12 px-5 rounded bg-white border border-neutral-200 outline-none text-sm text-neutral-900 placeholder:text-neutral-400 font-light focus:border-neutral-400" />
@@ -851,9 +974,18 @@ const FleetHistory = ({
         </div>
 
         {/* Body: list + detail (60/40) */}
-        <div className="flex items-stretch gap-6">
+        <div className="relative flex items-stretch gap-6 flex-1 min-h-0">
+          {/* Expand handle in the detail pane's top-right corner: widen to full width and back. */}
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            title={expanded ? "Show listing" : "Expand document view"}
+            className="absolute top-2 right-2 z-30 w-7 h-7 rounded bg-white border border-neutral-200 shadow-sm flex items-center justify-center text-neutral-500 hover:text-neutral-900 hover:border-neutral-400"
+          >
+            {expanded ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}
+          </button>
           <div
-            className={`grow-[3] min-w-0 basis-0 min-h-[calc(100vh-220px)] flex flex-col gap-3 relative rounded-lg transition ${dragOver ? "outline outline-2 outline-dashed outline-neutral-500" : ""}`}
+            className={`${expanded ? "hidden" : ""} grow-[3] min-w-0 basis-0 min-h-0 h-full overflow-y-auto scrollbar-hide flex flex-col gap-3 relative rounded-lg transition ${dragOver ? "outline outline-2 outline-dashed outline-neutral-500" : ""}`}
             onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true); }}
             onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
             onDrop={handleDrop}
@@ -861,17 +993,34 @@ const FleetHistory = ({
             {dragOver && <div className="absolute inset-0 z-10 rounded-lg bg-neutral-100/85 flex items-center justify-center text-neutral-700 text-sm pointer-events-none">Drop the Outlook email (.eml / .msg) here</div>}
             {groups.length === 0
               ? (loading ? null : <div className="py-16 text-center text-sm text-neutral-400">No history records yet.</div>)
-              : pageGroups.map((g) => <HistoryCard key={g.key} r={g.latest} threadCount={g.count} active={selectedGroup?.key === g.key} onClick={() => setSelectedId(g.latest.id)} />)}
+              : isVM ? (
+                <div className="relative border-l border-neutral-200 ml-4 pl-10 space-y-6">
+                  {pageGroups.map((g) => <TimelineCard key={g.key} r={g.latest} threadCount={g.count} active={selectedGroup?.key === g.key} onClick={() => setSelectedId(g.latest.id)} />)}
+                </div>
+              ) : pageGroups.map((g) => <HistoryCard key={g.key} r={g.latest} threadCount={g.count} active={selectedGroup?.key === g.key} onClick={() => setSelectedId(g.latest.id)} />)}
 
             {groups.length > 0 && (
-              <div className="sticky bottom-0 mt-auto bg-white border-t border-neutral-100 flex items-center justify-between flex-wrap gap-3 pt-3 pb-2">
+              <div className="mt-2 border-t border-neutral-100 flex items-center justify-between flex-wrap gap-3 pt-3 pb-2">
                 <div className="text-neutral-500 text-sm">
-                  Showing {groups.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, groups.length)} of {groups.length} Entries
+                  Showing <span className="font-semibold text-neutral-700">{startIdx}</span> to{" "}
+                  <span className="font-semibold text-neutral-700">{endIdx}</span> of{" "}
+                  <span className="font-semibold text-neutral-700">{groups.length}</span> Entries
                 </div>
                 <div className="flex items-center gap-1">
-                  <button type="button" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3 py-1.5 text-sm text-neutral-600 disabled:text-neutral-300 hover:text-black">Previous</button>
-                  <span className="px-2 text-sm text-neutral-600">{page} / {totalPages}</span>
-                  <button type="button" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="px-3 py-1.5 text-sm text-neutral-900 disabled:text-neutral-300 hover:text-black">Next</button>
+                  <button type="button" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 text-sm text-neutral-600 disabled:text-neutral-300 hover:text-black">Previous</button>
+                  {pageNumbers.map((n, i) =>
+                    n === "..." ? (
+                      <span key={`e${i}`} className="px-2 text-neutral-400">…</span>
+                    ) : (
+                      <button key={n} type="button" onClick={() => setPage(n)}
+                        className={`w-8 h-8 rounded text-sm ${page === n ? "bg-neutral-900 text-white font-semibold" : "text-neutral-600 hover:bg-neutral-50"}`}>
+                        {n}
+                      </button>
+                    ),
+                  )}
+                  <button type="button" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    className="px-3 py-1.5 text-sm text-neutral-900 disabled:text-neutral-300 hover:text-black">Next</button>
                 </div>
               </div>
             )}
@@ -883,26 +1032,22 @@ const FleetHistory = ({
       {addType && <AddRecordForm actionType={addType} onClose={() => setAddType(null)} onSubmit={createRecord} handlerOptions={handlerOptions} correspondentOptions={effectiveCorrOptions} defaultCorrespondent={effectiveCorrDefault} />}
       {emailModal && (
         <FleetEmailModal
-          mode={emailModal.mode}
-          record={emailModal.record}
-          sending={emailSending}
+          open
           onClose={() => setEmailModal(null)}
-          onSend={async (to, subject, comment, files) => {
-            setEmailSending(true);
-            try {
-              if (emailModal.mode === "reply") {
-                await fleetReplyEmail(scope, id, emailModal.record, comment, files, to, subject);
-              } else {
-                await fleetForwardEmail(scope, id, emailModal.record, to, subject, comment, files);
-              }
-              toast.success(emailModal.mode === "reply" ? "Reply sent." : "Email forwarded.");
-              setEmailModal(null);
-              await load();
-            } catch {
-              toast.error("Could not send the email. The mailbox may need send permission.");
-            } finally {
-              setEmailSending(false);
+          hireId={null}
+          title={emailModal.mode === "reply" ? "Reply" : "Forward"}
+          defaultTo={emailModal.mode === "reply" ? (emailModal.record.correspondent || "") : ""}
+          defaultSubject={(emailModal.mode === "reply" ? "Re: " : "Fwd: ")
+            + (emailModal.record.subject || "").replace(/^(?:\s*(re|fw|fwd)\s*:\s*)+/i, "").trim()}
+          allowAttachments
+          onSent={() => load()}
+          sendOverride={async ({ to, subject, body, files }) => {
+            if (emailModal.mode === "reply") {
+              await fleetReplyEmail(scope, id, emailModal.record, body, files, to, subject);
+            } else {
+              await fleetForwardEmail(scope, id, emailModal.record, to, subject, body, files);
             }
+            return { status: "sent" };
           }}
         />
       )}

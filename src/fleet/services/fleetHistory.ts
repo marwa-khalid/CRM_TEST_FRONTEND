@@ -89,13 +89,18 @@ export const getFleetHistory = async (
 // Correspondent options for the Add Record field: for VM-CAMS, the linked claim's
 // client email (default) + Third Party emails. Empty for Skyline (driver email is
 // supplied from the hire).
+export interface CorrespondentOption { label: string; value: string }
 export const getFleetCorrespondents = async (
   scope: FleetHistoryScope,
   id: number | string,
-): Promise<{ default: string | null; options: string[] }> => {
+): Promise<{ default: string | null; options: CorrespondentOption[] }> => {
   try {
     const { data } = await fleetApi.get(`${base(scope, id)}/correspondents`);
-    return { default: data?.default ?? null, options: Array.isArray(data?.options) ? data.options : [] };
+    const raw = Array.isArray(data?.options) ? data.options : [];
+    // Backend now returns {label,value}; tolerate legacy string[] too.
+    const options: CorrespondentOption[] = raw.map((o: unknown) =>
+      typeof o === "string" ? { label: o, value: o } : (o as CorrespondentOption));
+    return { default: data?.default ?? null, options };
   } catch {
     return { default: null, options: [] };
   }

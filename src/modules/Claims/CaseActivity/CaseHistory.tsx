@@ -354,7 +354,7 @@ const HistoryCard = ({
     <PeopleLines r={r} />
     <div className="self-stretch pt-2.5 border-t border-neutral-200">
       {/* The detail text below the divider sits on a light-blue background. */}
-      <div className="bg-blue-50 rounded-md px-3 py-2">
+      <div className="bg-neutral-100 rounded-md px-3 py-2">
         {isDocRecord(r) && attachmentsOf(r)[0] ? (
           // PP / document record: show the file logo + name on the card.
           <div className="flex items-center gap-2.5">

@@ -233,6 +233,17 @@ const HistoryCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistoryR
         </div>
       )}
     </div>
+    {/* Attachment file names (with logos) — same as the claim history card. */}
+    {!isDoc(r) && attachmentsOf(r).length > 0 && (
+      <div className="self-stretch pt-2.5 flex items-center flex-wrap gap-x-4 gap-y-1">
+        {attachmentsOf(r).map((a, i) => (
+          <span key={i} className="inline-flex items-center gap-1.5 max-w-[220px] text-neutral-700 text-sm">
+            <img src={fileTypeLogo(a.name)} alt="" className="w-4 h-4 shrink-0 object-contain" />
+            <span className="truncate">{a.name}</span>
+          </span>
+        ))}
+      </div>
+    )}
   </button>
 );
 
@@ -287,6 +298,18 @@ const TimelineCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistory
           <div className="mt-3 bg-neutral-100 rounded-lg p-3 text-sm text-neutral-700 whitespace-pre-line line-clamp-3">{body}</div>
         )}
 
+        {/* Attachment file names (with logos) — same as the claim history card. */}
+        {!doc && attachmentsOf(r).length > 0 && (
+          <div className="mt-3 flex items-center flex-wrap gap-x-4 gap-y-1">
+            {attachmentsOf(r).map((a, i) => (
+              <span key={i} className="inline-flex items-center gap-1.5 max-w-[220px] text-neutral-700 text-sm">
+                <img src={fileTypeLogo(a.name)} alt="" className="w-4 h-4 shrink-0 object-contain" />
+                <span className="truncate">{a.name}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* One person — no Correspondent/Handler labels. */}
         {person && (
           <div className="mt-3 flex items-center gap-1.5 text-neutral-600 text-xs">
@@ -300,6 +323,26 @@ const TimelineCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistory
 
 // Inline preview of one attachment (page images / Excel-grid / Word-HTML), loaded
 // from the record id + attachment index — used in the stacked thread view.
+// Zoom controls for a document/attachment preview: the pane stays put, only the
+// document scales (CSS zoom) and scrolls.
+const DocZoom = ({ children }: { children: ReactNode }) => {
+  const [z, setZ] = useState(1);
+  const clamp = (v: number) => Math.min(3, Math.max(0.5, Math.round(v * 100) / 100));
+  const Btn = "w-6 h-6 rounded flex items-center justify-center text-neutral-600 hover:bg-neutral-100 text-base leading-none";
+  return (
+    <div className="w-full">
+      <div className="sticky top-0 z-20 flex justify-end mb-2">
+        <div className="inline-flex items-center gap-0.5 bg-white/95 border border-neutral-200 rounded-md shadow-sm px-1 py-0.5">
+          <button type="button" title="Zoom out" onClick={() => setZ((v) => clamp(v - 0.25))} className={Btn}>−</button>
+          <button type="button" title="Reset zoom" onClick={() => setZ(1)} className="px-1.5 w-11 text-center text-xs text-neutral-600 tabular-nums hover:text-neutral-900">{Math.round(z * 100)}%</button>
+          <button type="button" title="Zoom in" onClick={() => setZ((v) => clamp(v + 0.25))} className={Btn}>+</button>
+        </div>
+      </div>
+      <div className="overflow-auto"><div style={{ zoom: z }}>{children}</div></div>
+    </div>
+  );
+};
+
 const AttachmentPreview = ({ recordId, index, name, url }: { recordId: number | string; index: number; name: string; url?: string }) => {
   const [pages, setPages] = useState<FleetAttachmentPreview | null>(null);
   const [blob, setBlob] = useState<{ url: string; type: string } | null>(null);
@@ -328,25 +371,27 @@ const AttachmentPreview = ({ recordId, index, name, url }: { recordId: number | 
   return (
     <div className="w-full flex flex-col gap-2">
       {loading && <Spinner />}
-      {pages?.type === "pdf" && pages.pages?.map((pg) => (
-        <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
-      ))}
-      {pages?.type === "image" && pages.url && (
-        <img src={pages.url} alt={name} className="w-full h-auto object-contain rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
-      )}
-      {pages?.type === "html" && pages.html && (
-        /\.xlsx?$/i.test(pages.file_name || "") ? (
-          <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
-        ) : (
-          <div className="w-full overflow-x-auto">
-            <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
-              dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
-          </div>
-        )
-      )}
-      {blob && (blob.type.startsWith("image/")
-        ? <img src={blob.url} alt={name} className="w-full h-auto object-contain rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
-        : <iframe src={blob.url} title={name} className="w-full h-[600px] rounded outline outline-1 -outline-offset-1 outline-neutral-200 bg-white" />)}
+      <DocZoom>
+        {pages?.type === "pdf" && pages.pages?.map((pg) => (
+          <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
+        ))}
+        {pages?.type === "image" && pages.url && (
+          <img src={pages.url} alt={name} className="w-full h-auto object-contain rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
+        )}
+        {pages?.type === "html" && pages.html && (
+          /\.xlsx?$/i.test(pages.file_name || "") ? (
+            <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
+          ) : (
+            <div className="w-full overflow-x-auto">
+              <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
+                dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
+            </div>
+          )
+        )}
+        {blob && (blob.type.startsWith("image/")
+          ? <img src={blob.url} alt={name} className="w-full h-auto object-contain rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
+          : <iframe src={blob.url} title={name} className="w-full h-[600px] rounded outline outline-1 -outline-offset-1 outline-neutral-200 bg-white" />)}
+      </DocZoom>
       {!loading && !blob && pages?.type === "unsupported" && (
         <div className="text-xs text-neutral-400">Preview not available.</div>
       )}
@@ -776,21 +821,25 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
       {/* Document preview — rendered pages / Word-HTML / image. */}
       {doc && (
         <div className="flex flex-col items-center gap-2">
-          {docPages?.type === "pdf" && docPages.pages?.map((pg) => (
-            <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded" />
-          ))}
-          {docPages?.type === "image" && docPages.url && (
-            <img src={docPages.url} alt={docPages.file_name || ""} className="w-full h-auto object-contain rounded" />
-          )}
-          {docPages?.type === "html" && docPages.html && (
-            /\.xlsx?$/i.test(docPages.file_name || "") ? (
-              <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
-            ) : (
-              <div className="w-full overflow-x-auto">
-                <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
-                  dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
-              </div>
-            )
+          {(docPages?.type === "pdf" || docPages?.type === "image" || docPages?.type === "html") && (
+            <DocZoom>
+              {docPages?.type === "pdf" && docPages.pages?.map((pg) => (
+                <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded" />
+              ))}
+              {docPages?.type === "image" && docPages.url && (
+                <img src={docPages.url} alt={docPages.file_name || ""} className="w-full h-auto object-contain rounded" />
+              )}
+              {docPages?.type === "html" && docPages.html && (
+                /\.xlsx?$/i.test(docPages.file_name || "") ? (
+                  <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
+                ) : (
+                  <div className="w-full overflow-x-auto">
+                    <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
+                      dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
+                  </div>
+                )
+              )}
+            </DocZoom>
           )}
           {!docLoading && docPages?.type === "unsupported" && (
             <div className="py-8 text-sm text-neutral-400">Preview not available — use the open-in-new-tab option.</div>
@@ -1195,12 +1244,15 @@ const FleetHistory = ({
             onToggle={(v) => setHandlers((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]))}
             onClear={() => setHandlers([])}
           />
-          <div className="flex items-end gap-3 ml-auto">
-            <div className="w-44"><FleetDateField label="Date From" value={dateFrom} onChange={setDateFrom} /></div>
-            <div className="w-44"><FleetDateField label="Date To" value={dateTo} onChange={setDateTo} /></div>
+          <div className="flex flex-col gap-1 ml-auto">
             {(dateFrom || dateTo) && (
-              <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }} className="h-12 text-neutral-400 hover:text-neutral-700 text-sm">Clear</button>
+              <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }}
+                className="self-end text-neutral-800 text-xs font-semibold hover:underline">Clear date filter</button>
             )}
+            <div className="flex items-end gap-3">
+              <div className="w-44"><FleetDateField label="Date From" value={dateFrom} onChange={setDateFrom} /></div>
+              <div className="w-44"><FleetDateField label="Date To" value={dateTo} onChange={setDateTo} /></div>
+            </div>
           </div>
         </div>
 

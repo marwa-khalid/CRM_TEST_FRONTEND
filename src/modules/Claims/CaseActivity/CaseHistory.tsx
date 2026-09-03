@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ChevronLeft, ChevronDown, Paperclip, ExternalLink, ChevronsLeft, ChevronsRight } from "lucide-react";
@@ -386,6 +386,26 @@ const HistoryCard = ({
 
 // Inline preview of one attachment (rendered page images / Excel-grid / Word-HTML),
 // loaded from the record id + attachment index — used in the stacked thread view.
+// Zoom controls for a document/attachment preview: the pane stays put, only the
+// document scales (CSS zoom) and scrolls. Used across all three history sections.
+const DocZoom = ({ children }: { children: ReactNode }) => {
+  const [z, setZ] = useState(1);
+  const clamp = (v: number) => Math.min(3, Math.max(0.5, Math.round(v * 100) / 100));
+  const Btn = "w-6 h-6 rounded flex items-center justify-center text-neutral-600 hover:bg-neutral-100 text-base leading-none";
+  return (
+    <div className="w-full">
+      <div className="sticky top-0 z-20 flex justify-end mb-2">
+        <div className="inline-flex items-center gap-0.5 bg-white/95 border border-neutral-200 rounded-md shadow-sm px-1 py-0.5">
+          <button type="button" title="Zoom out" onClick={() => setZ((v) => clamp(v - 0.25))} className={Btn}>−</button>
+          <button type="button" title="Reset zoom" onClick={() => setZ(1)} className="px-1.5 w-11 text-center text-xs text-neutral-600 tabular-nums hover:text-neutral-900">{Math.round(z * 100)}%</button>
+          <button type="button" title="Zoom in" onClick={() => setZ((v) => clamp(v + 0.25))} className={Btn}>+</button>
+        </div>
+      </div>
+      <div className="overflow-auto"><div style={{ zoom: z }}>{children}</div></div>
+    </div>
+  );
+};
+
 const AttachmentPreview = ({ recordId, index, name, url }: { recordId: number | string; index: number; name: string; url?: string }) => {
   const [pages, setPages] = useState<CaseAttachmentPreview | null>(null);
   const [blob, setBlob] = useState<{ url: string; type: string } | null>(null);
@@ -415,25 +435,27 @@ const AttachmentPreview = ({ recordId, index, name, url }: { recordId: number | 
   return (
     <div className="w-full flex flex-col gap-2">
       {loading && <SpinnerLoader />}
-      {pages?.type === "pdf" && pages.pages?.map((pg) => (
-        <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
-      ))}
-      {pages?.type === "image" && pages.url && (
-        <img src={pages.url} alt={name} className="w-full h-auto object-contain rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
-      )}
-      {pages?.type === "html" && pages.html && (
-        /\.xlsx?$/i.test(pages.file_name || "") ? (
-          <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
-        ) : (
-          <div className="w-full overflow-x-auto">
-            <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
-              dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
-          </div>
-        )
-      )}
-      {blob && (blob.type.startsWith("image/")
-        ? <img src={blob.url} alt={name} className="w-full h-auto object-contain rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
-        : <iframe src={blob.url} title={name} className="w-full h-[600px] rounded outline outline-1 -outline-offset-1 outline-neutral-200 bg-white" />)}
+      <DocZoom>
+        {pages?.type === "pdf" && pages.pages?.map((pg) => (
+          <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
+        ))}
+        {pages?.type === "image" && pages.url && (
+          <img src={pages.url} alt={name} className="w-full h-auto object-contain rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
+        )}
+        {pages?.type === "html" && pages.html && (
+          /\.xlsx?$/i.test(pages.file_name || "") ? (
+            <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
+          ) : (
+            <div className="w-full overflow-x-auto">
+              <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
+                dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
+            </div>
+          )
+        )}
+        {blob && (blob.type.startsWith("image/")
+          ? <img src={blob.url} alt={name} className="w-full h-auto object-contain rounded outline outline-1 -outline-offset-1 outline-neutral-200" />
+          : <iframe src={blob.url} title={name} className="w-full h-[600px] rounded outline outline-1 -outline-offset-1 outline-neutral-200 bg-white" />)}
+      </DocZoom>
       {!loading && !blob && pages?.type === "unsupported" && (
         <div className="text-xs text-neutral-400">Preview not available.</div>
       )}
@@ -805,23 +827,27 @@ const RecordDetail = ({ r, claimId, onCreateNew, onEmailAction, threadMessages, 
   // by document records and by the Attachments tab.
   const renderDocPages = () => (
     <>
-      {docPages?.type === "pdf" && docPages.pages?.map((pg) => (
-        <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded" />
-      ))}
-      {docPages?.type === "image" && docPages.url && (
-        <img src={docPages.url} alt={docPages.file_name || ""} className="w-full h-auto object-contain rounded" />
-      )}
-      {docPages?.type === "html" && docPages.html && (
-        /\.xlsx?$/i.test(docPages.file_name || "") ? (
-          <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
-        ) : (
-          <div className="w-full overflow-x-auto">
-            <div
-              className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
-              dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }}
-            />
-          </div>
-        )
+      {(docPages?.type === "pdf" || docPages?.type === "image" || docPages?.type === "html") && (
+        <DocZoom>
+          {docPages?.type === "pdf" && docPages.pages?.map((pg) => (
+            <img key={pg.page} src={pg.image} alt={`Page ${pg.page}`} className="w-full h-auto object-contain bg-white rounded" />
+          ))}
+          {docPages?.type === "image" && docPages.url && (
+            <img src={docPages.url} alt={docPages.file_name || ""} className="w-full h-auto object-contain rounded" />
+          )}
+          {docPages?.type === "html" && docPages.html && (
+            /\.xlsx?$/i.test(docPages.file_name || "") ? (
+              <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
+            ) : (
+              <div className="w-full overflow-x-auto">
+                <div
+                  className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
+                  dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }}
+                />
+              </div>
+            )
+          )}
+        </DocZoom>
       )}
       {!docLoading && docPages?.type === "unsupported" && (
         <div className="py-8 text-sm text-neutral-400">Preview not available — use “Open in a new tab”.</div>
@@ -1312,10 +1338,16 @@ const CaseHistory = () => {
               />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-neutral-700 text-sm">Date Range</span>
-            <DateField value={dateFrom} onChange={(v) => { setFilterBusy(true); setDateFrom(v); }} placeholder="From" />
-            <DateField value={dateTo} onChange={(v) => { setFilterBusy(true); setDateTo(v); }} placeholder="To" />
+          <div className="flex flex-col items-end gap-1">
+            {(dateFrom || dateTo) && (
+              <button type="button" onClick={() => { setFilterBusy(true); setDateFrom(""); setDateTo(""); }}
+                className="text-blue-500 text-xs font-weight-600 hover:underline">Clear date filter</button>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-700 text-sm">Date Range</span>
+              <DateField value={dateFrom} onChange={(v) => { setFilterBusy(true); setDateFrom(v); }} placeholder="From" />
+              <DateField value={dateTo} onChange={(v) => { setFilterBusy(true); setDateTo(v); }} placeholder="To" />
+            </div>
           </div>
         </div>
 
@@ -1451,11 +1483,19 @@ const CaseHistory = () => {
 // local YYYY-MM-DD (sv-SE) so it never shifts a day in BST.
 const DateField = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => {
   const [open, setOpen] = useState(false);
+  const [alignRight, setAlignRight] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     if (open) document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  // Flip the popup to the right edge when a left-anchored one would run off-screen.
+  useLayoutEffect(() => {
+    if (!open) { setAlignRight(false); return; }
+    const el = popRef.current;
+    if (el && el.getBoundingClientRect().right > (window.innerWidth || document.documentElement.clientWidth) - 8) setAlignRight(true);
   }, [open]);
   return (
     <div className="w-36 relative" ref={ref}>
@@ -1469,7 +1509,7 @@ const DateField = ({ value, onChange, placeholder }: { value: string; onChange: 
         <img src={Vector6} alt="" className="w-4 h-4" />
       </div>
       {open && (
-        <div className="absolute top-full left-0 z-50 mt-1">
+        <div ref={popRef} className={`absolute top-full z-50 mt-1 ${alignRight ? "right-0" : "left-0"}`}>
           <CustomDatePicker
             selectedDate={value ? new Date(`${value}T00:00:00`) : new Date()}
             onDateSelect={(date: Date) => {

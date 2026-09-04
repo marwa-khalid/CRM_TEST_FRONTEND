@@ -183,7 +183,10 @@ const EmailBodyView = ({ r }: { r: CaseHistoryRecord }) => {
 // A logged document record (Payment Pack PDF, etc.) — its detail pane shows only
 // the document (icon + name → click to preview), not a text body.
 const isDocRecord = (r: CaseHistoryRecord): boolean =>
-  (r.payload as { source?: string } | null)?.source === "document";
+  (r.payload as { source?: string } | null)?.source === "document" ||
+  // A Send Letter that carries a generated document (e.g. the Accident Report Form)
+  // is a document too — show its name header + preview, even if source wasn't tagged.
+  (r.action_type === "send_letter" && !emailSource(r) && attachmentsOf(r).length > 0);
 
 const emailMessageId = (r: CaseHistoryRecord): string =>
   ((r.payload as { message_id?: string } | null)?.message_id || "").trim();
@@ -342,11 +345,7 @@ const HistoryCard = ({
         <span className="text-neutral-700">{fmtPosted(r.posted_at)}</span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {threadCount > 1 && (
-          <span title={`${threadCount} messages in this thread`} className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 text-xs font-weight-600">
-            {threadCount}
-          </span>
-        )}
+        {!isDocRecord(r) && attachmentsOf(r).length > 0 && <AttachmentClip count={attachmentsOf(r).length} />}
         <NoteTag r={r} />
         <ActionBadge type={r.action_type} />
       </div>
@@ -444,7 +443,7 @@ const AttachmentPreview = ({ recordId, index, name, url }: { recordId: number | 
         )}
         {pages?.type === "html" && pages.html && (
           /\.xlsx?$/i.test(pages.file_name || "") ? (
-            <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
+            <div className="w-full [&_.scrollbar-hide]:!max-h-none [&_.scrollbar-hide]:!overflow-visible" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
           ) : (
             <div className="w-full overflow-x-auto">
               <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
@@ -837,7 +836,7 @@ const RecordDetail = ({ r, claimId, onCreateNew, onEmailAction, threadMessages, 
           )}
           {docPages?.type === "html" && docPages.html && (
             /\.xlsx?$/i.test(docPages.file_name || "") ? (
-              <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
+              <div className="w-full [&_.scrollbar-hide]:!max-h-none [&_.scrollbar-hide]:!overflow-visible" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
             ) : (
               <div className="w-full overflow-x-auto">
                 <div

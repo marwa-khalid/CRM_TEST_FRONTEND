@@ -92,7 +92,11 @@ const isEmail = (r: FleetHistoryRecord) => ["email", "imported_email"].includes(
 // Reply / Forward are available on every email record (Send Email / Incoming Email).
 const canReplyForward = (r: FleetHistoryRecord) =>
   r.action_type === "send_email" || r.action_type === "incoming_email";
-const isDoc = (r: FleetHistoryRecord) => sourceOf(r) === "document";
+const isDoc = (r: FleetHistoryRecord) =>
+  sourceOf(r) === "document" ||
+  // A Send Letter carrying a generated document (e.g. Accident Report Form) counts
+  // as a document too — show its name header + preview even if source wasn't tagged.
+  (r.action_type === "send_letter" && !isEmail(r) && attachmentsOf(r).length > 0);
 
 const fileTypeLogo = (name: string): string => {
   const ext = (name.split(".").pop() || "").toLowerCase();
@@ -213,10 +217,7 @@ const HistoryCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistoryR
         <span className="text-neutral-700">{fmtPosted(r.posted_at)}</span>
       </div>
       <div className="flex items-center gap-4 shrink-0">
-        {threadCount > 1 && (
-          <span title={`${threadCount} messages in this thread`} className="px-2 py-0.5 rounded-full bg-neutral-900 text-white text-xs font-semibold">{threadCount}</span>
-        )}
-        {!isDoc(r) && threadCount <= 1 && <AttachmentClip count={attachmentsOf(r).length} />}
+        {!isDoc(r) && attachmentsOf(r).length > 0 && <AttachmentClip count={attachmentsOf(r).length} />}
         <ActionBadge type={r.action_type} />
       </div>
     </div>
@@ -285,10 +286,7 @@ const TimelineCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistory
             ) : null}
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            {threadCount > 1 && (
-              <span title={`${threadCount} messages in this thread`} className="px-2 py-0.5 rounded-full bg-neutral-900 text-white text-xs font-semibold">{threadCount}</span>
-            )}
-            {!doc && threadCount <= 1 && <AttachmentClip count={attachmentsOf(r).length} />}
+            {!doc && attachmentsOf(r).length > 0 && <AttachmentClip count={attachmentsOf(r).length} />}
             <span className="text-gray-400 text-sm font-light whitespace-nowrap">{fmtPosted(r.posted_at)}</span>
           </div>
         </div>
@@ -380,7 +378,7 @@ const AttachmentPreview = ({ recordId, index, name, url }: { recordId: number | 
         )}
         {pages?.type === "html" && pages.html && (
           /\.xlsx?$/i.test(pages.file_name || "") ? (
-            <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
+            <div className="w-full [&_.scrollbar-hide]:!max-h-none [&_.scrollbar-hide]:!overflow-visible" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(pages.html) }} />
           ) : (
             <div className="w-full overflow-x-auto">
               <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"
@@ -831,7 +829,7 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
               )}
               {docPages?.type === "html" && docPages.html && (
                 /\.xlsx?$/i.test(docPages.file_name || "") ? (
-                  <div className="w-full" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
+                  <div className="w-full [&_.scrollbar-hide]:!max-h-none [&_.scrollbar-hide]:!overflow-visible" dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(docPages.html) }} />
                 ) : (
                   <div className="w-full overflow-x-auto">
                     <div className="text-xs text-neutral-800 leading-relaxed break-words [&_*]:!max-w-full [&_table]:!w-full [&_td]:break-words [&_img]:!h-auto"

@@ -811,7 +811,7 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
       {(loadingIdx !== null || docLoading) && <Spinner />}
       {/* Header: document records show the file name; email/records with attachments
           show Email Details / Attachments tabs; others show "Record Detail". */}
-      <div className="sticky top-0 z-20 bg-white flex flex-col gap-4 pt-1 pb-1">
+      <div className="sticky -top-6 z-30 bg-white flex flex-col gap-4 -mx-10 px-10 pt-6 pb-3 shadow-[0_2px_0_0_#fff]">
       {doc ? (
         <div className="text-black text-xl font-semibold truncate">Attachment : {attachmentsOf(r)[0]?.name || "Document"}</div>
       ) : hasAtts ? (

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCurrentUser } from "../../../context/AuthContext";
-import { ChevronLeft, Paperclip, ExternalLink, User, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronDown, Paperclip, ExternalLink, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { toast } from "react-toastify";
 import FleetMultiSelectFilter from "../../components/FleetMultiSelectFilter";
 import { FleetDateField, FleetSelect, FleetTextInput, FleetCreatableSelect } from "../../components/fields";
@@ -187,7 +187,7 @@ const ActionBadge = ({ type }: { type: CaseHistoryActionType | null }) => {
 const AttachmentClip = ({ count }: { count: number }) => {
   if (!count) return null;
   return (
-    <span className="relative inline-flex items-center justify-center text-neutral-500 shrink-0" title={`${count} attachment${count === 1 ? "" : "s"}`}>
+    <span className="relative inline-flex items-center justify-center text-neutral-500 shrink-0 mr-3" title={`${count} attachment${count === 1 ? "" : "s"}`}>
       <Paperclip className="w-4 h-4" />
       <span className="absolute -top-2 -right-2 min-w-[15px] h-[15px] px-1 rounded-full bg-neutral-900 text-white text-[9px] leading-none inline-flex items-center justify-center">{count}</span>
     </span>
@@ -248,79 +248,6 @@ const HistoryCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistoryR
   </button>
 );
 
-// VM listing card, styled like the claims Case Activity timeline: the action-type
-// icon sits in a badge on a vertical line, with the record card attached to it.
-// Same data/fields as HistoryCard — only the listing chrome differs.
-const TimelineCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistoryRecord; active: boolean; onClick: () => void; threadCount?: number }) => {
-  const meta = r.action_type ? ACTION_META[r.action_type] : null;
-  const doc = isDoc(r);
-  const email = isEmail(r);
-  const title = doc ? (attachmentsOf(r)[0]?.name || "Document") : "";
-  // Emails show their subject in the grey box (like other records' details), not as a plain title.
-  const body = doc ? "" : email ? (r.subject || "(No subject)") : (r.details || "");
-  // One person on the card (correspondent, else handler) — like the Case Activity
-  // timeline. Showing both looked like a duplicate (same icon, near-same value).
-  const person = r.correspondent || r.handler || "";
-  return (
-    <div className="relative group">
-      {/* Action icon badge, attached to the line to the card's left. */}
-      <div className={`absolute -left-[53px] top-2 w-10 h-10 flex items-center justify-center rounded-md border shadow-sm ${active ? "bg-neutral-900 border-neutral-900" : "bg-neutral-50 border-neutral-200"}`}>
-        {meta && <img src={meta.icon} alt="" className="w-5 h-5 object-contain" style={{ filter: active ? "brightness(0) invert(1)" : "brightness(0)" }} />}
-      </div>
-      <button
-        type="button"
-        onClick={onClick}
-        className={`w-full text-left bg-white border rounded-lg p-4 shadow-sm transition-all flex flex-col ${active ? "border-neutral-400 shadow-md" : "border-neutral-200 hover:shadow-md hover:border-neutral-300"}`}
-      >
-        {/* Top row: action label chip + title, timestamp on the right. */}
-        <div className="flex justify-between items-start gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {meta && <span className="shrink-0 px-2 py-1 bg-neutral-100 rounded text-xs font-weight-600 text-neutral-700">{meta.label}</span>}
-            {doc ? (
-              <span className="inline-flex items-center gap-2 min-w-0">
-                <img src={fileTypeLogo(title)} alt="" className="w-4 h-4 shrink-0 object-contain" />
-                <span className="text-black text-base font-semibold truncate">{title}</span>
-              </span>
-            ) : title ? (
-              <h3 className="text-black text-base font-semibold truncate">{title}</h3>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            {!doc && attachmentsOf(r).length > 0 && <AttachmentClip count={attachmentsOf(r).length} />}
-            <span className="text-gray-400 text-sm font-light whitespace-nowrap">{fmtPosted(r.posted_at)}</span>
-          </div>
-        </div>
-
-        {/* Details box (calls / notes / diary / movement). */}
-        {body && (
-          <div className="mt-3 bg-neutral-100 rounded-lg p-3 text-sm text-neutral-700 whitespace-pre-line line-clamp-3">{body}</div>
-        )}
-
-        {/* Attachment file names (with logos) — same as the claim history card. */}
-        {!doc && attachmentsOf(r).length > 0 && (
-          <div className="mt-3 flex items-center flex-wrap gap-x-4 gap-y-1">
-            {attachmentsOf(r).map((a, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 max-w-[220px] text-neutral-700 text-sm">
-                <img src={fileTypeLogo(a.name)} alt="" className="w-4 h-4 shrink-0 object-contain" />
-                <span className="truncate">{a.name}</span>
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* One person — no Correspondent/Handler labels. */}
-        {person && (
-          <div className="mt-3 flex items-center gap-1.5 text-neutral-600 text-xs">
-            <User size={12} className="text-neutral-400" />{person}
-          </div>
-        )}
-      </button>
-    </div>
-  );
-};
-
-// Inline preview of one attachment (page images / Excel-grid / Word-HTML), loaded
-// from the record id + attachment index — used in the stacked thread view.
 // Zoom controls for a document/attachment preview: the pane stays put, only the
 // document scales (CSS zoom) and scrolls.
 const DocZoom = ({ children }: { children: ReactNode }) => {
@@ -328,7 +255,7 @@ const DocZoom = ({ children }: { children: ReactNode }) => {
   const clamp = (v: number) => Math.min(3, Math.max(0.5, Math.round(v * 100) / 100));
   const Btn = "w-6 h-6 rounded flex items-center justify-center text-neutral-600 hover:bg-neutral-100 text-base leading-none";
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0">
       <div className="sticky top-0 z-20 flex justify-end mb-2">
         <div className="inline-flex items-center gap-0.5 bg-white/95 border border-neutral-200 rounded-md shadow-sm px-1 py-0.5">
           <button type="button" title="Zoom out" onClick={() => setZ((v) => clamp(v - 0.25))} className={Btn}>−</button>
@@ -336,7 +263,7 @@ const DocZoom = ({ children }: { children: ReactNode }) => {
           <button type="button" title="Zoom in" onClick={() => setZ((v) => clamp(v + 0.25))} className={Btn}>+</button>
         </div>
       </div>
-      <div className="overflow-auto"><div style={{ zoom: z }}>{children}</div></div>
+      <div className="w-full min-w-0 overflow-auto"><div style={{ zoom: z }}>{children}</div></div>
     </div>
   );
 };
@@ -537,6 +464,7 @@ const noteMenuItem = "px-3 py-1.5 text-left text-sm hover:bg-neutral-50 whitespa
 
 const FleetNotes = ({ scope, id, activityRef }: { scope: FleetHistoryScope; id: number | string; activityRef: string }) => {
   const { user } = useCurrentUser();
+  const [addOpen, setAddOpen] = useState(false); // the add-note box is behind a CTA; threads always show
   const [notes, setNotes] = useState<HistoryNote[]>([]);
   const [users, setUsers] = useState<HistoryUser[]>([]);
   const [text, setText] = useState("");
@@ -571,12 +499,22 @@ const FleetNotes = ({ scope, id, activityRef }: { scope: FleetHistoryScope; id: 
   return (
     <div className="mt-5 pt-4 border-t border-neutral-200 flex flex-col gap-3">
       {busy && <Spinner />}
-      <div className="flex items-center gap-2">
-        <div className="text-neutral-800 text-sm font-semibold">Notes</div>
-        {loading && <span className="w-3.5 h-3.5 rounded-full border-2 border-neutral-300 border-t-neutral-500 animate-spin" />}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-neutral-800 text-sm font-semibold">
+          Notes{notes.length > 0 ? ` (${notes.length})` : ""}
+          {loading && <span className="w-3 h-3 rounded-full border-2 border-neutral-300 border-t-neutral-500 animate-spin" />}
+        </div>
+        <button type="button" onClick={() => setAddOpen((o) => !o)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-neutral-900 text-white text-xs font-semibold hover:bg-black transition-colors">
+          {addOpen ? "Cancel" : "+ Add New Note"}
+        </button>
       </div>
-      <NoteMentionBox value={text} onChange={setText} users={users} placeholder="Add a note… type @ to tag someone" />
+      {addOpen && (
+      <>
+      <NoteMentionBox value={text} onChange={setText} users={users} placeholder="Add a note… type @ to tag someone" autoFocus />
       <div className="flex justify-end"><button type="button" onClick={addNote} disabled={busy || !text.trim()} className={btn}>Add Note</button></div>
+      </>
+      )}
       {notes.map((n) => (
         <div key={n.id} className="rounded-sm outline outline-1 -outline-offset-1 outline-neutral-200 p-3 flex flex-col gap-2">
           <div className="flex justify-between items-center gap-3">
@@ -607,7 +545,7 @@ const FleetNotes = ({ scope, id, activityRef }: { scope: FleetHistoryScope; id: 
             <div className="text-sm text-neutral-700 leading-relaxed" dangerouslySetInnerHTML={renderNoteText(n.text)} />
           )}
           {(n.replies || []).map((rp) => (
-            <div key={rp.id} className="ml-4 pl-3 border-l-2 border-neutral-100 flex flex-col gap-1">
+            <div key={rp.id} className="ml-9 pl-3 border-l-2 border-neutral-200 flex flex-col gap-1">
               <div className="flex justify-between items-center gap-3">
                 <span className="text-xs text-black font-semibold truncate">{rp.createdByName || "User"}</span>
                 <div className="flex items-center gap-2 shrink-0">
@@ -736,7 +674,7 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
               const to = Array.isArray(p.to) ? p.to.filter(Boolean).join(", ") : "";
               const bodyHtml = (m.payload as { body_html?: string } | null)?.body_html;
               return (
-                <div key={String(m.id)} className={`py-4 ${i > 0 ? "border-t border-neutral-200" : "pt-0"}`}>
+                <div key={String(m.id)} className={`py-4 ${i > 0 ? "mt-3 ml-10 pl-5 border-l-2 border-neutral-200" : "pt-0"}`}>
                   {/* Details, then body — one after another down the thread. */}
                   <div className="flex flex-col gap-0.5 text-sm">
                     <div><span className="text-neutral-500">From: </span><span className="text-neutral-800">{from}</span></div>
@@ -746,9 +684,9 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
                     {m.handler && !samePerson(m.correspondent, m.handler) && <div><span className="text-neutral-500">Handler: </span><span className="text-neutral-800">{m.handler}</span></div>}
                     <div className="text-xs text-neutral-400 pt-0.5">{fmtPosted(m.posted_at)}</div>
                   </div>
-                  <div className="mt-3 text-sm text-neutral-700 leading-relaxed">
+                  <div className="mt-3 text-sm text-neutral-700 leading-relaxed relative">
                     {bodyHtml
-                      ? <div className="[&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline"
+                      ? <div className="[&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline [&_*]:!static [&_*]:!float-none [&_*]:!clear-none"
                           dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(stripQuotedReply(bodyHtml || "")) }} />
                       : <div className="whitespace-pre-wrap">{isEmail(m) ? emailBodyText(m) : (m.details || "—")}</div>}
                   </div>
@@ -803,9 +741,9 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
             </div>
           )}
           {r.subject && <div className="text-neutral-700 text-sm">Subject : <span className="font-semibold">{r.subject}</span></div>}
-          <div className="pt-2.5 border-t border-neutral-200 min-h-28">
+          <div className="pt-2.5 border-t border-neutral-200 min-h-28 relative">
             {isEmail(r) && (r.payload as { body_html?: string } | null)?.body_html
-              ? <div className="text-sm text-neutral-700 leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline"
+              ? <div className="text-sm text-neutral-700 leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline [&_*]:!static [&_*]:!float-none [&_*]:!clear-none"
                   dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(stripQuotedReply((r.payload as { body_html?: string }).body_html || "")) }} />
               : <div className="text-neutral-700 text-sm whitespace-pre-wrap">{isEmail(r) ? emailBodyText(r) : (r.details || "—")}</div>}
           </div>
@@ -1138,8 +1076,6 @@ const FleetHistory = ({
     out.push(totalPages);
     return out;
   }, [totalPages, page]);
-  // Vehicle Management gets the Case Activity timeline listing; fleet hire keeps cards.
-  const isVM = scope === "vm_cams" || scope === "vm_skyline";
 
   // Every handler is available — not just those already on a record.
   const handlerOptions = Array.from(new Set([...allHandlers, ...filterOptions.handlers]));
@@ -1245,7 +1181,7 @@ const FleetHistory = ({
           <div className="flex flex-col gap-1 ml-auto">
             {(dateFrom || dateTo) && (
               <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }}
-                className="self-end text-neutral-800 text-xs font-semibold hover:underline">Clear date filter</button>
+                className="self-end px-3 py-1 rounded-full bg-neutral-900 text-white text-xs font-semibold hover:bg-black transition-colors">Clear date filter</button>
             )}
             <div className="flex items-end gap-3">
               <div className="w-44"><FleetDateField label="Date From" value={dateFrom} onChange={setDateFrom} /></div>
@@ -1274,11 +1210,7 @@ const FleetHistory = ({
             {dragOver && <div className="absolute inset-0 z-10 rounded-lg bg-neutral-100/85 flex items-center justify-center text-neutral-700 text-sm pointer-events-none">Drop the Outlook email (.eml / .msg) here</div>}
             {groups.length === 0
               ? (loading ? null : <div className="py-16 text-center text-sm text-neutral-400">No history records yet.</div>)
-              : isVM ? (
-                <div className="relative border-l border-neutral-200 ml-4 pl-10 space-y-6">
-                  {pageGroups.map((g) => <TimelineCard key={g.key} r={g.latest} threadCount={g.count} active={selectedGroup?.key === g.key} onClick={() => setSelectedId(g.latest.id)} />)}
-                </div>
-              ) : pageGroups.map((g) => <HistoryCard key={g.key} r={g.latest} threadCount={g.count} active={selectedGroup?.key === g.key} onClick={() => setSelectedId(g.latest.id)} />)}
+              : pageGroups.map((g) => <HistoryCard key={g.key} r={g.latest} threadCount={g.count} active={selectedGroup?.key === g.key} onClick={() => setSelectedId(g.latest.id)} />)}
 
             {groups.length > 0 && (
               <div className="mt-2 border-t border-neutral-100 flex items-center justify-between flex-wrap gap-3 pt-3 pb-2">

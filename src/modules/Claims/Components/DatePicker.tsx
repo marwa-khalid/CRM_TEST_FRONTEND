@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import ArrowLeft from '../../../assets/AutoClaim_icon/ArrowLeft.svg'
 import ArrowRight from "../../../assets/AutoClaim_icon/ArrowRight.svg";
 
@@ -70,6 +70,18 @@ const openYears = () => {
   // so the user never has to scroll manually. `scroll-mb-6` leaves breathing
   // room below; `block: "nearest"` means it only scrolls when actually needed.
   const rootRef = useRef<HTMLDivElement>(null);
+  // Anchor to the field's left by default, but flip to right-aligned when the
+  // 384px-wide panel would spill past the right edge of the viewport (e.g. the
+  // "To" date-range field sitting near the right of the screen). Measured before
+  // paint so there's no visible jump.
+  const [alignRight, setAlignRight] = useState(false);
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const viewportW = window.innerWidth || document.documentElement.clientWidth;
+    if (rect.right > viewportW - 8) setAlignRight(true);
+  }, []);
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       const el = rootRef.current;
@@ -86,7 +98,7 @@ const openYears = () => {
   return (
     <div
       ref={rootRef}
-      className="absolute top-14 left-0 z-50 scroll-mb-6 animate-in fade-in zoom-in-95 duration-200"
+      className={`absolute top-14 z-50 scroll-mb-6 animate-in fade-in zoom-in-95 duration-200 ${alignRight ? "right-0" : "left-0"}`}
     >
       {view === "days" ? (
         /* --- DAY PICKER VIEW --- */

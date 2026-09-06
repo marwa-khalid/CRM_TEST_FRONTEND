@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormik } from "formik";
+import { Pencil, Download } from "lucide-react";
 import { toast } from "react-toastify";
 import { getABIBHRCharges, saveABIBHRCharges, generatePaymentPack } from "../../../services/ABIBHRCharges/ABIBHRCharges";
 import { getPlatingTotal, getPlatingCharges } from "../../../services/PlatingCharges/PlatingCharges";
@@ -24,7 +25,7 @@ import ABIHireBreakdownForm from "./ABIHireBreakdownForm";
 import PlatingInvoiceForm from "./PlatingInvoiceForm";
 import CoveringLetterForm from "./CoveringLetterForm";
 import FrontCoverForm from "./FrontCoverForm";
-import { PackSidebar, PackSidebarContext } from "./paymentPackUi";
+import { PackSidebar, PackSidebarContext, PackReadOnlyContext, PackDownloadAllContext } from "./paymentPackUi";
 import HirePeriodValidationForm from "./HirePeriodValidationForm";
 import StorageRecoveryInvoiceForm from "./StorageRecoveryInvoiceForm";
 import { useCurrentUser } from "../../../context/AuthContext";
@@ -236,6 +237,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
   // stay true once a document has been opened (kept mounted, just hidden), so its
   // edits survive switching to another document and back.
   const [activeDoc, setActiveDoc] = useState<string | null>(null);
+  // "edit" = documents are editable; "generate" = read-only review + Download All.
+  const [packMode, setPackMode] = useState<"edit" | "generate">("edit");
 
   // Claim data sourced for the documents (read-only).
   const [policyNumber, setPolicyNumber] = useState("");
@@ -833,6 +836,8 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     <div className="w-full mt-3 flex flex-col justify-start items-start gap-6 bg-white font-['Stack_Sans_Headline']">
       {loading && <SpinnerLoader />}
 
+      <PackReadOnlyContext.Provider value={packMode === "generate"}>
+      <PackDownloadAllContext.Provider value={packMode === "generate" ? { onDownloadAll: handleGeneratePaymentPack, busy: isGenerating } : null}>
       <PackSidebarContext.Provider value={packSidebar}>
       {showFrontCover && (
         <div hidden={activeDoc !== "frontCover"}>
@@ -945,54 +950,30 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
         </div>
       )}
       </PackSidebarContext.Provider>
+      </PackDownloadAllContext.Provider>
+      </PackReadOnlyContext.Provider>
 
       <div className="w-full flex items-center justify-between">
         <h1 className="text-black text-2xl font-weight-600 leading-6">
           ABI &amp; BHR Charges
         </h1>
-        <div className="relative" ref={packMenuRef}>
+        <div className="flex items-center gap-3" ref={packMenuRef}>
+          {/* Edit: open the pack documents fully editable. */}
           <button
             type="button"
-            onClick={async () => {
-              // Open the pack overlay straight away at the first document; the
-              // sidebar handles moving between the rest.
-              await ensurePaymentPackRaisedDate();
-              openPackDoc(PACK_DOCS[0].key);
-            }}
-            disabled={isGenerating}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-100 disabled:bg-blue-100 text-blue-500 text-sm font-weight-500 rounded transition-all"
+            onClick={() => { setPackMode("edit"); openPackDoc(PACK_DOCS[0].key); }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded border border-blue-500 text-blue-500 text-sm font-weight-500 hover:bg-blue-50 transition-all"
           >
-            {isGenerating ? (
-              <>
-                <svg
-                  className="animate-spin w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v8H4z"
-                  />
-                </svg>
-                Generating...
-              </>
-            ) : (
-              <>
-                <img src={Plus} alt="" />
-                Generate Payment Pack
-              </>
-            )}
+            <Pencil size={16} /> Edit Payment Pack
           </button>
-
+          {/* Generate: same documents, read-only, with a Download All option. */}
+          <button
+            type="button"
+            onClick={() => { setPackMode("generate"); openPackDoc(PACK_DOCS[0].key); }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded bg-blue-600 text-white text-sm font-weight-500 hover:bg-blue-700 transition-all"
+          >
+            <Download size={16} /> Generate Payment Pack
+          </button>
         </div>
       </div>
       {/* Section 1: Payment Pack Sent Detail */}

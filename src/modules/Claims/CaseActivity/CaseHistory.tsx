@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { ChevronLeft, ChevronDown, Paperclip, ExternalLink, ChevronsLeft, ChevronsRight } from "lucide-react";
@@ -222,7 +222,7 @@ const shareSubject = (mode: "reply" | "forward", subject: string): string => {
 const AttachmentClip = ({ count }: { count: number }) => {
   if (!count) return null;
   return (
-    <span className="relative inline-flex items-center justify-center text-neutral-500 shrink-0" title={`${count} attachment${count === 1 ? "" : "s"}`}>
+    <span className="relative inline-flex items-center justify-center text-neutral-500 shrink-0 mr-3" title={`${count} attachment${count === 1 ? "" : "s"}`}>
       <Paperclip size={16} />
       <span className="absolute -top-2 -right-2 min-w-[15px] h-[15px] px-1 rounded-full bg-blue-500 text-white text-[9px] leading-none inline-flex items-center justify-center">{count}</span>
     </span>
@@ -353,7 +353,7 @@ const HistoryCard = ({
     <PeopleLines r={r} />
     <div className="self-stretch pt-2.5 border-t border-neutral-200">
       {/* The detail text below the divider sits on a light-blue background. */}
-      <div className="bg-neutral-100 rounded-md px-3 py-2">
+      <div className="bg-neutral-50 rounded-md px-3 py-2">
         {isDocRecord(r) && attachmentsOf(r)[0] ? (
           // PP / document record: show the file logo + name on the card.
           <div className="flex items-center gap-2.5">
@@ -392,7 +392,7 @@ const DocZoom = ({ children }: { children: ReactNode }) => {
   const clamp = (v: number) => Math.min(3, Math.max(0.5, Math.round(v * 100) / 100));
   const Btn = "w-6 h-6 rounded flex items-center justify-center text-neutral-600 hover:bg-neutral-100 text-base leading-none";
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0">
       <div className="sticky top-0 z-20 flex justify-end mb-2">
         <div className="inline-flex items-center gap-0.5 bg-white/95 border border-neutral-200 rounded-md shadow-sm px-1 py-0.5">
           <button type="button" title="Zoom out" onClick={() => setZ((v) => clamp(v - 0.25))} className={Btn}>−</button>
@@ -400,7 +400,7 @@ const DocZoom = ({ children }: { children: ReactNode }) => {
           <button type="button" title="Zoom in" onClick={() => setZ((v) => clamp(v + 0.25))} className={Btn}>+</button>
         </div>
       </div>
-      <div className="overflow-auto"><div style={{ zoom: z }}>{children}</div></div>
+      <div className="w-full min-w-0 overflow-auto"><div style={{ zoom: z }}>{children}</div></div>
     </div>
   );
 };
@@ -618,6 +618,7 @@ const MentionBox = ({
 
 const HistoryNotes = ({ claimId, activityRef }: { claimId: number; activityRef: string }) => {
   const { user } = useCurrentUser();
+  const [addOpen, setAddOpen] = useState(false); // the add-note box is behind a CTA; threads always show
   const [notes, setNotes] = useState<HistoryNote[]>([]);
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [text, setText] = useState("");
@@ -673,15 +674,25 @@ const HistoryNotes = ({ claimId, activityRef }: { claimId: number; activityRef: 
   return (
     <div className="mt-5 pt-4 border-t border-neutral-200 flex flex-col gap-3">
       {busy && <SpinnerLoader />}
-      <div className="flex items-center gap-2">
-        <div className="text-neutral-800 text-sm font-semibold font-['Stack_Sans_Headline']">Notes</div>
-        {loading && <span className="w-3.5 h-3.5 rounded-full border-2 border-neutral-300 border-t-neutral-500 animate-spin" />}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-neutral-800 text-sm font-semibold font-['Stack_Sans_Headline']">
+          Notes{notes.length > 0 ? ` (${notes.length})` : ""}
+          {loading && <span className="w-3 h-3 rounded-full border-2 border-neutral-300 border-t-neutral-500 animate-spin" />}
+        </div>
+        <button type="button" onClick={() => setAddOpen((o) => !o)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-100 text-blue-600 text-xs font-weight-600 hover:bg-blue-200 transition-colors">
+          {addOpen ? "Cancel" : "+ Add New Note"}
+        </button>
       </div>
-      <MentionBox value={text} onChange={setText} users={users} placeholder="Add a note… type @ to tag someone" />
+      {addOpen && (
+      <>
+      <MentionBox value={text} onChange={setText} users={users} placeholder="Add a note… type @ to tag someone" autoFocus />
       <div className="flex justify-end">
         <button type="button" onClick={submitNote} disabled={busy || !text.trim()}
           className="px-4 py-1.5 rounded-sm bg-blue-600 text-white text-xs font-weight-600 hover:bg-blue-700 disabled:opacity-50">Add Note</button>
       </div>
+      </>
+      )}
       {notes.map((n) => (
         <div key={n.id} className="rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 p-3 flex flex-col gap-2">
           <div className="flex justify-between items-center gap-3">
@@ -715,7 +726,7 @@ const HistoryNotes = ({ claimId, activityRef }: { claimId: number; activityRef: 
             <div className="text-sm text-neutral-700 leading-relaxed" dangerouslySetInnerHTML={renderNoteText(n.text)} />
           )}
           {(n.replies || []).map((rp) => (
-            <div key={rp.id} className="ml-4 pl-3 border-l-2 border-neutral-100 flex flex-col gap-1">
+            <div key={rp.id} className="ml-9 pl-3 border-l-2 border-neutral-200 flex flex-col gap-1">
               <div className="flex justify-between items-center gap-3">
                 <span className="text-xs text-black font-weight-600 truncate">{rp.createdByName || "User"}</span>
                 <div className="flex items-center gap-2 shrink-0">
@@ -893,7 +904,7 @@ const RecordDetail = ({ r, claimId, onCreateNew, onEmailAction, threadMessages, 
               const from = p.from_name && p.from_email ? `${p.from_name} <${p.from_email}>` : (p.from_name || p.from_email || m.correspondent || "—");
               const to = Array.isArray(p.to) ? p.to.filter(Boolean).join(", ") : "";
               return (
-                <div key={String(m.id)} className={`py-4 ${i > 0 ? "border-t border-neutral-200" : "pt-0"}`}>
+                <div key={String(m.id)} className={`py-4 ${i > 0 ? "mt-3 ml-10 pl-5 border-l-2 border-neutral-200" : "pt-0"}`}>
                   {/* Details, then body — one after another down the thread. */}
                   <div className="flex flex-col gap-0.5 text-sm font-['Stack_Sans_Headline']">
                     <div><span className="text-neutral-500">From: </span><span className="text-neutral-800">{from}</span></div>
@@ -1340,7 +1351,7 @@ const CaseHistory = () => {
           <div className="flex flex-col items-end gap-1">
             {(dateFrom || dateTo) && (
               <button type="button" onClick={() => { setFilterBusy(true); setDateFrom(""); setDateTo(""); }}
-                className="text-blue-500 text-xs font-weight-600 hover:underline">Clear date filter</button>
+                className="px-3 py-1 rounded-full bg-blue-100 text-blue-600 text-xs font-weight-600 hover:bg-blue-200 transition-colors">Clear date filter</button>
             )}
             <div className="flex items-center gap-2">
               <span className="text-neutral-700 text-sm">Date Range</span>
@@ -1482,20 +1493,15 @@ const CaseHistory = () => {
 // local YYYY-MM-DD (sv-SE) so it never shifts a day in BST.
 const DateField = ({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) => {
   const [open, setOpen] = useState(false);
-  const [alignRight, setAlignRight] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const popRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
     if (open) document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
-  // Flip the popup to the right edge when a left-anchored one would run off-screen.
-  useLayoutEffect(() => {
-    if (!open) { setAlignRight(false); return; }
-    const el = popRef.current;
-    if (el && el.getBoundingClientRect().right > (window.innerWidth || document.documentElement.clientWidth) - 8) setAlignRight(true);
-  }, [open]);
+  // CustomDatePicker positions itself (absolute top-14) relative to this
+  // `relative` field box and auto-flips right when it would run off-screen, so
+  // it always opens directly below the field and stays in view.
   return (
     <div className="w-36 relative" ref={ref}>
       <div
@@ -1508,15 +1514,13 @@ const DateField = ({ value, onChange, placeholder }: { value: string; onChange: 
         <img src={Vector6} alt="" className="w-4 h-4" />
       </div>
       {open && (
-        <div ref={popRef} className={`absolute top-full z-50 mt-1 ${alignRight ? "right-0" : "left-0"}`}>
-          <CustomDatePicker
-            selectedDate={value ? new Date(`${value}T00:00:00`) : new Date()}
-            onDateSelect={(date: Date) => {
-              onChange(date.toLocaleDateString("sv-SE"));
-              setOpen(false);
-            }}
-          />
-        </div>
+        <CustomDatePicker
+          selectedDate={value ? new Date(`${value}T00:00:00`) : new Date()}
+          onDateSelect={(date: Date) => {
+            onChange(date.toLocaleDateString("sv-SE"));
+            setOpen(false);
+          }}
+        />
       )}
     </div>
   );

@@ -37,6 +37,12 @@ export const readonlyCls =
 // PackScreen renders it (from context) as a left column beside the document.
 export type PackDocItem = { key: string; label: string };
 export const PackSidebarContext = React.createContext<React.ReactNode>(null);
+// When true, every editable pack field renders read-only (the "Generate" flow —
+// the user reviews the finished documents rather than editing them).
+export const PackReadOnlyContext = React.createContext<boolean>(false);
+// A "Download all documents together" action, surfaced in the PackScreen header
+// during the Generate flow. Null in the Edit flow.
+export const PackDownloadAllContext = React.createContext<{ onDownloadAll: () => void; busy?: boolean } | null>(null);
 
 export const PackSidebar = ({
   docs, active, onSelect,
@@ -45,24 +51,25 @@ export const PackSidebar = ({
   active: string;
   onSelect: (key: string) => void;
 }) => (
-  <div className="w-72 shrink-0 h-full overflow-auto border-r border-neutral-100 bg-white py-8 px-5 font-['Stack_Sans_Headline']">
-    <h3 className="px-3 mb-4 text-black text-lg font-weight-600 leading-6">Payment Pack</h3>
-    <div className="flex flex-col gap-1">
+  <div className="w-72 shrink-0 h-full overflow-y-auto scrollbar-hide py-8 px-6 font-['Stack_Sans_Headline']">
+    {/* White card on the grey page — same treatment as the form sections on the
+        right (rounded, bordered, white). */}
+    <div className="p-6 rounded-lg border border-neutral-100 bg-white flex flex-col gap-4">
+      <div className="text-neutral-900 text-base font-semibold font-['Stack_Sans_Headline']">Payment Pack</div>
+      <div className="self-stretch h-px bg-blue-200" />
       {docs.map((d) => {
         const isActive = d.key === active;
         return (
-          <button
+          <div
             key={d.key}
-            type="button"
             onClick={() => onSelect(d.key)}
-            className={`w-full text-left px-3 py-2.5 rounded text-sm transition-colors ${
-              isActive
-                ? "bg-blue-50 text-blue-600 font-weight-600"
-                : "text-neutral-700 hover:bg-neutral-50"
-            }`}
+            className="self-stretch inline-flex justify-start items-center gap-3 cursor-pointer group"
           >
-            {d.label}
-          </button>
+            <span className={`size-4 shrink-0 rounded-full ${isActive ? "bg-blue-500" : "border-2 border-blue-200"}`} />
+            <div className={`text-sm leading-4 transition-colors ${isActive ? "text-blue-600 font-medium" : "text-neutral-700 group-hover:text-neutral-900"}`}>
+              {d.label}
+            </div>
+          </div>
         );
       })}
     </div>
@@ -81,6 +88,8 @@ export const PackScreen = ({
   children: React.ReactNode;
 }) => {
   const sidebar = useContext(PackSidebarContext); // persistent doc-switcher, if provided
+  const readOnly = useContext(PackReadOnlyContext);
+  const downloadAll = useContext(PackDownloadAllContext);
   const bodyRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState<"" | "print" | "download" | "email">("");
@@ -217,11 +226,9 @@ export const PackScreen = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-white flex font-['Stack_Sans_Headline']">
-      {/* Persistent sidebar card — jump between pack documents without going back. */}
-      {sidebar}
-      <div className="flex-1 h-full overflow-auto">
-      <div className="sticky top-0 z-10 bg-white px-10 py-5 shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center">
+    <div className="fixed inset-0 z-[200] bg-neutral-100 flex flex-col font-['Stack_Sans_Headline']">
+      {/* Header — full width across the top (per Figma). */}
+      <div className="shrink-0 bg-white px-10 py-5 shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center">
         <div className="flex items-center gap-5">
           <button type="button" onClick={onClose} aria-label="Back" className="text-blue-500 hover:text-blue-600">
             <ChevronLeft size={24} />
@@ -248,16 +255,40 @@ export const PackScreen = ({
               <Mail size={22} />
             </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-10 py-4 rounded border border-blue-500 text-blue-500 text-base font-weight-500 leading-4 hover:bg-blue-50"
-          >
-            Discard
-          </button>
+          {readOnly && downloadAll && (
+            <button
+              type="button"
+              onClick={downloadAll.onDownloadAll}
+              disabled={downloadAll.busy}
+              className="px-8 py-4 rounded bg-blue-600 text-white text-base font-weight-500 leading-4 hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2"
+            >
+              {downloadAll.busy ? "Downloading…" : (<><Download size={18} /> Download All</>)}
+            </button>
+          )}
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-10 py-4 rounded border border-blue-500 text-blue-500 text-base font-weight-500 leading-4 hover:bg-blue-50"
+            >
+              Discard
+            </button>
+          )}
         </div>
       </div>
-      <div ref={bodyRef} className="w-[788px] max-w-full mx-auto py-10 flex flex-col gap-6">{children}</div>
+      {/* Below the header: persistent sidebar + the scrollable document. */}
+      <div className="flex-1 flex min-h-0">
+        {sidebar}
+        <div className="flex-1 h-full overflow-auto">
+          <div
+            ref={bodyRef}
+            className={`w-[788px] max-w-full mx-auto py-10 flex flex-col gap-6 ${
+              readOnly
+                ? "[&_input]:pointer-events-none [&_input]:!bg-neutral-50 [&_select]:pointer-events-none [&_select]:!bg-neutral-50 [&_textarea]:pointer-events-none [&_textarea]:!bg-neutral-50"
+                : ""
+            }`}
+          >{children}</div>
+        </div>
       </div>
 
       {/* Off-screen print document — the actual PDF source when provided. */}
@@ -287,7 +318,7 @@ export const PackScreen = ({
 export const Section = ({
   title, divider = true, children,
 }: { title: string; divider?: boolean; children: React.ReactNode }) => (
-  <section className="self-stretch p-5 rounded-lg border border-neutral-100 flex flex-col gap-4">
+  <section className="self-stretch p-5 rounded-lg border border-neutral-100 bg-white flex flex-col gap-4">
     <h2 className="text-black text-xl font-weight-600 leading-5">{title}</h2>
     {divider && <div className="self-stretch h-px bg-neutral-100" />}
     {children}
@@ -296,12 +327,17 @@ export const Section = ({
 
 export const Text = ({
   label, value, onChange, placeholder = "--", width = "flex-1",
-}: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; width?: string }) => (
-  <div className={`${width} flex flex-col gap-2`}>
-    <span className={labelCls}>{label}</span>
-    <input className={fieldInputCls} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
-  </div>
-);
+}: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; width?: string }) => {
+  const ro = useContext(PackReadOnlyContext);
+  return (
+    <div className={`${width} flex flex-col gap-2`}>
+      <span className={labelCls}>{label}</span>
+      {ro
+        ? <div className={readonlyCls}>{value || "—"}</div>
+        : <input className={fieldInputCls} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />}
+    </div>
+  );
+};
 
 // Local YYYY-MM-DD formatter — avoids the UTC day-shift that toISOString() causes
 // on local-midnight dates.
@@ -318,6 +354,7 @@ export const DateField = ({
 }: { label: string; value: string; onChange: (v: string) => void; width?: string }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const ro = useContext(PackReadOnlyContext);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -327,6 +364,14 @@ export const DateField = ({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  if (ro) {
+    return (
+      <div className={`${width} flex flex-col gap-2`}>
+        <span className={labelCls}>{label}</span>
+        <div className={readonlyCls}>{value || "—"}</div>
+      </div>
+    );
+  }
   return (
     <div className={`${width} flex flex-col gap-2 relative`} ref={ref}>
       <span className={labelCls}>{label}</span>
@@ -351,7 +396,17 @@ export const DateField = ({
 
 export const SelectField = ({
   label, value, onChange, options, placeholder = "Select", width = "flex-1",
-}: { label: string; value: string; onChange: (v: string) => void; options: string[]; placeholder?: string; width?: string }) => (
+}: { label: string; value: string; onChange: (v: string) => void; options: string[]; placeholder?: string; width?: string }) => {
+  const ro = useContext(PackReadOnlyContext);
+  if (ro) {
+    return (
+      <div className={`${width} flex flex-col gap-2`}>
+        <span className={labelCls}>{label}</span>
+        <div className={readonlyCls}>{value || "—"}</div>
+      </div>
+    );
+  }
+  return (
   <div className={`${width} flex flex-col gap-2`}>
     <span className={labelCls}>{label}</span>
     <select
@@ -364,7 +419,8 @@ export const SelectField = ({
       {options.map((o) => <option key={o} value={o}>{o}</option>)}
     </select>
   </div>
-);
+  );
+};
 
 // Read-only derived field (e.g. computed totals).
 export const ReadField = ({

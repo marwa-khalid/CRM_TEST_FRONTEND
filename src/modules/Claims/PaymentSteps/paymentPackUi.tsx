@@ -226,7 +226,7 @@ export const PackScreen = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-neutral-100 flex flex-col font-['Stack_Sans_Headline']">
+    <div className="fixed inset-0 z-[200] bg-white flex flex-col font-['Stack_Sans_Headline']">
       {/* Header — full width across the top (per Figma). */}
       <div className="shrink-0 bg-white px-10 py-5 shadow-[0px_4px_20px_0px_rgba(0,0,0,0.08)] flex justify-between items-center">
         <div className="flex items-center gap-5">

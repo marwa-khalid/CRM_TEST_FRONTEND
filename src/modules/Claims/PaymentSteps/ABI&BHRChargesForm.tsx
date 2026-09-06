@@ -819,9 +819,9 @@ const ABIBHRCharges = ({ paymentFormRef, claimId }: any) => {
     PACK_DOCS.find((d) => d.key === key)?.setShow(true);
     setActiveDoc(key);
   };
-  // Discard closes the whole overlay and unmounts every document (fresh next time).
+  // Close the overlay but keep every opened document MOUNTED (just hidden) so edits
+  // made in Edit mode are preserved and reflected when reopened in Generate mode.
   const closePackDocs = () => {
-    PACK_DOCS.forEach((d) => d.setShow(false));
     setActiveDoc(null);
   };
   const packSidebar = activeDoc ? (

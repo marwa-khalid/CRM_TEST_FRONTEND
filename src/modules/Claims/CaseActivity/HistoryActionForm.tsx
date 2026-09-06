@@ -115,10 +115,11 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
   const phoneByEmail: Record<string, string> = Object.fromEntries(
     correspondents.filter((c) => c.email).map((c) => [c.email as string, c.phone || ""]),
   );
-  // Outgoing call: selecting a correspondent auto-fills its phone number.
+  // Outgoing call: selecting a correspondent types its phone number straight into
+  // the (still editable) Phone Number field, replacing whatever was there.
   const pickOutgoingCorrespondent = (v: string) => {
     setCorrespondent(v);
-    if (phoneByEmail[v]) setPhoneNumber(phoneByEmail[v]); // keep the number as stored (e.g. 0734080118)
+    setPhoneNumber(phoneByEmail[v] || ""); // keep the number as stored (e.g. 0734080118)
   };
 
   // Strip the leading abbreviation (e.g. "CL - Call to Client" → "Call to Client").
@@ -209,7 +210,7 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
       if ((actionType === "send_letter" || actionType === "send_email") && diaryHasContent(diary)) {
         await createCaseHistory(claimId, diaryRecordFrom(diary, handlerName, actionType) as any);
       }
-      toast.success(`${cfg.title} saved to history`);
+      toast.success(actionType === "diary" ? "Diary record saved" : `${cfg.title} saved to history`);
       onCreated(rec);
       onClose();
     } catch {
@@ -278,8 +279,18 @@ const HistoryActionForm = ({ actionType, claimId, caseReference, handlerName, on
               </div>
             )}
           </div>
-          {showCc && <LabeledInput label="CC" value={cc} onChange={setCc} placeholder="cc@email.com" />}
-          {showBcc && <LabeledInput label="BCC" value={bcc} onChange={setBcc} placeholder="bcc@email.com" />}
+          {showCc && (
+            <div className="flex items-end gap-2">
+              <div className="flex-1"><LabeledInput label="CC" value={cc} onChange={setCc} placeholder="cc@email.com" /></div>
+              <button type="button" onClick={() => { setShowCc(false); setCc(""); }} className="h-[52px] px-2 text-neutral-400 hover:text-red-500 text-xl leading-none shrink-0" title="Remove Cc">×</button>
+            </div>
+          )}
+          {showBcc && (
+            <div className="flex items-end gap-2">
+              <div className="flex-1"><LabeledInput label="BCC" value={bcc} onChange={setBcc} placeholder="bcc@email.com" /></div>
+              <button type="button" onClick={() => { setShowBcc(false); setBcc(""); }} className="h-[52px] px-2 text-neutral-400 hover:text-red-500 text-xl leading-none shrink-0" title="Remove Bcc">×</button>
+            </div>
+          )}
           <LabeledInput label="Subject" value={subject} onChange={setSubject} />
           {historyDetailsField()}
           <div className="flex flex-col gap-3">

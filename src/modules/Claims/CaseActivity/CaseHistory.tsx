@@ -187,6 +187,9 @@ const isDocRecord = (r: CaseHistoryRecord): boolean =>
   // A Send Letter that carries a generated document (e.g. the Accident Report Form)
   // is a document too — show its name header + preview, even if source wasn't tagged.
   (r.action_type === "send_letter" && !emailSource(r) && attachmentsOf(r).length > 0);
+// A NOTE action-type record: its own text is the "main note" people reply to.
+const isNoteRecord = (r: CaseHistoryRecord): boolean =>
+  String(r.action_type || "").toLowerCase() === "note";
 
 const emailMessageId = (r: CaseHistoryRecord): string =>
   ((r.payload as { message_id?: string } | null)?.message_id || "").trim();
@@ -400,7 +403,10 @@ const DocZoom = ({ children }: { children: ReactNode }) => {
           <button type="button" title="Zoom in" onClick={() => setZ((v) => clamp(v + 0.25))} className={Btn}>+</button>
         </div>
       </div>
-      <div className="w-full min-w-0 overflow-auto"><div style={{ zoom: z }}>{children}</div></div>
+      {/* Zoom by widening the content box: `w-full` images/grids grow with it and
+          the pane scrolls. (CSS `zoom` scales the box AND its % children together,
+          so a w-full image never visibly changes — this does.) */}
+      <div className="w-full min-w-0 overflow-auto"><div style={{ width: `${z * 100}%` }}>{children}</div></div>
     </div>
   );
 };
@@ -616,7 +622,7 @@ const MentionBox = ({
   );
 };
 
-const HistoryNotes = ({ claimId, activityRef }: { claimId: number; activityRef: string }) => {
+const HistoryNotes = ({ claimId, activityRef, mainNote }: { claimId: number; activityRef: string; mainNote?: { name?: string; role?: string; date?: string; text?: string } }) => {
   const { user } = useCurrentUser();
   const [addOpen, setAddOpen] = useState(false); // the add-note box is behind a CTA; threads always show
   const [notes, setNotes] = useState<HistoryNote[]>([]);
@@ -630,10 +636,18 @@ const HistoryNotes = ({ claimId, activityRef }: { claimId: number; activityRef: 
   const [editNoteText, setEditNoteText] = useState("");
   const [editReplyId, setEditReplyId] = useState<number | null>(null);
   const [editReplyText, setEditReplyText] = useState("");
+  const [mainReplyOpen, setMainReplyOpen] = useState(false); // reply to the record's own note
+  const [mainReplyText, setMainReplyText] = useState("");
+  const [mainReplies, setMainReplies] = useState<HistoryNote[]>([]);
+  const hasMain = !!mainNote;
+  // Replies to the record's OWN note live under their own ref so they always nest
+  // under the main note and stay separate from the "Add New Note" threads below.
+  const mainRef = `${activityRef}-main`;
   const load = useCallback(() => {
     setLoading(true);
     getActivityNotes(activityRef).then((d) => setNotes(Array.isArray(d) ? d : [])).catch(() => setNotes([])).finally(() => setLoading(false));
-  }, [activityRef]);
+    if (hasMain) getActivityNotes(mainRef).then((d) => setMainReplies(Array.isArray(d) ? d : [])).catch(() => setMainReplies([]));
+  }, [activityRef, mainRef, hasMain]);
   useEffect(() => { load(); setReplyingTo(null); setText(""); setEditNoteId(null); setEditReplyId(null); }, [load]);
   useEffect(() => { getUsers().then(({ data }) => setUsers(Array.isArray(data) ? data : [])).catch(() => {}); }, []);
   const mine = (id?: number) => user?.id != null && id != null && Number(id) === Number(user.id);
@@ -649,6 +663,14 @@ const HistoryNotes = ({ claimId, activityRef }: { claimId: number; activityRef: 
       await axiosInstance.post(`/case-activity/claims/${claimId}/activities/${activityRef}/notes`, fd, { headers: { "Content-Type": "multipart/form-data" } });
       setText("");
     }, "Could not add the note.");
+  };
+  const replyToMain = () => {
+    if (!mainReplyText.trim() || !claimId) return;
+    call(async () => {
+      const fd = new FormData(); fd.append("note", mainReplyText.trim());
+      await axiosInstance.post(`/case-activity/claims/${claimId}/activities/${mainRef}/notes`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setMainReplyText(""); setMainReplyOpen(false);
+    }, "Could not post the reply.");
   };
   const submitReply = (noteId: number) => {
     if (!replyText.trim()) return;
@@ -674,6 +696,66 @@ const HistoryNotes = ({ claimId, activityRef }: { claimId: number; activityRef: 
   return (
     <div className="mt-5 pt-4 border-t border-neutral-200 flex flex-col gap-3">
       {busy && <SpinnerLoader />}
+      {/* The record's own note (NOTE action type) — shown as the main note with a
+          Reply option, so people can reply to it (not only start a new thread). */}
+      {mainNote && (
+        <div className="rounded-sm outline outline-1 -outline-offset-1 outline-blue-200 bg-blue-50/40 p-3 flex flex-col gap-2">
+          <div className="flex justify-between items-center gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-500 text-xs font-weight-600 flex items-center justify-center shrink-0">{noteInitials(mainNote.name)}</span>
+              <div className="min-w-0">
+                <div className="text-sm text-black font-weight-500 truncate">{mainNote.name || "Note"}</div>
+                {mainNote.role && <div className="text-xs text-neutral-500 truncate">{mainNote.role}</div>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {mainNote.date && <span className="text-xs text-neutral-400 whitespace-nowrap">{mainNote.date}</span>}
+              <button type="button" onClick={() => { setMainReplyOpen((o) => !o); setMainReplyText(""); }}
+                className="px-3 py-1 rounded bg-blue-100 text-blue-600 text-xs font-weight-600 hover:bg-blue-200">{mainReplyOpen ? "Cancel" : "Reply"}</button>
+            </div>
+          </div>
+          {mainNote.text && <div className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">{mainNote.text}</div>}
+          {/* Replies to the main note — indented under it, like a note thread. */}
+          {mainReplies.map((rp) => (
+            <div key={rp.id} className="ml-9 pl-3 border-l-2 border-neutral-200 flex flex-col gap-1">
+              <div className="flex justify-between items-center gap-3">
+                <span className="text-xs text-black font-weight-500 truncate">{rp.createdByName || "User"}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-neutral-400 whitespace-nowrap">{fmtPosted(rp.createdAt)}</span>
+                  {mine(rp.createdById) && editNoteId !== rp.id && (
+                    <ActionsMenu>
+                      <button type="button" onClick={() => { setEditNoteId(rp.id); setEditNoteText(rp.text || ""); }} className={`${menuItemCls} text-neutral-700`}>Edit</button>
+                      <button type="button" onClick={() => removeNote(rp.id)} className={`${menuItemCls} text-red-500`}>Delete</button>
+                    </ActionsMenu>
+                  )}
+                </div>
+              </div>
+              {editNoteId === rp.id ? (
+                <div className="flex flex-col gap-2">
+                  <MentionBox value={editNoteText} onChange={setEditNoteText} users={users} placeholder="Edit reply" autoFocus />
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => setEditNoteId(null)} className="px-3 py-1.5 rounded-sm text-neutral-500 text-xs hover:bg-neutral-100">Cancel</button>
+                    <button type="button" onClick={() => saveNoteEdit(rp.id)} disabled={busy} className="px-4 py-1.5 rounded-sm bg-blue-600 text-white text-xs font-weight-600 hover:bg-blue-700 disabled:opacity-50">Save</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-neutral-700 leading-relaxed" dangerouslySetInnerHTML={renderNoteText(rp.text)} />
+              )}
+            </div>
+          ))}
+          {mainReplyOpen && (
+            <div className="ml-9 flex flex-col gap-2">
+              <MentionBox value={mainReplyText} onChange={setMainReplyText} users={users} placeholder="Reply to this note… @ to tag" autoFocus />
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => { setMainReplyOpen(false); setMainReplyText(""); }} className="px-3 py-1.5 rounded-sm text-neutral-500 text-xs hover:bg-neutral-100">Cancel</button>
+                <button type="button" onClick={replyToMain} disabled={busy || !mainReplyText.trim()} className="px-4 py-1.5 rounded-sm bg-blue-600 text-white text-xs font-weight-600 hover:bg-blue-700 disabled:opacity-50">Reply</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Notes count + Add New Note on one row; the typing box and the thread
+          listing follow below it. */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-neutral-800 text-sm font-semibold font-['Stack_Sans_Headline']">
           Notes{notes.length > 0 ? ` (${notes.length})` : ""}
@@ -1005,16 +1087,26 @@ const RecordDetail = ({ r, claimId, onCreateNew, onEmailAction, threadMessages, 
                 Subject : <span className="font-semibold">{r.subject}</span>
               </div>
             )}
-            <div className="pt-2.5 border-t border-neutral-200 min-h-32">
-              {emailSource(r) ? (
-                <EmailBodyView r={r} />
-              ) : (
-                <div className="text-neutral-700 text-sm font-['Stack_Sans_Headline'] whitespace-pre-wrap">
-                  {r.details || "—"}
-                </div>
-              )}
-            </div>
-            {r && claimId && <HistoryNotes claimId={claimId} activityRef={activityRefFor(r)} />}
+            {/* Non-note records show their body here; a NOTE record's own text is
+                rendered inside HistoryNotes as the main note (with a Reply option). */}
+            {!isNoteRecord(r) && (
+              <div className="pt-2.5 border-t border-neutral-200 min-h-32">
+                {emailSource(r) ? (
+                  <EmailBodyView r={r} />
+                ) : (
+                  <div className="text-neutral-700 text-sm font-['Stack_Sans_Headline'] whitespace-pre-wrap">
+                    {r.details || "—"}
+                  </div>
+                )}
+              </div>
+            )}
+            {r && claimId && (
+              <HistoryNotes
+                claimId={claimId}
+                activityRef={activityRefFor(r)}
+                mainNote={isNoteRecord(r) ? { name: r.handler || r.correspondent || "Note", date: fmtPosted(r.posted_at), text: r.details || "" } : undefined}
+              />
+            )}
           </>
         )}
 
@@ -1351,7 +1443,7 @@ const CaseHistory = () => {
           <div className="flex flex-col items-end gap-1">
             {(dateFrom || dateTo) && (
               <button type="button" onClick={() => { setFilterBusy(true); setDateFrom(""); setDateTo(""); }}
-                className="px-3 py-1 rounded-full bg-blue-100 text-blue-600 text-xs font-weight-600 hover:bg-blue-200 transition-colors">Clear date filter</button>
+                className="px-3 py-1 rounded-md bg-blue-100 text-blue-600 text-xs font-weight-600 hover:bg-blue-200 transition-colors">Clear date filter</button>
             )}
             <div className="flex items-center gap-2">
               <span className="text-neutral-700 text-sm">Date Range</span>

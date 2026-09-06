@@ -97,6 +97,9 @@ const isDoc = (r: FleetHistoryRecord) =>
   // A Send Letter carrying a generated document (e.g. Accident Report Form) counts
   // as a document too — show its name header + preview even if source wasn't tagged.
   (r.action_type === "send_letter" && !isEmail(r) && attachmentsOf(r).length > 0);
+// A NOTE action-type record: its own text is the "main note" people reply to.
+const isNoteRecord = (r: FleetHistoryRecord) =>
+  String(r.action_type || "").toLowerCase() === "note";
 
 const fileTypeLogo = (name: string): string => {
   const ext = (name.split(".").pop() || "").toLowerCase();
@@ -223,16 +226,19 @@ const HistoryCard = ({ r, active, onClick, threadCount = 1 }: { r: FleetHistoryR
     </div>
     <PeopleLines r={r} />
     <div className="self-stretch pt-2.5 border-t border-neutral-200">
-      {isDoc(r) && attachmentsOf(r)[0] ? (
-        <div className="flex items-center gap-2.5">
-          <img src={fileTypeLogo(attachmentsOf(r)[0].name)} alt="" className="w-5 h-5 shrink-0 object-contain" />
-          <span className="text-neutral-700 text-sm truncate">{attachmentsOf(r)[0].name}</span>
-        </div>
-      ) : (
-        <div className={`text-neutral-700 text-sm ${isEmail(r) ? "truncate" : ""}`}>
-          {isEmail(r) ? (r.subject || "(No subject)") : (r.details || "—")}
-        </div>
-      )}
+      {/* The detail text below the divider sits on a light-grey background. */}
+      <div className="bg-neutral-50 rounded-md px-3 py-2">
+        {isDoc(r) && attachmentsOf(r)[0] ? (
+          <div className="flex items-center gap-2.5">
+            <img src={fileTypeLogo(attachmentsOf(r)[0].name)} alt="" className="w-5 h-5 shrink-0 object-contain" />
+            <span className="text-neutral-700 text-sm truncate">{attachmentsOf(r)[0].name}</span>
+          </div>
+        ) : (
+          <div className={`text-neutral-700 text-sm ${isEmail(r) ? "truncate" : ""}`}>
+            {isEmail(r) ? (r.subject || "(No subject)") : (r.details || "—")}
+          </div>
+        )}
+      </div>
     </div>
     {/* Attachment file names (with logos) — same as the claim history card. */}
     {!isDoc(r) && attachmentsOf(r).length > 0 && (
@@ -263,7 +269,10 @@ const DocZoom = ({ children }: { children: ReactNode }) => {
           <button type="button" title="Zoom in" onClick={() => setZ((v) => clamp(v + 0.25))} className={Btn}>+</button>
         </div>
       </div>
-      <div className="w-full min-w-0 overflow-auto"><div style={{ zoom: z }}>{children}</div></div>
+      {/* Zoom by widening the content box: `w-full` images/grids grow with it and
+          the pane scrolls. (CSS `zoom` scales the box AND its % children together,
+          so a w-full image never visibly changes — this does.) */}
+      <div className="w-full min-w-0 overflow-auto"><div style={{ width: `${z * 100}%` }}>{children}</div></div>
     </div>
   );
 };
@@ -462,7 +471,7 @@ const NoteMenu = ({ children }: { children: ReactNode }) => (
 );
 const noteMenuItem = "px-3 py-1.5 text-left text-sm hover:bg-neutral-50 whitespace-nowrap";
 
-const FleetNotes = ({ scope, id, activityRef }: { scope: FleetHistoryScope; id: number | string; activityRef: string }) => {
+const FleetNotes = ({ scope, id, activityRef, mainNote }: { scope: FleetHistoryScope; id: number | string; activityRef: string; mainNote?: { name?: string; role?: string; date?: string; text?: string } }) => {
   const { user } = useCurrentUser();
   const [addOpen, setAddOpen] = useState(false); // the add-note box is behind a CTA; threads always show
   const [notes, setNotes] = useState<HistoryNote[]>([]);
@@ -476,10 +485,18 @@ const FleetNotes = ({ scope, id, activityRef }: { scope: FleetHistoryScope; id: 
   const [editNoteText, setEditNoteText] = useState("");
   const [editReplyId, setEditReplyId] = useState<number | null>(null);
   const [editReplyText, setEditReplyText] = useState("");
+  const [mainReplyOpen, setMainReplyOpen] = useState(false); // reply to the record's own note
+  const [mainReplyText, setMainReplyText] = useState("");
+  const [mainReplies, setMainReplies] = useState<HistoryNote[]>([]);
+  const hasMain = !!mainNote;
+  // Replies to the record's OWN note live under their own ref so they always nest
+  // under the main note and stay separate from the "Add New Note" threads below.
+  const mainRef = `${activityRef}-main`;
   const load = useCallback(() => {
     setLoading(true);
     getScopeNotes(activityRef).then(setNotes).catch(() => setNotes([])).finally(() => setLoading(false));
-  }, [activityRef]);
+    if (hasMain) getScopeNotes(mainRef).then(setMainReplies).catch(() => setMainReplies([]));
+  }, [activityRef, mainRef, hasMain]);
   useEffect(() => { load(); setReplyingTo(null); setText(""); setEditNoteId(null); setEditReplyId(null); }, [load]);
   useEffect(() => { getHistoryUsers().then(setUsers).catch(() => {}); }, []);
   const mine = (uid?: number) => user?.id != null && uid != null && Number(uid) === Number(user.id);
@@ -488,6 +505,10 @@ const FleetNotes = ({ scope, id, activityRef }: { scope: FleetHistoryScope; id: 
     try { await fn(); load(); } catch { toast.error(err); } finally { setBusy(false); }
   };
   const addNote = () => text.trim() && run(async () => { await createScopeNote(scope, id, activityRef, text.trim()); setText(""); }, "Could not add the note.");
+  const replyToMain = () => mainReplyText.trim() && run(async () => {
+    await createScopeNote(scope, id, mainRef, mainReplyText.trim());
+    setMainReplyText(""); setMainReplyOpen(false);
+  }, "Could not post the reply.");
   const sendReply = (nid: number) => replyText.trim() && run(async () => { await replyScopeNote(nid, replyText.trim()); setReplyText(""); setReplyingTo(null); }, "Could not post the reply.");
   const saveNote = (nid: number) => editNoteText.trim() && run(async () => { await editScopeNote(nid, editNoteText.trim()); setEditNoteId(null); }, "Could not update the note.");
   const saveReply = (rid: number) => editReplyText.trim() && run(async () => { await editScopeReply(rid, editReplyText.trim()); setEditReplyId(null); }, "Could not update the reply.");
@@ -499,6 +520,59 @@ const FleetNotes = ({ scope, id, activityRef }: { scope: FleetHistoryScope; id: 
   return (
     <div className="mt-5 pt-4 border-t border-neutral-200 flex flex-col gap-3">
       {busy && <Spinner />}
+      {/* The record's own note (NOTE action type) — shown as the main note with a
+          Reply option, so people can reply to it (not only start a new thread). */}
+      {mainNote && (
+        <div className="rounded-sm outline outline-1 -outline-offset-1 outline-neutral-300 bg-neutral-50 p-3 flex flex-col gap-2">
+          <div className="flex justify-between items-center gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-7 h-7 rounded-full bg-neutral-900 text-white text-xs font-semibold flex items-center justify-center shrink-0">{noteInitials(mainNote.name)}</span>
+              <div className="min-w-0">
+                <div className="text-sm text-black font-semibold truncate">{mainNote.name || "Note"}</div>
+                {mainNote.role && <div className="text-xs text-neutral-500 truncate">{mainNote.role}</div>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {mainNote.date && <span className="text-xs text-neutral-400 whitespace-nowrap">{mainNote.date}</span>}
+              <button type="button" onClick={() => { setMainReplyOpen((o) => !o); setMainReplyText(""); }} className="px-3 py-1 rounded bg-neutral-900 text-white text-xs font-semibold hover:bg-black">{mainReplyOpen ? "Cancel" : "Reply"}</button>
+            </div>
+          </div>
+          {mainNote.text && <div className="text-sm text-neutral-700 leading-relaxed whitespace-pre-wrap">{mainNote.text}</div>}
+          {/* Replies to the main note — indented under it, like a note thread. */}
+          {mainReplies.map((rp) => (
+            <div key={rp.id} className="ml-9 pl-3 border-l-2 border-neutral-200 flex flex-col gap-1">
+              <div className="flex justify-between items-center gap-3">
+                <span className="text-xs text-black font-semibold truncate">{rp.createdByName || "User"}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-neutral-400 whitespace-nowrap">{fmtPosted(rp.createdAt)}</span>
+                  {mine(rp.createdById) && editNoteId !== rp.id && (
+                    <NoteMenu>
+                      <button type="button" onClick={() => { setEditNoteId(rp.id); setEditNoteText(rp.text || ""); }} className={`${noteMenuItem} text-neutral-700`}>Edit</button>
+                      <button type="button" onClick={() => delNote(rp.id)} className={`${noteMenuItem} text-red-500`}>Delete</button>
+                    </NoteMenu>
+                  )}
+                </div>
+              </div>
+              {editNoteId === rp.id ? (
+                <div className="flex flex-col gap-2">
+                  <NoteMentionBox value={editNoteText} onChange={setEditNoteText} users={users} placeholder="Edit reply" autoFocus />
+                  <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditNoteId(null)} className={cancel}>Cancel</button><button type="button" onClick={() => saveNote(rp.id)} disabled={busy} className={btn}>Save</button></div>
+                </div>
+              ) : (
+                <div className="text-sm text-neutral-700 leading-relaxed" dangerouslySetInnerHTML={renderNoteText(rp.text)} />
+              )}
+            </div>
+          ))}
+          {mainReplyOpen && (
+            <div className="ml-9 flex flex-col gap-2">
+              <NoteMentionBox value={mainReplyText} onChange={setMainReplyText} users={users} placeholder="Reply to this note… @ to tag" autoFocus />
+              <div className="flex justify-end gap-2"><button type="button" onClick={() => { setMainReplyOpen(false); setMainReplyText(""); }} className={cancel}>Cancel</button><button type="button" onClick={replyToMain} disabled={busy || !mainReplyText.trim()} className={btn}>Reply</button></div>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Notes count + Add New Note on one row; the typing box and the thread
+          listing follow below it. */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-neutral-800 text-sm font-semibold">
           Notes{notes.length > 0 ? ` (${notes.length})` : ""}
@@ -684,9 +758,9 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
                     {m.handler && !samePerson(m.correspondent, m.handler) && <div><span className="text-neutral-500">Handler: </span><span className="text-neutral-800">{m.handler}</span></div>}
                     <div className="text-xs text-neutral-400 pt-0.5">{fmtPosted(m.posted_at)}</div>
                   </div>
-                  <div className="mt-3 text-sm text-neutral-700 leading-relaxed relative">
+                  <div className="mt-3 text-sm text-neutral-700 leading-relaxed flow-root">
                     {bodyHtml
-                      ? <div className="[&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline [&_*]:!static [&_*]:!float-none [&_*]:!clear-none"
+                      ? <div className="flow-root [&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline"
                           dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(stripQuotedReply(bodyHtml || "")) }} />
                       : <div className="whitespace-pre-wrap">{isEmail(m) ? emailBodyText(m) : (m.details || "—")}</div>}
                   </div>
@@ -741,13 +815,22 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
             </div>
           )}
           {r.subject && <div className="text-neutral-700 text-sm">Subject : <span className="font-semibold">{r.subject}</span></div>}
-          <div className="pt-2.5 border-t border-neutral-200 min-h-28 relative">
-            {isEmail(r) && (r.payload as { body_html?: string } | null)?.body_html
-              ? <div className="text-sm text-neutral-700 leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline [&_*]:!static [&_*]:!float-none [&_*]:!clear-none"
-                  dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(stripQuotedReply((r.payload as { body_html?: string }).body_html || "")) }} />
-              : <div className="text-neutral-700 text-sm whitespace-pre-wrap">{isEmail(r) ? emailBodyText(r) : (r.details || "—")}</div>}
-          </div>
-          <FleetNotes scope={scope} id={id} activityRef={activityRefFor(r)} />
+          {/* Non-note records show their body here; a NOTE record's own text is
+              rendered inside FleetNotes as the main note (with a Reply option). */}
+          {!isNoteRecord(r) && (
+            <div className="pt-2.5 border-t border-neutral-200 min-h-28 overflow-hidden">
+              {isEmail(r) && (r.payload as { body_html?: string } | null)?.body_html
+                ? <div className="text-sm text-neutral-700 leading-relaxed overflow-hidden [&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline"
+                    dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(stripQuotedReply((r.payload as { body_html?: string }).body_html || "")) }} />
+                : <div className="text-neutral-700 text-sm whitespace-pre-wrap">{isEmail(r) ? emailBodyText(r) : (r.details || "—")}</div>}
+            </div>
+          )}
+          <FleetNotes
+            scope={scope}
+            id={id}
+            activityRef={activityRefFor(r)}
+            mainNote={isNoteRecord(r) ? { name: r.handler || r.correspondent || "Note", date: fmtPosted(r.posted_at), text: r.details || "" } : undefined}
+          />
         </>
       )}
       {/* Attachments tab: file-name line-tabs (2+) + the selected attachment's preview. */}
@@ -788,6 +871,9 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
 
 // Diary action options — same set as the Claims diary form.
 const DIARY_ACTIONS = ["Make a Call", "Send Email", "Letter", "SMS", "Other"];
+// Call types mirror the Claims outgoing/incoming call form.
+const CALL_TYPES = ["CL - Call to Client", "CI - Call to Insurer", "CS - Call to Solicitor", "CE - Call to Engineer", "CTP - Call to Third Party", "Other"];
+const callTypeText = (ct: string) => (ct || "").replace(/^\s*[A-Za-z]+\s*-\s*/, "").trim();
 
 // ── Add Record slide-over (lean form covering the 6 types) ───────────────────
 const AddRecordForm = ({
@@ -805,8 +891,11 @@ const AddRecordForm = ({
   const [handler, setHandler] = useState("");
   const [subject, setSubject] = useState("");
   const [details, setDetails] = useState("");
+  const [callType, setCallType] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [saving, setSaving] = useState(false);
   const showSubject = ["send_letter", "send_email"].includes(actionType);
+  const isCall = actionType === "incoming_call" || actionType === "outgoing_call";
   const isDiary = actionType === "diary";
   // Diary-specific fields (match the Claims diary form).
   const [diaryAction, setDiaryAction] = useState("");
@@ -848,9 +937,11 @@ const AddRecordForm = ({
         // For a diary the assigned user is the record's handler (task assignee).
         handler: (isDiary ? assignedUser.trim() : handler.trim()) || undefined,
         subject: showSubject ? subject.trim() || undefined : undefined,
-        details: details.trim() || undefined,
+        details: details.trim() || callTypeText(callType) || undefined,
         payload: isDiary
           ? { action: diaryAction || null, assigned_to: assignedUser || null, due_date: dueDate || null, due_time: dueTime || null }
+          : isCall
+          ? { call_type: callType || null, ...(actionType === "outgoing_call" ? { phone_number: phoneNumber || null } : {}) }
           : undefined,
       });
       onClose();
@@ -888,6 +979,19 @@ const AddRecordForm = ({
               onChange={setHandler}
               menuPortal
             />
+          )}
+          {isCall && (
+            <FleetSelect
+              label="Call Type"
+              placeholder="Select call type"
+              value={callType}
+              options={CALL_TYPES.map((c) => ({ value: c, label: c }))}
+              onChange={setCallType}
+              menuPortal
+            />
+          )}
+          {actionType === "outgoing_call" && (
+            <FleetTextInput label="Phone Number" value={phoneNumber} onChange={setPhoneNumber} placeholder="0734080118" />
           )}
           {isDiary && (
             <>
@@ -1181,7 +1285,7 @@ const FleetHistory = ({
           <div className="flex flex-col gap-1 ml-auto">
             {(dateFrom || dateTo) && (
               <button type="button" onClick={() => { setDateFrom(""); setDateTo(""); }}
-                className="self-end px-3 py-1 rounded-full bg-neutral-900 text-white text-xs font-semibold hover:bg-black transition-colors">Clear date filter</button>
+                className="self-end px-3 py-1 rounded-md bg-neutral-900 text-white text-xs font-semibold hover:bg-black transition-colors">Clear date filter</button>
             )}
             <div className="flex items-end gap-3">
               <div className="w-44"><FleetDateField label="Date From" value={dateFrom} onChange={setDateFrom} /></div>

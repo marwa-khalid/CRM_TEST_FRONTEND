@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCurrentUser } from "../../../context/AuthContext";
 import { ChevronLeft, ChevronDown, Paperclip, ExternalLink, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { toast } from "react-toastify";
@@ -133,6 +133,35 @@ const sanitizeEmailHtml = (html = ""): string => {
     });
   });
   return doc.body.innerHTML;
+};
+
+// Render an email body flowy (no inner scrollbar) but never let it overlap what
+// follows: some emails position content out of normal flow, so their box collapses
+// and the content paints over the Notes. `position:relative` makes any out-of-flow
+// content resolve against THIS box, and we grow the box to the content's true height
+// (measured after paint) — so the pane scrolls, the email reads top-to-bottom, and
+// the Notes sit cleanly underneath.
+const EmailBody = ({ html }: { html: string }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [minH, setMinH] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => { if (ref.current) setMinH(ref.current.scrollHeight); };
+    measure();
+    // Re-measure once images have loaded (they change the height).
+    el.querySelectorAll("img").forEach((img) => {
+      if (!img.complete) img.addEventListener("load", measure, { once: true });
+    });
+  }, [html]);
+  return (
+    <div
+      ref={ref}
+      style={{ position: "relative", minHeight: minH }}
+      className="text-sm text-neutral-700 leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 };
 
 // Strip the quoted reply history so each message in a thread shows only its own text.
@@ -782,6 +811,7 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
       {(loadingIdx !== null || docLoading) && <Spinner />}
       {/* Header: document records show the file name; email/records with attachments
           show Email Details / Attachments tabs; others show "Record Detail". */}
+      <div className="sticky top-0 z-20 bg-white flex flex-col gap-4 pt-1 pb-1">
       {doc ? (
         <div className="text-black text-xl font-semibold truncate">Attachment : {attachmentsOf(r)[0]?.name || "Document"}</div>
       ) : hasAtts ? (
@@ -805,6 +835,7 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
         </div>
       )}
       <div className="h-px bg-neutral-200 w-full" />
+      </div>
       {!doc && (!hasAtts || threadTab === "record") && (
         <>
           <div className="text-sm"><span className="text-neutral-500">Posted: </span><span className="text-neutral-700">{fmtPosted(r.posted_at)}</span></div>
@@ -818,10 +849,9 @@ const RecordDetail = ({ r, scope, id, threadMessages, onEmailAction }: { r: Flee
           {/* Non-note records show their body here; a NOTE record's own text is
               rendered inside FleetNotes as the main note (with a Reply option). */}
           {!isNoteRecord(r) && (
-            <div className="pt-2.5 border-t border-neutral-200 min-h-28 overflow-hidden">
+            <div className="pt-2.5 border-t border-neutral-200 min-h-28">
               {isEmail(r) && (r.payload as { body_html?: string } | null)?.body_html
-                ? <div className="text-sm text-neutral-700 leading-relaxed overflow-hidden [&_img]:max-w-full [&_img]:h-auto [&_a]:text-neutral-900 [&_a]:underline"
-                    dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(stripQuotedReply((r.payload as { body_html?: string }).body_html || "")) }} />
+                ? <EmailBody html={sanitizeEmailHtml(stripQuotedReply((r.payload as { body_html?: string }).body_html || ""))} />
                 : <div className="text-neutral-700 text-sm whitespace-pre-wrap">{isEmail(r) ? emailBodyText(r) : (r.details || "—")}</div>}
             </div>
           )}
@@ -991,7 +1021,7 @@ const AddRecordForm = ({
             />
           )}
           {actionType === "outgoing_call" && (
-            <FleetTextInput label="Phone Number" value={phoneNumber} onChange={setPhoneNumber} placeholder="0734080118" />
+            <FleetTextInput label="Phone Number" value={phoneNumber} onChange={setPhoneNumber} />
           )}
           {isDiary && (
             <>
